@@ -1,9 +1,11 @@
 package net.papierkorb2292.command_crafter
 import net.fabricmc.api.ModInitializer
-@Suppress("UNUSED")
-object CommandCrafter: ModInitializer {
-    private const val MOD_ID = "command_crafter"
+import org.apache.logging.log4j.LogManager
+
+class CommandCrafter: ModInitializer {
+    private val modId = "command_crafter"
+    private val logger = LogManager.getLogger(modId)
     override fun onInitialize() {
-        println("Loaded CommandCrafter!")
+        logger.info("Loaded CommandCrafter!")
     }
 }
