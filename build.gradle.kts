@@ -16,6 +16,8 @@ dependencies {
     modImplementation("net.fabricmc", "fabric-language-kotlin", project.extra["fabric_language_kotlin_version"] as String)
     implementation("com.github.LlamaLad7:MixinExtras:0.1.1")
     annotationProcessor("com.github.LlamaLad7:MixinExtras:0.1.1")
+    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
 }
 tasks {
     val javaVersion = JavaVersion.toVersion((project.extra["java_version"] as String).toInt())
