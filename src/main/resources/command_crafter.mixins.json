@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "net.papierkorb2292.command_crafter.mixin",
+  "compatibilityLevel": "JAVA_${java}",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "mixins": []
+}

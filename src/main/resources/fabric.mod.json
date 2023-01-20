@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "command_crafter",
+  "version": "${version}",
+
+  "name": "Command Crafter",
+  "description": "The CommandCrafter Minecraft mod aims to provide useful tools for command development",
+  "authors": [
+    "Papierkorb2292"
+  ],
+  "contact": {
+    "homepage": "https://fabricmc.net/",
+    "sources": "https://github.com/FabricMC/fabric-example-mod"
+  },
+
+  "license": "CC0-1.0",
+  "icon": "assets/command_crafter/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.papierkorb2292.command_crafter.CommandCrafter"
+    ],
+    "client": [
+      "net.papierkorb2292.command_crafter.client.ClientCommandCrafter"
+    ],
+    "preLaunch": [
+      "com.llamalad7.mixinextras.MixinExtrasBootstrap::init"
+    ]
+  },
+  "mixins": [
+    "command_crafter.mixins.json",
+    "client_command_crafter.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.14.11",
+    "fabric-api": "*",
+    "minecraft": "~1.19.3",
+    "java": ">=17"
+  },
+  "suggests": {
+  }
+}
