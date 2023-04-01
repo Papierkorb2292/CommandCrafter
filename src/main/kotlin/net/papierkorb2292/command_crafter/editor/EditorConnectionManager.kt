@@ -24,7 +24,7 @@ class EditorConnectionManager {
         if(server is LanguageClientAware) {
             server.connect(launcher.remoteProxy)
         }
-        launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "TEST FROM MINECRAFT"))
+        launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
         launcher.startListening()
     }
 }
