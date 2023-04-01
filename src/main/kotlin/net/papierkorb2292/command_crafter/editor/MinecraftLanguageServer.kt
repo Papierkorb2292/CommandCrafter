@@ -17,7 +17,7 @@ class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, 
                 change = TextDocumentSyncKind.Incremental
                 openClose = true
             })
-        }, ServerInfo()))
+        }, ServerInfo("Minecraft Language Server")))
     }
 
     override fun shutdown(): CompletableFuture<Any> {
