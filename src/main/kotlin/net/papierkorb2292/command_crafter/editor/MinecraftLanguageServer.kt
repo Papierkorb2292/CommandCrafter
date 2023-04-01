@@ -2,15 +2,22 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.jsonrpc.RemoteEndpoint
 import org.eclipse.lsp4j.services.*
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, LanguageClientAware {
+class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, LanguageClientAware, RemoteEndpointAware {
 
     private var client: LanguageClient? = null
+    private var remote: RemoteEndpoint? = null
 
     override fun initialize(params: InitializeParams?): CompletableFuture<InitializeResult> {
-        return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities(), ServerInfo()))
+        return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
+            setTextDocumentSync(TextDocumentSyncOptions().apply {
+                change = TextDocumentSyncKind.Incremental
+                openClose = true
+            })
+        }, ServerInfo()))
     }
 
     override fun shutdown(): CompletableFuture<Any> {
@@ -57,5 +64,9 @@ class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, 
 
     override fun connect(client: LanguageClient?) {
         this.client = client
+    }
+
+    override fun setRemoteEndpoint(remote: RemoteEndpoint) {
+        this.remote = remote
     }
 }
