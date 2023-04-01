@@ -1,9 +1,40 @@
 {
   "required": true,
   "package": "net.papierkorb2292.command_crafter.mixin",
-  "compatibilityLevel": "JAVA_${java}",
+  "compatibilityLevel": "JAVA_17",
   "injectors": {
     "defaultRequire": 1
   },
-  "mixins": []
+  "mixins": [
+    "WorldSavePathAccessor",
+    "parser.ArgumentCommandNodeMixin",
+    "parser.CommandDispatcherMixin",
+    "parser.CommandFunctionAccessor",
+    "parser.CommandFunctionMixin",
+    "parser.CommandNodeMixin",
+    "parser.CommandSourceMixin",
+    "parser.CoordinateArgumentMixin",
+    "parser.DatapackCommandMixin",
+    "parser.DataPackContentsAccessor",
+    "parser.DataPackContentsMixin",
+    "parser.DirectoryResourcePackAccessor",
+    "parser.FunctionLoaderMixin",
+    "parser.LiteralCommandNodeMixin",
+    "parser.LootConditionManagerMixin",
+    "parser.LootFunctionManagerMixin",
+    "parser.LootManagerMixin",
+    "parser.StringReaderAccessor",
+    "parser.TagEntryAccessor",
+    "parser.ZipResourcePackAccessor",
+    "parser.vanilla_improved.ArgumentCommandNodeMixin",
+    "parser.vanilla_improved.BlockArgumentParserMixin",
+    "parser.vanilla_improved.BlockPredicateArgumentTypeMixin",
+    "parser.vanilla_improved.CommandFunctionArgumentTypeAccessor",
+    "parser.vanilla_improved.CommandFunctionArgumentTypeMixin",
+    "parser.vanilla_improved.EntityArgumentTypeMixin",
+    "parser.vanilla_improved.EntitySelectorOptionsMixin",
+    "parser.vanilla_improved.ItemPredicateArgumentTypeMixin",
+    "parser.vanilla_improved.ItemStringReaderMixin",
+    "parser.vanilla_improved.TagKeyAccessor"
+  ]
 }
