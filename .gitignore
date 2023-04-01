@@ -38,3 +38,10 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# editor extension
+
+dist
+node_modules
+.vscode-test/
+*.vsix
