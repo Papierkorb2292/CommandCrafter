@@ -11,6 +11,8 @@ class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, 
     private var client: LanguageClient? = null
     private var remote: RemoteEndpoint? = null
 
+    private val openFiles: MutableMap<String, OpenFile> = HashMap()
+
     override fun initialize(params: InitializeParams?): CompletableFuture<InitializeResult> {
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
             setTextDocumentSync(TextDocumentSyncOptions().apply {
@@ -31,15 +33,22 @@ class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, 
     override fun getTextDocumentService(): TextDocumentService {
         return object : TextDocumentService {
             override fun didOpen(params: DidOpenTextDocumentParams?) {
-
+                if(params == null) return
+                val textDocument = params.textDocument
+                openFiles[textDocument.uri] = OpenFile(textDocument.uri, textDocument.text)
             }
 
             override fun didChange(params: DidChangeTextDocumentParams?) {
-
+                if(params == null) return
+                val file = openFiles[params.textDocument.uri] ?: return
+                for(change in params.contentChanges) {
+                    file.applyContentChange(change)
+                }
             }
 
             override fun didClose(params: DidCloseTextDocumentParams?) {
-
+                if(params == null) return
+                openFiles.remove(params.textDocument.uri)
             }
 
             override fun didSave(params: DidSaveTextDocumentParams?) {
