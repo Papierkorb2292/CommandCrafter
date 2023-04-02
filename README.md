@@ -7,7 +7,7 @@ useful tools for command development.
 
 ## Features in development
 
-- A Minecraft Command Editor (Waiting for "Parser extension")
+- A Minecraft Command Editor
 - Parser extension (e.g. languages and preprocessor-like directives)
 
 ## Planned features
