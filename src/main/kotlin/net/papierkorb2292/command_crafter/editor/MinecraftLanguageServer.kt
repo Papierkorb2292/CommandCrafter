@@ -1,15 +1,14 @@
 package net.papierkorb2292.command_crafter.editor
 
-import net.papierkorb2292.command_crafter.CommandCrafter
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.jsonrpc.RemoteEndpoint
+import org.eclipse.lsp4j.jsonrpc.Endpoint
 import org.eclipse.lsp4j.services.*
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, LanguageClientAware, RemoteEndpointAware {
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection) : LanguageServer, LanguageClientAware, RemoteEndpointAware {
 
     private var client: LanguageClient? = null
-    private var remote: RemoteEndpoint? = null
+    private var remote: Endpoint? = null
 
     private val openFiles: MutableMap<String, OpenFile> = HashMap()
 
@@ -75,7 +74,7 @@ class MinecraftLanguageServer(commandCrafter: CommandCrafter) : LanguageServer, 
         this.client = client
     }
 
-    override fun setRemoteEndpoint(remote: RemoteEndpoint) {
+    override fun setRemoteEndpoint(remote: Endpoint) {
         this.remote = remote
     }
 }

@@ -6,17 +6,31 @@ import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Future
 import java.util.function.Supplier
 
-class EditorConnectionManager {
+class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAcceptor, private val serverSupplier: Supplier<LanguageServer>) {
 
-    fun startServer(connectionAcceptor: EditorConnectionAcceptor, serverSupplier: Supplier<LanguageServer>) {
-        CompletableFuture.runAsync {
+    private val connections: MutableList<Future<Void>> = ArrayList()
+    private var connector: CompletableFuture<Void>? = null
+
+    fun startServer() {
+        stopServer()
+        connector = CompletableFuture.runAsync {
             while(connectionAcceptor.isRunning()) {
                 val editorConnection = connectionAcceptor.accept()
                 handleConnection(editorConnection, serverSupplier.get())
             }
         }
+    }
+
+    fun stopServer() {
+        connector?.cancel(true)
+        connector = null
+        for(connection in connections) {
+            connection.cancel(true)
+        }
+        connections.clear()
     }
 
     private fun handleConnection(connection: EditorConnection, server: LanguageServer) {
@@ -28,6 +42,6 @@ class EditorConnectionManager {
             server.setRemoteEndpoint(launcher.remoteEndpoint)
         }
         launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
-        launcher.startListening()
+        connections.add(launcher.startListening())
     }
 }
