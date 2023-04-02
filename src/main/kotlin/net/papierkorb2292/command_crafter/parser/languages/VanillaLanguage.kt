@@ -137,6 +137,7 @@ enum class VanillaLanguage : Language {
                     if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(reader)
                 }
                 else reader.skip()
+                reader.currentLine++
                 return parseResults
             } catch (commandSyntaxException: CommandSyntaxException) {
                 throw IllegalArgumentException("Whilst parsing command on line ${reader.currentLine}: ${commandSyntaxException.message}")

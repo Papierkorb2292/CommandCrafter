@@ -72,7 +72,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
     private ImmutableMap.Builder<Identifier, CommandFunction> command_crafter$addResourcesCreatedByFunctions(ImmutableMap.Builder<Identifier, CommandFunction> builder, Pair<Map<Identifier, List<TagGroupLoader.TrackedEntry>>, HashMap<Identifier, CompletableFuture<CommandFunction>>> intermediate) throws ExecutionException, InterruptedException {
         for(var function : intermediate.getSecond().values()) {
             if(function.isCompletedExceptionally()) continue;
-            ParsedResourceCreator.Companion.createResources(function.get(), builder, intermediate.getSecond(), intermediate.getFirst());
+            ParsedResourceCreator.Companion.createResources(function.get(), builder, intermediate.getFirst());
         }
         return builder;
     }

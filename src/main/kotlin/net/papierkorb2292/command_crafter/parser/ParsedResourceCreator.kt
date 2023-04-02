@@ -21,7 +21,6 @@ import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.CommandFunctionAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.DataPackContentsAccessor
 import java.util.*
-import java.util.concurrent.CompletableFuture
 import java.util.stream.Collectors
 
 class ParsedResourceCreator(
@@ -46,17 +45,13 @@ class ParsedResourceCreator(
         fun createResources(
             function: CommandFunction,
             functionMapBuilder: ImmutableMap.Builder<Identifier, CommandFunction>,
-            parsedFunctionFutures: Map<Identifier, CompletableFuture<CommandFunction>>,
             functionTagMap: MutableMap<Identifier, MutableList<TagGroupLoader.TrackedEntry>>,
         ) {
-            val parsedFunctions: MutableMap<Identifier, CommandFunction> = HashMap()
-            parsedFunctionFutures.mapValuesTo(parsedFunctions) { it.value.get() }
             val resourceCreator = (function as ParseResourceContainer).`command_crafter$getResourceCreator`() ?: return
             var resourceId = 0
             for(childFunction in resourceCreator.functions) {
                 val functionId = resourceCreator.getPath(resourceId++)
                 functionMapBuilder.put(functionId, childFunction.resource)
-                parsedFunctions[functionId] = childFunction.resource
                 childFunction.idSetter(functionId)
                 (childFunction.resource as CommandFunctionAccessor).setId(functionId)
             }
