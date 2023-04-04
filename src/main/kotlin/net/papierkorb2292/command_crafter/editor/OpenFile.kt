@@ -4,7 +4,7 @@ import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 
 data class OpenFile(val uri: String, val lines: MutableList<StringBuffer>) {
     companion object {
-        val LINE_SEPARATOR = "\r\n"
+        const val LINE_SEPARATOR = "\r\n"
     }
 
     constructor(uri: String, content: String)
