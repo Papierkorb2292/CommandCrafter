@@ -10,10 +10,14 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
+import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
+import org.eclipse.lsp4j.SemanticTokens
 import java.io.BufferedReader
 import java.util.*
 import java.util.stream.Collectors
@@ -24,9 +28,22 @@ class CommandCrafter: ModInitializer {
         val LOGGER = LogManager.getLogger(MOD_ID)
     }
     override fun onInitialize() {
+        initializeEditor()
         initializeParser()
         LOGGER.info("Loaded CommandCrafter!")
     }
+
+    private fun initializeEditor() =
+        MinecraftLanguageServer.addAnalyzer(object: MinecraftLanguageServer.FileAnalyseHandler {
+            override fun canHandle(file: OpenFile) = file.uri.endsWith(".mcfunction")
+            override fun fillSemanticTokens(file: OpenFile, tokens: SemanticTokens, server: MinecraftServerConnection) {
+                //val lines = LinkedList<String>()
+                //file.lines.mapTo(lines) { it.toString() }
+                //val resourceCreator =  ParsedResourceCreator()
+                //val reader = DirectiveStringReader(lines, server.commandDispatcher, )
+                TODO("Not yet implemented")
+            }
+        })
 
     private fun initializeParser() {
         Registry.register(LanguageManager.LANGUAGES, Identifier(VanillaLanguage.ID), VanillaLanguage::parseArguments)
