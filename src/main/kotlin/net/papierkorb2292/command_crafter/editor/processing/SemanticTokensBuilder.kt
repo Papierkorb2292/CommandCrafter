@@ -24,7 +24,7 @@ class SemanticTokensBuilder {
         data.add(length)
         data.add(type.id)
         data.add(modifiers)
-        lastCursor = cursor + length
+        lastCursor = cursor
     }
 
     fun fill(tokens: SemanticTokens, resultId: String? = null) {
