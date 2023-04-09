@@ -7,6 +7,8 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 
 object LanguageManager {
@@ -39,6 +41,20 @@ object LanguageManager {
             }
         }
         return result.toTypedArray()
+    }
+
+    fun createSemanticTokens(reader: DirectiveStringReader<SemanticResourceCreator>, source: ServerCommandSource, tokens: SemanticTokensBuilder, closure: Language.LanguageClosure) {
+        val closureDepth = reader.closureDepth
+        reader.enterClosure(closure)
+        while(reader.closureDepth != closureDepth) {
+            reader.currentLanguage?.createSemanticTokens(reader, source, tokens)
+            reader.updateLanguage()
+            if(!reader.canRead() && reader.closureDepth != closureDepth) {
+                //It doesn't matter for semantic tokens,
+                //but make sure there's no endless loop
+                break
+            }
+        }
     }
 
     init {

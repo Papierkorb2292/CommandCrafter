@@ -8,13 +8,15 @@ import java.util.*
 import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
-    private var lines: Queue<String>,
+    var lines: List<String>,
     val dispatcher: CommandDispatcher<ServerCommandSource>,
     val resourceCreator: ResourceCreator
 ) : StringReader(""),
     LineAwareStringReader {
 
     private val directiveManager = DirectiveManager()
+
+    private var nextLine: Int = 0
 
     var readCharacters = 0
     var absoluteCursor
@@ -24,11 +26,11 @@ class DirectiveStringReader<out ResourceCreator>(
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
         while (!super.canRead(length)) {
-            if(lines.isEmpty()) {
+            if(nextLine >= lines.size) {
                 return false
             }
-            setString(string.plus(lines.remove()))
-            if(lines.isNotEmpty()) {
+            setString(string.plus(lines[nextLine++]))
+            if(nextLine < lines.size) {
                 setString(string.plus('\n'))
             }
         }
@@ -60,7 +62,7 @@ class DirectiveStringReader<out ResourceCreator>(
 
     fun toCompleted() {
         setString(string.substring(0, cursor))
-        lines.clear()
+        nextLine = lines.size
     }
 
     fun readLine(): String {
@@ -147,7 +149,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun copy() : DirectiveStringReader<ResourceCreator> {
-        return DirectiveStringReader(LinkedList(lines), dispatcher, resourceCreator).also {
+        return DirectiveStringReader(lines, dispatcher, resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
             it.currentLine = currentLine
@@ -155,17 +157,16 @@ class DirectiveStringReader<out ResourceCreator>(
             it.updateLanguage()
             it.readCharacters = readCharacters
             it.currentIndentation = currentIndentation
+            it.nextLine = nextLine
         }
     }
 
-    @Suppress("MemberVisibilityCanBePrivate")
     fun copyFrom(other: DirectiveStringReader<*>) {
         cursor = other.cursor
         readCharacters = other.readCharacters
         setString(other.string)
         currentLine = other.currentLine
-        lines.clear()
-        lines.addAll(other.lines)
+        nextLine = other.nextLine
     }
 
     fun skipTo(other: DirectiveStringReader<*>) {

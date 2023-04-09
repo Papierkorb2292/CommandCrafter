@@ -21,6 +21,8 @@ public abstract class MinecraftServerMixin implements MinecraftServerConnection 
 
     @Shadow public abstract CommandManager getCommandManager();
 
+    @Shadow public abstract int getFunctionPermissionLevel();
+
     private @Nullable EditorConnectionManager command_crafter$editorConnectionManager;
 
     @Inject(

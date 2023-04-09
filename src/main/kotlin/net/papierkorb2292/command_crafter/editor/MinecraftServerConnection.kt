@@ -5,4 +5,5 @@ import net.minecraft.server.command.ServerCommandSource
 
 interface MinecraftServerConnection {
     val commandDispatcher: CommandDispatcher<ServerCommandSource>
+    val functionPermissionLevel: Int
 }

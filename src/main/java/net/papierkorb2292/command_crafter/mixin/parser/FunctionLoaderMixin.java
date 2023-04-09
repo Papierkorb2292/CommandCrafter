@@ -21,7 +21,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -51,7 +50,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
         var function = ParsedResourceCreator.Companion.createResourceCreatorFunction(
                 id,
                 LanguageManager.INSTANCE.parseToCommands(
-                        new DirectiveStringReader<>(new LinkedList<>(lines), dispatcher, resourceCreator),
+                        new DirectiveStringReader<>(lines, dispatcher, resourceCreator),
                         source,
                         new Language.TopLevelClosure(VanillaLanguage.NORMAL)),
                 resourceCreator);

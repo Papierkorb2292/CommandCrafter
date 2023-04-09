@@ -13,14 +13,14 @@ import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.SemanticTokens
 import java.io.BufferedReader
-import java.util.*
-import java.util.stream.Collectors
 
 class CommandCrafter: ModInitializer {
     companion object {
@@ -37,11 +37,13 @@ class CommandCrafter: ModInitializer {
         MinecraftLanguageServer.addAnalyzer(object: MinecraftLanguageServer.FileAnalyseHandler {
             override fun canHandle(file: OpenFile) = file.uri.endsWith(".mcfunction")
             override fun fillSemanticTokens(file: OpenFile, tokens: SemanticTokens, server: MinecraftServerConnection) {
-                //val lines = LinkedList<String>()
-                //file.lines.mapTo(lines) { it.toString() }
-                //val resourceCreator =  ParsedResourceCreator()
-                //val reader = DirectiveStringReader(lines, server.commandDispatcher, )
-                TODO("Not yet implemented")
+                val lines = ArrayList<String>()
+                file.lines.mapTo(lines) { it.toString() }
+                val reader = DirectiveStringReader(lines, server.commandDispatcher, SemanticResourceCreator)
+                val tokensBuilder = SemanticTokensBuilder()
+                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
+                LanguageManager.createSemanticTokens(reader, source, tokensBuilder, Language.TopLevelClosure(VanillaLanguage.NORMAL))
+                tokensBuilder.fill(tokens)
             }
         })
 
@@ -61,7 +63,7 @@ class CommandCrafter: ModInitializer {
                 resourceCreator: RawZipResourceCreator,
                 dispatcher: CommandDispatcher<ServerCommandSource>
             ) {
-                val reader = DirectiveStringReader(content.lines().collect(Collectors.toCollection(::LinkedList)), dispatcher, resourceCreator)
+                val reader = DirectiveStringReader(content.lines().toList(), dispatcher, resourceCreator)
                 val resource = RawResource(RawResource.FUNCTION_TYPE)
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, args.permissionLevel ?: 2, "", ScreenTexts.EMPTY, null, null)
                 LanguageManager.parseToVanilla(

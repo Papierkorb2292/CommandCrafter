@@ -17,6 +17,10 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -57,6 +61,38 @@ enum class VanillaLanguage : Language {
                 reader.endStatement()
             }
             return result
+        }
+
+        override fun createSemanticTokens(
+            reader: DirectiveStringReader<SemanticResourceCreator>,
+            source: ServerCommandSource,
+            tokens: SemanticTokensBuilder,
+        ) {
+            reader.endStatement()
+            while(reader.canRead() && reader.currentLanguage == this) {
+                val line = StringReader(reader.readLine().trimStart())
+                if (!line.canRead()) {
+                    reader.endStatement()
+                    continue
+                }
+                if (line.peek() == '#') {
+                    tokens.addRelative(1, 0, line.remainingLength, TokenType.COMMENT, 0)
+                    reader.endStatement()
+                    continue
+                }
+
+                try {
+                    if(line.canRead() && line.peek() == '/')
+                        line.skip()
+                    createCommandSemantics(
+                        reader.dispatcher.parse(line, source),
+                        tokens,
+                        reader
+                    )
+                } catch (ignored: Exception) { }
+
+                reader.endStatement()
+            }
         }
 
         private fun parseCommand(reader: StringReader, line: Int, dispatcher: CommandDispatcher<ServerCommandSource>, source: ServerCommandSource): ParseResults<ServerCommandSource> {
@@ -112,6 +148,14 @@ enum class VanillaLanguage : Language {
                 reader.endStatement()
             }
             return result
+        }
+
+        override fun createSemanticTokens(
+            reader: DirectiveStringReader<SemanticResourceCreator>,
+            source: ServerCommandSource,
+            tokens: SemanticTokensBuilder,
+        ) {
+            TODO("Not yet implemented")
         }
 
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
@@ -460,9 +504,11 @@ enum class VanillaLanguage : Language {
                     for(part in node.`command_crafter$unparseNode`(
                         context,
                         parsedNode.range,
-                        DirectiveStringReader(LinkedList<String>().apply {
-                            add(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range))
-                        }, reader.dispatcher, reader.resourceCreator).apply {
+                        DirectiveStringReader(
+                            listOf(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range)),
+                            reader.dispatcher,
+                            reader.resourceCreator
+                        ).apply {
                             val scope = reader.scopeStack.peek()
                             scopeStack.addFirst(scope)
                             currentLanguage = scope.language
@@ -486,4 +532,24 @@ enum class VanillaLanguage : Language {
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
+    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, reader: DirectiveStringReader<SemanticResourceCreator>) {
+        var contextBuilder = result.context
+        var context = contextBuilder.build(result.reader.string)
+
+        while(contextBuilder != null && context != null) {
+            for (parsedNode in contextBuilder.nodes) {
+                val node = parsedNode.node
+                if (node is SemanticCommandNode) {
+                    node.`command_crafter$createSemanticTokens`(
+                        context,
+                        parsedNode.range,
+                        reader,
+                        tokens
+                    )
+                }
+            }
+            contextBuilder = contextBuilder.child
+            context = context.child
+        }
+    }
 }

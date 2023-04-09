@@ -3,6 +3,8 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.StringReader
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
+import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 
 interface Language {
@@ -16,6 +18,12 @@ interface Language {
         reader: DirectiveStringReader<ParsedResourceCreator?>,
         source: ServerCommandSource,
     ): List<CommandFunction.Element>
+
+    fun createSemanticTokens(
+        reader: DirectiveStringReader<SemanticResourceCreator>,
+        source: ServerCommandSource,
+        tokens: SemanticTokensBuilder
+    )
 
     interface LanguageClosure {
         val startLanguage: Language
