@@ -4,7 +4,7 @@ import com.mojang.brigadier.StringReader
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 
 interface Language {
@@ -19,10 +19,10 @@ interface Language {
         source: ServerCommandSource,
     ): List<CommandFunction.Element>
 
-    fun createSemanticTokens(
+    fun analyze(
         reader: DirectiveStringReader<SemanticResourceCreator>,
         source: ServerCommandSource,
-        tokens: SemanticTokensBuilder
+        result: AnalyzingResult
     )
 
     interface LanguageClosure {

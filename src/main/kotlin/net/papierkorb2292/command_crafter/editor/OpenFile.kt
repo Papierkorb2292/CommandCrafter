@@ -1,16 +1,21 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
+import java.util.concurrent.CompletableFuture
 
-data class OpenFile(val uri: String, val lines: MutableList<StringBuffer>) {
+class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var version: Int = 0) {
+    var analyzingResult: CompletableFuture<AnalyzingResult>? = null
+
     companion object {
         const val LINE_SEPARATOR = "\r\n"
     }
 
-    constructor(uri: String, content: String)
+    constructor(uri: String, content: String, version: Int = 0)
             : this(
         uri,
-        content.split(LINE_SEPARATOR).run { mapTo(ArrayList(size), ::StringBuffer) }
+        content.split(LINE_SEPARATOR).run { mapTo(ArrayList(size), ::StringBuffer) },
+        version
     )
 
     fun applyContentChange(change: TextDocumentContentChangeEvent) {

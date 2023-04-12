@@ -8,8 +8,9 @@ import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
+import org.eclipse.lsp4j.*
 
 object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<(Map<String, String?>, Int) -> Language>(null, Identifier("command_crafter", "languages")).buildAndRegister()!!
@@ -43,17 +44,34 @@ object LanguageManager {
         return result.toTypedArray()
     }
 
-    fun createSemanticTokens(reader: DirectiveStringReader<SemanticResourceCreator>, source: ServerCommandSource, tokens: SemanticTokensBuilder, closure: Language.LanguageClosure) {
+    fun analyse(reader: DirectiveStringReader<SemanticResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
+        val completionProviders: MutableList<Pair<Int, (Int) -> List<CompletionItem>>> = mutableListOf()
         while(reader.closureDepth != closureDepth) {
-            reader.currentLanguage?.createSemanticTokens(reader, source, tokens)
+            val languageResult = AnalyzingResult(result.semanticTokens, result.diagnostics)
+            reader.currentLanguage?.analyze(reader, source, languageResult)
+            completionProviders += reader.absoluteCursor to languageResult.completionsProvider
             reader.updateLanguage()
             if(!reader.canRead() && reader.closureDepth != closureDepth) {
-                //It doesn't matter for semantic tokens,
-                //but make sure there's no endless loop
+                val position = Position(reader.lines.size - 1, reader.lines.last().length)
+                result.diagnostics.add(Diagnostic(
+                    Range(position, position),
+                    "Unclosed scope started at line ${reader.scopeStack.element().startLine}",
+                    DiagnosticSeverity.Error,
+                    null
+                ))
                 break
             }
+        }
+
+        result.completionsProvider = completions@{
+            for((end, provider) in completionProviders) {
+                if(end > it) {
+                    return@completions provider(it)
+                }
+            }
+            emptyList()
         }
     }
 

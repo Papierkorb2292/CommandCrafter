@@ -14,12 +14,12 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
-import org.eclipse.lsp4j.SemanticTokens
 import java.io.BufferedReader
 
 class CommandCrafter: ModInitializer {
@@ -34,16 +34,18 @@ class CommandCrafter: ModInitializer {
     }
 
     private fun initializeEditor() =
-        MinecraftLanguageServer.addAnalyzer(object: MinecraftLanguageServer.FileAnalyseHandler {
+        MinecraftLanguageServer.addAnalyzer(object: FileAnalyseHandler {
             override fun canHandle(file: OpenFile) = file.uri.endsWith(".mcfunction")
-            override fun fillSemanticTokens(file: OpenFile, tokens: SemanticTokens, server: MinecraftServerConnection) {
+
+            override fun analyze(file: OpenFile, server: MinecraftServerConnection): AnalyzingResult {
                 val lines = ArrayList<String>()
                 file.lines.mapTo(lines) { it.toString() }
                 val reader = DirectiveStringReader(lines, server.commandDispatcher, SemanticResourceCreator)
-                val tokensBuilder = SemanticTokensBuilder()
+
+                val result = AnalyzingResult()
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
-                LanguageManager.createSemanticTokens(reader, source, tokensBuilder, Language.TopLevelClosure(VanillaLanguage.NORMAL))
-                tokensBuilder.fill(tokens)
+                LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage.NORMAL))
+                return result
             }
         })
 

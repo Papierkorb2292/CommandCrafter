@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
 import org.eclipse.lsp4j.services.*
@@ -9,7 +11,7 @@ import java.util.concurrent.CompletableFuture
 
 class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : LanguageServer, LanguageClientAware, RemoteEndpointAware {
     companion object {
-        private val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
+        val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
 
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
@@ -47,20 +49,49 @@ class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : 
             override fun didOpen(params: DidOpenTextDocumentParams?) {
                 if(params == null) return
                 val textDocument = params.textDocument
-                openFiles[textDocument.uri] = OpenFile(textDocument.uri, textDocument.text)
+                openFiles[textDocument.uri] = OpenFile(textDocument.uri, textDocument.text, textDocument.version).also {
+                    analyzeFile(it)
+                }
             }
 
             override fun didChange(params: DidChangeTextDocumentParams?) {
                 if(params == null) return
                 val file = openFiles[params.textDocument.uri] ?: return
+                file.analyzingResult = null
+                file.version = params.textDocument.version
                 for(change in params.contentChanges) {
                     file.applyContentChange(change)
                 }
+                analyzeFile(file)
+            }
+
+            fun analyzeFile(file: OpenFile): CompletableFuture<AnalyzingResult>? {
+                val runningAnalyzer = file.analyzingResult
+                if(runningAnalyzer != null)
+                    return runningAnalyzer
+                for(analyzer in analyzers) {
+                    if(analyzer.canHandle(file)) {
+                        val version = file.version
+                        return CompletableFuture.supplyAsync {
+                            analyzer.analyze(file, minecraftServer)
+                        }.apply {
+                            file.analyzingResult = this
+                            thenAccept {
+                                if(file.version != version)
+                                    return@thenAccept
+                                client?.publishDiagnostics(PublishDiagnosticsParams(file.uri, it.diagnostics, version))
+                            }
+                        }
+                    }
+                }
+                return null
             }
 
             override fun didClose(params: DidCloseTextDocumentParams?) {
                 if(params == null) return
-                openFiles.remove(params.textDocument.uri)
+                openFiles.remove(params.textDocument.uri)?.run {
+                    analyzingResult = null
+                }
             }
 
             override fun didSave(params: DidSaveTextDocumentParams?) {
@@ -69,20 +100,22 @@ class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : 
 
             override fun semanticTokensFull(params: SemanticTokensParams?): CompletableFuture<SemanticTokens> {
                 if(params == null) return CompletableFuture.completedFuture(SemanticTokens())
+                val file = openFiles[params.textDocument.uri]
+                    ?: return CompletableFuture.completedFuture(SemanticTokens())
 
-                return CompletableFuture.supplyAsync {
-                    val tokens = SemanticTokens()
-                    val file = openFiles[params.textDocument.uri]
-                        ?: return@supplyAsync tokens
+                val analyzer = analyzeFile(file)
+                    ?: return CompletableFuture.completedFuture(SemanticTokens())
+                return analyzer.thenApply { it.semanticTokens.build() }
+            }
 
-                    for(analyzer in analyzers) {
-                        if(analyzer.canHandle(file)) {
-                            analyzer.fillSemanticTokens(file, tokens, minecraftServer)
-                            break
-                        }
-                    }
-                    return@supplyAsync tokens
-                }
+            override fun diagnostic(params: DocumentDiagnosticParams?): CompletableFuture<DocumentDiagnosticReport> {
+                if(params == null) return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
+                val file = openFiles[params.textDocument.uri]
+                    ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
+
+                val analyzer = analyzeFile(file)
+                    ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
+                return analyzer.thenApply { DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics)) }
             }
         }
     }
@@ -108,8 +141,4 @@ class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : 
         this.remote = remote
     }
 
-    interface FileAnalyseHandler {
-        fun canHandle(file: OpenFile): Boolean
-        fun fillSemanticTokens(file: OpenFile, tokens: SemanticTokens, server: MinecraftServerConnection)
-    }
 }

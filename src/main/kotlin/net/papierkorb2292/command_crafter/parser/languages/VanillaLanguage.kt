@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.parser.languages
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Either
@@ -20,10 +21,15 @@ import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
+import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import java.util.*
 
 enum class VanillaLanguage : Language {
@@ -31,7 +37,7 @@ enum class VanillaLanguage : Language {
         override fun parseToVanilla(
             reader: DirectiveStringReader<RawZipResourceCreator>,
             source: ServerCommandSource,
-            resource: RawResource
+            resource: RawResource,
         ) {
             reader.endStatement()
             while(reader.canRead() && reader.currentLanguage == this) {
@@ -63,10 +69,10 @@ enum class VanillaLanguage : Language {
             return result
         }
 
-        override fun createSemanticTokens(
+        override fun analyze(
             reader: DirectiveStringReader<SemanticResourceCreator>,
             source: ServerCommandSource,
-            tokens: SemanticTokensBuilder,
+            result: AnalyzingResult,
         ) {
             reader.endStatement()
             while(reader.canRead() && reader.currentLanguage == this) {
@@ -76,21 +82,41 @@ enum class VanillaLanguage : Language {
                     continue
                 }
                 if (line.peek() == '#') {
-                    tokens.addRelative(1, 0, line.remainingLength, TokenType.COMMENT, 0)
+                    result.semanticTokens.addRelative(1, 0, line.remainingLength, TokenType.COMMENT, 0)
                     reader.endStatement()
                     continue
                 }
 
                 try {
-                    if(line.canRead() && line.peek() == '/')
+                    if (line.canRead() && line.peek() == '/')
                         line.skip()
+                    val parseResults = reader.dispatcher.parse(line, source)
                     createCommandSemantics(
-                        reader.dispatcher.parse(line, source),
-                        tokens,
+                        parseResults,
+                        result.semanticTokens,
                         reader
                     )
-                } catch (ignored: Exception) { }
-
+                    line.cursor = parseResults.reader.cursor
+                    if (parseResults.reader.canRead()) {
+                        throw CommandManager.getException(parseResults)!!
+                    }
+                    if(isIncomplete(parseResults))
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(line)
+                } catch (e: Exception) {
+                    val exceptionCursor =
+                        if(e is CommandSyntaxException && e.cursor != -1) e.cursor
+                        else line.cursor
+                    val startPosition = AnalyzingResult.getPositionFromCursor(exceptionCursor + reader.readCharacters, reader.lines)
+                    result.diagnostics += Diagnostic(
+                        Range(
+                            startPosition,
+                            Position(startPosition.line, reader.lines[startPosition.line].length)
+                        ),
+                        e.message,
+                        DiagnosticSeverity.Error,
+                        null
+                    )
+                }
                 reader.endStatement()
             }
         }
@@ -150,10 +176,10 @@ enum class VanillaLanguage : Language {
             return result
         }
 
-        override fun createSemanticTokens(
+        override fun analyze(
             reader: DirectiveStringReader<SemanticResourceCreator>,
             source: ServerCommandSource,
-            tokens: SemanticTokensBuilder,
+            result: AnalyzingResult,
         ) {
             TODO("Not yet implemented")
         }
@@ -235,7 +261,7 @@ enum class VanillaLanguage : Language {
 
         fun <T> parseRawRegistryTagTuple(
             reader: DirectiveStringReader<RawZipResourceCreator>,
-            registry: Registry<T>
+            registry: Registry<T>,
         ): RawResourceRegistryEntryList<T>
             = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(TagManagerLoader.getPath(registry.key), "json")) {
                 entryReader -> Either.left(parseRawTagEntry(entryReader))
@@ -243,7 +269,7 @@ enum class VanillaLanguage : Language {
 
         fun <T> parseParsedRegistryTagTuple(
             reader: DirectiveStringReader<ParsedResourceCreator>,
-            registry: Registry<T>
+            registry: Registry<T>,
         ): GeneratedRegistryEntryList<T> {
             val entries = parseTagTupleEntries(reader, ::parseTagEntry)
             return GeneratedRegistryEntryList(registry).apply {
@@ -274,7 +300,7 @@ enum class VanillaLanguage : Language {
         private fun parseParsedInlineFunction(
             reader: DirectiveStringReader<ParsedResourceCreator>,
             source: ServerCommandSource,
-            idSetter: (Identifier) -> Unit
+            idSetter: (Identifier) -> Unit,
         ) {
             reader.expect('{')
             reader.resourceCreator.functions += ParsedResourceCreator.AutomaticResource(
@@ -363,7 +389,7 @@ enum class VanillaLanguage : Language {
 
         private fun parseTagTupleEntries(
             reader: DirectiveStringReader<*>,
-            entryParser: (DirectiveStringReader<*>) -> TagEntry
+            entryParser: (DirectiveStringReader<*>) -> TagEntry,
         ): List<TagEntry> {
             reader.expect('(')
             reader.skipWhitespace()
@@ -388,7 +414,7 @@ enum class VanillaLanguage : Language {
         private fun <ResourceCreator> parseRawTagTupleEntries(
             reader: DirectiveStringReader<ResourceCreator>,
             type: RawResource.RawResourceType,
-            entryParser: (DirectiveStringReader<ResourceCreator>) -> Either<String, RawResource>
+            entryParser: (DirectiveStringReader<ResourceCreator>) -> Either<String, RawResource>,
         ): RawResource {
             val resource = RawResource(type)
             reader.expect('(')
@@ -550,6 +576,17 @@ enum class VanillaLanguage : Language {
             }
             contextBuilder = contextBuilder.child
             context = context.child
+        }
+    }
+
+    fun isIncomplete(parseResults: ParseResults<*>): Boolean {
+        var context: CommandContextBuilder<*> = parseResults.context ?: return true
+        while(true) {
+            if(context.command != null)
+                return false
+            context = context.child ?: return true
+            if(context.nodes.isNotEmpty())
+                return false
         }
     }
 }

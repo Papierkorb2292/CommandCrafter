@@ -91,4 +91,6 @@ class SemanticTokensBuilder {
         if(resultId != null)
             tokens.resultId = resultId
     }
+
+    fun build() = SemanticTokens(data)
 }
