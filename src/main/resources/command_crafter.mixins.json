@@ -8,6 +8,8 @@
   "mixins": [
     "WorldSavePathAccessor",
     "editor.MinecraftServerMixin",
+    "editor.semantics.ArgumentBuilderMixin",
+    "editor.semantics.CommandNodeMixin",
     "editor.semantics.LiteralCommandNodeMixin",
     "parser.ArgumentCommandNodeMixin",
     "parser.CommandDispatcherMixin",
