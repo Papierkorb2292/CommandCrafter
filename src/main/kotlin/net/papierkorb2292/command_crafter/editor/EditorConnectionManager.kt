@@ -16,6 +16,7 @@ class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAc
 
     fun startServer() {
         stopServer()
+        connectionAcceptor.start()
         connector = CompletableFuture.runAsync {
             while(connectionAcceptor.isRunning()) {
                 val editorConnection = connectionAcceptor.accept()
@@ -31,6 +32,7 @@ class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAc
             connection.cancel(true)
         }
         connections.clear()
+        connectionAcceptor.stop()
     }
 
     private fun handleConnection(connection: EditorConnection, server: LanguageServer) {

@@ -2,13 +2,9 @@ package net.papierkorb2292.command_crafter.editor
 
 import java.net.ServerSocket
 
-class SocketEditorConnectionType(port: Int) : EditorConnectionAcceptor {
+class SocketEditorConnectionType(val port: Int) : EditorConnectionAcceptor {
 
-    private val serverSocket: ServerSocket
-
-    init {
-        serverSocket = ServerSocket(port)
-    }
+    private var serverSocket: ServerSocket = ServerSocket(port)
 
     override fun accept(): EditorConnection {
         val socket = serverSocket.accept()
@@ -16,8 +12,11 @@ class SocketEditorConnectionType(port: Int) : EditorConnectionAcceptor {
     }
 
     override fun isRunning() = !serverSocket.isClosed
+    override fun start() {
+        serverSocket = ServerSocket(port)
+    }
 
-    fun close() {
+    override fun stop() {
         serverSocket.close()
     }
 }

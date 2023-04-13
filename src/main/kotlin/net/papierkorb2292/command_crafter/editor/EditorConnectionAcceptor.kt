@@ -4,4 +4,6 @@ interface EditorConnectionAcceptor {
 
     fun accept(): EditorConnection
     fun isRunning(): Boolean
+    fun start()
+    fun stop()
 }
