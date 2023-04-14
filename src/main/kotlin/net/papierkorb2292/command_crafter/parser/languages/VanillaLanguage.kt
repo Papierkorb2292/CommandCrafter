@@ -82,7 +82,7 @@ enum class VanillaLanguage : Language {
                     continue
                 }
                 if (line.peek() == '#') {
-                    val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength, reader.lines)
+                    val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength - 1, reader.lines)
                     result.semanticTokens.add(position.line, position.character, line.remainingLength, TokenType.COMMENT, 0)
                     reader.endStatement()
                     continue
