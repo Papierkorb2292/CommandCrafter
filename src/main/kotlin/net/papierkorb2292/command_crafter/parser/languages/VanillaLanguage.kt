@@ -83,6 +83,12 @@ enum class VanillaLanguage : Language {
                 if (skipComments(reader)) {
                     continue
                 }
+                if(reader.peek() == '\n') {
+                    reader.skip()
+                    reader.endStatement()
+                    reader.currentLine++
+                    continue
+                }
                 reader.readIndentation()
                 throwIfSlashPrefix(reader, reader.currentLine)
                 writeCommand(parseCommand(reader, source), resource, reader)
