@@ -20,5 +20,25 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder = SemanticTokens
             }
             return Position(lines.size, lines.last().length)
         }
+
+        fun getInlineRangesBetweenCursors(startCursor: Int, endCursor: Int, lines: List<String>, rangeConsumer: (line: Int, cursor: Int, length: Int) -> Unit) {
+            var startCharactersLeft = startCursor
+            var line = 0
+            while(lines.size > line && startCharactersLeft >= lines[line].length + 1) {
+                startCharactersLeft -= lines[line++].length + 1
+            }
+            var rangeCharactersLeft = endCursor - startCursor
+            while(lines.size > line && rangeCharactersLeft > 0) {
+                val lineLength = lines[line].length + 1
+                if(lineLength >= rangeCharactersLeft) {
+                    rangeConsumer(line, startCharactersLeft, rangeCharactersLeft)
+                    return
+                }
+                rangeConsumer(line, startCharactersLeft, lineLength)
+                line++
+                startCharactersLeft = 0
+                rangeCharactersLeft -= lineLength
+            }
+        }
     }
 }

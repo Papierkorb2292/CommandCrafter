@@ -69,8 +69,6 @@ enum class VanillaLanguage : Language {
             return result
         }
 
-        private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
-
         override fun analyze(
             reader: DirectiveStringReader<SemanticResourceCreator>,
             source: ServerCommandSource,
@@ -195,7 +193,106 @@ enum class VanillaLanguage : Language {
             source: ServerCommandSource,
             result: AnalyzingResult,
         ) {
-            TODO("Not yet implemented")
+            fun advanceToParseResults(parseResults: ParseResults<*>, reader: DirectiveStringReader<*>) {
+                parseResults.reader.run {
+                    if(this is DirectiveStringReader<*>) {
+                        reader.copyFrom(this)
+                        if(this !== reader)
+                            toCompleted()
+                    }
+                }
+            }
+
+            reader.endStatement()
+            while (reader.canRead() && reader.currentLanguage == this) {
+                val startCursor = reader.absoluteCursor
+                if(skipComments(reader)) {
+                    AnalyzingResult.getInlineRangesBetweenCursors(startCursor, reader.absoluteCursor, reader.lines) { line: Int, cursor: Int, length: Int ->
+                        result.semanticTokens.add(line, cursor, length, TokenType.COMMENT, 0)
+                    }
+                    continue
+                }
+                if(reader.peek() == '\n') {
+                    reader.skip()
+                    reader.endStatement()
+                    reader.currentLine++
+                    continue
+                }
+                reader.readIndentation()
+                var parseResults: ParseResults<ServerCommandSource>? = null
+                try {
+                    if (reader.canRead() && reader.peek() == '/') {
+                        if (reader.canRead(2) && reader.peek(1) == '/') {
+                            throw DOUBLE_SLASH_EXCEPTION.createWithContext(reader)
+                        }
+                        val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                        result.diagnostics += Diagnostic(
+                            Range(
+                                position,
+                                Position(position.line, position.character + 1)
+                            ),
+                            "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
+                        )
+                        reader.skip()
+                    }
+
+                    parseResults = reader.dispatcher.parse(reader, source)
+                    createCommandSemantics(
+                        parseResults,
+                        result.semanticTokens,
+                        reader
+                    )
+
+                    val exceptions = parseResults.exceptions
+                    if (exceptions.isNotEmpty()) {
+                        throw exceptions.values.first()
+                    }
+                    if (parseResults.context.range.isEmpty) {
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
+                    }
+                    if(isIncomplete(parseResults))
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
+
+                    advanceToParseResults(parseResults, reader)
+
+                    reader.skipSpaces()
+                    if (reader.canRead() && reader.peek() != '\n') {
+                        if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(reader)
+                    }
+                    else reader.skip()
+                    reader.currentLine++
+                } catch (e: Exception) {
+                    val exceptionCursor =
+                        if (e is CommandSyntaxException && e.cursor != -1) {
+                            val cursor = e.cursor + reader.readCharacters
+                            if(parseResults != null)
+                                advanceToParseResults(parseResults, reader)
+                            cursor
+                        }
+                        else {
+                            if(parseResults != null)
+                                advanceToParseResults(parseResults, reader)
+                            reader.absoluteCursor
+                        }
+                    val startPosition =
+                        AnalyzingResult.getPositionFromCursor(exceptionCursor, reader.lines)
+                    result.diagnostics += Diagnostic(
+                        Range(
+                            startPosition,
+                            Position(startPosition.line, reader.lines[startPosition.line].length)
+                        ),
+                        e.message,
+                        DiagnosticSeverity.Error,
+                        null
+                    )
+
+                    while (true) {
+                        if (!reader.canRead() || reader.read() == '\n')
+                            break
+                    }
+                }
+                reader.endStatement()
+            }
         }
 
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
@@ -231,6 +328,8 @@ enum class VanillaLanguage : Language {
 
     companion object {
         const val ID = "vanilla"
+
+        private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
 
         fun parseArguments(args: Map<String, String?>, line: Int): VanillaLanguage {
             for(key in args.keys) {

@@ -61,7 +61,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun toCompleted() {
-        setString(string.substring(0, cursor))
+        setString(string.substring(0, min(cursor, string.length - 1)))
         nextLine = lines.size
     }
 
