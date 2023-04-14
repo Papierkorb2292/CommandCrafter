@@ -69,6 +69,8 @@ enum class VanillaLanguage : Language {
             return result
         }
 
+        private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
+
         override fun analyze(
             reader: DirectiveStringReader<SemanticResourceCreator>,
             source: ServerCommandSource,
@@ -89,8 +91,19 @@ enum class VanillaLanguage : Language {
                 }
 
                 try {
-                    if (line.canRead() && line.peek() == '/')
+                    if (line.canRead() && line.peek() == '/') {
+                        if(line.canRead(2) && line.peek(1) == '/') {
+                            throw DOUBLE_SLASH_EXCEPTION.createWithContext(line)
+                        }
+                        val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength - 1, reader.lines)
+                        result.diagnostics += Diagnostic(
+                            Range(
+                                position,
+                                Position(position.line, position.character + 1)),
+                            "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
+                        )
                         line.skip()
+                    }
                     val parseResults = reader.dispatcher.parse(line, source)
                     createCommandSemantics(
                         parseResults,
