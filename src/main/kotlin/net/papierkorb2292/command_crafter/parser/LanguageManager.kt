@@ -19,6 +19,9 @@ object LanguageManager {
         while(reader.closureDepth != closureDepth) {
             reader.currentLanguage?.parseToVanilla(reader, source, resource)
             reader.updateLanguage()
+            if(!reader.canRead() && reader.closureDepth != closureDepth) {
+                throw UNCLOSED_SCOPE_EXCEPTION.create(reader.scopeStack.element().startLine)
+            }
         }
         reader.resourceCreator.resourceStack.pop()
     }
