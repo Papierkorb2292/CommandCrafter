@@ -39,6 +39,8 @@
     "parser.vanilla_improved.EntitySelectorOptionsMixin",
     "parser.vanilla_improved.ItemPredicateArgumentTypeMixin",
     "parser.vanilla_improved.ItemStringReaderMixin",
-    "parser.vanilla_improved.TagKeyAccessor"
+    "parser.vanilla_improved.ScoreHolderArgumentTypeMixin",
+    "parser.vanilla_improved.TagKeyAccessor",
+    "parser.vanilla_improved.TextSerializerMixin"
   ]
 }
