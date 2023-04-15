@@ -689,12 +689,14 @@ enum class VanillaLanguage : Language {
             for (parsedNode in contextBuilder.nodes) {
                 val node = parsedNode.node
                 if (node is SemanticCommandNode) {
-                    node.`command_crafter$createSemanticTokens`(
-                        context,
-                        parsedNode.range,
-                        reader,
-                        tokens
-                    )
+                    try {
+                        node.`command_crafter$createSemanticTokens`(
+                            context,
+                            parsedNode.range,
+                            reader,
+                            tokens
+                        )
+                    } catch(_: CommandSyntaxException) { }
                 }
             }
             if(context.child == null) {
@@ -723,12 +725,14 @@ enum class VanillaLanguage : Language {
             nextNode.type.parse(newReader)
         } catch(ignored: Exception) { }
 
-        (nextNode as SemanticCommandNode).`command_crafter$createSemanticTokens`(
-            context,
-            StringRange(start, newReader.cursor),
-            reader,
-            tokens
-        )
+        try {
+            (nextNode as SemanticCommandNode).`command_crafter$createSemanticTokens`(
+                context,
+                StringRange(start, newReader.cursor),
+                reader,
+                tokens
+            )
+        } catch(_: CommandSyntaxException) { }
     }
 
     fun isIncomplete(parseResults: ParseResults<*>): Boolean {
