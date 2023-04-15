@@ -3,9 +3,13 @@ package net.papierkorb2292.command_crafter.parser.languages
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
+import com.mojang.brigadier.tree.ArgumentCommandNode
+import com.mojang.brigadier.tree.CommandNode
 import com.mojang.datafixers.util.Either
 import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.registry.DynamicRegistryManager
@@ -693,9 +697,38 @@ enum class VanillaLanguage : Language {
                     )
                 }
             }
+            if(context.child == null) {
+                tryCreateNextNodeSemantics(result, tokens, contextBuilder.nodes.last().node.children, context, reader)
+            }
             contextBuilder = contextBuilder.child
             context = context.child
         }
+    }
+
+    private fun tryCreateNextNodeSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContext<ServerCommandSource>, reader: DirectiveStringReader<SemanticResourceCreator>) {
+        if (nodes.size != 1) return
+        val nextNode = nodes.first()
+        if (nextNode !is ArgumentCommandNode<*, *>) return
+        val prevReader = result.reader
+        if(!prevReader.canRead()) return
+        val newReader: StringReader
+        if(prevReader is DirectiveStringReader<*>) {
+            newReader = prevReader.copy()
+        } else {
+            newReader = StringReader(prevReader.string)
+            newReader.cursor = prevReader.cursor
+        }
+        val start = newReader.cursor
+        try {
+            nextNode.type.parse(newReader)
+        } catch(ignored: Exception) { }
+
+        (nextNode as SemanticCommandNode).`command_crafter$createSemanticTokens`(
+            context,
+            StringRange(start, newReader.cursor),
+            reader,
+            tokens
+        )
     }
 
     fun isIncomplete(parseResults: ParseResults<*>): Boolean {
