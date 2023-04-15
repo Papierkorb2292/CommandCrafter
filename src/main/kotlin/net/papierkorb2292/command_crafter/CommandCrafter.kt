@@ -42,7 +42,7 @@ class CommandCrafter: ModInitializer {
                 file.lines.mapTo(lines) { it.toString() }
                 val reader = DirectiveStringReader(lines, server.commandDispatcher, SemanticResourceCreator)
 
-                val result = AnalyzingResult()
+                val result = AnalyzingResult(lines)
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage.NORMAL))
                 return result

@@ -5,7 +5,9 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.Position
 
-class AnalyzingResult(val semanticTokens: SemanticTokensBuilder = SemanticTokensBuilder(), val diagnostics: MutableList<Diagnostic> = mutableListOf()) {
+class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf()) {
+    constructor(lines: List<String>, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(SemanticTokensBuilder(lines), diagnostics)
+
     var completionsProvider: (Int) -> List<CompletionItem> = { emptyList() }
 
     companion object {

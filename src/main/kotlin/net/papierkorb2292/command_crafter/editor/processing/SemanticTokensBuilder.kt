@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.brigadier.context.StringRange
 import org.eclipse.lsp4j.SemanticTokens
 
-class SemanticTokensBuilder {
+class SemanticTokensBuilder(private val lines: List<String>) {
     private val data = ArrayList<Int>(100)
     private var dataSize = 100
     private var lastLine = 0
@@ -31,7 +31,6 @@ class SemanticTokensBuilder {
     fun addAbsoluteMultiline(
         absoluteCursor: Int,
         length: Int,
-        lines: List<String>,
         type: TokenType,
         modifiers: Int
     ) {
@@ -64,8 +63,8 @@ class SemanticTokensBuilder {
         }
     }
 
-    fun addAbsoluteMultiline(range: StringRange, lines: List<String>, type: TokenType, modifiers: Int) {
-        addAbsoluteMultiline(range.start, range.length, lines, type, modifiers)
+    fun addAbsoluteMultiline(range: StringRange, type: TokenType, modifiers: Int) {
+        addAbsoluteMultiline(range.start, range.length, type, modifiers)
     }
 
     fun addRelative(lineDelta: Int, cursorDelta: Int, length: Int, type: TokenType, modifiers: Int) {

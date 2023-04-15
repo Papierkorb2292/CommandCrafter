@@ -27,6 +27,6 @@ public class ArgumentCommandNodeMixin<T> implements SemanticCommandNode {
             semanticCommandNode.command_crafter$createSemanticTokens(context, range, reader, tokens);
             return;
         }
-        tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), reader.getLines(), TokenType.Companion.getPARAMETER(), 0);
+        tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), TokenType.Companion.getPARAMETER(), 0);
     }
 }

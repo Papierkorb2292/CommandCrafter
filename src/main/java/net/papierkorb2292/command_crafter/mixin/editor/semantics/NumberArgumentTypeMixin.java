@@ -20,6 +20,6 @@ public class NumberArgumentTypeMixin implements SemanticCommandNode {
 
     @Override
     public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<SemanticResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) {
-        tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), reader.getLines(), TokenType.Companion.getNUMBER(), 0);
+        tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), TokenType.Companion.getNUMBER(), 0);
     }
 }
