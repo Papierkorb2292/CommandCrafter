@@ -14,7 +14,8 @@ public class ScoreHolderArgumentTypeMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;peek()C",
-                    ordinal = 1
+                    ordinal = 1,
+                    remap = false
             )
     )
     private char command_crafter$endPlayerNameOnNextLine(char c) {

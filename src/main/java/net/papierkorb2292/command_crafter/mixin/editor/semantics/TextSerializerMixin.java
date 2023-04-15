@@ -21,7 +21,8 @@ public abstract class TextSerializerMixin {
             method = "fromJson(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/text/MutableText;",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/google/gson/TypeAdapter;read(Lcom/google/gson/stream/JsonReader;)Ljava/lang/Object;"
+                    target = "Lcom/google/gson/TypeAdapter;read(Lcom/google/gson/stream/JsonReader;)Ljava/lang/Object;",
+                    remap = false
             )
     )
     private static Object command_crafter$advanceStringReaderOnError(TypeAdapter<?> adapter, JsonReader jsonReader, Operation<Object> op, StringReader stringReader) {

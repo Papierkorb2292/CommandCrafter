@@ -14,7 +14,7 @@ import java.util.Collection;
 @Mixin(CommandNode.class)
 public abstract class CommandNodeMixin<S> implements RedirectTargetAware, RedirectTargetChildAware {
 
-    @Shadow public abstract Collection<CommandNode<S>> getChildren();
+    @Shadow(remap = false) public abstract Collection<CommandNode<S>> getChildren();
 
     private boolean command_crafter$isRedirectTarget;
     private boolean command_crafter$isRedirectTargetChild;
