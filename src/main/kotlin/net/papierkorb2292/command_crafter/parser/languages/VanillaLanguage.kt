@@ -80,7 +80,8 @@ enum class VanillaLanguage : Language {
         ) {
             reader.endStatement()
             while(reader.canRead() && reader.currentLanguage == this) {
-                val line = StringReader(reader.readLine().trimStart())
+                val line = StringReader(reader.readLine())
+                line.skipWhitespace()
                 if (!line.canRead()) {
                     reader.endStatement()
                     continue
