@@ -15,6 +15,7 @@
     "editor.semantics.LiteralCommandNodeMixin",
     "editor.semantics.NbtCompoundArgumentTypeMixin",
     "editor.semantics.NbtElementArgumentTypeMixin",
+    "editor.semantics.NbtPathArgumentTypeMixin",
     "editor.semantics.NumberArgumentTypeMixin",
     "editor.semantics.NumberRangeArgumentTypeMixin",
     "editor.semantics.StringArgumentTypeMixin",
