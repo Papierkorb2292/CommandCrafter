@@ -75,7 +75,8 @@ public abstract class NbtPathArgumentTypeMixin implements SemanticCommandNode {
            method = "parseNode",
            at = @At(
                    value = "INVOKE",
-                   target = "Lcom/mojang/brigadier/StringReader;readInt()I"
+                   target = "Lcom/mojang/brigadier/StringReader;readInt()I",
+                   remap = false
            )
     )
     private static void command_crafter$saveIndexStartCursor(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursor) {
@@ -87,7 +88,8 @@ public abstract class NbtPathArgumentTypeMixin implements SemanticCommandNode {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readInt()I",
-                    shift = At.Shift.AFTER
+                    shift = At.Shift.AFTER,
+                    remap = false
             )
     )
     private static void command_crafter$highlightIndex(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursor) {
