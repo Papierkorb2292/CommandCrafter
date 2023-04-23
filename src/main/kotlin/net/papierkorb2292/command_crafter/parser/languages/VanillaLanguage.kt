@@ -81,18 +81,18 @@ enum class VanillaLanguage : Language {
             source: ServerCommandSource,
             result: AnalyzingResult,
         ) {
-            reader.endStatement()
+            reader.endStatementAndAnalyze(result)
             while(reader.canRead() && reader.currentLanguage == this) {
                 val line = StringReader(reader.readLine())
                 line.skipWhitespace()
                 if (!line.canRead()) {
-                    reader.endStatement()
+                    reader.endStatementAndAnalyze(result)
                     continue
                 }
                 if (line.peek() == '#') {
                     val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength - 1, reader.lines)
                     result.semanticTokens.add(position.line, position.character, line.remainingLength, TokenType.COMMENT, 0)
-                    reader.endStatement()
+                    reader.endStatementAndAnalyze(result)
                     continue
                 }
 
@@ -135,7 +135,7 @@ enum class VanillaLanguage : Language {
                         null
                     )
                 }
-                reader.endStatement()
+                reader.endStatementAndAnalyze(result)
             }
         }
 
@@ -161,6 +161,7 @@ enum class VanillaLanguage : Language {
             reader.endStatement()
             while (reader.canRead() && reader.currentLanguage == this) {
                 if (skipComments(reader)) {
+                    reader.endStatement()
                     continue
                 }
                 if(reader.peek() == '\n') {
@@ -184,6 +185,7 @@ enum class VanillaLanguage : Language {
             val result: MutableList<CommandFunction.Element> = ArrayList()
             while (reader.canRead() && reader.currentLanguage == this) {
                 if (skipComments(reader)) {
+                    reader.endStatement()
                     continue
                 }
                 if(reader.peek() == '\n') {
@@ -215,10 +217,11 @@ enum class VanillaLanguage : Language {
                 }
             }
 
-            reader.endStatement()
+            reader.endStatementAndAnalyze(result)
             while (reader.canRead() && reader.currentLanguage == this) {
                 val startCursor = reader.absoluteCursor
                 if(skipComments(reader)) {
+                    reader.endStatementAndAnalyze(result)
                     AnalyzingResult.getInlineRangesBetweenCursors(startCursor, reader.absoluteCursor, reader.lines) { line: Int, cursor: Int, length: Int ->
                         result.semanticTokens.add(line, cursor, length, TokenType.COMMENT, 0)
                     }
@@ -226,7 +229,7 @@ enum class VanillaLanguage : Language {
                 }
                 if(reader.peek() == '\n') {
                     reader.skip()
-                    reader.endStatement()
+                    reader.endStatementAndAnalyze(result)
                     reader.currentLine++
                     continue
                 }
@@ -300,7 +303,7 @@ enum class VanillaLanguage : Language {
                             break
                     }
                 }
-                reader.endStatement()
+                reader.endStatementAndAnalyze(result)
             }
         }
 
@@ -340,22 +343,6 @@ enum class VanillaLanguage : Language {
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
 
-        fun parseArguments(args: Map<String, String?>, line: Int): VanillaLanguage {
-            for(key in args.keys) {
-                if(key != "improved") {
-                    throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $key for '$ID' on line $line")
-                }
-            }
-            if(!args.containsKey("improved")) {
-                return NORMAL
-            }
-            return when (val improved = args["improved"]) {
-                "false" -> NORMAL
-                null, "true" -> IMPROVED
-                else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$improved' for parameter 'improved' of '$ID' on line $line. Must be either 'false', 'true' or removed (defaults to 'false')")
-            }
-        }
-
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
             var foundAny = false
             while(true) {
@@ -368,7 +355,6 @@ enum class VanillaLanguage : Language {
                     }
                     false
                 }) {
-                    reader.endStatement()
                     return foundAny
                 }
                 foundAny = true
@@ -623,6 +609,46 @@ enum class VanillaLanguage : Language {
 
         override fun skipClosureEnd(reader: StringReader) {
             reader.skip()
+        }
+    }
+
+    object VanillaLanguageType : LanguageManager.LanguageType {
+        override fun createFromArguments(args: Map<String, String?>, currentLine: Int): Language {
+            for(key in args.keys) {
+                if(key != "improved") {
+                    throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $key for '$ID' on line $currentLine")
+                }
+            }
+            if(!args.containsKey("improved")) {
+                return NORMAL
+            }
+            return when (val improved = args["improved"]) {
+                "false" -> NORMAL
+                null, "true" -> IMPROVED
+                else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$improved' for parameter 'improved' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')")
+            }
+        }
+
+        override fun createFromArgumentsAndAnalyze(
+            args: Map<String, LanguageManager.AnalyzingLanguageArgument>,
+            currentLine: Int,
+            analyzingResult: AnalyzingResult,
+            lines: List<String>
+        ): Language? {
+            for((parameter, value) in args) {
+                if(parameter != "improved") {
+                    analyzingResult.diagnostics += value.createDiagnostic("Error parsing language arguments: Unknown parameter $parameter for '$ID' on line $currentLine", lines)
+                }
+            }
+            val improvedArgument = args["improved"] ?: return NORMAL
+            return when (val improved = improvedArgument.value) {
+                "false" -> NORMAL
+                null, "true" -> IMPROVED
+                else -> {
+                    analyzingResult.diagnostics += improvedArgument.createDiagnostic("Error parsing language arguments: Unknown argument '$improved' for parameter 'improved' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')", lines)
+                    null
+                }
+            }
         }
     }
 

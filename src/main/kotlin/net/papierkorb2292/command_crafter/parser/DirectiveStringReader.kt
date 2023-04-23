@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import net.minecraft.server.command.ServerCommandSource
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import java.util.*
 import kotlin.math.min
@@ -88,6 +89,33 @@ class DirectiveStringReader<out ResourceCreator>(
                 if(canRead() && peek() == '@') {
                     skip()
                     directiveManager.readDirective(this)
+                    return@trySkipWhitespace true
+                }
+                false
+            }
+            if(!foundDirective) {
+                break
+            }
+        }
+        scopeStack.element().closure.let {
+            if(it.endsClosure(this)) {
+                it.skipClosureEnd(this)
+                scopeStack.poll()
+                currentLanguage = null
+            }
+        }
+    }
+
+    fun endStatementAndAnalyze(analyzingResult: AnalyzingResult) {
+        extendToLengthFromCursor(0)
+        setString(string.substring(min(cursor, string.length)))
+        readCharacters += cursor
+        cursor = 0
+        while(true) {
+            val foundDirective = trySkipWhitespace {
+                if(canRead() && peek() == '@') {
+                    skip()
+                    directiveManager.readDirectiveAndAnalyze(this, analyzingResult)
                     return@trySkipWhitespace true
                 }
                 false
