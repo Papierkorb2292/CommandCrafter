@@ -27,6 +27,7 @@ import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilde
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode
+import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -102,9 +103,7 @@ enum class VanillaLanguage : Language {
                         }
                         val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength - 1, reader.lines)
                         result.diagnostics += Diagnostic(
-                            Range(
-                                position,
-                                Position(position.line, position.character + 1)),
+                            Range(position, position.advance()),
                             "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
                         )
                         line.skip()
@@ -240,10 +239,7 @@ enum class VanillaLanguage : Language {
                         }
                         val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                         result.diagnostics += Diagnostic(
-                            Range(
-                                position,
-                                Position(position.line, position.character + 1)
-                            ),
+                            Range(position, position.advance()),
                             "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
                         )
                         reader.skip()
