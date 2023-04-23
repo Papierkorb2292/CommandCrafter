@@ -35,6 +35,8 @@ import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 enum class VanillaLanguage : Language {
     NORMAL {
@@ -693,7 +695,7 @@ enum class VanillaLanguage : Language {
                     try {
                         node.`command_crafter$createSemanticTokens`(
                             context,
-                            parsedNode.range,
+                            StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
                             reader,
                             tokens
                         )
@@ -729,7 +731,7 @@ enum class VanillaLanguage : Language {
         try {
             (nextNode as SemanticCommandNode).`command_crafter$createSemanticTokens`(
                 context,
-                StringRange(start, newReader.cursor),
+                StringRange(start, max(min(newReader.cursor, context.input.length), start)),
                 reader,
                 tokens
             )
