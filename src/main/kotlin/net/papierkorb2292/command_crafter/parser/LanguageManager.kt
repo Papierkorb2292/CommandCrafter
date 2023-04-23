@@ -7,7 +7,7 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
@@ -49,7 +49,7 @@ object LanguageManager {
         return result.toTypedArray()
     }
 
-    fun analyse(reader: DirectiveStringReader<SemanticResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
+    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
         val completionProviders: MutableList<Pair<Int, (Int) -> List<CompletionItem>>> = mutableListOf()

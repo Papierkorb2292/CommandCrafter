@@ -22,7 +22,7 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -77,7 +77,7 @@ enum class VanillaLanguage : Language {
         }
 
         override fun analyze(
-            reader: DirectiveStringReader<SemanticResourceCreator>,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: ServerCommandSource,
             result: AnalyzingResult,
         ) {
@@ -203,7 +203,7 @@ enum class VanillaLanguage : Language {
         }
 
         override fun analyze(
-            reader: DirectiveStringReader<SemanticResourceCreator>,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: ServerCommandSource,
             result: AnalyzingResult,
         ) {
@@ -706,7 +706,7 @@ enum class VanillaLanguage : Language {
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
-    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, reader: DirectiveStringReader<SemanticResourceCreator>) {
+    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
         var context = contextBuilder.build(result.reader.string)
 
@@ -732,7 +732,7 @@ enum class VanillaLanguage : Language {
         }
     }
 
-    private fun tryCreateNextNodeSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContext<ServerCommandSource>, reader: DirectiveStringReader<SemanticResourceCreator>) {
+    private fun tryCreateNextNodeSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContext<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         if (nodes.size != 1) return
         val nextNode = nodes.first()
         if (nextNode !is ArgumentCommandNode<*, *>) return

@@ -9,7 +9,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.server.command.ServerCommandSource;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode;
@@ -31,7 +31,7 @@ public abstract class NbtPathArgumentTypeMixin implements SemanticCommandNode {
     private static final ThreadLocal<SemanticTokensBuilder> command_crafter$semanticTokensBuilder = new ThreadLocal<>();
     private static final ThreadLocal<Integer> command_crafter$cursorOffset = new ThreadLocal<>();
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<SemanticResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
         command_crafter$semanticTokensBuilder.set(tokens);
         command_crafter$cursorOffset.set(reader.getReadCharacters() + range.getStart());
         try {

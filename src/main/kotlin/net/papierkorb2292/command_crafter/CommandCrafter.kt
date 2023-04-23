@@ -13,7 +13,7 @@ import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.parser.*
@@ -40,7 +40,7 @@ class CommandCrafter: ModInitializer {
             override fun analyze(file: OpenFile, server: MinecraftServerConnection): AnalyzingResult {
                 val lines = ArrayList<String>()
                 file.lines.mapTo(lines) { it.toString() }
-                val reader = DirectiveStringReader(lines, server.commandDispatcher, SemanticResourceCreator)
+                val reader = DirectiveStringReader(lines, server.commandDispatcher, AnalyzingResourceCreator)
 
                 val result = AnalyzingResult(lines)
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)

@@ -7,7 +7,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.server.command.ServerCommandSource;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.RedirectTargetChildAware;
@@ -26,7 +26,7 @@ public abstract class LiteralCommandNodeMixin<S> extends CommandNode<S> implemen
     }
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<SemanticResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) {
         tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), command_crafter$isRedirectTargetChild() ? TokenType.Companion.getMACRO() : TokenType.Companion.getKEYWORD(), 0);
     }
 }

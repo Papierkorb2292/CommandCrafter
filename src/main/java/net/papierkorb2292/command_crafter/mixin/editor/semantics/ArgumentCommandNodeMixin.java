@@ -6,7 +6,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import net.minecraft.server.command.ServerCommandSource;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode;
@@ -22,7 +22,7 @@ public class ArgumentCommandNodeMixin<T> implements SemanticCommandNode {
     @Shadow(remap = false) @Final private ArgumentType<T> type;
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<SemanticResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
         if(type instanceof SemanticCommandNode semanticCommandNode) {
             semanticCommandNode.command_crafter$createSemanticTokens(context, range, reader, tokens);
             return;

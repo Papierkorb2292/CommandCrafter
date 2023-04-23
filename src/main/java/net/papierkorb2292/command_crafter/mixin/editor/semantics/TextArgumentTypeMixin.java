@@ -9,7 +9,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.TextArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
@@ -24,7 +24,7 @@ import java.io.StringReader;
 public class TextArgumentTypeMixin implements SemanticCommandNode {
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<SemanticResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
         var jsonReader = new JsonReader(new StringReader(range.get(context.getInput())));
         ((SemanticTokensCreator)jsonReader).command_crafter$setSemanticTokensBuilder(tokens, reader.getReadCharacters() + range.getStart());
         jsonReader.setLenient(false);
