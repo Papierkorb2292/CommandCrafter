@@ -24,7 +24,7 @@ import java.io.StringReader;
 public class TextArgumentTypeMixin implements SemanticCommandNode {
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) throws CommandSyntaxException {
         var jsonReader = new JsonReader(new StringReader(range.get(context.getInput())));
         ((SemanticTokensCreator)jsonReader).command_crafter$setSemanticTokensBuilder(tokens, reader.getReadCharacters() + range.getStart());
         jsonReader.setLenient(false);

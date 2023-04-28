@@ -10,6 +10,10 @@ class SemanticTokensBuilder(private val lines: List<String>) {
     private var lastCursor = 0
 
     fun add(line: Int, cursor: Int, length: Int, type: TokenType, modifiers: Int) {
+        add(line, cursor, length, type.id, modifiers)
+    }
+
+    private fun add(line: Int, cursor: Int, length: Int, typeId: Int, modifiers: Int) {
         if(data.size >= dataSize) {
             dataSize += 100
             data.ensureCapacity(dataSize)
@@ -23,7 +27,7 @@ class SemanticTokensBuilder(private val lines: List<String>) {
             data.add(cursor - lastCursor)
         }
         data.add(length)
-        data.add(type.id)
+        data.add(typeId)
         data.add(modifiers)
         lastCursor = cursor
     }
@@ -89,6 +93,25 @@ class SemanticTokensBuilder(private val lines: List<String>) {
         tokens.data = data
         if(resultId != null)
             tokens.resultId = resultId
+    }
+
+    fun combineWith(other: SemanticTokensBuilder) {
+        dataSize += other.dataSize
+        data.ensureCapacity(dataSize)
+
+        // The line and cursor of the other's first entry must be made
+        // relative to the last token of this builder
+        if(other.data.size < 5)
+            return
+        add(other.data[0], other.data[1], other.data[2], other.data[3], other.data[4])
+
+        // The rest of the tokens are already relative to the previous one
+        for(value in other.data.subList(5, other.data.size)) {
+            data += value
+        }
+
+        lastLine = other.lastLine
+        lastCursor = other.lastCursor
     }
 
     fun build() = SemanticTokens(data)

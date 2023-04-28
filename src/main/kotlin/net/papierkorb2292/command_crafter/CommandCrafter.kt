@@ -40,7 +40,7 @@ class CommandCrafter: ModInitializer {
             override fun analyze(file: OpenFile, server: MinecraftServerConnection): AnalyzingResult {
                 val lines = ArrayList<String>()
                 file.lines.mapTo(lines) { it.toString() }
-                val reader = DirectiveStringReader(lines, server.commandDispatcher, AnalyzingResourceCreator)
+                val reader = DirectiveStringReader(lines, server.commandDispatcher, AnalyzingResourceCreator())
 
                 val result = AnalyzingResult(lines)
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)

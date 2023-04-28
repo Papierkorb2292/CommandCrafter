@@ -3,8 +3,8 @@ package net.papierkorb2292.command_crafter.parser.languages
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
-import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.ParsedArgument
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
@@ -31,10 +31,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.Range
+import org.eclipse.lsp4j.*
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
@@ -266,6 +263,7 @@ enum class VanillaLanguage : Language {
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
 
                     advanceToParseResults(parseResults, reader)
+                    parseResults = null // Don't accidentally skip to the now completed reader when catching the 'NEEDS_NEW_LINE_EXCEPTION'
 
                     reader.skipSpaces()
                     if (reader.canRead() && reader.peek() != '\n') {
@@ -388,6 +386,43 @@ enum class VanillaLanguage : Language {
             }
         }
 
+        fun <T> analyzeRegistryTagTuple(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            registry: Registry<T>
+        ): AnalyzedRegistryEntryList<T> {
+            val analyzingResult = AnalyzingResult(reader.lines)
+            analyzeTagTupleEntries(reader, analyzingResult) { entryReader, entryAnalyzingResult ->
+                val startCursor = reader.cursor
+                val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                try {
+                    val entry = parseTagEntry(entryReader)
+                    if(!entry.resolve(object: TagEntry.ValueGetter<Unit> {
+                        override fun direct(id: Identifier): Unit? {
+                            if(registry.containsId(id)) return Unit
+                            entryAnalyzingResult.diagnostics += Diagnostic(
+                                Range(pos, pos.advance(reader.cursor - startCursor)),
+                                "Unknown id '$id'"
+                            )
+                            return null
+                        }
+
+                        override fun tag(id: Identifier): Collection<Unit> {
+                            return emptyList()
+                        }
+
+                    }) { }) return@analyzeTagTupleEntries
+                } catch(e: CommandSyntaxException) {
+                    analyzingResult.diagnostics += Diagnostic(
+                        Range(pos, pos.advance(reader.cursor - startCursor)),
+                        e.message
+                    )
+                    return@analyzeTagTupleEntries
+                }
+                analyzingResult.semanticTokens.add(pos.line, pos.character, reader.cursor - startCursor, TokenType.PARAMETER, 0)
+            }
+            return AnalyzedRegistryEntryList(analyzingResult)
+        }
+
         fun <T> parseRegistryTagTuple(
             reader: DirectiveStringReader<*>,
             registry: Registry<T>,
@@ -400,6 +435,10 @@ enum class VanillaLanguage : Language {
                 if(this is ParsedResourceCreator) {
                     @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
                     return parseParsedRegistryTagTuple(reader as DirectiveStringReader<ParsedResourceCreator>, registry)
+                }
+                if(this is AnalyzingResourceCreator) {
+                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                    return analyzeRegistryTagTuple(reader as DirectiveStringReader<AnalyzingResourceCreator>, registry)
                 }
                 throw ParsedResourceCreator.RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION.createWithContext(reader)
             }
@@ -481,6 +520,47 @@ enum class VanillaLanguage : Language {
             return result
         }
 
+        fun analyzeInlineFunction(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            source: ServerCommandSource,
+            analyzingResult: AnalyzingResult
+        ) {
+            reader.expect('{')
+            LanguageManager.analyse(reader, source, analyzingResult, ImprovedVanillaClosure)
+        }
+
+        fun analyzeImprovedFunctionReference(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            source: ServerCommandSource,
+        ): AnalyzedFunctionArgument? {
+            if(!reader.canRead()) {
+                return null
+            }
+            val analyzingResult = AnalyzingResult(reader.lines)
+            if(reader.canRead(4) && reader.string.startsWith("this", reader.cursor)) {
+                val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                analyzingResult.semanticTokens.add(position.line, position.character, 4, TokenType.KEYWORD, 0)
+                reader.cursor += 4
+            } else if(reader.peek() == '{') {
+                analyzeInlineFunction(reader, source, analyzingResult)
+            } else if(reader.peek() == '(') {
+                analyzeTagTupleEntries(reader, analyzingResult) entry@{ entryReader, entryAnalyzingResult ->
+                    if (entryReader.peek() == '{') {
+                        analyzeInlineFunction(entryReader, source, entryAnalyzingResult)
+                        return@entry
+                    }
+                    analyzeTagEntry(entryReader, entryAnalyzingResult)
+                }
+            } else {
+                val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                analyzingResult.diagnostics += Diagnostic(
+                    Range(pos, pos.advance()),
+                    "Invalid function reference"
+                )
+            }
+            return AnalyzedFunctionArgument(analyzingResult)
+        }
+
         fun parseImprovedFunctionReference(reader: DirectiveStringReader<*>, source: ServerCommandSource): CommandFunctionArgumentType.FunctionArgument? {
             reader.resourceCreator.run {
                 if(this is RawZipResourceCreator) {
@@ -490,6 +570,10 @@ enum class VanillaLanguage : Language {
                 if(this is ParsedResourceCreator) {
                     @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
                     return parseParsedImprovedFunctionReference(reader as DirectiveStringReader<ParsedResourceCreator>, source)
+                }
+                if(this is AnalyzingResourceCreator) {
+                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                    return analyzeImprovedFunctionReference(reader as DirectiveStringReader<AnalyzingResourceCreator>, source)
                 }
                 throw ParsedResourceCreator.RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION.createWithContext(reader)
             }
@@ -502,6 +586,7 @@ enum class VanillaLanguage : Language {
             reader.expect('(')
             reader.skipWhitespace()
             if(reader.canRead() && reader.peek() == ')') {
+                reader.skip()
                 return Collections.emptyList()
             }
             val entries: MutableList<TagEntry> = ArrayList()
@@ -557,6 +642,44 @@ enum class VanillaLanguage : Language {
             throw INVALID_TUPLE.createWithContext(reader)
         }
 
+        private fun <ResourceCreator> analyzeTagTupleEntries(
+            reader: DirectiveStringReader<ResourceCreator>,
+            analyzingResult: AnalyzingResult,
+            entryAnalyzer: (DirectiveStringReader<ResourceCreator>, AnalyzingResult) -> Unit
+        ) {
+            reader.expect('(')
+            reader.skipWhitespace()
+            if(reader.canRead() && reader.peek() == ')') {
+                reader.skip()
+                return
+            }
+
+            while(reader.canRead()) {
+                entryAnalyzer(reader, analyzingResult)
+                reader.skipWhitespace()
+                if(!reader.canRead()) break
+                if(reader.peek() == ')') {
+                    reader.skip()
+                    return
+                }
+                if(reader.peek() != ',') {
+                    val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    analyzingResult.diagnostics += Diagnostic(
+                        Range(pos, pos.advance()),
+                        "Expected ','"
+                    )
+                    return
+                }
+                reader.skip()
+                reader.skipWhitespace()
+            }
+            val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+            analyzingResult.diagnostics += Diagnostic(
+                Range(pos, pos.advance()),
+                "Encountered invalid tuple"
+            )
+        }
+
         private fun parseTagEntry(reader: DirectiveStringReader<*>): TagEntry {
             val referencesTag = reader.peek() == '#'
             if(referencesTag) {
@@ -568,6 +691,24 @@ enum class VanillaLanguage : Language {
             } else {
                 TagEntry.create(id)
             }
+        }
+
+        private fun analyzeTagEntry(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
+            val startCursor = reader.cursor
+            val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+            if(reader.peek() == '#') {
+                reader.skip()
+            }
+            try {
+                Identifier.fromCommandInput(reader)
+            } catch(e: CommandSyntaxException) {
+                analyzingResult.diagnostics += Diagnostic(
+                    Range(pos, pos.advance(reader.cursor - startCursor)),
+                    e.message
+                )
+                return
+            }
+            analyzingResult.semanticTokens.add(pos.line, pos.character, reader.cursor - startCursor, TokenType.PARAMETER, 0)
         }
 
         private fun parseRawTagEntry(reader: DirectiveStringReader<*>): String {
@@ -719,20 +860,21 @@ enum class VanillaLanguage : Language {
                             context,
                             StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
                             reader,
-                            tokens
+                            tokens,
+                            node.name
                         )
                     } catch(_: CommandSyntaxException) { }
                 }
             }
             if(context.child == null) {
-                tryCreateNextNodeSemantics(result, tokens, contextBuilder.nodes.last().node.children, context, reader)
+                tryCreateNextNodeSemantics(result, tokens, contextBuilder.nodes.last().node.children, contextBuilder, reader)
             }
             contextBuilder = contextBuilder.child
             context = context.child
         }
     }
 
-    private fun tryCreateNextNodeSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContext<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    private fun tryCreateNextNodeSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         if (nodes.size != 1) return
         val nextNode = nodes.first()
         if (nextNode !is ArgumentCommandNode<*, *>) return
@@ -747,15 +889,17 @@ enum class VanillaLanguage : Language {
         }
         val start = newReader.cursor
         try {
-            nextNode.type.parse(newReader)
+            val argumentResult = nextNode.type.parse(newReader)
+            context.withArgument(nextNode.name, ParsedArgument(start, newReader.cursor, argumentResult))
         } catch(ignored: Exception) { }
 
         try {
             (nextNode as SemanticCommandNode).`command_crafter$createSemanticTokens`(
-                context,
-                StringRange(start, max(min(newReader.cursor, context.input.length), start)),
+                context.build(result.reader.string),
+                StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
                 reader,
-                tokens
+                tokens,
+                nextNode.name
             )
         } catch(_: CommandSyntaxException) { }
     }

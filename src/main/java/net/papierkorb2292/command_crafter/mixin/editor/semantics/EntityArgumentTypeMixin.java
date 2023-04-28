@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.Mixin;
 @Mixin(EntityArgumentType.class)
 public class EntityArgumentTypeMixin implements SemanticCommandNode {
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) throws CommandSyntaxException {
         var selectorReader = new EntitySelectorReader(new StringReader(range.get(context.getInput())));
         ((SemanticBuilderContainer)selectorReader).command_crafter$setSemanticTokensBuilder(tokens, range.getStart() + reader.getReadCharacters());
         selectorReader.read();

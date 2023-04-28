@@ -11,6 +11,7 @@
     "editor.semantics.ArgumentBuilderMixin",
     "editor.semantics.ArgumentCommandNodeMixin",
     "editor.semantics.BoolArgumentTypeMixin",
+    "editor.semantics.CommandFunctionArgumentTypeMixin",
     "editor.semantics.CommandNodeMixin",
     "editor.semantics.EntityArgumentTypeMixin",
     "editor.semantics.EntitySelectorOptionsMixin",

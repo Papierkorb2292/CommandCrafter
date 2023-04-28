@@ -14,6 +14,7 @@ interface SemanticCommandNode {
         context: CommandContext<ServerCommandSource>,
         range: StringRange,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        tokens: SemanticTokensBuilder
+        tokens: SemanticTokensBuilder,
+        name: String
     )
 }

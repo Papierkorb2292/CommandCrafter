@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.Mixin;
 @Mixin(NbtElementArgumentType.class)
 public class NbtElementArgumentTypeMixin implements SemanticCommandNode {
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) throws CommandSyntaxException {
         var nbtReader = new StringNbtReader(new StringReader(range.get(context.getInput())));
         ((SemanticTokensCreator)nbtReader).command_crafter$setSemanticTokensBuilder(tokens, reader.getReadCharacters() + range.getStart());
         nbtReader.parseElement();

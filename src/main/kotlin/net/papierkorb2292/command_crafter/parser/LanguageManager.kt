@@ -50,6 +50,7 @@ object LanguageManager {
     }
 
     fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
+        reader.resourceCreator.functionStack.push(AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
         val completionProviders: MutableList<Pair<Int, (Int) -> List<CompletionItem>>> = mutableListOf()
@@ -69,6 +70,8 @@ object LanguageManager {
                 break
             }
         }
+
+        reader.resourceCreator.functionStack.pop()
 
         result.completionsProvider = completions@{
             for((end, provider) in completionProviders) {

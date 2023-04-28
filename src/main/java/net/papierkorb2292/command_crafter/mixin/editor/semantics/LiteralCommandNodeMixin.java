@@ -26,7 +26,7 @@ public abstract class LiteralCommandNodeMixin<S> extends CommandNode<S> implemen
     }
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) {
         tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), command_crafter$isRedirectTargetChild() ? TokenType.Companion.getMACRO() : TokenType.Companion.getKEYWORD(), 0);
     }
 }

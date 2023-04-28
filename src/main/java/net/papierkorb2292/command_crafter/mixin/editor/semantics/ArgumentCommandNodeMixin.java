@@ -22,9 +22,9 @@ public class ArgumentCommandNodeMixin<T> implements SemanticCommandNode {
     @Shadow(remap = false) @Final private ArgumentType<T> type;
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens) throws CommandSyntaxException {
+    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) throws CommandSyntaxException {
         if(type instanceof SemanticCommandNode semanticCommandNode) {
-            semanticCommandNode.command_crafter$createSemanticTokens(context, range, reader, tokens);
+            semanticCommandNode.command_crafter$createSemanticTokens(context, range, reader, tokens, name);
             return;
         }
         tokens.addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), TokenType.Companion.getPARAMETER(), 0);
