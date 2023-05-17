@@ -5,28 +5,27 @@ import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.launch.LSPLauncher
 import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Future
 import java.util.function.Supplier
 
 class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAcceptor, private val serverSupplier: Supplier<LanguageServer>) {
 
     private val connections: MutableList<Future<Void>> = ArrayList()
-    private var connector: CompletableFuture<Void>? = null
+    private var connector: Thread? = null
 
     fun startServer() {
         stopServer()
         connectionAcceptor.start()
-        connector = CompletableFuture.runAsync {
+        connector = Thread {
             while(connectionAcceptor.isRunning()) {
                 val editorConnection = connectionAcceptor.accept()
                 handleConnection(editorConnection, serverSupplier.get())
             }
-        }
+        }.apply { start() }
     }
 
     fun stopServer() {
-        connector?.cancel(true)
+        connector?.interrupt()
         connector = null
         for(connection in connections) {
             connection.cancel(true)
