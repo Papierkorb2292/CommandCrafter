@@ -7,7 +7,7 @@
   },
   "mixins": [
     "WorldSavePathAccessor",
-    "editor.MinecraftServerMixin",
+    "editor.CommandManagerAccessor",
     "editor.semantics.ArgumentBuilderMixin",
     "editor.semantics.ArgumentCommandNodeMixin",
     "editor.semantics.BoolArgumentTypeMixin",

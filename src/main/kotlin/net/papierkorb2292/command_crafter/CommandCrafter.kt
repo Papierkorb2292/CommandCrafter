@@ -12,6 +12,7 @@ import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -29,6 +30,9 @@ class CommandCrafter: ModInitializer {
     }
     override fun onInitialize() {
         initializeEditor()
+        NetworkServerConnection.registerServerPacketHandlers()
+
+
         initializeParser()
         LOGGER.info("Loaded CommandCrafter!")
     }
