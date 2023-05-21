@@ -23,10 +23,9 @@ import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
@@ -108,7 +107,7 @@ enum class VanillaLanguage : Language {
                     val parseResults = reader.dispatcher.parse(line, source)
                     createCommandSemantics(
                         parseResults,
-                        result.semanticTokens,
+                        result,
                         reader
                     )
                     line.cursor = parseResults.reader.cursor
@@ -248,7 +247,7 @@ enum class VanillaLanguage : Language {
                     parseResults = reader.dispatcher.parse(reader, source)
                     createCommandSemantics(
                         parseResults,
-                        result.semanticTokens,
+                        result,
                         reader
                     )
 
@@ -847,34 +846,34 @@ enum class VanillaLanguage : Language {
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
-    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
         var context = contextBuilder.build(result.reader.string)
 
         while(contextBuilder != null && context != null) {
             for (parsedNode in contextBuilder.nodes) {
                 val node = parsedNode.node
-                if (node is SemanticCommandNode) {
+                if (node is AnalyzingCommandNode) {
                     try {
-                        node.`command_crafter$createSemanticTokens`(
+                        node.`command_crafter$analyze`(
                             context,
                             StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
                             reader,
-                            tokens,
+                            analyzingResult,
                             node.name
                         )
                     } catch(_: CommandSyntaxException) { }
                 }
             }
             if(context.child == null) {
-                tryCreateNextNodeSemantics(result, tokens, contextBuilder.nodes.last().node.children, contextBuilder, reader)
+                tryAnalyzeNextNode(result, analyzingResult, contextBuilder.nodes.last().node.children, contextBuilder, reader)
             }
             contextBuilder = contextBuilder.child
             context = context.child
         }
     }
 
-    private fun tryCreateNextNodeSemantics(result: ParseResults<ServerCommandSource>, tokens: SemanticTokensBuilder, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    private fun tryAnalyzeNextNode(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         if (nodes.size != 1) return
         val nextNode = nodes.first()
         if (nextNode !is ArgumentCommandNode<*, *>) return
@@ -894,11 +893,11 @@ enum class VanillaLanguage : Language {
         } catch(ignored: Exception) { }
 
         try {
-            (nextNode as SemanticCommandNode).`command_crafter$createSemanticTokens`(
+            (nextNode as AnalyzingCommandNode).`command_crafter$analyze`(
                 context.build(result.reader.string),
                 StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
                 reader,
-                tokens,
+                analyzingResult,
                 nextNode.name
             )
         } catch(_: CommandSyntaxException) { }

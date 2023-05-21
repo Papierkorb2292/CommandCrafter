@@ -12,7 +12,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
@@ -25,14 +26,14 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(NbtPathArgumentType.class)
-public abstract class NbtPathArgumentTypeMixin implements SemanticCommandNode {
+public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
     @Shadow public abstract NbtPathArgumentType.NbtPath parse(StringReader stringReader) throws CommandSyntaxException;
 
     private static final ThreadLocal<SemanticTokensBuilder> command_crafter$semanticTokensBuilder = new ThreadLocal<>();
     private static final ThreadLocal<Integer> command_crafter$cursorOffset = new ThreadLocal<>();
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) throws CommandSyntaxException {
-        command_crafter$semanticTokensBuilder.set(tokens);
+    public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
+        command_crafter$semanticTokensBuilder.set(result.getSemanticTokens());
         command_crafter$cursorOffset.set(reader.getReadCharacters() + range.getStart());
         try {
             parse(new StringReader(range.get(context.getInput())));

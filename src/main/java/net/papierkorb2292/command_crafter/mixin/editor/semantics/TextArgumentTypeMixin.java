@@ -10,8 +10,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.TextArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticCommandNode;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
@@ -21,12 +21,12 @@ import java.io.IOException;
 import java.io.StringReader;
 
 @Mixin(TextArgumentType.class)
-public class TextArgumentTypeMixin implements SemanticCommandNode {
+public class TextArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
-    public void command_crafter$createSemanticTokens(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull SemanticTokensBuilder tokens, @NotNull String name) throws CommandSyntaxException {
+    public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var jsonReader = new JsonReader(new StringReader(range.get(context.getInput())));
-        ((SemanticTokensCreator)jsonReader).command_crafter$setSemanticTokensBuilder(tokens, reader.getReadCharacters() + range.getStart());
+        ((SemanticTokensCreator)jsonReader).command_crafter$setSemanticTokensBuilder(result.getSemanticTokens(), reader.getReadCharacters() + range.getStart());
         jsonReader.setLenient(false);
         try {
             new Gson().getAdapter(JsonElement.class).read(jsonReader);
