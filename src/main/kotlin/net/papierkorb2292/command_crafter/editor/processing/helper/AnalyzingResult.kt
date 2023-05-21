@@ -8,7 +8,7 @@ import org.eclipse.lsp4j.Position
 class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf()) {
     constructor(lines: List<String>, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(SemanticTokensBuilder(lines), diagnostics)
 
-    var completionsProvider: (Int) -> List<CompletionItem> = { emptyList() }
+    var completionProviders: MutableList<CompletionProvider> = mutableListOf()
 
     companion object {
         fun getPositionFromCursor(cursor: Int, lines: List<String>): Position {
@@ -43,4 +43,6 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics
             }
         }
     }
+
+    class CompletionProvider(cursorStart: Int, cursorEnd: Int, completionCreator: (Int) -> List<CompletionItem>)
 }

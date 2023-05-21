@@ -12,7 +12,10 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
-import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
+import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 
 object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(null, Identifier("command_crafter", "languages")).buildAndRegister()!!
@@ -53,11 +56,8 @@ object LanguageManager {
         reader.resourceCreator.functionStack.push(AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
-        val completionProviders: MutableList<Pair<Int, (Int) -> List<CompletionItem>>> = mutableListOf()
         while(reader.closureDepth != closureDepth) {
-            val languageResult = AnalyzingResult(result.semanticTokens, result.diagnostics)
-            reader.currentLanguage?.analyze(reader, source, languageResult)
-            completionProviders += reader.absoluteCursor to languageResult.completionsProvider
+            reader.currentLanguage?.analyze(reader, source, result)
             reader.updateLanguage()
             if(!reader.canRead() && reader.closureDepth != closureDepth) {
                 val position = Position(reader.lines.size - 1, reader.lines.last().length)
@@ -72,15 +72,6 @@ object LanguageManager {
         }
 
         reader.resourceCreator.functionStack.pop()
-
-        result.completionsProvider = completions@{
-            for((end, provider) in completionProviders) {
-                if(end > it) {
-                    return@completions provider(it)
-                }
-            }
-            emptyList()
-        }
     }
 
     init {
