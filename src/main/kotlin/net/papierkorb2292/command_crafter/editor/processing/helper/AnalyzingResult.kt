@@ -10,6 +10,12 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics
 
     var completionProviders: MutableList<CompletionProvider> = mutableListOf()
 
+    fun combineWith(other: AnalyzingResult) {
+        semanticTokens.combineWith(other.semanticTokens)
+        diagnostics += other.diagnostics
+        completionProviders += other.completionProviders
+    }
+
     companion object {
         fun getPositionFromCursor(cursor: Int, lines: List<String>): Position {
             var charactersLeft = cursor

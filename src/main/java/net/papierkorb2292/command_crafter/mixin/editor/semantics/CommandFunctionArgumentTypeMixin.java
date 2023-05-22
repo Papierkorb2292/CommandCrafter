@@ -20,7 +20,7 @@ public class CommandFunctionArgumentTypeMixin implements AnalyzingCommandNode {
     public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var argument = context.getArgument(name, CommandFunctionArgumentType.FunctionArgument.class);
         if (argument instanceof AnalyzedFunctionArgument analyzedArgument) {
-            result.getSemanticTokens().combineWith(analyzedArgument.getResult().getSemanticTokens());
+            result.combineWith(analyzedArgument.getResult());
         }
     }
 }
