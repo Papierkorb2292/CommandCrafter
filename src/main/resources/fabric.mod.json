@@ -19,25 +19,35 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "net.papierkorb2292.command_crafter.CommandCrafter"
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.CommandCrafter"
+      }
     ],
     "client": [
-      "net.papierkorb2292.command_crafter.client.ClientCommandCrafter"
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.client.ClientCommandCrafter"
+      }
     ],
     "preLaunch": [
-      "com.llamalad7.mixinextras.MixinExtrasBootstrap::init"
+      "com.llamalad7.mixinextras.MixinExtrasBootstrap::init",
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener"
+      }
     ]
   },
   "mixins": [
     "command_crafter.mixins.json",
     "client_command_crafter.mixins.json"
   ],
-
   "depends": {
     "fabricloader": ">=0.14.11",
     "fabric-api": "*",
     "minecraft": "~1.19.3",
-    "java": ">=17"
+    "java": ">=17",
+    "fabric-language-kotlin": ">=1.9.5+kotlin.1.8.22"
   },
   "suggests": {
   }

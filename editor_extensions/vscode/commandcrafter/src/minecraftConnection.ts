@@ -1,29 +1,27 @@
 import * as vscode from 'vscode';
 import {
     Disposable,
-	DocumentFilter,
 	LanguageClient,
-	LanguageClientOptions,
-	ServerOptions,
-	StreamInfo,
-	TransportKind
+	State,
+	StreamInfo
 } from 'vscode-languageclient/node';
 import * as net from 'net';
+import { MinecraftConsole } from './minecraftConsole';
+import { LanguageClientRunner } from './extension';
 
 interface MinecraftConnectionType extends Disposable {
 
-    getStreamInfo(): Promise<StreamInfo>;
+    connect(): Promise<StreamInfo>;
 }
 
 export class SocketConnectionType implements MinecraftConnectionType {
 
-    private readonly connection: net.Socket;
+    connection: net.Socket | null = null;
 
-    constructor(address: string, port: number) {
-        this.connection = net.connect({ host: address, port: port });
-    }
+    constructor(public address: string, public port: number) { }
 
-    getStreamInfo() {
+    connect() {
+        this.connection = net.connect({ host: this.address, port: this.port });
         return Promise.resolve({
             writer: this.connection,
             reader: this.connection
@@ -31,25 +29,78 @@ export class SocketConnectionType implements MinecraftConnectionType {
     }
 
     dispose() {
-        this.connection.destroy();
+        this.connection?.destroy();
     }
 }
 
-export function runLanguageClient(context: vscode.ExtensionContext, connectionType: MinecraftConnectionType): LanguageClient {
+export class MinecraftLanguageClientRunner implements Disposable, LanguageClientRunner {
 
-    const languageClient = new LanguageClient(
-		"CommandCrafter Language Client",
-		() => connectionType.getStreamInfo(),
-		{
-            documentSelector: [{ pattern: "**" }],
-            synchronize: {
-                fileEvents: vscode.workspace.createFileSystemWatcher("**")
+    languageClient?: LanguageClient | null;
+    prevOutputChannel?: vscode.OutputChannel | null;
+    clientState = State.Stopped;
+
+    connectionFeatures: ConnectionFeature[] = [ ];
+
+    constructor(private connectionType: MinecraftConnectionType, context: vscode.ExtensionContext) {
+        this.connectionFeatures.push(new MinecraftConsole(context, "commandcrafter.console", this));
+        context.subscriptions.push(this);
+    }
+
+    setConnectionType(connectionType: MinecraftConnectionType) {
+        this.stopLanguageClient();
+
+        this.connectionType.dispose();
+        this.connectionType = connectionType;
+    }
+
+    startLanguageClient(): LanguageClient {
+        this.prevOutputChannel?.dispose();
+        const languageClient = new LanguageClient(
+    		"CommandCrafter Language Client",
+    		() => this.connectionType.connect(),
+    		{
+                documentSelector: [{ pattern: "**" }],
+                synchronize: {
+                    fileEvents: vscode.workspace.createFileSystemWatcher("**")
+                }
             }
-        }
-	);
+        );
 
-    context.subscriptions.push(connectionType);
-    context.subscriptions.push(languageClient.start());
+        this.prevOutputChannel = languageClient.outputChannel;
 
-    return languageClient;
+        languageClient.onDidChangeState((e) => {
+            this.clientState = e.newState;
+            switch(e.newState) {
+                case State.Starting:
+                    this.connectionFeatures.forEach(feature => feature.onLanguageClientStart(languageClient));
+                    break;
+                case State.Running:
+                    this.connectionFeatures.forEach(feature => feature.onLanguageClientReady(languageClient));
+                    break;
+                case State.Stopped:
+                    this.connectionFeatures.forEach(feature => feature.onLanguageClientStop());
+                    break;
+            }
+        });
+
+        languageClient.start();
+        this.languageClient = languageClient;
+        return languageClient;
+    }
+
+    stopLanguageClient(): void {
+        let languageClient = this.languageClient;
+        this.languageClient = null;
+        languageClient?.stop();
+    }
+
+    dispose() {
+        this.connectionType.dispose();
+    }
+}
+
+export interface ConnectionFeature {
+    onLanguageClientStart(languageClient: LanguageClient): void;
+    onLanguageClientReady(languageClient: LanguageClient): void;
+    onLanguageClientStop(): void;
 }

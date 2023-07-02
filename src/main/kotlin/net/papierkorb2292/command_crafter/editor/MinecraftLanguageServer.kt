@@ -1,27 +1,70 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.papierkorb2292.command_crafter.MinecraftLanguageServerExtension
+import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
-import org.eclipse.lsp4j.services.*
+import org.eclipse.lsp4j.services.TextDocumentService
+import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : LanguageServer, LanguageClientAware, RemoteEndpointAware {
+class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnection)
+    : MinecraftServerConnectedLanguageServer,EditorClientAware,
+    MinecraftLanguageServerExtension {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
 
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
         }
+
+        const val CLIENT_LOG_CHANNEL = "client"
     }
 
-    private var client: LanguageClient? = null
+    private var client: EditorClient? = null
     private var remote: Endpoint? = null
+    private var running = true
 
     private val openFiles: MutableMap<String, OpenFile> = HashMap()
+
+    private var serverCommandExecutor: CommandExecutor? = null
+
+    override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
+        val client = client ?: return
+        val prevConsole = minecraftServer.serverLog
+        if(prevConsole != null) {
+            client.removeChannel(RemoveChannelNotification(prevConsole.name))
+        }
+
+        minecraftServer = connection
+
+        connectServerConsole()
+    }
+
+    private fun connectServerConsole() {
+        val client = client ?: return
+        val console = minecraftServer.serverLog
+        val commandExecutor = minecraftServer.commandExecutor
+        serverCommandExecutor = commandExecutor
+        if (console != null) {
+            val serverChannel = console.name
+            client.createChannel(Channel(serverChannel, commandExecutor != null))
+            console.addMessageCallback(object : CallbackLinkedBlockingQueue.Callback<String> {
+                override fun onElementAdded(e: String) {
+                    client.logMinecraftMessage(ConsoleMessage(serverChannel, e))
+                }
+
+                override fun shouldRemoveCallback() = !running
+            })
+        }
+        client.updateChannel(Channel(CLIENT_LOG_CHANNEL, serverCommandExecutor != null))
+    }
 
     override fun initialize(params: InitializeParams?): CompletableFuture<InitializeResult> {
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
@@ -36,7 +79,23 @@ class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : 
         }, ServerInfo("Minecraft Language Server")))
     }
 
+    override fun initialized(params: InitializedParams) {
+        val client = client ?: return
+
+        client.createChannel(Channel(CLIENT_LOG_CHANNEL, false))
+        PreLaunchLogListener.addLogListener(object : CallbackLinkedBlockingQueue.Callback<String> {
+            override fun onElementAdded(e: String) {
+                client.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, e))
+            }
+
+            override fun shouldRemoveCallback() = !running
+        })
+
+        connectServerConsole()
+    }
+
     override fun shutdown(): CompletableFuture<Any> {
+        running = false
         return CompletableFuture.completedFuture(null)
     }
 
@@ -129,16 +188,20 @@ class MinecraftLanguageServer(val minecraftServer: MinecraftServerConnection) : 
             override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams?) {
 
             }
-
         }
     }
 
-    override fun connect(client: LanguageClient?) {
+    override fun runCommand(message: ConsoleCommand) {
+        val channel = message.channel
+        val serverCommandExecutor = serverCommandExecutor
+        val serverConsole = minecraftServer.serverLog
+        if(serverCommandExecutor != null
+            && (channel == CLIENT_LOG_CHANNEL || serverConsole != null && channel == serverConsole.name)) {
+            serverCommandExecutor.executeCommand(message.command)
+        }
+    }
+
+    override fun connect(client: EditorClient) {
         this.client = client
     }
-
-    override fun setRemoteEndpoint(remote: Endpoint) {
-        this.remote = remote
-    }
-
 }

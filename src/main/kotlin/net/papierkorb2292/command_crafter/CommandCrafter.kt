@@ -1,4 +1,5 @@
 package net.papierkorb2292.command_crafter
+
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry
@@ -23,11 +24,11 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
 import java.io.BufferedReader
 
-class CommandCrafter: ModInitializer {
-    companion object {
-        const val MOD_ID = "command_crafter"
-        val LOGGER = LogManager.getLogger(MOD_ID)
-    }
+
+object CommandCrafter: ModInitializer {
+    const val MOD_ID = "command_crafter"
+    val LOGGER = LogManager.getLogger(MOD_ID)
+
     override fun onInitialize() {
         initializeEditor()
         NetworkServerConnection.registerServerPacketHandlers()
@@ -67,7 +68,7 @@ class CommandCrafter: ModInitializer {
                 id: Identifier,
                 content: BufferedReader,
                 resourceCreator: RawZipResourceCreator,
-                dispatcher: CommandDispatcher<ServerCommandSource>
+                dispatcher: CommandDispatcher<ServerCommandSource>,
             ) {
                 val reader = DirectiveStringReader(content.lines().toList(), dispatcher, resourceCreator)
                 val resource = RawResource(RawResource.FUNCTION_TYPE)

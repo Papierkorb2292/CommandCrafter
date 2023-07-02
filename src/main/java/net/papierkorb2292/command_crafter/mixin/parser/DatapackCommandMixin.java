@@ -56,7 +56,7 @@ public class DatapackCommandMixin {
                                                 false,
                                                 (path, pack) -> candidates.add(StringArgumentType.escapeIfRequired("file/" + path.getFileName().toString())));
                                     } catch (IOException e) {
-                                        CommandCrafter.Companion.getLOGGER().error("Encountered IOException while searching for buildable datapacks", e);
+                                        CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while searching for buildable datapacks", e);
                                     }
                                     return CommandSource.suggestMatching(
                                             candidates.stream(),
@@ -112,7 +112,7 @@ public class DatapackCommandMixin {
                 context.getSource().sendFeedback(Text.of("Successfully built datapack"), true);
             } catch (IOException e) {
                 context.getSource().sendError(Text.of("Encountered IOException while building datapack. The exception is written to the game output."));
-                CommandCrafter.Companion.getLOGGER().error("Encountered IOException while building datapack", e);
+                CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while building datapack", e);
             }
         }
     }

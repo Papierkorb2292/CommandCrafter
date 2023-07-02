@@ -1,22 +1,29 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.helper.CallbackExecutorService
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.launch.LSPLauncher
+import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageClientAware
-import org.eclipse.lsp4j.services.LanguageServer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
-import java.util.function.Supplier
 
-class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAcceptor, private val serverSupplier: Supplier<LanguageServer>) {
+class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAcceptor, minecraftServerConnection: MinecraftServerConnection, private val serverCreator: (MinecraftServerConnection) -> MinecraftServerConnectedLanguageServer) {
 
-    private val connections: ConcurrentMap<LanguageServer, Pair<LanguageClient, Future<Void>>> = ConcurrentHashMap()
+    private val connections: ConcurrentMap<MinecraftServerConnectedLanguageServer, Pair<LanguageClient, Future<Void>>> = ConcurrentHashMap()
     private var connector: Thread? = null
+
+    var minecraftServerConnection: MinecraftServerConnection = minecraftServerConnection
+        set(value) {
+            field = value
+            for(server in connections.keys) {
+                server.setMinecraftServerConnection(value)
+            }
+        }
 
     fun startServer() {
         stopServer()
@@ -24,7 +31,7 @@ class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAc
         connector = Thread {
             while(connectionAcceptor.isRunning()) {
                 val editorConnection = connectionAcceptor.accept()
-                handleConnection(editorConnection, serverSupplier.get())
+                handleConnection(editorConnection, serverCreator(minecraftServerConnection))
             }
         }.apply { start() }
     }
@@ -39,13 +46,16 @@ class EditorConnectionManager(private val connectionAcceptor: EditorConnectionAc
         connectionAcceptor.stop()
     }
 
-    private fun handleConnection(connection: EditorConnection, server: LanguageServer) {
-        val launcher = LSPLauncher.createServerLauncher(server, connection.inputStream, connection.outputStream, CallbackExecutorService(
+    private fun handleConnection(connection: EditorConnection, server: MinecraftServerConnectedLanguageServer) {
+        val launcher = Launcher.createLauncher(server, EditorClient::class.java, connection.inputStream, connection.outputStream, CallbackExecutorService(
             Executors.newCachedThreadPool()
         ) {
             connections.remove(server)
         }, null)
         if(server is LanguageClientAware) {
+            server.connect(launcher.remoteProxy)
+        }
+        if(server is EditorClientAware) {
             server.connect(launcher.remoteProxy)
         }
         if(server is RemoteEndpointAware) {
