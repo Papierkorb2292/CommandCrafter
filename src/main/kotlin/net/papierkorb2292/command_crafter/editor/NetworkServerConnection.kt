@@ -144,7 +144,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {
-            NetworkServerLog()
+            null
         } else {
             NetworkServerLog()
         }
