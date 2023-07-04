@@ -80,6 +80,7 @@ addEventListener("load", () => {
             case "removeAllChannels":
                 channelElements.clear();
                 log.innerHTML = "";
+                channelSelector.innerHTML = "";
                 break;
             case "addConsoleMessage":
                 const message = ev.data.payload as ConsoleMessage;
