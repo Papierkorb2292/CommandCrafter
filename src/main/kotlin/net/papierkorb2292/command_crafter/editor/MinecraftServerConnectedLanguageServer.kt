@@ -2,6 +2,4 @@ package net.papierkorb2292.command_crafter.editor
 
 import org.eclipse.lsp4j.services.LanguageServer
 
-interface MinecraftServerConnectedLanguageServer : LanguageServer {
-    fun setMinecraftServerConnection(connection: MinecraftServerConnection)
-}
+interface MinecraftServerConnectedLanguageServer : LanguageServer, EditorService

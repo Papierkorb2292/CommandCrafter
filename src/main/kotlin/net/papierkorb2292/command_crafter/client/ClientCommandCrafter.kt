@@ -18,8 +18,11 @@ object ClientCommandCrafter : ClientModInitializer {
         SocketEditorConnectionType(52853), //TODO: Let the user change the port
         ClientDummyServerConnection(
             CommandDispatcher(), 0
+        ),
+        mapOf(
+            "languageServer" to { MinecraftLanguageServer(it) }
         )
-    ) { MinecraftLanguageServer(it) }
+    )
 
     private fun initializeEditor() {
         val registryWrapperLookup = BuiltinRegistries.createWrapperLookup()
