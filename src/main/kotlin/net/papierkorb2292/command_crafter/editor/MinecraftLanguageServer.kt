@@ -191,6 +191,8 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
         }
     }
 
+    override fun setTrace(params: SetTraceParams) { }
+
     override fun runCommand(message: ConsoleCommand) {
         val channel = message.channel
         val serverCommandExecutor = serverCommandExecutor
