@@ -15,8 +15,13 @@ dependencies {
     modImplementation("net.fabricmc", "fabric-loader", project.extra["loader_version"] as String)
     modImplementation("net.fabricmc.fabric-api", "fabric-api", project.extra["fabric_version"] as String)
     modImplementation("net.fabricmc", "fabric-language-kotlin", project.extra["fabric_language_kotlin_version"] as String)
+
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
+    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
+
+
     include("com.github.LlamaLad7:MixinExtras:0.2.0-beta.6")
     implementation("com.github.LlamaLad7:MixinExtras:0.2.0-beta.6")
     annotationProcessor("com.github.LlamaLad7:MixinExtras:0.2.0-beta.6")

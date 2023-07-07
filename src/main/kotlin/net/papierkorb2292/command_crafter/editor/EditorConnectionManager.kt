@@ -1,12 +1,15 @@
 package net.papierkorb2292.command_crafter.editor
 
-import com.mojang.brigadier.StringReader
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.helper.CallbackExecutorService
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.jsonrpc.Launcher
+import org.eclipse.lsp4j.jsonrpc.debug.json.DebugMessageJsonHandler
+import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugRequestMessage
+import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod
+import org.eclipse.lsp4j.jsonrpc.json.StreamMessageProducer
 import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageClientAware
 import java.util.concurrent.ConcurrentHashMap
@@ -40,6 +43,7 @@ class EditorConnectionManager(
                 try {
                     handleConnection(editorConnection)
                 } catch(e: Exception) {
+                    editorConnection.close()
                     CommandCrafter.LOGGER.error("Error while connecting to editor", e)
                 }
             }
@@ -47,34 +51,31 @@ class EditorConnectionManager(
     }
 
     private fun handleConnection(editorConnection: EditorConnection) {
-        val configBuilder = StringBuilder()
-        var readByte: Int
-        while (true) {
-            readByte = editorConnection.inputStream.read()
-            if (readByte == -1 || readByte == '\n'.code) {
-                break
+        val connectorMessageReader = StreamMessageProducer(
+            editorConnection.inputStream,
+            DebugMessageJsonHandler(
+                mapOf(
+                    "connectToService" to JsonRpcMethod.notification(
+                        "connectToService",
+                        String::class.java
+                    )
+                )
+            )
+        )
+        connectorMessageReader.listen {
+            if(it !is DebugRequestMessage) {
+                return@listen
             }
-            configBuilder.append(readByte.toChar())
-        }
-        val configReader = StringReader(configBuilder.toString())
-        val configOptions = mutableMapOf<String, String>()
-        while (configReader.canRead()) {
-            val configName = configReader.readStringUntil('=')
-            if (!configReader.canRead(0) || configReader.peek(-1) != '=') {
-                break
+            if(it.method != "connectToService") {
+                return@listen
             }
-            configOptions[configName] = configReader.readString()
-        }
-
-        val serviceName = configOptions["service"]
-        if (serviceName != null) {
-            val serviceCreator = serviceCreators[configOptions["service"]]
-            if (serviceCreator != null) {
+            val serviceName = it.params as String
+            val serviceCreator = serviceCreators[serviceName]
+            if(serviceCreator != null) {
+                connectorMessageReader.close()
                 startService(editorConnection, serviceCreator(minecraftServerConnection))
-                return
             }
         }
-        editorConnection.close()
     }
 
     fun stopServer() {

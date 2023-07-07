@@ -58,7 +58,15 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
         const languageClient = new LanguageClient(
     		"CommandCrafter Language Client",
     		() => this.connectionType.connect().then((streamInfo) => {
-                streamInfo.writer.write("service=languageServer\n")
+                const serviceRequest = JSON.stringify({
+                    "seq": 1,
+                    "type": "request",
+                    "command": "connectToService",
+                    "arguments": "languageServer"
+                });
+                streamInfo.writer.write(
+                    `Content-Length:${Buffer.byteLength(serviceRequest, 'utf-8')}\r\n\r\n${serviceRequest}`, 'utf-8'
+                );
                 return streamInfo;
             }),
     		{
