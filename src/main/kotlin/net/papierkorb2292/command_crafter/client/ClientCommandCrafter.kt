@@ -8,6 +8,8 @@ import net.minecraft.server.command.CommandManager
 import net.papierkorb2292.command_crafter.editor.*
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
+import org.eclipse.lsp4j.jsonrpc.Launcher
+import java.util.concurrent.ExecutorService
 
 object ClientCommandCrafter : ClientModInitializer {
     override fun onInitializeClient() {
@@ -20,7 +22,27 @@ object ClientCommandCrafter : ClientModInitializer {
             CommandDispatcher(), 0
         ),
         mapOf(
-            "languageServer" to { MinecraftLanguageServer(it) }
+            "languageServer" to object : EditorConnectionManager.ServiceLauncher {
+                override fun launch(
+                    serverConnection: MinecraftServerConnection,
+                    editorConnection: EditorConnection,
+                    executorService: ExecutorService
+                ): EditorConnectionManager.LaunchedService {
+                    val server = MinecraftLanguageServer(serverConnection)
+                    val launcher = Launcher.createLauncher(
+                        server,
+                        EditorClient::class.java,
+                        editorConnection.inputStream,
+                        editorConnection.outputStream,
+                        executorService,
+                        null
+                    )
+                    val launched = launcher.startListening()
+                    server.connect(launcher.remoteProxy)
+                    launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
+                    return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
+                }
+            }
         )
     )
 

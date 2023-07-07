@@ -1,29 +1,22 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.helper.CallbackExecutorService
 import org.eclipse.lsp4j.MessageParams
-import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.jsonrpc.debug.json.DebugMessageJsonHandler
 import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugRequestMessage
 import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod
 import org.eclipse.lsp4j.jsonrpc.json.StreamMessageProducer
 import org.eclipse.lsp4j.services.LanguageClient
-import org.eclipse.lsp4j.services.LanguageClientAware
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentMap
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
+import java.util.concurrent.*
 
 class EditorConnectionManager(
     private val connectionAcceptor: EditorConnectionAcceptor,
     minecraftServerConnection: MinecraftServerConnection,
-    private val serviceCreators: Map<String, (MinecraftServerConnection) -> EditorService>
+    private val serviceLaunchers: Map<String, ServiceLauncher>
 ) {
 
-    private val runningServices: ConcurrentMap<EditorService, Pair<LanguageClient, Future<Void>>> = ConcurrentHashMap()
+    private val runningServices: ConcurrentMap<EditorService, Pair<ServiceClient, Future<Void>>> = ConcurrentHashMap()
     private var connector: Thread? = null
 
     var minecraftServerConnection: MinecraftServerConnection = minecraftServerConnection
@@ -70,10 +63,10 @@ class EditorConnectionManager(
                 return@listen
             }
             val serviceName = it.params as String
-            val serviceCreator = serviceCreators[serviceName]
+            val serviceCreator = serviceLaunchers[serviceName]
             if(serviceCreator != null) {
                 connectorMessageReader.close()
-                startService(editorConnection, serviceCreator(minecraftServerConnection))
+                startService(editorConnection, serviceCreator)
             }
         }
     }
@@ -88,28 +81,41 @@ class EditorConnectionManager(
         connectionAcceptor.stop()
     }
 
-    private fun startService(connection: EditorConnection, server: EditorService) {
-        val launcher = Launcher.createLauncher(server, EditorClient::class.java, connection.inputStream, connection.outputStream, CallbackExecutorService(
-            Executors.newCachedThreadPool()
-        ) {
-            runningServices.remove(server)
-        }, null)
-        if(server is LanguageClientAware) {
-            server.connect(launcher.remoteProxy)
-        }
-        if(server is EditorClientAware) {
-            server.connect(launcher.remoteProxy)
-        }
-        if(server is RemoteEndpointAware) {
-            server.setRemoteEndpoint(launcher.remoteEndpoint)
-        }
-        launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
-        runningServices[server] = launcher.remoteProxy to launcher.startListening()
+    private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher) {
+        val serviceRemover = ServiceRemover(runningServices, null)
+        val launchedService = serviceLauncher.launch(
+            minecraftServerConnection,
+            connection,
+            CallbackExecutorService(
+                Executors.newCachedThreadPool(),
+                serviceRemover
+            )
+        )
+        serviceRemover.service = launchedService.server
+        runningServices[launchedService.server] = launchedService.client to launchedService.process
     }
 
     fun showMessage(message: MessageParams) {
-        for((client, _) in runningServices.values) {
-            client.showMessage(message)
+        for((serviceClient, _) in runningServices.values) {
+            (serviceClient.client as? LanguageClient ?: continue).showMessage(message)
+        }
+    }
+
+    interface ServiceLauncher {
+        fun launch(serverConnection: MinecraftServerConnection, editorConnection: EditorConnection, executorService: ExecutorService): LaunchedService
+    }
+
+    class ServiceClient(val client: Any)
+
+    class LaunchedService(
+        val server: EditorService,
+        val client: ServiceClient,
+        val process: Future<Void>
+    )
+
+    class ServiceRemover(private val runningServices: MutableMap<EditorService, *>, var service: EditorService?) : () -> Unit {
+        override fun invoke() {
+            runningServices.remove(service)
         }
     }
 }
