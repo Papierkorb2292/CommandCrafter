@@ -50,7 +50,52 @@
           "type": "webview"
         }
       ]
-    }
+    },
+    "debuggers": [
+      {
+        "type": "commandcrafter",
+        "label": "CommandCrafter-Minecraft Debug",
+
+        "configurationAttributes": {
+          "launch": {
+            "properties": {
+              "function": {
+                "type": "string",
+                "description": "Optional: The id of a function to run and debug. If omitted, all functional datapack files (including for example advancements and loot-tables) can be debugged, but not run at launch"
+              }
+            }
+          }
+        },
+
+        "initialConfigurations": [
+          {
+            "type": "commandcrafter",
+            "request": "launch"
+          }
+        ],
+
+        "configurationSnippets": [
+          {
+            "label": "Minecraft Debug: Launch",
+            "description": "A new configuration for launching the Minecraft debugger",
+            "body": {
+              "type": "commandcrafter",
+              "request": "launch"
+            }
+          },
+          {
+            "label": "Minecraft Debug: Debug Function",
+            "description": "A new configuration for launching the Minecraft debugger and debugging a function",
+            "body": {
+              "type": "commandcrafter",
+              "request": "launch",
+              "name": "Debugging function <Function>",
+              "function": "<Function Id>"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

@@ -8,10 +8,12 @@ import {
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
 import { LanguageClientRunner } from './extension';
+import { DebugClient } from './debugClient';
 
-interface MinecraftConnectionType extends Disposable {
+export interface MinecraftConnectionType extends Disposable {
 
     connect(): Promise<StreamInfo>;
+    copy(): MinecraftConnectionType;
 }
 
 export class SocketConnectionType implements MinecraftConnectionType {
@@ -31,6 +33,10 @@ export class SocketConnectionType implements MinecraftConnectionType {
     dispose() {
         this.connection?.destroy();
     }
+
+    copy() {
+        return new SocketConnectionType(this.address, this.port);
+    }
 }
 
 export class MinecraftLanguageClientRunner implements Disposable, LanguageClientRunner {
@@ -43,7 +49,9 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
 
     constructor(private connectionType: MinecraftConnectionType, context: vscode.ExtensionContext) {
         this.connectionFeatures.push(new MinecraftConsole(context, "commandcrafter.console", this));
+        this.connectionFeatures.push(new DebugClient(context, "commandcrafter", this))
         context.subscriptions.push(this);
+        this.alertFeaturesOfConnectionTypeChange();
     }
 
     setConnectionType(connectionType: MinecraftConnectionType) {
@@ -51,6 +59,12 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
 
         this.connectionType.dispose();
         this.connectionType = connectionType;
+
+        this.alertFeaturesOfConnectionTypeChange();
+    }
+
+    alertFeaturesOfConnectionTypeChange() {
+        this.connectionFeatures.forEach(feature => feature.onConnectionTypeChange(this.connectionType));
     }
 
     startLanguageClient(): LanguageClient {
@@ -114,4 +128,5 @@ export interface ConnectionFeature {
     onLanguageClientStart(languageClient: LanguageClient): void;
     onLanguageClientReady(languageClient: LanguageClient): void;
     onLanguageClientStop(): void;
+    onConnectionTypeChange(connectionType: MinecraftConnectionType): void
 }

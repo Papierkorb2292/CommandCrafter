@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { LanguageClient, NotificationType, State } from "vscode-languageclient/node";
 import { LanguageClientRunner } from './extension';
-import { ConnectionFeature } from './minecraftConnection';
+import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { getNonce, Message } from './webview';
 import { Console, Channel, ChannelName, ConsoleMessage, ConsoleHandler, ConsoleCommnad } from './console';
 
@@ -22,6 +22,7 @@ export class MinecraftConsole implements ConnectionFeature {
         );
         this.console = new Console(this.consoleView);
     }
+    onConnectionTypeChange(connectionType: MinecraftConnectionType) { }
 
     onLanguageClientReady(languageClient: LanguageClient) {
         languageClient.onNotification(new NotificationType<Channel>("createChannel"), channel => {

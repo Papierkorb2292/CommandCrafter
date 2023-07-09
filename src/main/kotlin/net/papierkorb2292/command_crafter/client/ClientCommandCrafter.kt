@@ -6,9 +6,12 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.registry.BuiltinRegistries
 import net.minecraft.server.command.CommandManager
 import net.papierkorb2292.command_crafter.editor.*
+import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
+import org.eclipse.lsp4j.debug.services.IDebugProtocolClient
 import org.eclipse.lsp4j.jsonrpc.Launcher
+import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import java.util.concurrent.ExecutorService
 
 object ClientCommandCrafter : ClientModInitializer {
@@ -42,6 +45,27 @@ object ClientCommandCrafter : ClientModInitializer {
                     launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
                     return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
                 }
+            },
+            "debugger" to object : EditorConnectionManager.ServiceLauncher {
+                override fun launch(
+                    serverConnection: MinecraftServerConnection,
+                    editorConnection: EditorConnection,
+                    executorService: ExecutorService,
+                ): EditorConnectionManager.LaunchedService {
+                    val server = MinecraftDebuggerServer(serverConnection)
+                    val launcher = DebugLauncher.createLauncher(
+                        server,
+                        IDebugProtocolClient::class.java,
+                        editorConnection.inputStream,
+                        editorConnection.outputStream,
+                        executorService,
+                        null
+                    )
+                    val launched = launcher.startListening()
+                    server.connect(launcher.remoteProxy)
+                    return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
+                }
+
             }
         )
     )
