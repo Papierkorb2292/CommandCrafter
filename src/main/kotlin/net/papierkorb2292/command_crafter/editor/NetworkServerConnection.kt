@@ -166,7 +166,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    class RequestNetworkServerConnectionC2SPacket(val requestId: UUID) : Packet {
+    class RequestNetworkServerConnectionC2SPacket(val requestId: UUID) : ByteBufWritable {
 
         constructor(buf: PacketByteBuf) : this(buf.readUuid())
 
@@ -179,7 +179,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val commandTree: CommandTreeS2CPacket,
         val functionPermissionLevel: Int,
         val requestId: UUID,
-    ) : Packet {
+    ) : ByteBufWritable {
 
         constructor(buf: PacketByteBuf) : this(CommandTreeS2CPacket(buf), buf.readVarInt(), buf.readUuid())
 
@@ -190,7 +190,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    class LogMessageS2CPacket(val logMessage: String): Packet {
+    class LogMessageS2CPacket(val logMessage: String): ByteBufWritable {
 
         constructor(buf: PacketByteBuf) : this(buf.readString())
 
