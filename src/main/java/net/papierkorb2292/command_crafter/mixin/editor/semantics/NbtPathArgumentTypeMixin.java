@@ -38,7 +38,8 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
         try {
             parse(new StringReader(range.get(context.getInput())));
         } finally {
-            command_crafter$semanticTokensBuilder.set(null);
+            command_crafter$semanticTokensBuilder.remove();
+            command_crafter$cursorOffset.remove();
         }
     }
 
