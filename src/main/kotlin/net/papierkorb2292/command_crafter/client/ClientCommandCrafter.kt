@@ -5,6 +5,7 @@ import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.registry.BuiltinRegistries
 import net.minecraft.server.command.CommandManager
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import org.eclipse.lsp4j.MessageParams
@@ -12,6 +13,9 @@ import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.debug.services.IDebugProtocolClient
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ExecutorService
 
 object ClientCommandCrafter : ClientModInitializer {
@@ -32,14 +36,16 @@ object ClientCommandCrafter : ClientModInitializer {
                     executorService: ExecutorService
                 ): EditorConnectionManager.LaunchedService {
                     val server = MinecraftLanguageServer(serverConnection)
-                    val launcher = Launcher.createLauncher(
-                        server,
-                        EditorClient::class.java,
-                        editorConnection.inputStream,
-                        editorConnection.outputStream,
-                        executorService,
-                        null
-                    )
+                    val launcher = Launcher.Builder<EditorClient>()
+                        .setLocalService(server)
+                        .setRemoteInterface(EditorClient::class.java)
+                        .setInput(editorConnection.inputStream)
+                        .setOutput(editorConnection.outputStream)
+                        .setExecutorService(executorService)
+                        .setExceptionHandler {
+                            handleEditorServiceException("languageServer", it)
+                        }
+                        .create();
                     val launched = launcher.startListening()
                     server.connect(launcher.remoteProxy)
                     launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
@@ -53,14 +59,17 @@ object ClientCommandCrafter : ClientModInitializer {
                     executorService: ExecutorService,
                 ): EditorConnectionManager.LaunchedService {
                     val server = MinecraftDebuggerServer(serverConnection)
-                    val launcher = DebugLauncher.createLauncher(
-                        server,
-                        IDebugProtocolClient::class.java,
-                        editorConnection.inputStream,
-                        editorConnection.outputStream,
-                        executorService,
-                        null
-                    )
+                    val launcher = DebugLauncher.Builder<IDebugProtocolClient>()
+                        .setLocalService(server)
+                        .setRemoteInterface(IDebugProtocolClient::class.java)
+                        .setInput(editorConnection.inputStream)
+                        .setOutput(editorConnection.outputStream)
+                        .setExecutorService(executorService)
+                        .setExceptionHandler {
+                            handleEditorServiceException("debugger", it)
+                        }
+                        .create();
+                    messageWrapper.client = launcher.remoteProxy
                     val launched = launcher.startListening()
                     server.connect(launcher.remoteProxy)
                     return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
@@ -99,5 +108,15 @@ object ClientCommandCrafter : ClientModInitializer {
         }
 
         editorConnectionManager.startServer()
+    }
+
+    private fun handleEditorServiceException(serviceName: String, e: Throwable): ResponseError {
+        CommandCrafter.LOGGER.error("Error thrown by $serviceName", e)
+        var coreException = e;
+        if(coreException is RuntimeException)
+            coreException = coreException.cause ?: coreException
+        if(coreException is InvocationTargetException)
+            coreException = coreException.targetException
+        return ResponseError(ResponseErrorCode.UnknownErrorCode, coreException.message, null)
     }
 }
