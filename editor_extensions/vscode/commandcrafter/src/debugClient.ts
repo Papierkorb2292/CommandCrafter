@@ -15,7 +15,7 @@ export class DebugClient implements ConnectionFeature {
 
     constructor(private readonly context: vscode.ExtensionContext, debuggerId: string, readonly languageClientRunner: LanguageClientRunner) {
         const debugClient = this;
-        vscode.debug.registerDebugAdapterDescriptorFactory(debuggerId, {
+        context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory(debuggerId, {
             createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable) {
                 const connectionType = debugClient.connectionType;
                 if(!connectionType) {
@@ -85,7 +85,7 @@ export class DebugClient implements ConnectionFeature {
                     return new vscode.DebugAdapterInlineImplementation(debugAdapter);
                 });
             }
-        });
+        }));
     }
     
     onLanguageClientStart(languageClient: LanguageClient) { }

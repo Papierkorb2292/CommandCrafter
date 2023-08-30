@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.parser.languages
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.ParsedArgument
 import com.mojang.brigadier.context.StringRange
@@ -22,6 +23,11 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
+import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionElementDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
@@ -57,19 +63,34 @@ enum class VanillaLanguage : Language {
         override fun parseToCommands(
             reader: DirectiveStringReader<ParsedResourceCreator?>,
             source: ServerCommandSource,
-        ): List<CommandFunction.Element> {
-            val result: MutableList<CommandFunction.Element> = ArrayList()
+        ): Pair<List<CommandFunction.Element>, FunctionDebugInformation?> {
+            val result: MutableList<Pair<ParseResults<ServerCommandSource>, Int>> = ArrayList()
             reader.endStatement()
             while(reader.canRead() && reader.currentLanguage == this) {
+                val startCursor = reader.absoluteCursor
                 val line = StringReader(reader.readLine().trimStart())
                 if(!line.canRead() || line.peek() == '#') {
                     reader.endStatement()
                     continue
                 }
-                result.add(CommandFunction.CommandElement(parseCommand(line, reader.currentLine - 1, reader.dispatcher, source)))
+                result.add(parseCommand(line, reader.currentLine - 1, reader.dispatcher, source) to startCursor)
                 reader.endStatement()
             }
-            return result
+            return result.map {
+                CommandFunction.CommandElement(it.first)
+            } to reader.resourceCreator?.run {
+                FunctionElementDebugInformation(
+                    result,
+                    reader.lines,
+                    VanillaBreakpointConditionParser,
+                    functionId.withExtension(".mcfunction")
+                ).also { debugInformation ->
+                    originResourceInfoSetEventStack.peek().invoke {
+                        debugInformation.functionId = it.id
+                        debugInformation.setFunctionStringRange(it.range)
+                    }
+                }
+            }
         }
 
         override fun analyze(
@@ -176,9 +197,9 @@ enum class VanillaLanguage : Language {
         override fun parseToCommands(
             reader: DirectiveStringReader<ParsedResourceCreator?>,
             source: ServerCommandSource,
-        ): List<CommandFunction.Element> {
+        ): Pair<List<CommandFunction.Element>, FunctionDebugInformation?> {
             reader.endStatement()
-            val result: MutableList<CommandFunction.Element> = ArrayList()
+            val result: MutableList<Pair<ParseResults<ServerCommandSource>, Int>> = ArrayList()
             while (reader.canRead() && reader.currentLanguage == this) {
                 if (skipComments(reader)) {
                     reader.endStatement()
@@ -190,12 +211,27 @@ enum class VanillaLanguage : Language {
                     reader.currentLine++
                     continue
                 }
+                val startCursor = reader.absoluteCursor
                 reader.readIndentation()
                 throwIfSlashPrefix(reader, reader.currentLine)
-                result.add(CommandFunction.CommandElement(parseCommand(reader, source)))
+                result.add(parseCommand(reader, source) to startCursor)
                 reader.endStatement()
             }
-            return result
+            return result.map {
+                CommandFunction.CommandElement(it.first)
+            } to reader.resourceCreator?.run {
+                FunctionElementDebugInformation(
+                    result,
+                    reader.lines,
+                    VanillaBreakpointConditionParser,
+                    functionId.withExtension(".mcfunction")
+                ).also { debugInformation ->
+                    originResourceInfoSetEventStack.peek().invoke {
+                        debugInformation.functionId = it.id
+                        debugInformation.setFunctionStringRange(it.range)
+                    }
+                }
+            }
         }
 
         override fun analyze(
@@ -448,14 +484,17 @@ enum class VanillaLanguage : Language {
             source: ServerCommandSource,
             idSetter: (Identifier) -> Unit,
         ) {
+            val startCursor = reader.absoluteCursor
+            val functionIdSetter = ParsedResourceCreator.ResourceInfoSetterWrapper(reader.resourceCreator.addOriginResource())
             reader.expect('{')
             reader.resourceCreator.functions += ParsedResourceCreator.AutomaticResource(
-                reader.resourceCreator.addOriginResource(),
+                functionIdSetter,
                 CommandFunction(
                     ParsedResourceCreator.PLACEHOLDER_ID,
                     LanguageManager.parseToCommands(reader, source, ImprovedVanillaClosure)
                 )
             )
+            functionIdSetter.range = StringRange(startCursor, reader.absoluteCursor)
             reader.resourceCreator.originResourceIdSetEventStack.pop()(idSetter)
         }
 
@@ -911,6 +950,22 @@ enum class VanillaLanguage : Language {
             context = context.child ?: return true
             if(context.nodes.isNotEmpty())
                 return false
+        }
+    }
+
+    object VanillaBreakpointConditionParser : BreakpointConditionParser {
+        override fun parseCondition(condition: String?, hitCondition: String?): BreakpointCondition {
+            //TODO
+            return object : BreakpointCondition {
+                override fun checkCondition(context: CommandContext<ServerCommandSource>): Boolean {
+                    return true
+                }
+
+                override fun checkHitCondition(context: CommandContext<ServerCommandSource>): Boolean {
+                    return true
+                }
+
+            }
         }
     }
 }

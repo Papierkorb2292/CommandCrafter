@@ -7,6 +7,7 @@ import net.minecraft.registry.BuiltinRegistries
 import net.minecraft.server.command.CommandManager
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.*
+import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
@@ -59,12 +60,14 @@ object ClientCommandCrafter : ClientModInitializer {
                     executorService: ExecutorService,
                 ): EditorConnectionManager.LaunchedService {
                     val server = MinecraftDebuggerServer(serverConnection)
+                    val messageWrapper = InitializedEventEmittingMessageWrapper()
                     val launcher = DebugLauncher.Builder<IDebugProtocolClient>()
                         .setLocalService(server)
                         .setRemoteInterface(IDebugProtocolClient::class.java)
                         .setInput(editorConnection.inputStream)
                         .setOutput(editorConnection.outputStream)
                         .setExecutorService(executorService)
+                        .wrapMessages(messageWrapper)
                         .setExceptionHandler {
                             handleEditorServiceException("debugger", it)
                         }

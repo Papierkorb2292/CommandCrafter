@@ -31,7 +31,6 @@
       }
     ],
     "preLaunch": [
-      "com.llamalad7.mixinextras.MixinExtrasBootstrap::init",
       {
         "adapter": "kotlin",
         "value": "net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener"

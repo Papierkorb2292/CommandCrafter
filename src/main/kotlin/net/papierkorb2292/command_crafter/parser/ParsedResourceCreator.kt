@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.google.common.collect.ImmutableMap
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import net.minecraft.loot.LootTable
@@ -156,10 +157,17 @@ class ParsedResourceCreator(
     val functionTags: MutableList<AutomaticResource<Collection<TagEntry>>> = LinkedList()
 
     val originResourceIdSetEventStack = LinkedList<((Identifier) -> Unit) -> Unit>()
+    val originResourceInfoSetEventStack = LinkedList<((ResourceStackInfo) -> Unit) -> Unit>()
 
-    fun addOriginResource(): (Identifier) -> Unit {
-        val listeners: MutableList<(Identifier) -> Unit> = ArrayList()
-        originResourceIdSetEventStack.push(listeners::add)
+    fun addOriginResource(): (ResourceStackInfo) -> Unit {
+        val listeners: MutableList<(ResourceStackInfo) -> Unit> = ArrayList()
+        originResourceIdSetEventStack.push { callback ->
+            listeners.add { info ->
+                callback(info.id)
+            }
+        }
+        originResourceInfoSetEventStack.push(listeners::add)
+
         return {
             for(listener in listeners) {
                 listener(it)
@@ -188,5 +196,12 @@ class ParsedResourceCreator(
 
     interface DataPackRefresher {
         fun `command_crafter$addCallback`(callback: () -> Unit)
+    }
+
+    class ResourceStackInfo(val id: Identifier, val range: StringRange)
+    class ResourceInfoSetterWrapper(val infoSetter: (ResourceStackInfo) -> Unit, var range: StringRange = StringRange.at(0)): (Identifier) -> Unit {
+        override fun invoke(id: Identifier) {
+            infoSetter(ResourceStackInfo(id, range))
+        }
     }
 }

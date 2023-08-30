@@ -51,10 +51,12 @@
         }
       ]
     },
+    "breakpoints": [{ "language": "mcfunction" }, { "language": "json" }],
     "debuggers": [
       {
         "type": "commandcrafter",
         "label": "CommandCrafter-Minecraft Debug",
+        "languages": [ "mcfunction" ],
 
         "configurationAttributes": {
           "launch": {
@@ -62,6 +64,14 @@
               "function": {
                 "type": "string",
                 "description": "Optional: The id of a function to run and debug. If omitted, all functional datapack files (including for example advancements and loot-tables) can be debugged, but not run at launch"
+              },
+              "dataFolders": {
+                "type": "array",
+                "description": "An array of folders that the debugger will scan to find 'data' folders belonging to datapacks",
+                "items": {
+                  "type": "string"
+                },
+                "default": [ "${workspaceFolder}" ]
               }
             }
           }
@@ -70,7 +80,8 @@
         "initialConfigurations": [
           {
             "type": "commandcrafter",
-            "request": "launch"
+            "request": "launch",
+            "dataFolders": [ "${workspaceFolder}" ]
           }
         ],
 
@@ -80,7 +91,9 @@
             "description": "A new configuration for launching the Minecraft debugger",
             "body": {
               "type": "commandcrafter",
-              "request": "launch"
+              "request": "launch",
+              "name": "Launch Minecraft Debugger",
+              "dataFolders": [ "^\"\\${workspaceFolder}\"" ]
             }
           },
           {
@@ -90,7 +103,8 @@
               "type": "commandcrafter",
               "request": "launch",
               "name": "Debugging function <Function>",
-              "function": "<Function Id>"
+              "function": "<Function Id>",
+              "dataFolders": [ "^\"\\${workspaceFolder}\"" ]
             }
           }
         ]

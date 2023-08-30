@@ -115,6 +115,7 @@ class EditorConnectionManager(
 
     class ServiceRemover(private val runningServices: MutableMap<EditorService, *>, var service: EditorService?) : () -> Unit {
         override fun invoke() {
+            service?.onClosed()
             runningServices.remove(service)
         }
     }

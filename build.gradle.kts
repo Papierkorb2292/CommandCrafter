@@ -21,10 +21,13 @@ dependencies {
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
 
-
-    include("com.github.LlamaLad7:MixinExtras:0.2.0-beta.6")
-    implementation("com.github.LlamaLad7:MixinExtras:0.2.0-beta.6")
-    annotationProcessor("com.github.LlamaLad7:MixinExtras:0.2.0-beta.6")
+    val mixinExtrasDependency = "com.github.LlamaLad7:MixinExtras:0.2.0-beta.10"
+    include(mixinExtrasDependency)
+    implementation(mixinExtrasDependency)
+    annotationProcessor(mixinExtrasDependency)
+}
+loom {
+    accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
 }
 tasks {
     val javaVersion = JavaVersion.toVersion((project.extra["java_version"] as String).toInt())

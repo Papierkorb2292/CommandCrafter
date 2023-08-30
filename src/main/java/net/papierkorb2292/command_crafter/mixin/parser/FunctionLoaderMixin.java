@@ -3,13 +3,19 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 import com.google.common.collect.ImmutableMap;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.context.StringRange;
 import com.mojang.datafixers.util.Pair;
+import kotlin.Unit;
+import kotlin.jvm.functions.Function1;
 import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.server.DataPackContents;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.Language;
 import net.papierkorb2292.command_crafter.parser.LanguageManager;
@@ -20,6 +26,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,16 +51,36 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
     )
     private CommandFunction command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<ServerCommandSource> dispatcher, ServerCommandSource source, List<String> lines) {
         var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, command_crafter$resourceCreatorContext);
+        var infoSetCallbacks = new ArrayList<Function1<? super ParsedResourceCreator.ResourceStackInfo, Unit>>();
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().push((idSetter) -> idSetter.invoke(id));
+            resourceCreator.getOriginResourceInfoSetEventStack().push((infoSetter) -> {
+                infoSetCallbacks.add(infoSetter);
+                return Unit.INSTANCE;
+            });
         }
+        var reader = new DirectiveStringReader<>(lines, dispatcher, resourceCreator);
+        var startCursor = reader.getAbsoluteCursor();
+        var parsed = LanguageManager.INSTANCE.parseToCommandsWithDebugInformation(
+                reader,
+                source,
+                new Language.TopLevelClosure(VanillaLanguage.NORMAL));
+
+        var functionStackInfo = new ParsedResourceCreator.ResourceStackInfo(id, new StringRange(startCursor, reader.getAbsoluteCursor()));
+        for(var callback : infoSetCallbacks) {
+            callback.invoke(functionStackInfo);
+        }
+
         var function = ParsedResourceCreator.Companion.createResourceCreatorFunction(
                 id,
-                LanguageManager.INSTANCE.parseToCommands(
-                        new DirectiveStringReader<>(lines, dispatcher, resourceCreator),
-                        source,
-                        new Language.TopLevelClosure(VanillaLanguage.NORMAL)),
-                resourceCreator);
+                parsed.getFirst(),
+                resourceCreator
+        );
+        var debugInformation = parsed.getSecond();
+        if(debugInformation != null) {
+            //noinspection unchecked
+            ((DebugInformationContainer<FunctionBreakpointLocation, FunctionPauseContext>) function).command_crafter$setDebugInformation(debugInformation);
+        }
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().pop();
         }

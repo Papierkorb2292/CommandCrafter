@@ -7,10 +7,18 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
+import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandlerFactory
+import net.papierkorb2292.command_crafter.editor.debugger.helper.FunctionDebugPauseHandlerCreatorContainer
+import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.CommandElementAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.CommandFunctionManagerEntryAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -19,6 +27,23 @@ import org.eclipse.lsp4j.Range
 
 object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(null, Identifier("command_crafter", "languages")).buildAndRegister()!!
+
+    private val SKIP_DEBUG_PAUSE_HANDLER_CREATOR = object : DebugPauseHandlerFactory<FunctionPauseContext> {
+        override fun createDebugPauseHandler(pauseContext: FunctionPauseContext)
+            = DebugPauseHandler.SkipAllDummy {
+                val nextCommands = pauseContext.executionQueue.iterator()
+                while(nextCommands.hasNext()) {
+                    val nextCommand = nextCommands.next()
+                    val nextElement = (nextCommand as CommandFunctionManagerEntryAccessor).element
+                    if(nextElement is CommandElementAccessor) {
+                        val parsed = nextElement.parsed
+                        pauseContext.pauseAtCommandSection(parsed, 0)
+                        return@SkipAllDummy
+                    }
+                }
+                pauseContext.stepOutOfFunction()
+            }
+    }
 
     fun parseToVanilla(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource, resource: RawResource, closure: Language.LanguageClosure) {
         val closureDepth = reader.closureDepth
@@ -36,20 +61,42 @@ object LanguageManager {
 
     private val UNCLOSED_SCOPE_EXCEPTION = DynamicCommandExceptionType { Text.of("Encountered unclosed scope started at line $it") }
 
-    fun parseToCommands(reader: DirectiveStringReader<ParsedResourceCreator?>, source: ServerCommandSource, closure: Language.LanguageClosure): Array<CommandFunction.Element> {
+    fun parseToCommands(reader: DirectiveStringReader<ParsedResourceCreator?>, source: ServerCommandSource, closure: Language.LanguageClosure)
+        = parseToCommandsWithDebugInformation(reader, source, closure).first
+
+    fun parseToCommandsWithDebugInformation(reader: DirectiveStringReader<ParsedResourceCreator?>, source: ServerCommandSource, closure: Language.LanguageClosure): Pair<Array<CommandFunction.Element>, FunctionDebugInformation?> {
         val closureDepth = reader.closureDepth
         val result: MutableList<CommandFunction.Element> = ArrayList()
         reader.enterClosure(closure)
+        val debugInformations: MutableList<FunctionDebugInformation> = ArrayList()
         while(reader.closureDepth != closureDepth) {
             reader.currentLanguage?.run {
-                result.addAll(parseToCommands(reader, source))
+                val parsedLanguage = parseToCommands(reader, source)
+                result.addAll(parsedLanguage.first)
+                parsedLanguage.second?.run {
+                    debugInformations += this
+                    for(element in parsedLanguage.first) {
+                        if(element is FunctionDebugPauseHandlerCreatorContainer) {
+                            element.`command_crafter$setHandlerCreator`(this)
+                        }
+                    }
+                }
             }
             reader.updateLanguage()
             if(!reader.canRead() && reader.closureDepth != closureDepth) {
                 throw UNCLOSED_SCOPE_EXCEPTION.create(reader.scopeStack.element().startLine)
             }
         }
-        return result.toTypedArray()
+        return result.toTypedArray() to
+                if(debugInformations.isEmpty()) null
+                else DebugInformation.Concat(debugInformations) {
+                    val currentCommand = it.currentCommand
+                    if (currentCommand is FunctionDebugPauseHandlerCreatorContainer) {
+                        val pauseHandlerCreator = currentCommand.`command_crafter$getPauseHandlerCreator`()
+                        if (pauseHandlerCreator != null) return@Concat pauseHandlerCreator
+                    }
+                    SKIP_DEBUG_PAUSE_HANDLER_CREATOR
+                }
     }
 
     fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
