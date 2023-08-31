@@ -149,7 +149,6 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
 
         fun registerServerPacketHandlers() {
-            //TODO: Handle packets on main thread
             ServerPlayNetworking.registerGlobalReceiver(requestConnectionPacketChannel) handler@{ server, player, _, buf, packetSender ->
                 //TODO: Whitelist for which players are allowed to connect this way
                 val requestPacket = RequestNetworkServerConnectionC2SPacket(buf)
@@ -163,36 +162,40 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ServerPlayNetworking.registerGlobalReceiver(setBreakpointsRequestPacketChannel) { server, player, _, buf, packetSender ->
                 val requestPacket = SetBreakpointsRequestC2SPacket(buf)
                 val debugManager = (server as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`()
-                packetSender.sendPacket(
-                    setBreakpointsResponsePacketChannel,
-                    SetBreakpointsResponseS2CPacket(debugManager.setBreakpoints(
-                        requestPacket.breakpoints,
-                        requestPacket.fileType,
-                        requestPacket.id,
-                        player,
-                        serverEditorDebugConnections.computeIfAbsent(requestPacket.debugConnectionId) {
-                            ServerNetworkDebugConnection(player, it)
-                        }
-                    ), requestPacket.requestId).write()
-                )
+                server.execute {
+                    packetSender.sendPacket(
+                        setBreakpointsResponsePacketChannel,
+                        SetBreakpointsResponseS2CPacket(debugManager.setBreakpoints(
+                            requestPacket.breakpoints,
+                            requestPacket.fileType,
+                            requestPacket.id,
+                            player,
+                            serverEditorDebugConnections.computeIfAbsent(requestPacket.debugConnectionId) {
+                                ServerNetworkDebugConnection(player, it)
+                            }
+                        ), requestPacket.requestId).write()
+                    )
+                }
             }
             ServerPlayNetworking.registerGlobalReceiver(editorDebugConnectionRemovedPacketChannel) { _, _, _, buf, _ ->
                 val packet = EditorDebugConnectionRemovedC2SPacket(buf)
                 serverEditorDebugConnections.remove(packet.debugConnectionId)
             }
-            ServerPlayNetworking.registerGlobalReceiver(debugPauseActionPacketChannel) { _, _, _, buf, _ ->
+            ServerPlayNetworking.registerGlobalReceiver(debugPauseActionPacketChannel) { server, _, _, buf, _ ->
                 val packet = NetworkDebugPauseActions.DebugPauseActionC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
-                packet.action.apply(debugPause.first, packet.granularity)
+                server.execute { packet.action.apply(debugPause.first, packet.granularity) }
             }
-            ServerPlayNetworking.registerGlobalReceiver(getVariablesRequestPacketChannel) { _, _, _, buf, packetSender ->
+            ServerPlayNetworking.registerGlobalReceiver(getVariablesRequestPacketChannel) { server, _, _, buf, packetSender ->
                 val packet = NetworkVariablesReferencer.GetVariablesRequestC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
-                debugPause.second.getVariables(packet.args).thenAccept {
-                    packetSender.sendPacket(
-                        getVariablesResponsePacketChannel,
-                        NetworkVariablesReferencer.GetVariablesResponseS2CPacket(packet.requestId, it).write()
-                    )
+                server.execute {
+                    debugPause.second.getVariables(packet.args).thenAccept {
+                        packetSender.sendPacket(
+                            getVariablesResponsePacketChannel,
+                            NetworkVariablesReferencer.GetVariablesResponseS2CPacket(packet.requestId, it).write()
+                        )
+                    }
                 }
             }
             ServerPlayNetworking.registerGlobalReceiver(setVariableRequestPacketChannel) { server, _, _, buf, packetSender ->
@@ -208,11 +211,11 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
             }
 
-            ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, server ->
+            ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, server -> server.execute {
                 serverEditorDebugConnections.values.removeIf { it.player == networkHandler.player }
                 (server as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`().removePlayer(networkHandler.player)
                 //TODO: Unpause player's debuggers
-            }
+            }}
         }
 
         private fun startSendingLogMessages(
