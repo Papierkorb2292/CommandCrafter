@@ -28,7 +28,6 @@ import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener
-import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.debugger.client.NetworkDebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.client.NetworkVariablesReferencer
@@ -78,7 +77,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
         private val clientEditorDebugConnections: BiMap<EditorDebugConnection, UUID> = HashBiMap.create()
         private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = mutableMapOf()
-        private val serverDebugPauses: MutableMap<UUID, Pair<DebugPauseActions, VariablesReferencer>> = mutableMapOf()
+        private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
 
         fun requestAndCreate(): CompletableFuture<NetworkServerConnection> {
             if(!ClientPlayNetworking.canSend(requestConnectionPacketChannel)) {
@@ -184,13 +183,13 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ServerPlayNetworking.registerGlobalReceiver(debugPauseActionPacketChannel) { server, _, _, buf, _ ->
                 val packet = NetworkDebugPauseActions.DebugPauseActionC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
-                server.execute { packet.action.apply(debugPause.first, packet.granularity) }
+                server.execute { packet.action.apply(debugPause.actions, packet.granularity) }
             }
             ServerPlayNetworking.registerGlobalReceiver(getVariablesRequestPacketChannel) { server, _, _, buf, packetSender ->
                 val packet = NetworkVariablesReferencer.GetVariablesRequestC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
                 server.execute {
-                    debugPause.second.getVariables(packet.args).thenAccept {
+                    debugPause.variables.getVariables(packet.args).thenAccept {
                         packetSender.sendPacket(
                             getVariablesResponsePacketChannel,
                             NetworkVariablesReferencer.GetVariablesResponseS2CPacket(packet.requestId, it).write()
@@ -202,7 +201,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val packet = NetworkVariablesReferencer.SetVariableRequestC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
                 server.execute {
-                    debugPause.second.setVariable(packet.args).thenAccept {
+                    debugPause.variables.setVariable(packet.args).thenAccept {
                         packetSender.sendPacket(
                             setVariableResponsePacketChannel,
                             NetworkVariablesReferencer.SetVariableResponseS2CPacket(packet.requestId, it).write()
@@ -214,7 +213,14 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, server -> server.execute {
                 serverEditorDebugConnections.values.removeIf { it.player == networkHandler.player }
                 (server as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`().removePlayer(networkHandler.player)
-                //TODO: Unpause player's debuggers
+                val debugPauses = serverDebugPauses.values.iterator()
+                while(debugPauses.hasNext()) {
+                    val debugPause = debugPauses.next()
+                    if(debugPause.player == networkHandler.player) {
+                        debugPause.actions.continue_()
+                        debugPauses.remove()
+                    }
+                }
             }}
         }
 
@@ -269,7 +275,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             packetSender.sendPacket(initializeConnectionPacketChannel, responsePacket.write())
         }
 
-        fun addServerDebugPause(debugPause: Pair<DebugPauseActions, VariablesReferencer>): UUID {
+        fun addServerDebugPause(debugPause: ServerNetworkDebugConnection.DebugPauseInformation): UUID {
             val id = UUID.randomUUID()
             serverDebugPauses[id] = debugPause
             return id

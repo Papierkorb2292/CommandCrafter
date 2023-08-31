@@ -20,7 +20,7 @@ class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEdi
     private val packetSender = ServerPlayNetworking.getSender(player)
 
     override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
-        val pauseId = NetworkServerConnection.addServerDebugPause(actions to variables)
+        val pauseId = NetworkServerConnection.addServerDebugPause(DebugPauseInformation(actions, variables, player))
         currentPauseId = pauseId
         packetSender.sendPacket(
             NetworkServerConnection.setDebuggerPausedPacketChannel,
@@ -52,6 +52,8 @@ class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEdi
     override fun pushStackFrames(stackFrames: List<MinecraftStackFrame>) {
         packetSender.sendPacket(NetworkServerConnection.pushStackFramesPacketChannel, PushStackFramesS2CPacket(stackFrames, clientEditorDebugConnection).write())
     }
+
+    class DebugPauseInformation(val actions: DebugPauseActions, val variables: VariablesReferencer, val player: ServerPlayerEntity)
 
     class PopStackFramesS2CPacket(val amount: Int, val editorDebugConnection: UUID): ByteBufWritable {
         constructor(buf: PacketByteBuf): this(buf.readInt(), buf.readUuid())
