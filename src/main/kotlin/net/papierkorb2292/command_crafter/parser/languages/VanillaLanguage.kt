@@ -784,9 +784,11 @@ enum class VanillaLanguage : Language {
 
     object ImprovedVanillaClosure : Language.LanguageClosure {
         override val startLanguage: Language = IMPROVED
-        override fun endsClosure(reader: StringReader) = reader.canRead() && reader.peek() == '}'
+        override fun endsClosure(reader: DirectiveStringReader<*>) = reader.trySkipWhitespace {
+            reader.canRead() && reader.peek() == '}'
+        }
 
-        override fun skipClosureEnd(reader: StringReader) {
+        override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
             reader.skip()
         }
     }
