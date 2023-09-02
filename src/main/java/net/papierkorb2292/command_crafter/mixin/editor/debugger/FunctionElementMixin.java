@@ -19,9 +19,9 @@ public class FunctionElementMixin {
             at = @At("HEAD"),
             remap = false
     )
-    private static void command_crafter$notifyPauseContextOfFunctionEnter(CommandFunctionManager.Tracer tracer, int i, int j, Deque deque, ServerCommandSource serverCommandSource, CommandFunction f, CallbackInfo ci) {
+    private static void command_crafter$notifyPauseContextOfFunctionEnter(CommandFunctionManager.Tracer tracer, int i, int j, Deque<?> deque, ServerCommandSource serverCommandSource, CommandFunction f, CallbackInfo ci) {
         var globalPauseContext = FunctionDebugHandler.Companion.getCurrentPauseContext().get();
-        if(globalPauseContext != null) {
+        if(globalPauseContext != null && f.getElements().length > 0) {
             globalPauseContext.onFunctionEnter(f);
         }
     }

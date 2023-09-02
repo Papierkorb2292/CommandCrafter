@@ -175,6 +175,11 @@ class ParsedResourceCreator(
         }
     }
 
+    fun popOriginResource() {
+        originResourceIdSetEventStack.pop()
+        originResourceInfoSetEventStack.pop()
+    }
+
     class AutomaticResource<T>(val idSetter: (Identifier) -> Unit, val resource: T)
     class ParsedTag<T>(val registry: DynamicRegistryManager.Entry<T>, val entries: Collection<TagEntry>)
 

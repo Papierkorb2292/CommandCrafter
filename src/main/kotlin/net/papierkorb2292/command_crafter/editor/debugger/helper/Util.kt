@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.helper
 
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.StringRange
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.networking.*
@@ -55,3 +56,5 @@ fun PacketByteBuf.readNullableValueFormat(): ValueFormat? {
         ValueFormat().apply { hex = it }
     }
 }
+
+operator fun StringRange.minus(value: Int) = StringRange(start - value, end - value)

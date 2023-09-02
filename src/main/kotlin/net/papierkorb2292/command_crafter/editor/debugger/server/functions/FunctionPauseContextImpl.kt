@@ -4,7 +4,6 @@ import com.mojang.brigadier.ParseResults
 import net.minecraft.server.ServerTask
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
-import net.minecraft.server.function.CommandFunction.FunctionElement
 import net.minecraft.server.function.CommandFunctionManager
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
@@ -67,7 +66,7 @@ class FunctionPauseContextImpl(
                 pauseLocationWasSet = false
                 debugStack.peek()?.pauseHandler?.findNextPauseLocation()
                 if(!pauseLocationWasSet) {
-                    continue_()
+                    continueExecution()
                 }
             }
         }
@@ -99,7 +98,7 @@ class FunctionPauseContextImpl(
                     sectionIndex,
                     indexOfSectionInContextStack == indexOfCurrentSectionInContextStack
                 )
-                continue_()
+                continueExecution()
                 return
             }
         }
@@ -107,7 +106,7 @@ class FunctionPauseContextImpl(
             command,
             sectionIndex,
         )
-        continue_()
+        continueExecution()
     }
 
     private fun pauseAtPreviouslyExecutedSection(sectionIndex: Int) {
@@ -130,7 +129,7 @@ class FunctionPauseContextImpl(
             if (targetSectionContexts.advancedExists()) continue
             debugPauseHandler.findNextPauseLocation()
             if(!pauseLocationWasSet) {
-                continue_()
+                continueExecution()
             }
             return
         }
@@ -146,7 +145,7 @@ class FunctionPauseContextImpl(
     override fun stepIntoFunctionCall() {
         pauseOnFunctionEntry = true
         pauseLocationWasSet = true
-        continue_()
+        continueExecution()
     }
 
     override fun stepOutOfFunction() {
@@ -155,20 +154,25 @@ class FunctionPauseContextImpl(
     }
 
     override fun continue_() {
-        if(nextPauseLocation == null && debugStack.size <= 1) {
-            removeEditorConnection()
-        }
+        removeEditorConnection()
         continueExecution()
     }
 
     private fun continueExecution() {
-        (currentEditorConnection ?: return).pauseEnded()
+        if(nextPauseLocation == null && !pauseOnFunctionEntry && debugStack.size <= 1) {
+            removeEditorConnection()
+        } else {
+            currentEditorConnection?.pauseEnded()
+        }
         variablesReferences.clear()
         runOnTick { continueExecution(this) }
     }
 
     private fun removeEditorConnection() {
-        currentEditorConnection?.popStackFrames(debugStack.sumOf { it.stackFrames })
+        currentEditorConnection?.run {
+            pauseEnded()
+            popStackFrames(debugStack.sumOf { it.stackFrames })
+        }
         currentEditorConnection = null
     }
 
@@ -195,13 +199,10 @@ class FunctionPauseContextImpl(
         currentEditorConnection?.let {
             if(pauseOnFunctionEntry) {
                 pauseOnFunctionEntry = false
-                pauseExecution(it, (debugStack.peek() ?: return).pauseHandler, StoppedEventArguments().apply {
-                    reason = StoppedEventArgumentsReason.ENTRY
-                    val lastElement = (executedEntries.last() as CommandFunctionManagerEntryAccessor).element
-                    if(lastElement is FunctionElement) {
-                        text = lastElement.toString()
-                    }
-                })
+                val lastElement = (executedEntries.last() as CommandFunctionManagerEntryAccessor).element
+                if(lastElement is CommandElementAccessor) {
+                    nextPauseLocation = PauseLocation(lastElement.parsed, 0)
+                }
             }
         }
     }
@@ -216,8 +217,11 @@ class FunctionPauseContextImpl(
             debugStack.peek()?.run {
                 pauseLocationWasSet = false
                 pauseHandler.findNextPauseLocation()
-                if (!pauseLocationWasSet && debugStack.size <= 1) {
-                    removeEditorConnection()
+                if (!pauseLocationWasSet) {
+                    if (debugStack.size <= 1) removeEditorConnection()
+                } else {
+                    executedEntries += executionQueue.poll()
+                    throw ExecutionPausedThrowable(functionCompletionFuture)
                 }
             }
         }
@@ -236,7 +240,6 @@ class FunctionPauseContextImpl(
 
         currentEditorConnection = breakpoint.debuggerConnection
         val pauseHandler = (debugStack.peek() ?: return).pauseHandler
-        pauseHandler.onBreakpoint()
         for(debugElement in debugStack) {
             val stackFrames = debugElement.pauseHandler.getStackFrames()
             debugElement.stackFrames = stackFrames.size

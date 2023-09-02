@@ -37,12 +37,6 @@ interface DebugPauseHandler : DebugPauseActions {
      */
     fun findNextPauseLocation()
 
-    /**
-     * This is called by the debugger when a breakpoint is hit. It can be used
-     * to set up the stack trace.
-     */
-    fun onBreakpoint()
-
     fun getStackFrames(): List<MinecraftStackFrame>
 
     class SkipAllDummy(val setNextPauseCallback: () -> Unit) : DebugPauseHandler {
@@ -51,7 +45,6 @@ interface DebugPauseHandler : DebugPauseActions {
         override fun stepOut(granularity: SteppingGranularity) {}
         override fun continue_() {}
         override fun findNextPauseLocation() {}
-        override fun onBreakpoint() {}
         override fun getStackFrames() = emptyList<MinecraftStackFrame>()
 
 

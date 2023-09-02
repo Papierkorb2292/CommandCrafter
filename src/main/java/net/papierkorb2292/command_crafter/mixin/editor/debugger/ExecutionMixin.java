@@ -32,13 +32,14 @@ public abstract class ExecutionMixin {
     @Shadow abstract int run(CommandFunction function, ServerCommandSource source) throws ExecutionPausedThrowable;
 
     @Shadow private int depth;
+    @Shadow @Final CommandFunctionManager field_33544;
     private FunctionPauseContextImpl command_crafter$pauseContext;
 
     @Inject(
             method = "run",
             at = @At("HEAD")
     )
-    private void command_crafter$continuePrevCommandExecAfterPause(CommandFunction function, ServerCommandSource source, CallbackInfoReturnable<Integer> cir) throws ExecutionPausedThrowable {
+    private void command_crafter$continuePrevCommandExecAfterPause(CommandFunction function, ServerCommandSource source, CallbackInfoReturnable<Integer> cir) {
         var pauseContext = command_crafter$pauseContext;
         if (pauseContext == null) {
             return;
@@ -48,48 +49,66 @@ public abstract class ExecutionMixin {
         executedEntries.remove(executedEntries.size() - 1);
     }
 
-    @ModifyReceiver(
+    @Inject(
             method = "run",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/server/function/CommandFunctionManager$Entry;execute(Lnet/minecraft/server/function/CommandFunctionManager;Ljava/util/Deque;ILnet/minecraft/server/function/CommandFunctionManager$Tracer;)V"
+                    target = "Ljava/util/Deque;removeFirst()Ljava/lang/Object;"
             )
     )
-    private CommandFunctionManager.Entry command_crafter$createPauseContextAndAppendToExecutedEntriesAndPauseOnFunctionChange(CommandFunctionManager.Entry entry, CommandFunctionManager manager, Deque<CommandFunctionManager.Entry> queue, int maxCommandChainLength, CommandFunctionManager.Tracer tracer, CommandFunction function) throws ExecutionPausedThrowable {
+    private void command_crafter$pauseOnFunctionExit(CommandFunction function, ServerCommandSource source, CallbackInfoReturnable<Integer> cir) throws ExecutionPausedThrowable {
+        var pauseContext = command_crafter$pauseContext;
+        if (pauseContext == null) {
+            return;
+        }
+        var entry = queue.peek();
+        if(entry == null) {
+            return;
+        }
+        var newDepth = ((CommandFunctionManagerEntryAccessor) entry).getDepth();
+        if(newDepth < depth) {
+            depth = newDepth;
+            pauseContext.onFunctionExit();
+        }
+    }
+
+    @ModifyReceiver(
+            method = "run",
+            at = @At(
+                    value = "FIELD",
+                    target = "Lnet/minecraft/server/function/CommandFunctionManager$Entry;depth:I"
+            )
+    )
+    private CommandFunctionManager.Entry command_crafter$createPauseContextAndAppendToExecutedEntriesAndPauseOnFunctionChange(CommandFunctionManager.Entry entry, CommandFunction function) throws ExecutionPausedThrowable {
         var pauseContext = command_crafter$pauseContext;
         var element = ((CommandFunctionManagerEntryAccessor) entry).getElement();
-        if (element instanceof CommandFunction.CommandElement commandElement) {
-            if (pauseContext == null) {
-                pauseContext = new FunctionPauseContextImpl(queue, commandElement, manager, (context) -> {
-                    try {
-                        //noinspection DataFlowIssue
-                        ((CommandFunctionManagerAccessor) manager).setExecution((CommandFunctionManager.Execution) (Object) this);
-                        var result = run(null, null);
-                        ((CommandFunctionManagerAccessor)manager).setExecution(null);
-                        context.getFunctionCompletionFuture().complete(result);
-                    } catch (ExecutionPausedThrowable ignored) {
-                        ((CommandFunctionManagerAccessor)manager).setExecution(null);
-                    } catch (Throwable throwable) {
-                        ((CommandFunctionManagerAccessor)manager).setExecution(null);
-                        context.getFunctionCompletionFuture().completeExceptionally(throwable);
-                    }
-                    return Unit.INSTANCE;
-                });
-                pauseContext.onFunctionEnter(function);
-                command_crafter$pauseContext = pauseContext;
-            }
-            FunctionDebugHandler.Companion.getCurrentPauseContext().set(pauseContext);
+        if (pauseContext == null && element instanceof CommandFunction.CommandElement commandElement) {
+            var manager = (CommandFunctionManager)field_33544;
+            pauseContext = new FunctionPauseContextImpl(queue, commandElement, manager, (context) -> {
+                try {
+                    //noinspection DataFlowIssue
+                    ((CommandFunctionManagerAccessor) manager).setExecution((CommandFunctionManager.Execution) (Object) this);
+                    var result = run(null, null);
+                    ((CommandFunctionManagerAccessor)manager).setExecution(null);
+                    context.getFunctionCompletionFuture().complete(result);
+                } catch (ExecutionPausedThrowable ignored) {
+                    ((CommandFunctionManagerAccessor)manager).setExecution(null);
+                } catch (Throwable throwable) {
+                    ((CommandFunctionManagerAccessor)manager).setExecution(null);
+                    context.getFunctionCompletionFuture().completeExceptionally(throwable);
+                }
+                return Unit.INSTANCE;
+            });
+            pauseContext.onFunctionEnter(function);
+            command_crafter$pauseContext = pauseContext;
         }
         if(pauseContext != null) {
+            FunctionDebugHandler.Companion.getCurrentPauseContext().set(pauseContext);
+            pauseContext.getExecutedEntries().add(entry);
             var newDepth = ((CommandFunctionManagerEntryAccessor) entry).getDepth();
             if(newDepth > depth) {
                 pauseContext.onFunctionDepthIncreased();
             }
-            if(newDepth < depth) {
-                pauseContext.onFunctionExit();
-            }
-
-            pauseContext.getExecutedEntries().add(entry);
         }
         return entry;
     }

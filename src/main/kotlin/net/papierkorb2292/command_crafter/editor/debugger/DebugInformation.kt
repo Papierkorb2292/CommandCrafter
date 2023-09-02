@@ -53,9 +53,7 @@ interface DebugInformation<TBreakpointLocation, TPauseContext> :
             override fun findNextPauseLocation() {
                 updatePauseHandler().findNextPauseLocation()
             }
-            override fun onBreakpoint() {
-                updatePauseHandler().onBreakpoint()
-            }
+
             override fun getStackFrames()
                 = updatePauseHandler().getStackFrames()
 

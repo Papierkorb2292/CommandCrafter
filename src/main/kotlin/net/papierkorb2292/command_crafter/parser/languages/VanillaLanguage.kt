@@ -23,11 +23,14 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
@@ -487,15 +490,20 @@ enum class VanillaLanguage : Language {
             val startCursor = reader.absoluteCursor
             val functionIdSetter = ParsedResourceCreator.ResourceInfoSetterWrapper(reader.resourceCreator.addOriginResource())
             reader.expect('{')
-            reader.resourceCreator.functions += ParsedResourceCreator.AutomaticResource(
-                functionIdSetter,
-                CommandFunction(
-                    ParsedResourceCreator.PLACEHOLDER_ID,
-                    LanguageManager.parseToCommands(reader, source, ImprovedVanillaClosure)
-                )
+            val parsed = LanguageManager.parseToCommandsWithDebugInformation(reader, source, ImprovedVanillaClosure)
+            val function = CommandFunction(
+                ParsedResourceCreator.PLACEHOLDER_ID,
+                parsed.first
             )
+            parsed.second?.run {
+                @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
+                (function as DebugInformationContainer<FunctionBreakpointLocation, FunctionPauseContext>)
+                    .`command_crafter$setDebugInformation`(this)
+            }
+            reader.resourceCreator.functions += ParsedResourceCreator.AutomaticResource(functionIdSetter, function)
             functionIdSetter.range = StringRange(startCursor, reader.absoluteCursor)
-            reader.resourceCreator.originResourceIdSetEventStack.pop()(idSetter)
+            reader.resourceCreator.originResourceIdSetEventStack.element()(idSetter)
+            reader.resourceCreator.popOriginResource()
         }
 
         private fun parseRawInlineFunction(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource): RawResource {
