@@ -46,7 +46,7 @@ class SemanticTokensBuilder(private val lines: List<String>) {
         var lineLength = lines[lineNumber].length + 1 //Account for '\n'
         while(cursor >= lineLength){
             cursor -= lineLength
-            if(++lineNumber > lines.size)
+            if(++lineNumber >= lines.size)
                 return //The specified region is outside the reader
             lineLength = lines[lineNumber].length + 1
         }
