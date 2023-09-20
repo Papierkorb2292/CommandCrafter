@@ -21,7 +21,7 @@ dependencies {
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
 
-    val mixinExtrasDependency = "com.github.LlamaLad7:MixinExtras:0.2.0-beta.10"
+    val mixinExtrasDependency = "com.github.LlamaLad7:MixinExtras:0.2.0-rc.4"
     include(mixinExtrasDependency)
     implementation(mixinExtrasDependency)
     annotationProcessor(mixinExtrasDependency)
