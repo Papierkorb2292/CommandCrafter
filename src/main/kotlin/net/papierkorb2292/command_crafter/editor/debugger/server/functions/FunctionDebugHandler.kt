@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.debugger.server
+package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.ParseResults
 import net.minecraft.server.MinecraftServer
@@ -12,8 +12,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServe
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.removeExtension
-import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.*
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.*
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointMap
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandler
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import org.eclipse.lsp4j.debug.Breakpoint
 import java.util.*
 

@@ -11,7 +11,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandlerFactory
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FunctionDebugPauseHandlerCreatorContainer
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType

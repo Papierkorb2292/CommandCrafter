@@ -25,8 +25,8 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugInformation
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionElementDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation

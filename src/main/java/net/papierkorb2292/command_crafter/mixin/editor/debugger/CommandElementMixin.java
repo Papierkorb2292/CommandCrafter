@@ -10,7 +10,7 @@ import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandlerFactory;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionPausedThrowable;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FunctionDebugPauseHandlerCreatorContainer;
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugHandler;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.debugger.server
+package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.context.CommandContextBuilder
@@ -18,9 +18,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Arg
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointAction
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ServerCommandSourceValueReference
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
@@ -344,7 +341,7 @@ class FunctionElementDebugInformation(
                         null
                     ),
                     arrayOf(
-                        if(pauseContext.contextStack.size == indexOfCommandInContextStack + i + 1)
+                        if (pauseContext.contextStack.size == indexOfCommandInContextStack + i + 1)
                             createServerCommandSourceScope(frameSectionContexts.currentContext.source) {
                                 frameSectionContexts.currentContext = frameSectionContexts.currentContext.copyFor(it)
                             }

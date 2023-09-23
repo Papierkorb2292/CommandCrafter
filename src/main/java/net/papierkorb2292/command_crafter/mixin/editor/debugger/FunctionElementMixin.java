@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.CommandFunctionManager;
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugHandler;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

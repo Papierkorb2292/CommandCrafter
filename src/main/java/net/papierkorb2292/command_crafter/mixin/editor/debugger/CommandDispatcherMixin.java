@@ -22,7 +22,7 @@ import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionPausedThrowable;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ServerDebugManagerContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugHandler;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.DispatcherContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation;

@@ -7,6 +7,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServe
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandlerFactory
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import org.eclipse.lsp4j.debug.Breakpoint
 

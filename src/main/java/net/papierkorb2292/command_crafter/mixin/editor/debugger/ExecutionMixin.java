@@ -10,7 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.CommandFunctionManager;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionPausedThrowable;
-import net.papierkorb2292.command_crafter.editor.debugger.server.FunctionDebugHandler;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContextImpl;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
