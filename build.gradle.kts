@@ -1,8 +1,9 @@
 plugins {
-    id("fabric-loom")
+    id("fabric-loom") version "1.5-SNAPSHOT"
     id("java")
     kotlin("jvm").version(System.getProperty("kotlin_version"))
 }
+
 base { archivesName.set(project.extra["archives_base_name"] as String) }
 version = project.extra["mod_version"] as String
 group = project.extra["maven_group"] as String
@@ -20,11 +21,6 @@ dependencies {
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
-
-    val mixinExtrasDependency = "com.github.LlamaLad7:MixinExtras:0.2.0-rc.4"
-    include(mixinExtrasDependency)
-    implementation(mixinExtrasDependency)
-    annotationProcessor(mixinExtrasDependency)
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
