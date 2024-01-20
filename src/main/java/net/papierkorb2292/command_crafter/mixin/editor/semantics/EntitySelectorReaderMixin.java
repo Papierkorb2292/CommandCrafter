@@ -55,7 +55,8 @@ public class EntitySelectorReaderMixin implements SemanticBuilderContainer {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;canRead()Z",
-                    ordinal = 1
+                    ordinal = 1,
+                    remap = false
             )
     )
     private void command_crafter$highlightAt(CallbackInfo ci) {

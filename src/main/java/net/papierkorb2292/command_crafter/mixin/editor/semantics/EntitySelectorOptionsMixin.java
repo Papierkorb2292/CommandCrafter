@@ -386,7 +386,8 @@ public class EntitySelectorOptionsMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
-            )
+            ),
+            remap = false
     )
     private static String command_crafter$highlightScoreOptionScoreboardName(String name, EntitySelectorReader selectorReader) {
         var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
@@ -468,7 +469,8 @@ public class EntitySelectorOptionsMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
-            )
+            ),
+            remap = false
     )
     private static String command_crafter$highlightAdvancementOptionCriterionName(String name, EntitySelectorReader selectorReader) {
         var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
@@ -488,7 +490,8 @@ public class EntitySelectorOptionsMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readBoolean()Z"
-            )
+            ),
+            remap = false
     )
     private static boolean command_crafter$highlightAdvancementOptionBoolean(boolean value, EntitySelectorReader selectorReader) {
         var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();

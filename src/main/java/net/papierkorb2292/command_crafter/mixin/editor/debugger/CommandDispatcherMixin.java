@@ -308,7 +308,8 @@ public abstract class CommandDispatcherMixin<S> {
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/util/Collections;singletonList(Ljava/lang/Object;)Ljava/util/List;"
-            )
+            ),
+            remap = false
     )
     private List<CommandContext<S>> command_crafter$makeStartContextListMutable(List<CommandContext<S>> contexts) {
         return new ArrayList<>(contexts);

@@ -41,7 +41,8 @@ public class CommandElementMixin implements FunctionDebugPauseHandlerCreatorCont
             method = "execute(Lnet/minecraft/server/function/CommandFunctionManager;Lnet/minecraft/server/command/ServerCommandSource;)I",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/CommandDispatcher;execute(Lcom/mojang/brigadier/ParseResults;)I"
+                    target = "Lcom/mojang/brigadier/CommandDispatcher;execute(Lcom/mojang/brigadier/ParseResults;)I",
+                    remap = false
             )
     )
     private int command_crafter$wrapWithPauseContext(CommandDispatcher<ServerCommandSource> dispatcher, ParseResults<ServerCommandSource> parseResults, Operation<Integer> op) throws Throwable {
