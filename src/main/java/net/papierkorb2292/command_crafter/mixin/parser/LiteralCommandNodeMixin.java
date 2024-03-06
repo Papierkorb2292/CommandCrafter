@@ -27,9 +27,10 @@ public class LiteralCommandNodeMixin {
         if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
             return ' ';
         }
-        if(!VanillaLanguage.Companion.isReaderImproved(reader)) {
+        if(!VanillaLanguage.Companion.isReaderEasyNextLine(reader)) {
             return c;
         }
+
         if(reader.canRead() && reader.peek() == '\n') {
             return ' ';
         }

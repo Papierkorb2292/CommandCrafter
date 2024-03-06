@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.CommandFunctionArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
@@ -21,6 +22,8 @@ public class CommandFunctionArgumentTypeMixin implements AnalyzingCommandNode {
         var argument = context.getArgument(name, CommandFunctionArgumentType.FunctionArgument.class);
         if (argument instanceof AnalyzedFunctionArgument analyzedArgument) {
             result.combineWith(analyzedArgument.getResult());
+            return;
         }
+        result.getSemanticTokens().addAbsoluteMultiline(0, range.getLength(), TokenType.Companion.getPARAMETER(), 0);
     }
 }

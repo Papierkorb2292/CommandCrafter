@@ -25,7 +25,7 @@ public class ItemPredicateArgumentTypeMixin implements UnparsableArgumentType {
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        if(reader.peek() != '(' || !VanillaLanguage.Companion.isReaderImproved(reader)) {
+        if(reader.peek() != '(' || !VanillaLanguage.Companion.isReaderInlineResources(reader)) {
             return null;
         }
         var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.ITEM);

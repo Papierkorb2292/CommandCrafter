@@ -39,6 +39,9 @@ data class PackContentFileType(val datapackCategory: String) {
     fun toPath(id: Identifier): Path {
         return Path.of(id.namespace, datapackCategory, id.path)
     }
+    fun toStringPath(id: Identifier): String {
+        return "${id.namespace}/${datapackCategory}/${id.path}"
+    }
 
     data class ParsedPath(val id: Identifier, val type: PackContentFileType)
 }

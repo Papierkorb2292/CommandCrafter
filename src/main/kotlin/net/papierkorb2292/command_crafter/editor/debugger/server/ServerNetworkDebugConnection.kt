@@ -5,15 +5,13 @@ import net.minecraft.network.PacketByteBuf
 import net.minecraft.server.network.ServerPlayerEntity
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
-import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
-import net.papierkorb2292.command_crafter.editor.debugger.helper.readBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.helper.writeBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.networking.*
-import org.eclipse.lsp4j.debug.Breakpoint
+import org.eclipse.lsp4j.debug.BreakpointEventArguments
 import org.eclipse.lsp4j.debug.StoppedEventArguments
 import java.util.*
+import java.util.concurrent.CompletableFuture
 
 class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEditorDebugConnection: UUID) : EditorDebugConnection {
     private var currentPauseId: UUID? = null
@@ -41,8 +39,16 @@ class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEdi
 
     override fun isPaused() = currentPauseId != null
 
-    override fun updateReloadedBreakpoint(breakpoint: Breakpoint) {
-        packetSender.sendPacket(NetworkServerConnection.updateReloadedBreakpointPacketChannel, UpdateReloadedBreakpointS2CPacket(breakpoint, clientEditorDebugConnection).write())
+    override fun updateReloadedBreakpoint(update: BreakpointEventArguments) {
+        packetSender.sendPacket(NetworkServerConnection.updateReloadedBreakpointPacketChannel, UpdateReloadedBreakpointS2CPacket(update, clientEditorDebugConnection).write())
+    }
+
+    override fun reserveBreakpointIds(count: Int): CompletableFuture<ReservedBreakpointIdStart> {
+        val requestId = UUID.randomUUID()
+        val future = CompletableFuture<ReservedBreakpointIdStart>()
+        packetSender.sendPacket(NetworkServerConnection.reserveBreakpointIdsRequestPacketChannel, ReserveBreakpointIdsRequestS2CPacket(count, clientEditorDebugConnection, requestId).write())
+        NetworkServerConnection.currentBreakpointIdsRequests[requestId] = future
+        return future
     }
 
     override fun popStackFrames(stackFrames: Int) {
@@ -53,7 +59,11 @@ class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEdi
         packetSender.sendPacket(NetworkServerConnection.pushStackFramesPacketChannel, PushStackFramesS2CPacket(stackFrames, clientEditorDebugConnection).write())
     }
 
-    class DebugPauseInformation(val actions: DebugPauseActions, val variables: VariablesReferencer, val player: ServerPlayerEntity)
+    override fun onPauseLocationSkipped() {
+        packetSender.sendPacket(NetworkServerConnection.debuggerPauseLocationSkippedPacketChannel, PauseLocationSkippedS2CPacket(clientEditorDebugConnection).write())
+    }
+
+    class DebugPauseInformation(val actions: DebugPauseActions, val pauseContext: VariablesReferencer, val player: ServerPlayerEntity)
 
     class PopStackFramesS2CPacket(val amount: Int, val editorDebugConnection: UUID): ByteBufWritable {
         constructor(buf: PacketByteBuf): this(buf.readInt(), buf.readUuid())
@@ -116,12 +126,41 @@ class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEdi
         }
     }
 
-    class UpdateReloadedBreakpointS2CPacket(val breakpoint: Breakpoint, val editorDebugConnection: UUID): ByteBufWritable {
-        constructor(buf: PacketByteBuf): this(buf.readBreakpoint(), buf.readUuid())
+    class UpdateReloadedBreakpointS2CPacket(val update: BreakpointEventArguments, val editorDebugConnection: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(BreakpointEventArguments().apply {
+            breakpoint = buf.readBreakpoint()
+            reason = buf.readString()
+        }, buf.readUuid())
 
         override fun write(buf: PacketByteBuf) {
-            buf.writeBreakpoint(breakpoint)
+            buf.writeBreakpoint(update.breakpoint)
+            buf.writeString(update.reason)
             buf.writeUuid(editorDebugConnection)
+        }
+    }
+
+    class PauseLocationSkippedS2CPacket(val editorDebugConnection: UUID) : ByteBufWritable {
+        constructor(buf: PacketByteBuf) : this(buf.readUuid())
+
+        override fun write(buf: PacketByteBuf) {
+            buf.writeUuid(editorDebugConnection)
+        }
+    }
+
+    class ReserveBreakpointIdsRequestS2CPacket(val count: Int, val editorDebugConnection: UUID, val requestId: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(buf.readInt(), buf.readUuid(), buf.readUuid())
+        override fun write(buf: PacketByteBuf) {
+            buf.writeInt(count)
+            buf.writeUuid(editorDebugConnection)
+            buf.writeUuid(requestId)
+        }
+    }
+
+    class ReserveBreakpointIdsResponseC2SPacket(val start: ReservedBreakpointIdStart, val requestId: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(buf.readInt(), buf.readUuid())
+        override fun write(buf: PacketByteBuf) {
+            buf.writeInt(start)
+            buf.writeUuid(requestId)
         }
     }
 }

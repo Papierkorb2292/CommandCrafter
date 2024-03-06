@@ -11,8 +11,8 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.DirectoryResourcePackAccessor
-import net.papierkorb2292.command_crafter.mixin.parser.ZipResourcePackAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
+import net.papierkorb2292.command_crafter.parser.helper.ZipFileProvider
 import java.io.BufferedReader
 import java.io.InputStream
 import java.nio.charset.Charset
@@ -47,7 +47,7 @@ class RawZipResourceCreator {
                     }
                 }
                 is ZipResourcePack -> {
-                    val zipFile = (pack as ZipResourcePackAccessor).callGetZipFile()
+                    val zipFile = (pack as ZipFileProvider).`command_crafter$getZipFile`()
                     val dataDirectory = ResourceType.SERVER_DATA.directory
                     for(entry in zipFile.entries()) {
                         if(!entry.name.startsWith(dataDirectory)) continue
@@ -134,7 +134,7 @@ class RawZipResourceCreator {
     }
 
     private fun createResource(currentId: Identifier, parentFunctionId: Identifier, resource: RawResource, zipOutput: ZipOutputStream, subResourceNumbering: MutableMap<String, Int>) {
-        val resourceId = Identifier(currentId.namespace, Path.of(resource.type.prefix).resolve(currentId.path).toString())
+        val resourceId = Identifier(currentId.namespace, Path.of(resource.type.prefix).resolve(currentId.path).toString().replace('\\', '/'))
         resource.id = resourceId
         resource.content.map { either ->
             either.map({ it }, content@{

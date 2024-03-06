@@ -30,9 +30,9 @@ object CommandCrafter: ModInitializer {
     val LOGGER = LogManager.getLogger(MOD_ID)
 
     override fun onInitialize() {
+
         initializeEditor()
         NetworkServerConnection.registerServerPacketHandlers()
-
 
         initializeParser()
         LOGGER.info("Loaded CommandCrafter!")
@@ -49,7 +49,7 @@ object CommandCrafter: ModInitializer {
 
                 val result = AnalyzingResult(lines)
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
-                LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage.NORMAL))
+                LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                 return result
             }
         })
@@ -77,7 +77,7 @@ object CommandCrafter: ModInitializer {
                     reader,
                     source,
                     resource,
-                    Language.TopLevelClosure(VanillaLanguage.NORMAL)
+                    Language.TopLevelClosure(VanillaLanguage())
                 )
                 resourceCreator.addResource(id, resource)
             }

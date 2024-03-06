@@ -32,7 +32,7 @@ public class CommandFunctionArgumentTypeMixin implements ServerSourceAware, Unpa
             cancellable = true
     )
     private void command_crafter$parseFunctionInlining(StringReader reader, CallbackInfoReturnable<CommandFunctionArgumentType.FunctionArgument> cir) {
-        if(!reader.canRead() || !VanillaLanguage.Companion.isReaderImproved(reader) || command_crafter$serverCommandSource == null) {
+        if(!reader.canRead() || !VanillaLanguage.Companion.isReaderInlineResources(reader) || command_crafter$serverCommandSource == null) {
             return;
         }
         var directiveStringReader = (DirectiveStringReader<?>) reader;

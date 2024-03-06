@@ -6,9 +6,9 @@ import com.mojang.brigadier.StringReader;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtString;
 import net.minecraft.nbt.StringNbtReader;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,16 +17,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(StringNbtReader.class)
-public class StringNbtReaderMixin implements SemanticTokensCreator {
+public class StringNbtReaderMixin implements AnalyzingResultCreator {
 
     @Shadow @Final private StringReader reader;
-    private SemanticTokensBuilder command_crafter$semanticTokensBuilder = null;
-    private int command_crafter$semanticCursorOffset;
+    private AnalyzingResult command_crafter$analyzingResult = null;
 
     @Override
-    public void command_crafter$setSemanticTokensBuilder(@NotNull SemanticTokensBuilder builder, int cursorOffset) {
-        command_crafter$semanticTokensBuilder = builder;
-        command_crafter$semanticCursorOffset = cursorOffset;
+    public void command_crafter$setAnalyzingResult(@NotNull AnalyzingResult result) {
+        command_crafter$analyzingResult = result;
     }
 
     @ModifyReturnValue(
@@ -36,7 +34,7 @@ public class StringNbtReaderMixin implements SemanticTokensCreator {
             )
     )
     public NbtElement command_crafter$addSemanticsToPrimitive(NbtElement element, @Local int startCursor) {
-        if(command_crafter$semanticTokensBuilder == null)
+        if(command_crafter$analyzingResult == null)
             return element;
 
         TokenType type;
@@ -46,7 +44,7 @@ public class StringNbtReaderMixin implements SemanticTokensCreator {
             var startChar = reader.getString().charAt(startCursor);
             type = startChar == 't' || startChar == 'f' ? TokenType.Companion.getENUM_MEMBER() : TokenType.Companion.getNUMBER();
         }
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(startCursor + command_crafter$semanticCursorOffset, reader.getCursor() - startCursor, type, 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(startCursor, reader.getCursor() - startCursor, type, 0);
         return element;
     }
 
@@ -58,8 +56,8 @@ public class StringNbtReaderMixin implements SemanticTokensCreator {
             )
     )
     private int command_crafter$addSemanticsToCompoundTag(int startCursor) {
-        if(command_crafter$semanticTokensBuilder != null)
-            command_crafter$semanticTokensBuilder.addAbsoluteMultiline(startCursor + command_crafter$semanticCursorOffset, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
+        if(command_crafter$analyzingResult != null)
+            command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
         return startCursor;
     }
 
@@ -72,8 +70,8 @@ public class StringNbtReaderMixin implements SemanticTokensCreator {
             )
     )
     private int command_crafter$addSemanticsToArrayType(int startCursor) {
-        if(command_crafter$semanticTokensBuilder != null)
-            command_crafter$semanticTokensBuilder.addAbsoluteMultiline(startCursor + command_crafter$semanticCursorOffset, 1, TokenType.Companion.getTYPE(), 0);
+        if(command_crafter$analyzingResult != null)
+            command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(startCursor, 1, TokenType.Companion.getTYPE(), 0);
         return startCursor;
     }
 }

@@ -7,18 +7,17 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.minecraft.command.argument.NbtPathArgumentType;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
-import net.minecraft.command.argument.NbtPathArgumentType;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -29,17 +28,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
     @Shadow public abstract NbtPathArgumentType.NbtPath parse(StringReader stringReader) throws CommandSyntaxException;
 
-    private static final ThreadLocal<SemanticTokensBuilder> command_crafter$semanticTokensBuilder = new ThreadLocal<>();
-    private static final ThreadLocal<Integer> command_crafter$cursorOffset = new ThreadLocal<>();
+    private static final ThreadLocal<AnalyzingResult> command_crafter$analyzingResult = new ThreadLocal<>();
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        command_crafter$semanticTokensBuilder.set(result.getSemanticTokens());
-        command_crafter$cursorOffset.set(reader.getReadCharacters() + range.getStart());
+        command_crafter$analyzingResult.set(result);
         try {
             parse(new StringReader(range.get(context.getInput())));
         } finally {
-            command_crafter$semanticTokensBuilder.remove();
-            command_crafter$cursorOffset.remove();
+            command_crafter$analyzingResult.remove();
         }
     }
 
@@ -51,10 +47,10 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             )
     )
     private static String command_crafter$highlightTag(StringReader reader, String tag) {
-        var tokens = command_crafter$semanticTokensBuilder.get();
-        if(tokens == null) return tag;
+        var analyzingResult = command_crafter$analyzingResult.get();
+        if(analyzingResult == null) return tag;
 
-        tokens.addAbsoluteMultiline(reader.getCursor() - tag.length() + command_crafter$cursorOffset.get(), tag.length(), TokenType.Companion.getPROPERTY(), 0);
+        analyzingResult.getSemanticTokens().addAbsoluteMultiline(reader.getCursor() - tag.length(), tag.length(), TokenType.Companion.getPROPERTY(), 0);
         return tag;
     }
 
@@ -67,10 +63,10 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             )
     )
     private static StringNbtReader command_crafter$highlightCompounds(StringNbtReader reader) {
-        var tokens = command_crafter$semanticTokensBuilder.get();
-        if(tokens == null) return reader;
+        var analyzingResult = command_crafter$analyzingResult.get();
+        if(analyzingResult == null) return reader;
 
-        ((SemanticTokensCreator)reader).command_crafter$setSemanticTokensBuilder(tokens, command_crafter$cursorOffset.get());
+        ((AnalyzingResultCreator)reader).command_crafter$setAnalyzingResult(analyzingResult);
         return reader;
     }
 
@@ -82,8 +78,8 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
                    remap = false
            )
     )
-    private static void command_crafter$saveIndexStartCursor(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursor) {
-        startCursor.set(reader.getCursor());
+    private static void command_crafter$saveIndexStartCursor(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursorRef) {
+        startCursorRef.set(reader.getCursor());
     }
 
     @Inject(
@@ -95,10 +91,10 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
                     remap = false
             )
     )
-    private static void command_crafter$highlightIndex(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursor) {
-        var tokens = command_crafter$semanticTokensBuilder.get();
-        if(tokens == null) return;
+    private static void command_crafter$highlightIndex(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursorRef) {
+        var analyzingResult = command_crafter$analyzingResult.get();
+        if(analyzingResult == null) return;
 
-        tokens.addAbsoluteMultiline(startCursor.get() + command_crafter$cursorOffset.get(), reader.getCursor() - startCursor.get(), TokenType.Companion.getNUMBER(), 0);
+        analyzingResult.getSemanticTokens().addAbsoluteMultiline(startCursorRef.get(), reader.getCursor() - startCursorRef.get(), TokenType.Companion.getNUMBER(), 0);
     }
 }

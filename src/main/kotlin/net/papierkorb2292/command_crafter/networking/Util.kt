@@ -5,6 +5,7 @@ import net.minecraft.network.PacketByteBuf
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 import java.util.*
+import kotlin.experimental.and
 
 fun ByteBufWritable.write(): PacketByteBuf = PacketByteBufs.create().also { write(it) }
 
@@ -38,6 +39,40 @@ fun PacketByteBuf.readNullableInt(): Int? {
     } else {
         null
     }
+}
+
+fun PacketByteBuf.writeNullableVarInt(value: Int?) {
+    if(value == null) {
+        writeByte(0)
+        return
+    }
+    var i: Int = value
+    if(i and -64 == 0) {
+        writeByte(i)
+        return
+    }
+    writeByte(i and 63 or 128)
+    i ushr 6
+    while (i and -128 != 0) {
+        writeByte(i and 127 or 128)
+        i = i ushr 7
+    }
+    writeByte(i)
+}
+
+fun PacketByteBuf.readNullableVarInt(): Int? {
+    val first = readByte()
+    if(first == 0.toByte()) {
+        return null
+    }
+    var result = first.toInt() and 63
+    var shift = 6
+    while(first and 128.toByte() != 0.toByte()) {
+        val next = readByte()
+        result = result or ((next and 127).toInt() shl shift)
+        shift += 7
+    }
+    return result
 }
 
 fun PacketByteBuf.writeNullableUUID(uuid: UUID?) {

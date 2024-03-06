@@ -31,10 +31,7 @@ import net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.debugger.client.NetworkDebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.client.NetworkVariablesReferencer
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
-import net.papierkorb2292.command_crafter.editor.debugger.helper.ServerDebugManagerContainer
-import net.papierkorb2292.command_crafter.editor.debugger.helper.readBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.helper.writeBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -68,9 +65,19 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val getVariablesResponsePacketChannel = Identifier("command_crafter", "get_variables_response")
         val setVariableRequestPacketChannel = Identifier("command_crafter", "set_variable_request")
         val setVariableResponsePacketChannel = Identifier("command_crafter", "set_variable_response")
+        val stepInTargetsRequestPacketChannel = Identifier("command_crafter", "step_in_targets_request")
+        val stepInTargetsResponsePacketChannel = Identifier("command_crafter", "step_in_targets_response")
+        val debuggerPauseLocationSkippedPacketChannel = Identifier("command_crafter", "debugger_pause_location_skipped")
+        val sourceReferenceRequestPacketChannel = Identifier("command_crafter", "source_reference_request")
+        val sourceReferenceResponsePacketChannel = Identifier("command_crafter", "source_reference_response")
+        val reserveBreakpointIdsRequestPacketChannel = Identifier("command_crafter", "reserve_breakpoint_ids_request")
+        val reserveBreakpointIdsResponsePacketChannel = Identifier("command_crafter", "reserve_breakpoint_ids_response")
 
         val currentGetVariablesRequests: MutableMap<UUID, CompletableFuture<Array<Variable>>> = mutableMapOf()
         val currentSetVariableRequests: MutableMap<UUID, CompletableFuture<VariablesReferencer.SetVariableResult?>> = mutableMapOf()
+        val currentStepInTargetsRequests: MutableMap<UUID, CompletableFuture<StepInTargetsResponse>> = mutableMapOf()
+        val currentSourceReferenceRequests: MutableMap<UUID, CompletableFuture<SourceResponse>> = mutableMapOf()
+        val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
@@ -135,7 +142,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             ClientPlayNetworking.registerGlobalReceiver(updateReloadedBreakpointPacketChannel) { _, _, buf, _ ->
                 val packet = ServerNetworkDebugConnection.UpdateReloadedBreakpointS2CPacket(buf)
-                clientEditorDebugConnections.inverse()[packet.editorDebugConnection]?.updateReloadedBreakpoint(packet.breakpoint)
+                clientEditorDebugConnections.inverse()[packet.editorDebugConnection]?.updateReloadedBreakpoint(packet.update)
             }
             ClientPlayNetworking.registerGlobalReceiver(getVariablesResponsePacketChannel) { _, _, buf, _ ->
                 val packet = NetworkVariablesReferencer.GetVariablesResponseS2CPacket(buf)
@@ -144,6 +151,27 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ClientPlayNetworking.registerGlobalReceiver(setVariableResponsePacketChannel) { _, _, buf, _ ->
                 val packet = NetworkVariablesReferencer.SetVariableResponseS2CPacket(buf)
                 currentSetVariableRequests.remove(packet.requestId)?.complete(packet.response)
+            }
+            ClientPlayNetworking.registerGlobalReceiver(stepInTargetsResponsePacketChannel) { _, _, buf, _ ->
+                val packet = NetworkDebugPauseActions.StepInTargetsResponseS2CPacket(buf)
+                currentStepInTargetsRequests.remove(packet.requestId)?.complete(packet.response)
+            }
+            ClientPlayNetworking.registerGlobalReceiver(debuggerPauseLocationSkippedPacketChannel) { _, _, buf, _ ->
+                val packet = ServerNetworkDebugConnection.PauseLocationSkippedS2CPacket(buf)
+                clientEditorDebugConnections.inverse()[packet.editorDebugConnection]?.onPauseLocationSkipped()
+            }
+            ClientPlayNetworking.registerGlobalReceiver(sourceReferenceResponsePacketChannel) { _, _, buf, _ ->
+                val packet = SourceReferenceResponseS2CPacket(buf)
+                currentSourceReferenceRequests.remove(packet.requestId)?.complete(packet.source)
+            }
+            ClientPlayNetworking.registerGlobalReceiver(reserveBreakpointIdsRequestPacketChannel) { _, _, buf, sender ->
+                val packet = ServerNetworkDebugConnection.ReserveBreakpointIdsRequestS2CPacket(buf)
+                clientEditorDebugConnections.inverse()[packet.editorDebugConnection]?.reserveBreakpointIds(packet.count)?.thenAccept {
+                    sender.sendPacket(
+                        reserveBreakpointIdsResponsePacketChannel,
+                        ServerNetworkDebugConnection.ReserveBreakpointIdsResponseC2SPacket(it, packet.requestId).write()
+                    )
+                }
             }
         }
 
@@ -183,13 +211,13 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ServerPlayNetworking.registerGlobalReceiver(debugPauseActionPacketChannel) { server, _, _, buf, _ ->
                 val packet = NetworkDebugPauseActions.DebugPauseActionC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
-                server.execute { packet.action.apply(debugPause.actions, packet.granularity) }
+                server.execute { packet.action.apply(debugPause.actions, packet) }
             }
             ServerPlayNetworking.registerGlobalReceiver(getVariablesRequestPacketChannel) { server, _, _, buf, packetSender ->
                 val packet = NetworkVariablesReferencer.GetVariablesRequestC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
                 server.execute {
-                    debugPause.variables.getVariables(packet.args).thenAccept {
+                    debugPause.pauseContext.getVariables(packet.args).thenAccept {
                         packetSender.sendPacket(
                             getVariablesResponsePacketChannel,
                             NetworkVariablesReferencer.GetVariablesResponseS2CPacket(packet.requestId, it).write()
@@ -201,13 +229,40 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val packet = NetworkVariablesReferencer.SetVariableRequestC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
                 server.execute {
-                    debugPause.variables.setVariable(packet.args).thenAccept {
+                    debugPause.pauseContext.setVariable(packet.args).thenAccept {
                         packetSender.sendPacket(
                             setVariableResponsePacketChannel,
                             NetworkVariablesReferencer.SetVariableResponseS2CPacket(packet.requestId, it).write()
                         )
                     }
                 }
+            }
+            ServerPlayNetworking.registerGlobalReceiver(stepInTargetsRequestPacketChannel) { server, _, _, buf, packetSender ->
+                val packet = NetworkDebugPauseActions.StepInTargetsRequestC2SPacket(buf)
+                val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
+                server.execute {
+                    debugPause.actions.stepInTargets(packet.frameId).thenAccept {
+                        packetSender.sendPacket(
+                            stepInTargetsResponsePacketChannel,
+                            NetworkDebugPauseActions.StepInTargetsResponseS2CPacket(packet.requestId, it).write()
+                        )
+                    }
+                }
+            }
+            ServerPlayNetworking.registerGlobalReceiver(sourceReferenceRequestPacketChannel) { server, player, _, buf, packetSender ->
+                val packet = SourceReferenceRequestC2SPacket(buf)
+                val debugManager = (server as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`()
+                server.execute {
+                    val sourceResponse = debugManager.retrieveSourceReference(player, packet.sourceReference) ?: return@execute
+                    packetSender.sendPacket(
+                        sourceReferenceResponsePacketChannel,
+                        SourceReferenceResponseS2CPacket(sourceResponse, packet.requestId).write()
+                    )
+                }
+            }
+            ServerPlayNetworking.registerGlobalReceiver(reserveBreakpointIdsResponsePacketChannel) { _, _, _, buf, _ ->
+                val packet = ServerNetworkDebugConnection.ReserveBreakpointIdsResponseC2SPacket(buf)
+                currentBreakpointIdsRequests.remove(packet.requestId)?.complete(packet.start)
             }
 
             ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, server -> server.execute {
@@ -318,7 +373,18 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             ClientPlayNetworking.send(
                 setBreakpointsRequestPacketChannel,
-                SetBreakpointsRequestC2SPacket(breakpoints, fileType, id, requestId, debugConnectionId).write()
+                SetBreakpointsRequestC2SPacket(breakpoints, fileType, id, source.sourceReference, requestId, debugConnectionId).write()
+            )
+            return completableFuture
+        }
+
+        override fun retrieveSourceReference(sourceReference: Int): CompletableFuture<SourceResponse> {
+            val completableFuture = CompletableFuture<SourceResponse>()
+            val requestId = UUID.randomUUID()
+            currentSourceReferenceRequests[requestId] = completableFuture
+            ClientPlayNetworking.send(
+                sourceReferenceRequestPacketChannel,
+                SourceReferenceRequestC2SPacket(sourceReference, requestId).write()
             )
             return completableFuture
         }
@@ -381,21 +447,23 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakpoint>, val fileType: PackContentFileType, val id: Identifier, val requestId: UUID, val debugConnectionId: UUID): ByteBufWritable {
+    class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakpoint>, val fileType: PackContentFileType, val id: Identifier, val sourceReference: Int?, val requestId: UUID, val debugConnectionId: UUID): ByteBufWritable {
 
         constructor(buf: PacketByteBuf) : this(
             Array(buf.readVarInt()) {
                 val id = buf.readVarInt()
+                val sourceReference = buf.readNullableInt()
                 val sourceBreakpoint = SourceBreakpoint()
                 sourceBreakpoint.line = buf.readVarInt()
                 sourceBreakpoint.column = buf.readNullableInt()
                 sourceBreakpoint.condition = buf.readNullableString()
                 sourceBreakpoint.hitCondition = buf.readNullableString()
                 sourceBreakpoint.logMessage = buf.readNullableString()
-                UnparsedServerBreakpoint(id, sourceBreakpoint)
+                UnparsedServerBreakpoint(id, sourceReference, sourceBreakpoint)
             },
             PackContentFileType(buf),
             buf.readIdentifier(),
+            buf.readNullableInt(),
             buf.readUuid(),
             buf.readUuid()
         )
@@ -404,6 +472,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             buf.writeVarInt(breakpoints.size)
             for(breakpoint in breakpoints) {
                 buf.writeVarInt(breakpoint.id)
+                buf.writeNullableInt(breakpoint.sourceReference)
                 val sourceBreakpoint = breakpoint.sourceBreakpoint
                 buf.writeVarInt(sourceBreakpoint.line)
                 buf.writeNullableInt(sourceBreakpoint.column)
@@ -413,6 +482,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             fileType.writeToBuf(buf)
             buf.writeIdentifier(id)
+            buf.writeNullableInt(sourceReference)
             buf.writeUuid(requestId)
             buf.writeUuid(debugConnectionId)
         }
@@ -443,5 +513,27 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
     class ServerConnectionNotSupportedException(message: String?) : Exception(message) {
         constructor() : this(null)
+    }
+}
+
+class SourceReferenceRequestC2SPacket(val sourceReference: Int, val requestId: UUID): ByteBufWritable {
+    constructor(buf: PacketByteBuf): this(buf.readVarInt(), buf.readUuid())
+
+    override fun write(buf: PacketByteBuf) {
+        buf.writeVarInt(sourceReference)
+        buf.writeUuid(requestId)
+    }
+}
+
+class SourceReferenceResponseS2CPacket(val source: SourceResponse, val requestId: UUID): ByteBufWritable {
+    constructor(buf: PacketByteBuf): this(SourceResponse().apply {
+        content = buf.readString()
+        mimeType = buf.readNullableString()
+    }, buf.readUuid())
+
+    override fun write(buf: PacketByteBuf) {
+        buf.writeString(source.content)
+        buf.writeNullableString(source.mimeType)
+        buf.writeUuid(requestId)
     }
 }

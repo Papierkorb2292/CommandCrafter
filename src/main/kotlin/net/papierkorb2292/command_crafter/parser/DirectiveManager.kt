@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
+import net.minecraft.registry.RegistryKey
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -10,7 +11,7 @@ import org.eclipse.lsp4j.Range
 
 class DirectiveManager {
     companion object {
-        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(null, Identifier("command_crafter", "directives")).buildAndRegister()!!
+        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(RegistryKey.ofRegistry(Identifier("command_crafter", "directives"))).buildAndRegister()!!
     }
 
     fun readDirective(reader: DirectiveStringReader<*>) {

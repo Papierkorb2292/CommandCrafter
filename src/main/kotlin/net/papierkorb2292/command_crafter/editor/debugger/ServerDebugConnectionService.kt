@@ -6,6 +6,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Unp
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import org.eclipse.lsp4j.debug.SetBreakpointsResponse
 import org.eclipse.lsp4j.debug.Source
+import org.eclipse.lsp4j.debug.SourceResponse
 import java.util.concurrent.CompletableFuture
 
 interface ServerDebugConnectionService {
@@ -16,6 +17,8 @@ interface ServerDebugConnectionService {
         id: Identifier,
         editorDebugConnection: EditorDebugConnection
     ): CompletableFuture<SetBreakpointsResponse>
+
+    fun retrieveSourceReference(sourceReference: Int): CompletableFuture<SourceResponse>
 
     fun removeEditorDebugConnection(editorDebugConnection: EditorDebugConnection)
 }

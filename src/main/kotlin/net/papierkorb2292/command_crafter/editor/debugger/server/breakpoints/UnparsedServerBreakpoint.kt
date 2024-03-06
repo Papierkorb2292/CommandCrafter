@@ -4,5 +4,6 @@ import org.eclipse.lsp4j.debug.SourceBreakpoint
 
 class UnparsedServerBreakpoint(
     val id: Int,
+    val sourceReference: Int?,
     val sourceBreakpoint: SourceBreakpoint
 )

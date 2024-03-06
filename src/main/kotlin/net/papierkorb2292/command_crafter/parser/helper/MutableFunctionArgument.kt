@@ -14,7 +14,7 @@ class MutableFunctionArgument(val isTag: Boolean): CommandFunctionArgumentType.F
     var id: Identifier? = null
     val idSetter: (Identifier) -> Unit = { id = it }
 
-    override fun getFunctions(context: CommandContext<ServerCommandSource>): Collection<CommandFunction> {
+    override fun getFunctions(context: CommandContext<ServerCommandSource>): Collection<CommandFunction<ServerCommandSource>> {
         id.let {
             requireNotNull(it)
             return if(isTag)
@@ -24,7 +24,7 @@ class MutableFunctionArgument(val isTag: Boolean): CommandFunctionArgumentType.F
         }
     }
 
-    override fun getFunctionOrTag(context: CommandContext<ServerCommandSource?>?): Pair<Identifier?, Either<CommandFunction, Collection<CommandFunction>>?>? {
+    override fun getFunctionOrTag(context: CommandContext<ServerCommandSource?>?): Pair<Identifier?, Either<CommandFunction<ServerCommandSource>, Collection<CommandFunction<ServerCommandSource>>>?>? {
         id.let {
             requireNotNull(it)
             return Pair.of(it,
@@ -33,6 +33,16 @@ class MutableFunctionArgument(val isTag: Boolean): CommandFunctionArgumentType.F
                 else
                     Either.left(CommandFunctionArgumentTypeAccessor.callGetFunction(context, it))
             )
+        }
+    }
+
+    override fun getIdentifiedFunctions(context: CommandContext<ServerCommandSource>?): Pair<Identifier, Collection<CommandFunction<ServerCommandSource>>> {
+        id.let {
+            requireNotNull(it)
+            return Pair.of(it, if(isTag)
+                CommandFunctionArgumentTypeAccessor.callGetFunctionTag(context,it)
+            else
+                setOf(CommandFunctionArgumentTypeAccessor.callGetFunction(context, it)))
         }
     }
 }

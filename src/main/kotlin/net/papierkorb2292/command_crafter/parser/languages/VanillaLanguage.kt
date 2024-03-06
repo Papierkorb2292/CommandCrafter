@@ -1,10 +1,9 @@
 package net.papierkorb2292.command_crafter.parser.languages
 
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
-import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.ParsedArgument
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
@@ -12,6 +11,7 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.datafixers.util.Either
+import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registry
@@ -20,385 +20,563 @@ import net.minecraft.registry.tag.TagEntry
 import net.minecraft.registry.tag.TagManagerLoader
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.CommandFunction
+import net.minecraft.server.function.FunctionBuilder
+import net.minecraft.server.function.Macro
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
-import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
+import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
-enum class VanillaLanguage : Language {
-    NORMAL {
-        override fun parseToVanilla(
-            reader: DirectiveStringReader<RawZipResourceCreator>,
-            source: ServerCommandSource,
-            resource: RawResource,
-        ) {
-            reader.endStatement()
-            while(reader.canRead() && reader.currentLanguage == this) {
-                val line = StringReader(reader.readLine().trimStart())
-                if(!line.canRead() || line.peek() == '#') {
-                    reader.endStatement()
-                    continue
-                }
-                writeCommand(parseCommand(line, reader.currentLine - 1, reader.dispatcher, source), resource, reader)
+data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources: Boolean = false) : Language {
+
+    override fun parseToVanilla(
+        reader: DirectiveStringReader<RawZipResourceCreator>,
+        source: ServerCommandSource,
+        resource: RawResource,
+    ) {
+        reader.endStatement()
+        while (reader.canRead() && reader.currentLanguage == this) {
+            if (skipComments(reader)) {
                 reader.endStatement()
+                continue
+            }
+            if (reader.peek() == '\n') {
+                reader.skip()
+                reader.endStatement()
+                continue
+            }
+            reader.saveIndentation()
+            throwIfSlashPrefix(reader, reader.currentLine)
+            if(reader.canRead() && reader.peek() == '$') {
+                //Can't verify syntax on macros
+                if(easyNewLine) {
+                    resource.content += Either.left('$' + readEasyNewLineMacro(reader) + '\n')
+                } else {
+                    resource.content += Either.left(reader.readLine() + '\n')
+                }
+            } else {
+                reader.onlyReadEscapedMultiline = !easyNewLine
+                val parsed = parseCommand(reader, source)
+                reader.onlyReadEscapedMultiline = false
+                val string = parsed.reader.string
+                val contextChain = ContextChain.tryFlatten(parsed.context.build(string))
+                if(contextChain.isEmpty) {
+                    throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
+                }
+                writeCommand(parsed, resource, reader)
+            }
+            reader.endStatement()
+        }
+    }
+
+    override fun analyze(
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        source: ServerCommandSource,
+        result: AnalyzingResult,
+    ) {
+        fun advanceToParseResults(parseResults: ParseResults<*>, reader: DirectiveStringReader<*>) {
+            parseResults.reader.run {
+                if(this is DirectiveStringReader<*>) {
+                    reader.copyFrom(this)
+                    if(this !== reader)
+                        toCompleted()
+                }
             }
         }
 
-        override fun parseToCommands(
-            reader: DirectiveStringReader<ParsedResourceCreator?>,
-            source: ServerCommandSource,
-        ): Pair<List<CommandFunction.Element>, FunctionDebugInformation?> {
-            val result: MutableList<Pair<ParseResults<ServerCommandSource>, Int>> = ArrayList()
-            reader.endStatement()
-            while(reader.canRead() && reader.currentLanguage == this) {
-                val startCursor = reader.absoluteCursor
-                val line = StringReader(reader.readLine().trimStart())
-                if(!line.canRead() || line.peek() == '#') {
-                    reader.endStatement()
-                    continue
-                }
-                result.add(parseCommand(line, reader.currentLine - 1, reader.dispatcher, source) to startCursor)
-                reader.endStatement()
-            }
-            return result.map {
-                CommandFunction.CommandElement(it.first)
-            } to reader.resourceCreator?.run {
-                FunctionElementDebugInformation(
-                    result,
-                    reader.lines,
-                    VanillaBreakpointConditionParser,
-                    functionId.withExtension(".mcfunction")
-                ).also { debugInformation ->
-                    originResourceInfoSetEventStack.peek().invoke {
-                        debugInformation.functionId = it.id
-                        debugInformation.setFunctionStringRange(it.range)
-                    }
-                }
-            }
-        }
-
-        override fun analyze(
-            reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            source: ServerCommandSource,
-            result: AnalyzingResult,
-        ) {
-            reader.endStatementAndAnalyze(result)
-            while(reader.canRead() && reader.currentLanguage == this) {
-                val line = StringReader(reader.readLine())
-                line.skipWhitespace()
-                if (!line.canRead()) {
-                    reader.endStatementAndAnalyze(result)
-                    continue
-                }
-                if (line.peek() == '#') {
-                    val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength - 1, reader.lines)
-                    result.semanticTokens.add(position.line, position.character, line.remainingLength, TokenType.COMMENT, 0)
-                    reader.endStatementAndAnalyze(result)
-                    continue
-                }
-
-                try {
-                    if (line.canRead() && line.peek() == '/') {
-                        if(line.canRead(2) && line.peek(1) == '/') {
-                            throw DOUBLE_SLASH_EXCEPTION.createWithContext(line)
-                        }
-                        val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - line.remainingLength - 1, reader.lines)
-                        result.diagnostics += Diagnostic(
-                            Range(position, position.advance()),
-                            "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
-                        )
-                        line.skip()
-                    }
-                    val parseResults = reader.dispatcher.parse(line, source)
-                    createCommandSemantics(
-                        parseResults,
-                        result,
-                        reader
-                    )
-                    line.cursor = parseResults.reader.cursor
-                    if (parseResults.reader.canRead()) {
-                        throw CommandManager.getException(parseResults)!!
-                    }
-                    if(isIncomplete(parseResults))
-                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(line)
-                } catch (e: Exception) {
-                    val exceptionCursor =
-                        if(e is CommandSyntaxException && e.cursor != -1) e.cursor
-                        else line.cursor
-                    val startPosition = AnalyzingResult.getPositionFromCursor(exceptionCursor + reader.readCharacters, reader.lines)
-                    result.diagnostics += Diagnostic(
-                        Range(
-                            startPosition,
-                            Position(startPosition.line, reader.lines[startPosition.line].length)
-                        ),
-                        e.message,
-                        DiagnosticSeverity.Error,
-                        null
-                    )
+        reader.endStatementAndAnalyze(result)
+        while (reader.canRead() && reader.currentLanguage == this) {
+            val startCursor = reader.absoluteCursor
+            if(skipComments(reader)) {
+                AnalyzingResult.getInlineRangesBetweenCursors(startCursor, reader.absoluteCursor, reader.lines) { line: Int, cursor: Int, length: Int ->
+                    result.semanticTokens.add(line, cursor, length, TokenType.COMMENT, 0)
                 }
                 reader.endStatementAndAnalyze(result)
+                continue
             }
-        }
-
-        private fun parseCommand(reader: StringReader, line: Int, dispatcher: CommandDispatcher<ServerCommandSource>, source: ServerCommandSource): ParseResults<ServerCommandSource> {
-            throwIfSlashPrefix(reader, line)
+            if(reader.peek() == '\n') {
+                reader.skip()
+                reader.endStatementAndAnalyze(result)
+                continue
+            }
+            reader.saveIndentation()
+            var parseResults: ParseResults<ServerCommandSource>? = null
             try {
-                val parseResults: ParseResults<ServerCommandSource> = dispatcher.parse(reader, source)
-                if (parseResults.reader.canRead()) {
-                    throw CommandManager.getException(parseResults)!!
-                }
-                return parseResults
-            } catch (commandSyntaxException: CommandSyntaxException) {
-                throw IllegalArgumentException("Whilst parsing command on line $line: ${commandSyntaxException.message}")
-            }
-        }
-    },
-    IMPROVED {
-        override fun parseToVanilla(
-            reader: DirectiveStringReader<RawZipResourceCreator>,
-            source: ServerCommandSource,
-            resource: RawResource,
-        ) {
-            reader.endStatement()
-            while (reader.canRead() && reader.currentLanguage == this) {
-                if (skipComments(reader)) {
-                    reader.endStatement()
-                    continue
-                }
-                if(reader.peek() == '\n') {
-                    reader.skip()
-                    reader.endStatement()
-                    reader.currentLine++
-                    continue
-                }
-                reader.readIndentation()
-                throwIfSlashPrefix(reader, reader.currentLine)
-                writeCommand(parseCommand(reader, source), resource, reader)
-                reader.endStatement()
-            }
-        }
-
-        override fun parseToCommands(
-            reader: DirectiveStringReader<ParsedResourceCreator?>,
-            source: ServerCommandSource,
-        ): Pair<List<CommandFunction.Element>, FunctionDebugInformation?> {
-            reader.endStatement()
-            val result: MutableList<Pair<ParseResults<ServerCommandSource>, Int>> = ArrayList()
-            while (reader.canRead() && reader.currentLanguage == this) {
-                if (skipComments(reader)) {
-                    reader.endStatement()
-                    continue
-                }
-                if(reader.peek() == '\n') {
-                    reader.skip()
-                    reader.endStatement()
-                    reader.currentLine++
-                    continue
-                }
-                val startCursor = reader.absoluteCursor
-                reader.readIndentation()
-                throwIfSlashPrefix(reader, reader.currentLine)
-                result.add(parseCommand(reader, source) to startCursor)
-                reader.endStatement()
-            }
-            return result.map {
-                CommandFunction.CommandElement(it.first)
-            } to reader.resourceCreator?.run {
-                FunctionElementDebugInformation(
-                    result,
-                    reader.lines,
-                    VanillaBreakpointConditionParser,
-                    functionId.withExtension(".mcfunction")
-                ).also { debugInformation ->
-                    originResourceInfoSetEventStack.peek().invoke {
-                        debugInformation.functionId = it.id
-                        debugInformation.setFunctionStringRange(it.range)
+                if (reader.canRead() && reader.peek() == '/') {
+                    if (reader.canRead(2) && reader.peek(1) == '/') {
+                        throw DOUBLE_SLASH_EXCEPTION.createWithContext(reader)
                     }
-                }
-            }
-        }
-
-        override fun analyze(
-            reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            source: ServerCommandSource,
-            result: AnalyzingResult,
-        ) {
-            fun advanceToParseResults(parseResults: ParseResults<*>, reader: DirectiveStringReader<*>) {
-                parseResults.reader.run {
-                    if(this is DirectiveStringReader<*>) {
-                        reader.copyFrom(this)
-                        if(this !== reader)
-                            toCompleted()
-                    }
-                }
-            }
-
-            reader.endStatementAndAnalyze(result)
-            while (reader.canRead() && reader.currentLanguage == this) {
-                val startCursor = reader.absoluteCursor
-                if(skipComments(reader)) {
-                    reader.endStatementAndAnalyze(result)
-                    AnalyzingResult.getInlineRangesBetweenCursors(startCursor, reader.absoluteCursor, reader.lines) { line: Int, cursor: Int, length: Int ->
-                        result.semanticTokens.add(line, cursor, length, TokenType.COMMENT, 0)
-                    }
-                    continue
-                }
-                if(reader.peek() == '\n') {
-                    reader.skip()
-                    reader.endStatementAndAnalyze(result)
-                    reader.currentLine++
-                    continue
-                }
-                reader.readIndentation()
-                var parseResults: ParseResults<ServerCommandSource>? = null
-                try {
-                    if (reader.canRead() && reader.peek() == '/') {
-                        if (reader.canRead(2) && reader.peek(1) == '/') {
-                            throw DOUBLE_SLASH_EXCEPTION.createWithContext(reader)
-                        }
-                        val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                        result.diagnostics += Diagnostic(
-                            Range(position, position.advance()),
-                            "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
-                        )
-                        reader.skip()
-                    }
-
-                    parseResults = reader.dispatcher.parse(reader, source)
-                    createCommandSemantics(
-                        parseResults,
-                        result,
-                        reader
+                    val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    result.diagnostics += Diagnostic(
+                        Range(position, position.advance()),
+                        "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
                     )
+                    reader.skip()
+                }
+                if(reader.canRead() && reader.peek() == '$') {
+                    //Macros aren't analyzed
+                    if(easyNewLine) {
+                        readEasyNewLineMacro(reader)
+                    } else {
+                        reader.readLine()
+                    }
+                    reader.endStatementAndAnalyze(result)
+                    continue
+                }
 
+                if(!easyNewLine) {
+                    reader.escapedMultilineCursorMapper = ProcessedInputCursorMapper()
+                }
+                reader.onlyReadEscapedMultiline = !easyNewLine
+                parseResults = reader.dispatcher.parse(reader, source)
+                createCommandSemantics(parseResults, result, reader)
+                reader.escapedMultilineCursorMapper = null
+
+                if(easyNewLine) {
                     val exceptions = parseResults.exceptions
                     if (exceptions.isNotEmpty()) {
                         throw exceptions.values.first()
                     }
                     if (parseResults.context.range.isEmpty) {
-                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
+                            .createWithContext(parseResults.reader)
                     }
-                    if(isIncomplete(parseResults))
-                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
+                } else if (parseResults.reader.canRead()) {
+                    throw CommandManager.getException(parseResults)!!
+                }
+                val string = parseResults.reader.string
+                val contextChain = ContextChain.tryFlatten(parseResults.context.build(string))
+                if(contextChain.isEmpty) {
+                    throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
+                }
 
-                    advanceToParseResults(parseResults, reader)
-                    parseResults = null // Don't accidentally skip to the now completed reader when catching the 'NEEDS_NEW_LINE_EXCEPTION'
+                advanceToParseResults(parseResults, reader)
+                parseResults = null // Don't accidentally skip to the now completed reader when catching the 'NEEDS_NEW_LINE_EXCEPTION'
 
+                if(easyNewLine) {
                     reader.skipSpaces()
                     if (reader.canRead() && reader.peek() != '\n') {
-                        if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(reader)
-                    }
-                    else reader.skip()
-                    reader.currentLine++
-                } catch (e: Exception) {
-                    val exceptionCursor =
-                        if (e is CommandSyntaxException && e.cursor != -1) {
-                            val cursor = e.cursor + reader.readCharacters
-                            if(parseResults != null)
-                                advanceToParseResults(parseResults, reader)
-                            cursor
-                        }
-                        else {
-                            if(parseResults != null)
-                                advanceToParseResults(parseResults, reader)
-                            reader.absoluteCursor
-                        }
-                    val startPosition =
-                        AnalyzingResult.getPositionFromCursor(exceptionCursor, reader.lines)
-                    result.diagnostics += Diagnostic(
-                        Range(
-                            startPosition,
-                            Position(startPosition.line, reader.lines[startPosition.line].length)
-                        ),
-                        e.message,
-                        DiagnosticSeverity.Error,
-                        null
-                    )
-
-                    while (true) {
-                        if (!reader.canRead() || reader.read() == '\n')
-                            break
-                    }
+                        if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(
+                            reader
+                        )
+                    } else reader.skip()
+                } else {
+                    reader.onlyReadEscapedMultiline = false
+                    reader.skip()
                 }
-                reader.endStatementAndAnalyze(result)
+            } catch(e: Exception) {
+                val exceptionCursor =
+                    if (e is CommandSyntaxException && e.cursor != -1) {
+                        val cursor = e.cursor + reader.readCharacters
+                        if(parseResults != null)
+                            advanceToParseResults(parseResults, reader)
+                        cursor
+                    }
+                    else {
+                        if(parseResults != null)
+                            advanceToParseResults(parseResults, reader)
+                        reader.absoluteCursor
+                    }
+                reader.onlyReadEscapedMultiline = false
+                val startPosition =
+                    AnalyzingResult.getPositionFromCursor(exceptionCursor, reader.lines)
+                result.diagnostics += Diagnostic(
+                    Range(
+                        startPosition,
+                        Position(startPosition.line, reader.lines[startPosition.line].length)
+                    ),
+                    e.message,
+                    DiagnosticSeverity.Error,
+                    null
+                )
+
+                while (true) {
+                    if (!reader.canRead() || reader.read() == '\n')
+                        break
+                }
+            }
+            reader.endStatementAndAnalyze(result)
+        }
+    }
+
+    override fun parseToCommands(
+        reader: DirectiveStringReader<ParsedResourceCreator?>,
+        source: ServerCommandSource,
+        builder: FunctionBuilder<ServerCommandSource>,
+    ): FunctionDebugInformation? {
+        reader.endStatement()
+        val elementBreakpointParsers = mutableListOf<FunctionElementDebugInformation.FunctionElementProcessor>()
+        while (reader.canRead() && reader.currentLanguage == this) {
+            if (skipComments(reader)) {
+                reader.endStatement()
+                continue
+            }
+            if(reader.peek() == '\n') {
+                reader.skip()
+                reader.endStatement()
+                continue
+            }
+            reader.saveIndentation()
+            throwIfSlashPrefix(reader, reader.currentLine)
+            if(reader.canRead() && reader.peek() == '$') {
+                reader.skip()
+                val startCursor = reader.absoluteCursor
+                val cursorMapper = if(easyNewLine) ProcessedInputCursorMapper() else null
+                builder.addMacroCommand(
+                    if(easyNewLine) readEasyNewLineMacro(reader, cursorMapper) else reader.readLine(),
+                    reader.currentLine
+                )
+                val macroLines = (builder as FunctionBuilderAccessor).macroLines
+                @Suppress("UNCHECKED_CAST")
+                elementBreakpointParsers += FunctionElementDebugInformation.MacroElementProcessor(
+                    macroLines.size - 1,
+                    StringRange.between(startCursor, reader.absoluteCursor),
+                    macroLines.last() as Macro.VariableLine<ServerCommandSource>,
+                    cursorMapper
+                )
+                reader.endStatement()
+                continue
+            }
+            val startCursor = reader.readCharacters
+            reader.onlyReadEscapedMultiline = !easyNewLine
+            val parsed = parseCommand(reader, source)
+            reader.onlyReadEscapedMultiline = false
+            val string = parsed.reader.string
+            val contextChain = ContextChain.tryFlatten(parsed.context.build(string)).orElseThrow {
+                CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
+            }
+            elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(
+                contextChain.topContext,
+                startCursor
+            )
+            builder.addAction(SingleCommandAction.Sourced(string, contextChain))
+            reader.endStatement()
+        }
+        return reader.resourceCreator?.run {
+            FunctionElementDebugInformation(
+                elementBreakpointParsers,
+                reader.lines,
+                VanillaBreakpointConditionParser,
+                functionId.withExtension(".mcfunction")
+            ).also { debugInformation ->
+                originResourceInfoSetEventStack.peek().invoke {
+                    debugInformation.functionId = it.id
+                    debugInformation.setFunctionStringRange(it.range)
+                }
             }
         }
+    }
 
-        private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
-
-        private fun parseCommand(reader: DirectiveStringReader<*>, source: ServerCommandSource): ParseResults<ServerCommandSource> {
-            try {
-                val parseResults: ParseResults<ServerCommandSource> = reader.dispatcher.parse(reader, source)
-                val exceptions = parseResults.exceptions
-                if (exceptions.isNotEmpty()) {
-                    throw exceptions.values.first()
+    private fun parseCommand(reader: DirectiveStringReader<*>, source: ServerCommandSource): ParseResults<ServerCommandSource> {
+        try {
+            val parseResults: ParseResults<ServerCommandSource> = reader.dispatcher.parse(reader, source)
+            val exceptions = parseResults.exceptions
+            if (exceptions.isNotEmpty()) {
+                throw exceptions.values.first()
+            }
+            parseResults.reader.run {
+                if (this is DirectiveStringReader<*>) {
+                    reader.copyFrom(this)
+                    toCompleted()
                 }
-                parseResults.reader.run {
-                    if(this is DirectiveStringReader<*>) {
-                        reader.copyFrom(this)
-                        toCompleted()
-                    }
-                }
+            }
+            if(easyNewLine) {
                 if (parseResults.context.range.isEmpty) {
-                    throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
+                    throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
+                        .createWithContext(parseResults.reader)
                 }
                 reader.skipSpaces()
                 if (reader.canRead() && reader.peek() != '\n') {
-                    if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(reader)
+                    if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(
+                        reader
+                    )
+                } else reader.skip()
+            } else {
+                if (parseResults.reader.canRead()) {
+                    throw CommandManager.getException(parseResults)!!
                 }
-                else reader.skip()
-                reader.currentLine++
-                return parseResults
-            } catch (commandSyntaxException: CommandSyntaxException) {
-                throw IllegalArgumentException("Whilst parsing command on line ${reader.currentLine}: ${commandSyntaxException.message}")
             }
+            return parseResults
+        } catch (commandSyntaxException: CommandSyntaxException) {
+            throw IllegalArgumentException("Whilst parsing command on line ${reader.currentLine}: ${commandSyntaxException.message}")
         }
-    };
+    }
+
+    private fun throwIfSlashPrefix(reader: StringReader, line: Int) {
+        if (reader.peek() == '/') {
+            reader.skip()
+            require(reader.peek() != '/') { "Unknown or invalid command on line $line (if you intended to make a comment, use '#' not '//')" }
+            val string2: String = reader.readUnquotedString()
+            throw IllegalArgumentException("Unknown or invalid command on line $line (did you mean '$string2'? Do not use a preceding forwards slash.)")
+        }
+    }
+
+    private fun readEasyNewLineMacro(reader: DirectiveStringReader<*>, cursorMapper: ProcessedInputCursorMapper? = null): String {
+        if(!reader.canRead()) return ""
+        if(reader.peek() == '$')
+            reader.skip()
+        val firstLineStart = reader.absoluteCursor
+        val macroBuilder = StringBuilder(reader.readLine())
+        cursorMapper?.addMapping(firstLineStart, 0, reader.absoluteCursor - firstLineStart)
+        while(reader.tryReadIndentation { it > reader.currentIndentation }) {
+            macroBuilder.append(' ')
+            val start = reader.absoluteCursor
+            val prevMacroLength = macroBuilder.length
+            macroBuilder.append(reader.readLine())
+            cursorMapper?.addMapping(start, prevMacroLength, reader.absoluteCursor - start)
+        }
+        return macroBuilder.toString()
+    }
+
+    fun writeCommand(result: ParseResults<ServerCommandSource>, resource: RawResource, reader: DirectiveStringReader<RawZipResourceCreator>) {
+        var contextBuilder = result.context
+        var context = contextBuilder.build(result.reader.string)
+        var addLeadingSpace = false
+        val stringBuilder = StringBuilder()
+        while(contextBuilder != null && context != null) {
+            for (parsedNode in contextBuilder.nodes) {
+                if (addLeadingSpace) {
+                    stringBuilder.append(' ')
+                } else {
+                    addLeadingSpace = true
+                }
+                val node = parsedNode.node
+                if (node is UnparsableCommandNode) {
+                    for(part in node.`command_crafter$unparseNode`(
+                        context,
+                        parsedNode.range,
+                        DirectiveStringReader(
+                            listOf(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range)),
+                            reader.dispatcher,
+                            reader.resourceCreator
+                        ).apply {
+                            val scope = reader.scopeStack.peek()
+                            scopeStack.addFirst(scope)
+                            currentLanguage = scope.language
+                        }
+                    )) {
+                        part.ifLeft {
+                            stringBuilder.append(it)
+                        }.ifRight {
+                            resource.content += Either.left(stringBuilder.toString())
+                            stringBuilder.clear()
+                            resource.content += Either.right(it)
+                        }
+                    }
+                } else {
+                    stringBuilder.append(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range))
+                }
+            }
+            contextBuilder = contextBuilder.child
+            context = context.child
+        }
+        resource.content += Either.left(stringBuilder.append('\n').toString())
+    }
+
+    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+        var contextBuilder = result.context
+        var context = contextBuilder.build(result.reader.string)
+
+        val semanticTokens = analyzingResult.semanticTokens
+
+        val readCharactersOffset = if(reader.escapedMultilineCursorMapper == null) reader.readCharacters else 0
+        semanticTokens.cursorMapper = reader.escapedMultilineCursorMapper
+
+        while(contextBuilder != null && context != null) {
+            for (parsedNode in contextBuilder.nodes) {
+                val node = parsedNode.node
+                if (node is AnalyzingCommandNode) {
+                    try {
+                        semanticTokens.cursorOffset = readCharactersOffset + parsedNode.range.start
+                        node.`command_crafter$analyze`(
+                            context,
+                            StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
+                            reader,
+                            analyzingResult,
+                            node.name
+                        )
+                    } catch(_: CommandSyntaxException) { }
+                    semanticTokens.cursorOffset = 0
+                }
+            }
+            if(context.child == null && contextBuilder.nodes.isNotEmpty()) {
+                tryAnalyzeNextNode(result, analyzingResult, contextBuilder.nodes.last().node.children, contextBuilder, reader)
+            }
+            contextBuilder = contextBuilder.child
+            context = context.child
+        }
+
+        semanticTokens.cursorOffset = 0
+        semanticTokens.cursorMapper = null
+    }
+
+    private fun tryAnalyzeNextNode(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+        if (nodes.size != 1) return
+        val nextNode = nodes.first()
+        if (nextNode !is ArgumentCommandNode<*, *>) return
+        val prevReader = result.reader
+        if(!prevReader.canRead()) return
+        val newReader: StringReader
+        if(prevReader is DirectiveStringReader<*>) {
+            newReader = prevReader.copy()
+        } else {
+            newReader = StringReader(prevReader.string)
+            newReader.cursor = prevReader.cursor
+        }
+        val start = newReader.cursor
+        try {
+            val argumentResult = nextNode.type.parse(newReader)
+            context.withArgument(nextNode.name, ParsedArgument(start, newReader.cursor, argumentResult))
+        } catch(ignored: Exception) { }
+
+        try {
+            analyzingResult.semanticTokens.cursorOffset = if(reader.escapedMultilineCursorMapper == null) reader.readCharacters + start else start
+            (nextNode as AnalyzingCommandNode).`command_crafter$analyze`(
+                context.build(result.reader.string),
+                StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
+                reader,
+                analyzingResult,
+                nextNode.name
+            )
+        } catch(_: CommandSyntaxException) { }
+        analyzingResult.semanticTokens.cursorOffset = 0
+    }
+
+    object VanillaLanguageType : LanguageManager.LanguageType {
+        private const val ALL_FEATURES_OPTION = "improved"
+        private const val EASY_NEW_LINE_OPTION = "easyNewLine"
+        private const val INLINE_RESOURCES_OPTION = "inlineResources"
+
+        override fun createFromArguments(args: Map<String, String?>, currentLine: Int): Language {
+            if(args.containsKey(ALL_FEATURES_OPTION)) {
+                args.keys.filter { it != ALL_FEATURES_OPTION }.forEach {
+                    throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $it for '${ID}' on line $currentLine")
+                }
+                val allFeaturesParsed = when(val allFeaturesArg = args[ALL_FEATURES_OPTION]) {
+                    "false" -> false
+                    null, "true" -> true
+                    else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$allFeaturesArg' for parameter '$ALL_FEATURES_OPTION' of '$ID' on line $currentLine. Must be either 'true', 'false' or removed (defaults to 'true')")
+                }
+                return VanillaLanguage(easyNewLine = allFeaturesParsed, inlineResources = allFeaturesParsed)
+            }
+            val easyNewLineArg = if(args.containsKey(EASY_NEW_LINE_OPTION)) args[EASY_NEW_LINE_OPTION] ?: "true" else null
+            val inlineResourcesArg = if(args.containsKey(INLINE_RESOURCES_OPTION)) args[INLINE_RESOURCES_OPTION] ?: "true" else null
+
+            args.keys.filter { it != EASY_NEW_LINE_OPTION && it != INLINE_RESOURCES_OPTION }.forEach {
+                throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $it for '${ID}' on line $currentLine")
+            }
+
+            return VanillaLanguage(
+                easyNewLine = when(easyNewLineArg) {
+                    null, "false" -> false
+                    "true" -> true
+                    else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$easyNewLineArg' for parameter '$EASY_NEW_LINE_OPTION' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')")
+                },
+                inlineResources = when(inlineResourcesArg) {
+                    null, "false" -> false
+                    "true" -> true
+                    else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$inlineResourcesArg' for parameter '$INLINE_RESOURCES_OPTION' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')")
+                }
+            )
+        }
+
+        override fun createFromArgumentsAndAnalyze(
+            args: Map<String, LanguageManager.AnalyzingLanguageArgument>,
+            currentLine: Int,
+            analyzingResult: AnalyzingResult,
+            lines: List<String>,
+        ): Language? {
+            val allFeaturesArg = args[ALL_FEATURES_OPTION]
+            if(allFeaturesArg != null) {
+                args.entries.filter { it.key != ALL_FEATURES_OPTION }.forEach {
+                    analyzingResult.diagnostics += it.value.createDiagnostic("Error parsing language arguments: Unknown parameter ${it.key} for '${ID}' on line $currentLine", lines)
+                }
+                val allFeaturesParsed = when(allFeaturesArg.value) {
+                    "false" -> false
+                    null, "true" -> true
+                    else -> {
+                        analyzingResult.diagnostics += allFeaturesArg.createDiagnostic("Error parsing language arguments: Unknown argument '${allFeaturesArg.value}' for parameter '$ALL_FEATURES_OPTION' of '$ID' on line $currentLine. Must be either 'true', 'false' or removed (defaults to 'true')", lines)
+                        true
+                    }
+                }
+                return VanillaLanguage(easyNewLine = allFeaturesParsed, inlineResources = allFeaturesParsed)
+            }
+            val easyNewLineArg = args["easyNewLine"]
+            val inlineResourcesArg = args["inlineResources"]
+
+            args.entries.filter { it.key != EASY_NEW_LINE_OPTION && it.key != INLINE_RESOURCES_OPTION }.forEach {
+                analyzingResult.diagnostics += it.value.createDiagnostic("Error parsing language arguments: Unknown parameter ${it.key} for '${ID}' on line $currentLine", lines)
+            }
+
+            return VanillaLanguage(
+                easyNewLine = when(easyNewLineArg?.run { value ?: "true" }) {
+                    null, "false" -> false
+                    "true" -> true
+                    else -> {
+                        analyzingResult.diagnostics += easyNewLineArg.createDiagnostic("Error parsing language arguments: Unknown argument '${easyNewLineArg.value}' for parameter 'easyNewLine' of '${ID}' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')", lines)
+                        return null
+                    }
+                },
+                inlineResources = when(inlineResourcesArg?.run { value ?: "true" }) {
+                    null, "false" -> false
+                    "true" -> true
+                    else -> {
+                        analyzingResult.diagnostics += inlineResourcesArg.createDiagnostic("Error parsing language arguments: Unknown argument '${inlineResourcesArg.value}' for parameter 'inlineResources' of '${ID}' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')", lines)
+                        return null
+                    }
+                }
+            )
+        }
+    }
 
     companion object {
         const val ID = "vanilla"
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
+        private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
 
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
             var foundAny = false
             while(true) {
                 if(!reader.trySkipWhitespace {
-                    if(reader.canRead() && reader.peek() == '#') {
-                        @Suppress("ControlFlowWithEmptyBody")
-                        while (reader.canRead() && reader.read() != '\n') { }
-                        reader.currentLine++
-                        return@trySkipWhitespace true
-                    }
-                    false
-                }) {
+                        if(reader.canRead() && reader.peek() == '#') {
+                            @Suppress("ControlFlowWithEmptyBody")
+                            while (reader.canRead() && reader.read() != '\n') { }
+                            return@trySkipWhitespace true
+                        }
+                        false
+                    }) {
                     return foundAny
                 }
                 foundAny = true
             }
         }
 
-        fun isReaderImproved(reader: StringReader): Boolean {
-            return reader is DirectiveStringReader<*> && reader.currentLanguage == IMPROVED
+        fun isReaderEasyNextLine(reader: StringReader): Boolean {
+            return reader is DirectiveStringReader<*> && reader.currentLanguage is VanillaLanguage && (reader.currentLanguage as VanillaLanguage).easyNewLine
+        }
+
+        fun isReaderInlineResources(reader: StringReader): Boolean {
+            return reader is DirectiveStringReader<*> && reader.currentLanguage is VanillaLanguage && (reader.currentLanguage as VanillaLanguage).inlineResources
         }
 
         private val INVALID_TUPLE = SimpleCommandExceptionType(Text.of("Encountered invalid tuple"))
@@ -407,9 +585,9 @@ enum class VanillaLanguage : Language {
             reader: DirectiveStringReader<RawZipResourceCreator>,
             registry: Registry<T>,
         ): RawResourceRegistryEntryList<T>
-            = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(TagManagerLoader.getPath(registry.key), "json")) {
+                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(TagManagerLoader.getPath(registry.key), "json")) {
                 entryReader -> Either.left(parseRawTagEntry(entryReader))
-            })
+        })
 
         fun <T> parseParsedRegistryTagTuple(
             reader: DirectiveStringReader<ParsedResourceCreator>,
@@ -426,7 +604,7 @@ enum class VanillaLanguage : Language {
 
         fun <T> analyzeRegistryTagTuple(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            registry: Registry<T>
+            registry: Registry<T>,
         ): AnalyzedRegistryEntryList<T> {
             val analyzingResult = AnalyzingResult(reader.lines)
             analyzeTagTupleEntries(reader, analyzingResult) { entryReader, entryAnalyzingResult ->
@@ -435,20 +613,20 @@ enum class VanillaLanguage : Language {
                 try {
                     val entry = parseTagEntry(entryReader)
                     if(!entry.resolve(object: TagEntry.ValueGetter<Unit> {
-                        override fun direct(id: Identifier): Unit? {
-                            if(registry.containsId(id)) return Unit
-                            entryAnalyzingResult.diagnostics += Diagnostic(
-                                Range(pos, pos.advance(reader.cursor - startCursor)),
-                                "Unknown id '$id'"
-                            )
-                            return null
-                        }
+                            override fun direct(id: Identifier): Unit? {
+                                if(registry.containsId(id)) return Unit
+                                entryAnalyzingResult.diagnostics += Diagnostic(
+                                    Range(pos, pos.advance(reader.cursor - startCursor)),
+                                    "Unknown id '$id'"
+                                )
+                                return null
+                            }
 
-                        override fun tag(id: Identifier): Collection<Unit> {
-                            return emptyList()
-                        }
+                            override fun tag(id: Identifier): Collection<Unit> {
+                                return emptyList()
+                            }
 
-                    }) { }) return@analyzeTagTupleEntries
+                        }) { }) return@analyzeTagTupleEntries
                 } catch(e: CommandSyntaxException) {
                     analyzingResult.diagnostics += Diagnostic(
                         Range(pos, pos.advance(reader.cursor - startCursor)),
@@ -465,20 +643,22 @@ enum class VanillaLanguage : Language {
             reader: DirectiveStringReader<*>,
             registry: Registry<T>,
         ): RegistryEntryList<T> {
-            reader.resourceCreator.run {
-                if(this is RawZipResourceCreator) {
-                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
-                    return parseRawRegistryTagTuple(reader as DirectiveStringReader<RawZipResourceCreator>, registry)
+            reader.withNoMultilineRestriction<Nothing> {
+                it.resourceCreator.run {
+                    if(this is RawZipResourceCreator) {
+                        @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                        return parseRawRegistryTagTuple(it as DirectiveStringReader<RawZipResourceCreator>, registry)
+                    }
+                    if(this is ParsedResourceCreator) {
+                        @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                        return parseParsedRegistryTagTuple(it as DirectiveStringReader<ParsedResourceCreator>, registry)
+                    }
+                    if(this is AnalyzingResourceCreator) {
+                        @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                        return analyzeRegistryTagTuple(it as DirectiveStringReader<AnalyzingResourceCreator>, registry)
+                    }
+                    throw ParsedResourceCreator.RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION.createWithContext(it)
                 }
-                if(this is ParsedResourceCreator) {
-                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
-                    return parseParsedRegistryTagTuple(reader as DirectiveStringReader<ParsedResourceCreator>, registry)
-                }
-                if(this is AnalyzingResourceCreator) {
-                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
-                    return analyzeRegistryTagTuple(reader as DirectiveStringReader<AnalyzingResourceCreator>, registry)
-                }
-                throw ParsedResourceCreator.RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION.createWithContext(reader)
             }
         }
 
@@ -490,16 +670,8 @@ enum class VanillaLanguage : Language {
             val startCursor = reader.absoluteCursor
             val functionIdSetter = ParsedResourceCreator.ResourceInfoSetterWrapper(reader.resourceCreator.addOriginResource())
             reader.expect('{')
-            val parsed = LanguageManager.parseToCommandsWithDebugInformation(reader, source, ImprovedVanillaClosure)
-            val function = CommandFunction(
-                ParsedResourceCreator.PLACEHOLDER_ID,
-                parsed.first
-            )
-            parsed.second?.run {
-                @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
-                (function as DebugInformationContainer<FunctionBreakpointLocation, FunctionPauseContext>)
-                    .`command_crafter$setDebugInformation`(this)
-            }
+            val function = LanguageManager.parseToCommands(reader, source, NestedVanillaClosure(reader.currentLanguage!!))
+
             reader.resourceCreator.functions += ParsedResourceCreator.AutomaticResource(functionIdSetter, function)
             functionIdSetter.range = StringRange(startCursor, reader.absoluteCursor)
             reader.resourceCreator.originResourceIdSetEventStack.element()(idSetter)
@@ -509,7 +681,7 @@ enum class VanillaLanguage : Language {
         private fun parseRawInlineFunction(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource): RawResource {
             reader.expect('{')
             val resource = RawResource(RawResource.FUNCTION_TYPE)
-            LanguageManager.parseToVanilla(reader, source, resource, ImprovedVanillaClosure)
+            LanguageManager.parseToVanilla(reader, source, resource, NestedVanillaClosure(reader.currentLanguage!!))
             return resource
         }
 
@@ -569,10 +741,10 @@ enum class VanillaLanguage : Language {
         fun analyzeInlineFunction(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: ServerCommandSource,
-            analyzingResult: AnalyzingResult
+            analyzingResult: AnalyzingResult,
         ) {
             reader.expect('{')
-            LanguageManager.analyse(reader, source, analyzingResult, ImprovedVanillaClosure)
+            LanguageManager.analyse(reader, source, analyzingResult, NestedVanillaClosure(reader.currentLanguage!!))
         }
 
         fun analyzeImprovedFunctionReference(
@@ -598,30 +770,28 @@ enum class VanillaLanguage : Language {
                     analyzeTagEntry(entryReader, entryAnalyzingResult)
                 }
             } else {
-                val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                analyzingResult.diagnostics += Diagnostic(
-                    Range(pos, pos.advance()),
-                    "Invalid function reference"
-                )
+                return null
             }
             return AnalyzedFunctionArgument(analyzingResult)
         }
 
         fun parseImprovedFunctionReference(reader: DirectiveStringReader<*>, source: ServerCommandSource): CommandFunctionArgumentType.FunctionArgument? {
-            reader.resourceCreator.run {
-                if(this is RawZipResourceCreator) {
-                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
-                    return parseRawImprovedFunctionReference(reader as DirectiveStringReader<RawZipResourceCreator>, source)
+            reader.withNoMultilineRestriction<Nothing> {
+                it.resourceCreator.run {
+                    if(this is RawZipResourceCreator) {
+                        @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                        return parseRawImprovedFunctionReference(it as DirectiveStringReader<RawZipResourceCreator>, source)
+                    }
+                    if(this is ParsedResourceCreator) {
+                        @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                        return parseParsedImprovedFunctionReference(it as DirectiveStringReader<ParsedResourceCreator>, source)
+                    }
+                    if(this is AnalyzingResourceCreator) {
+                        @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
+                        return analyzeImprovedFunctionReference(it as DirectiveStringReader<AnalyzingResourceCreator>, source)
+                    }
+                    throw ParsedResourceCreator.RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION.createWithContext(it)
                 }
-                if(this is ParsedResourceCreator) {
-                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
-                    return parseParsedImprovedFunctionReference(reader as DirectiveStringReader<ParsedResourceCreator>, source)
-                }
-                if(this is AnalyzingResourceCreator) {
-                    @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
-                    return analyzeImprovedFunctionReference(reader as DirectiveStringReader<AnalyzingResourceCreator>, source)
-                }
-                throw ParsedResourceCreator.RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION.createWithContext(reader)
             }
         }
 
@@ -691,7 +861,7 @@ enum class VanillaLanguage : Language {
         private fun <ResourceCreator> analyzeTagTupleEntries(
             reader: DirectiveStringReader<ResourceCreator>,
             analyzingResult: AnalyzingResult,
-            entryAnalyzer: (DirectiveStringReader<ResourceCreator>, AnalyzingResult) -> Unit
+            entryAnalyzer: (DirectiveStringReader<ResourceCreator>, AnalyzingResult) -> Unit,
         ) {
             reader.expect('(')
             reader.skipWhitespace()
@@ -775,191 +945,14 @@ enum class VanillaLanguage : Language {
             }
             var newLineIndentation = 0
             while(reader.canRead() && reader.peek() == '\n') {
-                reader.currentLine++
                 reader.skip()
-                val newLineStart = reader.cursor
-                reader.skipSpaces()
-                newLineIndentation = reader.cursor - newLineStart
+                newLineIndentation = reader.readIndentation()
             }
             if(newLineIndentation > reader.currentIndentation) {
                 return true
             }
             reader.cursor = cursor
-            reader.currentLine = line
             return false
-        }
-    }
-
-    object ImprovedVanillaClosure : Language.LanguageClosure {
-        override val startLanguage: Language = IMPROVED
-        override fun endsClosure(reader: DirectiveStringReader<*>) = reader.trySkipWhitespace {
-            reader.canRead() && reader.peek() == '}'
-        }
-
-        override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
-            reader.skip()
-        }
-    }
-
-    object VanillaLanguageType : LanguageManager.LanguageType {
-        override fun createFromArguments(args: Map<String, String?>, currentLine: Int): Language {
-            for(key in args.keys) {
-                if(key != "improved") {
-                    throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $key for '$ID' on line $currentLine")
-                }
-            }
-            if(!args.containsKey("improved")) {
-                return NORMAL
-            }
-            return when (val improved = args["improved"]) {
-                "false" -> NORMAL
-                null, "true" -> IMPROVED
-                else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$improved' for parameter 'improved' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')")
-            }
-        }
-
-        override fun createFromArgumentsAndAnalyze(
-            args: Map<String, LanguageManager.AnalyzingLanguageArgument>,
-            currentLine: Int,
-            analyzingResult: AnalyzingResult,
-            lines: List<String>
-        ): Language? {
-            for((parameter, value) in args) {
-                if(parameter != "improved") {
-                    analyzingResult.diagnostics += value.createDiagnostic("Error parsing language arguments: Unknown parameter $parameter for '$ID' on line $currentLine", lines)
-                }
-            }
-            val improvedArgument = args["improved"] ?: return NORMAL
-            return when (val improved = improvedArgument.value) {
-                "false" -> NORMAL
-                null, "true" -> IMPROVED
-                else -> {
-                    analyzingResult.diagnostics += improvedArgument.createDiagnostic("Error parsing language arguments: Unknown argument '$improved' for parameter 'improved' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')", lines)
-                    null
-                }
-            }
-        }
-    }
-
-    fun throwIfSlashPrefix(reader: StringReader, line: Int) {
-        if (reader.peek() == '/') {
-            reader.skip()
-            require(reader.peek() != '/') { "Unknown or invalid command on line $line (if you intended to make a comment, use '#' not '//')" }
-            val string2: String = reader.readUnquotedString()
-            throw IllegalArgumentException("Unknown or invalid command on line $line (did you mean '$string2'? Do not use a preceding forwards slash.)")
-        }
-    }
-
-    fun writeCommand(result: ParseResults<ServerCommandSource>, resource: RawResource, reader: DirectiveStringReader<RawZipResourceCreator>) {
-        var contextBuilder = result.context
-        var context = contextBuilder.build(result.reader.string)
-        var addLeadingSpace = false
-        val stringBuilder = StringBuilder()
-        while(contextBuilder != null && context != null) {
-            for (parsedNode in contextBuilder.nodes) {
-                if (addLeadingSpace) {
-                    stringBuilder.append(' ')
-                } else {
-                    addLeadingSpace = true
-                }
-                val node = parsedNode.node
-                if (node is UnparsableCommandNode) {
-                    for(part in node.`command_crafter$unparseNode`(
-                        context,
-                        parsedNode.range,
-                        DirectiveStringReader(
-                            listOf(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range)),
-                            reader.dispatcher,
-                            reader.resourceCreator
-                        ).apply {
-                            val scope = reader.scopeStack.peek()
-                            scopeStack.addFirst(scope)
-                            currentLanguage = scope.language
-                        }
-                    )) {
-                        part.ifLeft {
-                            stringBuilder.append(it)
-                        }.ifRight {
-                            resource.content += Either.left(stringBuilder.toString())
-                            stringBuilder.clear()
-                            resource.content += Either.right(it)
-                        }
-                    }
-                } else {
-                    stringBuilder.append(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range))
-                }
-            }
-            contextBuilder = contextBuilder.child
-            context = context.child
-        }
-        resource.content += Either.left(stringBuilder.append('\n').toString())
-    }
-
-    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
-        var contextBuilder = result.context
-        var context = contextBuilder.build(result.reader.string)
-
-        while(contextBuilder != null && context != null) {
-            for (parsedNode in contextBuilder.nodes) {
-                val node = parsedNode.node
-                if (node is AnalyzingCommandNode) {
-                    try {
-                        node.`command_crafter$analyze`(
-                            context,
-                            StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
-                            reader,
-                            analyzingResult,
-                            node.name
-                        )
-                    } catch(_: CommandSyntaxException) { }
-                }
-            }
-            if(context.child == null) {
-                tryAnalyzeNextNode(result, analyzingResult, contextBuilder.nodes.last().node.children, contextBuilder, reader)
-            }
-            contextBuilder = contextBuilder.child
-            context = context.child
-        }
-    }
-
-    private fun tryAnalyzeNextNode(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
-        if (nodes.size != 1) return
-        val nextNode = nodes.first()
-        if (nextNode !is ArgumentCommandNode<*, *>) return
-        val prevReader = result.reader
-        if(!prevReader.canRead()) return
-        val newReader: StringReader
-        if(prevReader is DirectiveStringReader<*>) {
-            newReader = prevReader.copy()
-        } else {
-            newReader = StringReader(prevReader.string)
-            newReader.cursor = prevReader.cursor
-        }
-        val start = newReader.cursor
-        try {
-            val argumentResult = nextNode.type.parse(newReader)
-            context.withArgument(nextNode.name, ParsedArgument(start, newReader.cursor, argumentResult))
-        } catch(ignored: Exception) { }
-
-        try {
-            (nextNode as AnalyzingCommandNode).`command_crafter$analyze`(
-                context.build(result.reader.string),
-                StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
-                reader,
-                analyzingResult,
-                nextNode.name
-            )
-        } catch(_: CommandSyntaxException) { }
-    }
-
-    fun isIncomplete(parseResults: ParseResults<*>): Boolean {
-        var context: CommandContextBuilder<*> = parseResults.context ?: return true
-        while(true) {
-            if(context.command != null)
-                return false
-            context = context.child ?: return true
-            if(context.nodes.isNotEmpty())
-                return false
         }
     }
 
@@ -967,15 +960,25 @@ enum class VanillaLanguage : Language {
         override fun parseCondition(condition: String?, hitCondition: String?): BreakpointCondition {
             //TODO
             return object : BreakpointCondition {
-                override fun checkCondition(context: CommandContext<ServerCommandSource>): Boolean {
+                override fun checkCondition(source: ServerCommandSource): Boolean {
                     return true
                 }
 
-                override fun checkHitCondition(context: CommandContext<ServerCommandSource>): Boolean {
+                override fun checkHitCondition(source: ServerCommandSource): Boolean {
                     return true
                 }
 
             }
+        }
+    }
+
+    class NestedVanillaClosure(override val startLanguage: Language) : Language.LanguageClosure {
+        override fun endsClosure(reader: DirectiveStringReader<*>) = reader.trySkipWhitespace {
+            reader.canRead() && reader.peek() == '}'
+        }
+
+        override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
+            reader.skip()
         }
     }
 }

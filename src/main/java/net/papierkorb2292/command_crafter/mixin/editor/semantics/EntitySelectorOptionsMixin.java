@@ -6,11 +6,16 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import net.minecraft.command.EntitySelectorOptions;
 import net.minecraft.command.EntitySelectorReader;
+import net.minecraft.entity.EntityType;
 import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticBuilderContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.parser.helper.AnalyzedRegistryEntryList;
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -325,7 +330,27 @@ public class EntitySelectorOptionsMixin {
             )
     )
     private static EntitySelectorOptions.SelectorHandler command_crafter$highlightTypeOption(EntitySelectorOptions.SelectorHandler handler) {
-        return command_crafter$highlightFullOption(handler, TokenType.Companion.getENUM_MEMBER());
+        return selectorReader -> {
+            var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+            var reader = selectorReader.getReader();
+            if(VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
+                var parsed = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>) reader, Registries.ENTITY_TYPE);
+                if(parsed instanceof AnalyzedRegistryEntryList<EntityType<?>> analyzed && analyzingResult != null) {
+                    analyzingResult.combineWith(analyzed.getAnalyzingResult());
+                }
+                return;
+            }
+            var cursor = selectorReader.getReader().getCursor();
+            handler.handle(selectorReader);
+            if(analyzingResult != null) {
+                analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                        cursor,
+                        selectorReader.getReader().getCursor() - cursor,
+                        TokenType.Companion.getPARAMETER(),
+                        0
+                );
+            }
+        };
     }
 
     @ModifyArg(
@@ -350,10 +375,10 @@ public class EntitySelectorOptionsMixin {
         return selectorReader -> {
             var cursor = selectorReader.getReader().getCursor();
             handler.handle(selectorReader);
-            var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
-            if(tokensBuilder != null) {
-                tokensBuilder.addAbsoluteMultiline(
-                        cursor + ((SemanticBuilderContainer)selectorReader).command_crafter$getCursorOffset(),
+            var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+            if(analyzingResult != null) {
+                analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                        cursor,
                         selectorReader.getReader().getCursor() - cursor,
                         tokenType,
                         0
@@ -370,13 +395,10 @@ public class EntitySelectorOptionsMixin {
             )
     )
     private static StringNbtReader command_crafter$highlightNbtOption(StringNbtReader nbtReader, EntitySelectorReader selectorReader) {
-        var semanticBuilderContainer = (SemanticBuilderContainer)selectorReader;
-        var tokenBuilder = semanticBuilderContainer.command_crafter$getSemanticTokensBuilder();
-        if(tokenBuilder != null) {
-            ((SemanticTokensCreator)nbtReader).command_crafter$setSemanticTokensBuilder(
-                    tokenBuilder,
-                    semanticBuilderContainer.command_crafter$getCursorOffset()
-            );
+        var semanticBuilderContainer = (AnalyzingResultDataContainer)selectorReader;
+        var analyzingResult = semanticBuilderContainer.command_crafter$getAnalyzingResult();
+        if(analyzingResult != null) {
+            ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
         }
         return nbtReader;
     }
@@ -390,10 +412,10 @@ public class EntitySelectorOptionsMixin {
             remap = false
     )
     private static String command_crafter$highlightScoreOptionScoreboardName(String name, EntitySelectorReader selectorReader) {
-        var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
-        if(tokensBuilder != null) {
-            tokensBuilder.addAbsoluteMultiline(
-                    selectorReader.getReader().getCursor() - name.length() + ((SemanticBuilderContainer)selectorReader).command_crafter$getCursorOffset(),
+        var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+        if(analyzingResult != null) {
+            analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                    selectorReader.getReader().getCursor() - name.length(),
                     name.length(),
                     TokenType.Companion.getPROPERTY(),
                     0
@@ -409,8 +431,8 @@ public class EntitySelectorOptionsMixin {
                     target = "Lnet/minecraft/predicate/NumberRange$IntRange;parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/predicate/NumberRange$IntRange;"
             )
     )
-    private static void command_crafter$storeScoreOptionNumberCursor(EntitySelectorReader reader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursor) {
-        numberCursor.set(reader.getReader().getCursor());
+    private static void command_crafter$storeScoreOptionNumberCursor(EntitySelectorReader reader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
+        numberCursorRef.set(reader.getReader().getCursor());
     }
 
     @Inject(
@@ -421,12 +443,12 @@ public class EntitySelectorOptionsMixin {
                     shift = At.Shift.AFTER
             )
     )
-    private static void command_crafter$highlightScoreOptionNumber(EntitySelectorReader selectorReader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursor) {
-        var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
-        if(tokensBuilder != null) {
-            tokensBuilder.addAbsoluteMultiline(
-                    numberCursor.get() + ((SemanticBuilderContainer)selectorReader).command_crafter$getCursorOffset(),
-                    selectorReader.getReader().getCursor() - numberCursor.get(),
+    private static void command_crafter$highlightScoreOptionNumber(EntitySelectorReader selectorReader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
+        var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+        if(analyzingResult != null) {
+            analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                    numberCursorRef.get(),
+                    selectorReader.getReader().getCursor() - numberCursorRef.get(),
                     TokenType.Companion.getNUMBER(),
                     0
             );
@@ -440,8 +462,8 @@ public class EntitySelectorOptionsMixin {
                     target = "Lnet/minecraft/util/Identifier;fromCommandInput(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/util/Identifier;"
             )
     )
-    private static void command_crafter$storeAdvancementOptionIdentifierCursor(EntitySelectorReader reader, CallbackInfo ci, @Share("startCursor") LocalIntRef startCursor) {
-        startCursor.set(reader.getReader().getCursor());
+    private static void command_crafter$storeAdvancementOptionIdentifierCursor(EntitySelectorReader reader, CallbackInfo ci, @Share("startCursor") LocalIntRef startCursorRef) {
+        startCursorRef.set(reader.getReader().getCursor());
     }
 
     @ModifyExpressionValue(
@@ -451,12 +473,12 @@ public class EntitySelectorOptionsMixin {
                     target = "Lnet/minecraft/util/Identifier;fromCommandInput(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/util/Identifier;"
             )
     )
-    private static Identifier command_crafter$highlightAdvancementOptionIdentifier(Identifier id, EntitySelectorReader selectorReader, @Share("startCursor") LocalIntRef startCursor) {
-        var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
-        if(tokensBuilder != null) {
-            tokensBuilder.addAbsoluteMultiline(
-                    startCursor.get() + ((SemanticBuilderContainer)selectorReader).command_crafter$getCursorOffset(),
-                    selectorReader.getReader().getCursor() - startCursor.get(),
+    private static Identifier command_crafter$highlightAdvancementOptionIdentifier(Identifier id, EntitySelectorReader selectorReader, @Share("startCursor") LocalIntRef startCursorRef) {
+        var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+        if(analyzingResult != null) {
+            analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                    startCursorRef.get(),
+                    selectorReader.getReader().getCursor() - startCursorRef.get(),
                     TokenType.Companion.getPROPERTY(),
                     0
             );
@@ -473,10 +495,10 @@ public class EntitySelectorOptionsMixin {
             remap = false
     )
     private static String command_crafter$highlightAdvancementOptionCriterionName(String name, EntitySelectorReader selectorReader) {
-        var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
-        if(tokensBuilder != null) {
-            tokensBuilder.addAbsoluteMultiline(
-                    selectorReader.getReader().getCursor() - name.length() + ((SemanticBuilderContainer)selectorReader).command_crafter$getCursorOffset(),
+        var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+        if(analyzingResult != null) {
+            analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                    selectorReader.getReader().getCursor() - name.length(),
                     name.length(),
                     TokenType.Companion.getPROPERTY(),
                     0
@@ -494,11 +516,11 @@ public class EntitySelectorOptionsMixin {
             remap = false
     )
     private static boolean command_crafter$highlightAdvancementOptionBoolean(boolean value, EntitySelectorReader selectorReader) {
-        var tokensBuilder = ((SemanticBuilderContainer)selectorReader).command_crafter$getSemanticTokensBuilder();
-        if(tokensBuilder != null) {
+        var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+        if(analyzingResult != null) {
             var length = value ? 4 : 5;
-            tokensBuilder.addAbsoluteMultiline(
-                    selectorReader.getReader().getCursor() - length + ((SemanticBuilderContainer)selectorReader).command_crafter$getCursorOffset(),
+            analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                    selectorReader.getReader().getCursor() - length,
                     length,
                     TokenType.Companion.getENUM_MEMBER(),
                     0

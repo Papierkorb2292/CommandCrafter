@@ -38,7 +38,7 @@ public class ItemStringReaderMixin {
             )
     )
     private void command_crafter$parseInlineTag(ItemStringReader itemStringReader, Operation<Void> op) throws CommandSyntaxException {
-        if(reader.canRead() && VanillaLanguage.Companion.isReaderImproved(reader) && reader.peek() == '(') {
+        if(reader.canRead() && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.peek() == '(') {
             if(!allowTag) {
                 throw TAG_DISALLOWED_EXCEPTION.createWithContext(this.reader);
             }

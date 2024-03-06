@@ -7,8 +7,8 @@ import java.util.*
 
 interface BreakpointParser<TBreakpointLocation> {
     companion object {
-        fun <TBreakpointLocation> BreakpointParser<TBreakpointLocation>.parseBreakpointsAndRejectRest(breakpoints: Queue<ServerBreakpoint<TBreakpointLocation>>, server: MinecraftServer): List<Breakpoint> {
-            return parseBreakpoints(breakpoints, server) + Array(breakpoints.size) {
+        fun <TBreakpointLocation> BreakpointParser<TBreakpointLocation>.parseBreakpointsAndRejectRest(breakpoints: Queue<ServerBreakpoint<TBreakpointLocation>>, server: MinecraftServer, sourceReference: Int?): List<Breakpoint> {
+            return parseBreakpoints(breakpoints, server, sourceReference) + Array(breakpoints.size) {
                 MinecraftDebuggerServer.rejectBreakpoint(
                     breakpoints.poll().unparsed,
                     MinecraftDebuggerServer.BREAKPOINT_AT_NO_CODE_REJECTION_REASON
@@ -17,5 +17,5 @@ interface BreakpointParser<TBreakpointLocation> {
         }
     }
 
-    fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<TBreakpointLocation>>, server: MinecraftServer): List<Breakpoint>
+    fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<TBreakpointLocation>>, server: MinecraftServer, sourceReference: Int?): List<Breakpoint>
 }

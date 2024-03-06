@@ -16,6 +16,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.WorldSavePath;
 import net.papierkorb2292.command_crafter.CommandCrafter;
+import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor;
 import net.papierkorb2292.command_crafter.mixin.WorldSavePathAccessor;
 import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
@@ -53,6 +54,7 @@ public class DatapackCommandMixin {
                                     try {
                                         FileResourcePackProvider.forEachProfile(
                                                 context.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS),
+                                                ((MinecraftServerAccessor)context.getSource().getServer()).getSession().getLevelStorage().getSymlinkFinder(),
                                                 false,
                                                 (path, pack) -> candidates.add(StringArgumentType.escapeIfRequired("file/" + path.getFileName().toString())));
                                     } catch (IOException e) {
@@ -109,7 +111,7 @@ public class DatapackCommandMixin {
                         zipOutput
                 );
                 zipOutput.close();
-                context.getSource().sendFeedback(Text.of("Successfully built datapack"), true);
+                context.getSource().sendFeedback(() -> Text.of("Successfully built datapack"), true);
             } catch (IOException e) {
                 context.getSource().sendError(Text.of("Encountered IOException while building datapack. The exception is written to the game output."));
                 CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while building datapack", e);

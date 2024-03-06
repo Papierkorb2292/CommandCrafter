@@ -22,6 +22,6 @@ public class NumberArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        result.getSemanticTokens().addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), TokenType.Companion.getNUMBER(), 0);
+        result.getSemanticTokens().addAbsoluteMultiline(0, range.getLength(), TokenType.Companion.getNUMBER(), 0);
     }
 }

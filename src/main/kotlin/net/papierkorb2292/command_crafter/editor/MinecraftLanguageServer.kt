@@ -15,7 +15,7 @@ import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
 class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnection)
-    : MinecraftServerConnectedLanguageServer,EditorClientAware,
+    : MinecraftServerConnectedLanguageServer, EditorClientAware,
     MinecraftLanguageServerExtension {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
@@ -108,7 +108,7 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
             override fun didOpen(params: DidOpenTextDocumentParams?) {
                 if(params == null) return
                 val textDocument = params.textDocument
-                openFiles[textDocument.uri] = OpenFile(textDocument.uri, textDocument.text, textDocument.version).also {
+                openFiles[textDocument.uri] = OpenFile(textDocument.uri, OpenFile.linesFromString(textDocument.text), textDocument.version).also {
                     analyzeFile(it)
                 }
             }

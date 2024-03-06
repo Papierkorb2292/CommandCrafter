@@ -28,7 +28,7 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics
                 }
                 charactersLeft -= length
             }
-            return Position(lines.size, lines.last().length)
+            return Position(if(zeroBased) lines.size - 1 else lines.size, lines.last().length)
         }
 
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
@@ -43,7 +43,7 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics
             return cursor
         }
 
-        fun getInlineRangesBetweenCursors(startCursor: Int, endCursor: Int, lines: List<String>, rangeConsumer: (line: Int, cursor: Int, length: Int) -> Unit) {
+        inline fun getInlineRangesBetweenCursors(startCursor: Int, endCursor: Int, lines: List<String>, rangeConsumer: (line: Int, cursor: Int, length: Int) -> Unit) {
             var startCharactersLeft = startCursor
             var line = 0
             while(lines.size > line && startCharactersLeft >= lines[line].length + 1) {
@@ -52,14 +52,14 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics
             var rangeCharactersLeft = endCursor - startCursor
             while(lines.size > line && rangeCharactersLeft > 0) {
                 val lineLength = lines[line].length + 1
-                if(lineLength >= rangeCharactersLeft) {
+                if(lineLength >= rangeCharactersLeft + startCharactersLeft) {
                     rangeConsumer(line, startCharactersLeft, rangeCharactersLeft)
                     return
                 }
                 rangeConsumer(line, startCharactersLeft, lineLength)
                 line++
+                rangeCharactersLeft -= lineLength - startCharactersLeft
                 startCharactersLeft = 0
-                rangeCharactersLeft -= lineLength
             }
         }
 

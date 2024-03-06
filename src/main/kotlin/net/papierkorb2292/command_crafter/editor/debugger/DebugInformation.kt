@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.minecraft.server.MinecraftServer
+import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
+import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import org.eclipse.lsp4j.debug.SteppingGranularity
 import java.util.*
@@ -11,41 +13,39 @@ import java.util.*
  * breakpoints placed in this section and provide [DebugPauseHandler]s
  * for it.
  */
-interface DebugInformation<TBreakpointLocation, TPauseContext> :
+interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.DebugFrame> :
     BreakpointParser<TBreakpointLocation>,
-    DebugPauseHandlerFactory<TPauseContext> {
+    DebugPauseHandlerFactory<TDebugFrame> {
 
-    class Concat<L, C>(private val delegateParsers: List<BreakpointParser<L>>, private val pauseHandlerSelector: (C) -> DebugPauseHandlerFactory<C>) :
-        DebugInformation<L, C> {
-        override fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<L>>, server: MinecraftServer) =
-            delegateParsers.flatMap { it.parseBreakpoints(breakpoints, server) }
+    class Concat<L : Any, F : PauseContext.DebugFrame>(private val delegateDebugInformations: List<DebugInformation<L, F>>, private val pauseHandlerSelector: (F) -> Int) :
+        DebugInformation<L, F> {
+        override fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<L>>, server: MinecraftServer, sourceReference: Int?) =
+            delegateDebugInformations.flatMap { it.parseBreakpoints(breakpoints, server, sourceReference) }
 
-        override fun createDebugPauseHandler(pauseContext: C) = object : DebugPauseHandler {
-            private var currentPauseHandlerCreator: DebugPauseHandlerFactory<C>? = null
+        override fun createDebugPauseHandler(debugFrame: F): DebugPauseHandler = object : DebugPauseHandler, FileContentReplacer {
             private var currentPauseHandler: DebugPauseHandler? = null
 
-            fun updatePauseHandler(): DebugPauseHandler {
-                val newPauseHandlerCreator = pauseHandlerSelector(pauseContext)
-                if (newPauseHandlerCreator != currentPauseHandlerCreator) {
-                    currentPauseHandlerCreator = newPauseHandlerCreator
-                    currentPauseHandler = null
-                } else {
-                    currentPauseHandler?.run { return this }
-                }
+            private var delegatePauseHandlers = delegateDebugInformations.map { it.createDebugPauseHandler(debugFrame) }
 
-                val newPauseHandler = newPauseHandlerCreator.createDebugPauseHandler(pauseContext)
-                this.currentPauseHandler = newPauseHandler
+            fun updatePauseHandler(): DebugPauseHandler {
+                val newPauseHandler = delegatePauseHandlers[pauseHandlerSelector(debugFrame)]
+                if(newPauseHandler != currentPauseHandler) {
+                    currentPauseHandler = newPauseHandler
+                }
                 return newPauseHandler
             }
             override fun next(granularity: SteppingGranularity) {
                 updatePauseHandler().next(granularity)
             }
-            override fun stepIn(granularity: SteppingGranularity) {
-                updatePauseHandler().stepIn(granularity)
+            override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
+                updatePauseHandler().stepIn(granularity, targetId)
             }
             override fun stepOut(granularity: SteppingGranularity) {
                 updatePauseHandler().stepOut(granularity)
             }
+            override fun stepInTargets(frameId: Int)
+                = updatePauseHandler().stepInTargets(frameId)
+
             override fun continue_() {
                 updatePauseHandler().continue_()
             }
@@ -54,11 +54,21 @@ interface DebugInformation<TBreakpointLocation, TPauseContext> :
                 updatePauseHandler().findNextPauseLocation()
             }
 
-            override fun getStackFrames()
-                = updatePauseHandler().getStackFrames()
+            override fun getStackFrames(sourceReference: Int?) =
+                updatePauseHandler().getStackFrames(sourceReference)
 
-            override fun shouldStopOnCurrentContext()
-                = updatePauseHandler().shouldStopOnCurrentContext()
+            override fun onExitFrame() =
+                delegatePauseHandlers.forEach { it.onExitFrame() }
+
+            override fun shouldStopOnCurrentContext() =
+                updatePauseHandler().shouldStopOnCurrentContext()
+
+            override fun getReplacementData(path: String) =
+                FileContentReplacer.concatReplacementData(
+                    delegatePauseHandlers.asSequence().mapNotNull {
+                        (it as? FileContentReplacer)?.getReplacementData(path)
+                    }.toList()
+                )
         }
     }
 }

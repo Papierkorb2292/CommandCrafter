@@ -10,7 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticBuilderContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,7 +21,7 @@ public class ScoreHolderArgumentTypeMixin implements AnalyzingCommandNode {
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var selectorReader = new EntitySelectorReader(new StringReader(range.get(context.getInput())));
-        ((SemanticBuilderContainer)selectorReader).command_crafter$setSemanticTokensBuilder(result.getSemanticTokens(), range.getStart() + reader.getReadCharacters());
+        ((AnalyzingResultDataContainer)selectorReader).command_crafter$setAnalyzingResult(result);
         selectorReader.read();
     }
 }

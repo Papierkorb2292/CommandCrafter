@@ -46,7 +46,7 @@ public abstract class BlockArgumentParserMixin {
             remap = false
     )
     private void command_crafter$parseInlineTag(CallbackInfo ci) throws CommandSyntaxException {
-        if(allowTag && VanillaLanguage.Companion.isReaderImproved(reader) && reader.canRead() && reader.peek() == '(') {
+        if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
             tagId = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>)reader, Registries.BLOCK);
             if (this.reader.canRead() && this.reader.peek() == '[') {
                 parseTagProperties();

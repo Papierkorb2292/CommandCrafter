@@ -5,13 +5,14 @@ import com.mojang.brigadier.StringReader
 import net.minecraft.server.command.ServerCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import java.util.*
 import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
     var lines: List<String>,
     val dispatcher: CommandDispatcher<ServerCommandSource>,
-    val resourceCreator: ResourceCreator
+    val resourceCreator: ResourceCreator,
 ) : StringReader(""),
     LineAwareStringReader {
 
@@ -23,16 +24,65 @@ class DirectiveStringReader<out ResourceCreator>(
     var absoluteCursor
         get() = cursor + readCharacters
         set(value) { cursor = value - readCharacters }
-    override var currentLine = 1
+    override val currentLine
+        get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, lines, zeroBased = false).line
+    var onlyReadEscapedMultiline = false
+        set(value) {
+            if(value == field) return
+            field = value
+            if(value) {
+                if(string.endsWith('\n'))
+                    setString(string.substring(0, string.length - 1))
+            } else if(nextLine < lines.size) {
+                setString(string + '\n')
+            }
+        }
+    var escapedMultilineCursorMapper: ProcessedInputCursorMapper? = null
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
-        while (!super.canRead(length)) {
+        if(onlyReadEscapedMultiline) {
+            val firstLineMappingMissing = escapedMultilineCursorMapper?.let { it.prevSourceEnd <= absoluteCursor } == true
+            if(!string.endsWith('\\')) {
+                if(firstLineMappingMissing) {
+                    escapedMultilineCursorMapper?.addMapping(absoluteCursor, cursor, remainingLength)
+                }
+                return super.canRead(length)
+            }
+            if(firstLineMappingMissing) {
+                escapedMultilineCursorMapper?.addMapping(absoluteCursor, cursor, remainingLength - 1)
+            }
+            while(true) {
+                if(nextLine >= lines.size)
+                    throw IllegalArgumentException("Line continuation at end of file")
+                setString(string.substring(0, string.length - 1))
+                val line = lines[nextLine++]
+                val indent = line.indexOfFirst { !it.isWhitespace() }
+                if(indent == -1) {
+                    readCharacters += 2
+                    break
+                }
+                val contentEnd = line.indexOfLast { !it.isWhitespace() }
+                val trimmed = line.substring(indent, contentEnd + 1)
+                val hasBackslash = trimmed.endsWith('\\')
+                escapedMultilineCursorMapper?.addFollowingMapping(
+                    readCharacters + string.length + indent + 2,
+                    if(hasBackslash) trimmed.length - 1 else trimmed.length
+                )
+                setString(string + trimmed)
+                readCharacters += line.length - trimmed.length + 2
+                if(!hasBackslash)
+                    break
+            }
+            return super.canRead(length)
+        }
+
+        while(!super.canRead(length)) {
             if(nextLine >= lines.size) {
                 return false
             }
-            setString(string.plus(lines[nextLine++]))
+            setString(string + lines[nextLine++])
             if(nextLine < lines.size) {
-                setString(string.plus('\n'))
+                setString(string + '\n')
             }
         }
         return true
@@ -62,7 +112,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun toCompleted() {
-        setString(string.substring(0, min(cursor, string.length - 1)))
+        setString(string.substring(0, min(cursor, if(string.endsWith('\n')) string.length - 1 else string.length)))
         nextLine = lines.size
     }
 
@@ -75,15 +125,18 @@ class DirectiveStringReader<out ResourceCreator>(
         if(canRead()) {
             skip() // Skip new line
         }
-        currentLine++
         return result
     }
 
-    fun endStatement() {
+    fun cutReadChars() {
         extendToLengthFromCursor(0)
         setString(string.substring(min(cursor, string.length)))
         readCharacters += cursor
         cursor = 0
+    }
+
+    fun endStatement() {
+        cutReadChars()
         while(true) {
             val foundDirective = trySkipWhitespace {
                 if(canRead() && peek() == '@') {
@@ -136,24 +189,50 @@ class DirectiveStringReader<out ResourceCreator>(
     var currentIndentation: Int private set
     init { currentIndentation = 0 }
 
-    fun readIndentation() {
-        currentIndentation = 0
-        while(canRead() && peek() == ' ') {
-            skip()
-            currentIndentation++
-        }
+    fun saveIndentation() {
+        currentIndentation = readIndentation()
     }
 
-    inline fun trySkipWhitespace(reader: () -> Boolean): Boolean {
+    fun readIndentation(): Int {
+        var indent = 0
+        while(canRead() && peek() == ' ') {
+            skip()
+            indent++
+        }
+        return indent
+    }
+
+    inline fun tryReadIndentation(predicate: (Int) -> Boolean): Boolean {
         val startCursor = cursor
-        val startLine = currentLine
-        skipWhitespace()
+        val indent = readIndentation()
+        if(predicate(indent)) {
+            return true
+        }
+        cursor = startCursor
+        return false
+    }
+
+    inline fun trySkipWhitespace(skipNewLine: Boolean = true, reader: () -> Boolean): Boolean {
+        val startCursor = cursor
+        skipWhitespace(skipNewLine)
         if(!reader()) {
             cursor = startCursor
-            currentLine = startLine
             return false
         }
         return true
+    }
+
+    inline fun <Result> withNoMultilineRestriction(reader: (DirectiveStringReader<ResourceCreator>) -> Result): Result {
+        val prevOnlyReadEscapedMultiline = onlyReadEscapedMultiline
+        val prevCursorMapper = escapedMultilineCursorMapper
+        onlyReadEscapedMultiline = false
+        escapedMultilineCursorMapper = null
+        try {
+            return reader(this)
+        } finally {
+            onlyReadEscapedMultiline = prevOnlyReadEscapedMultiline
+            escapedMultilineCursorMapper = prevCursorMapper
+        }
     }
 
     val scopeStack: Deque<Scope> = LinkedList()
@@ -180,12 +259,13 @@ class DirectiveStringReader<out ResourceCreator>(
         return DirectiveStringReader(lines, dispatcher, resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
-            it.currentLine = currentLine
             it.scopeStack.addAll(scopeStack)
             it.updateLanguage()
             it.readCharacters = readCharacters
             it.currentIndentation = currentIndentation
             it.nextLine = nextLine
+            it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
+            it.escapedMultilineCursorMapper = escapedMultilineCursorMapper
         }
     }
 
@@ -193,21 +273,38 @@ class DirectiveStringReader<out ResourceCreator>(
         cursor = other.cursor
         readCharacters = other.readCharacters
         setString(other.string)
-        currentLine = other.currentLine
         nextLine = other.nextLine
+    }
+
+    fun onlyCurrentLine() : DirectiveStringReader<ResourceCreator> {
+        while(canRead() && peek() != '\n')
+            skip()
+        val line = string.substring(0, cursor)
+        if(canRead())
+            skip() // Skip new line
+        return DirectiveStringReader(listOf(line), dispatcher, resourceCreator).also {
+            it.scopeStack.addAll(scopeStack)
+            it.cursor = cursor
+            it.readCharacters = readCharacters
+        }
     }
 
     fun skipTo(other: DirectiveStringReader<*>) {
         absoluteCursor = other.absoluteCursor
-        extendToLengthFromCursor(0)
-        currentLine = other.currentLine
+        withNoMultilineRestriction { it.extendToLengthFromCursor(0) }
     }
 
     override fun skipWhitespace() {
+        skipWhitespace(true)
+    }
+
+    fun skipWhitespace(skipNewLine: Boolean) {
         while(canRead() && Character.isWhitespace(peek())) {
-            if(read() == '\n') {
-                currentLine++
+            if(peek() == '\n') {
+                if (!skipNewLine)
+                    break
             }
+            skip()
         }
     }
 

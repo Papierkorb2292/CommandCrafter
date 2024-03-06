@@ -27,7 +27,7 @@ public class EntityArgumentTypeMixin implements UnparsableArgumentType {
     @Override
     public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
         int sectionStartCursor = reader.getCursor();
-        if(!(VanillaLanguage.Companion.isReaderImproved(reader) && reader.canRead() && reader.read() == '@')) {
+        if(!(VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.read() == '@')) {
             return null;
         }
         reader.skip();

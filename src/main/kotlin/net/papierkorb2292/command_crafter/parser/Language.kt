@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
 import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.CommandFunction
+import net.minecraft.server.function.FunctionBuilder
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -23,7 +23,8 @@ interface Language {
     fun parseToCommands(
         reader: DirectiveStringReader<ParsedResourceCreator?>,
         source: ServerCommandSource,
-    ): Pair<List<CommandFunction.Element>, FunctionDebugInformation?>
+        builder: FunctionBuilder<ServerCommandSource>
+    ): FunctionDebugInformation?
 
     interface LanguageClosure {
         val startLanguage: Language

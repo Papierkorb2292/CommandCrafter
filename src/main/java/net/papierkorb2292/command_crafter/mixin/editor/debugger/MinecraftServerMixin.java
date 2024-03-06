@@ -13,12 +13,12 @@ import java.util.concurrent.CompletableFuture;
 @Mixin(MinecraftServer.class)
 public class MinecraftServerMixin implements ServerDebugManagerContainer {
 
-    private ServerDebugManager serverDebugManager = new ServerDebugManager((MinecraftServer) (Object) this);
+    private final ServerDebugManager command_crafter$serverDebugManager = new ServerDebugManager((MinecraftServer) (Object) this);
 
     @NotNull
     @Override
-    public ServerDebugManager command_crafter$getServerDebugManager() {
-        return serverDebugManager;
+public ServerDebugManager command_crafter$getServerDebugManager() {
+        return command_crafter$serverDebugManager;
     }
 
     @ModifyReturnValue(
@@ -26,8 +26,7 @@ public class MinecraftServerMixin implements ServerDebugManagerContainer {
             at = @At("RETURN")
     )
     private CompletableFuture<Void> command_crafter$reloadBreakpoints(CompletableFuture<Void> completionFuture) {
-        return completionFuture.thenRun(() -> {
-            serverDebugManager.getFunctionDebugHandler().reloadBreakpoints();
-        });
+        return completionFuture.thenRun(() ->
+                command_crafter$serverDebugManager.getFunctionDebugHandler().reloadBreakpoints());
     }
 }

@@ -3,9 +3,9 @@ package net.papierkorb2292.command_crafter.mixin.editor.semantics;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
 import net.minecraft.command.EntitySelectorReader;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticBuilderContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,26 +15,19 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(EntitySelectorReader.class)
-public class EntitySelectorReaderMixin implements SemanticBuilderContainer {
+public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
 
     @Shadow @Final private StringReader reader;
-    private SemanticTokensBuilder command_crafter$semanticTokensBuilder = null;
-    private int command_crafter$cursorOffset = 0;
+    private AnalyzingResult command_crafter$analyzingResult = null;
 
     @Override
-    public void command_crafter$setSemanticTokensBuilder(@NotNull SemanticTokensBuilder builder, int cursorOffset) {
-        command_crafter$semanticTokensBuilder = builder;
-        command_crafter$cursorOffset = cursorOffset;
+    public void command_crafter$setAnalyzingResult(@NotNull AnalyzingResult result) {
+        command_crafter$analyzingResult = result;
     }
 
     @Override
-    public SemanticTokensBuilder command_crafter$getSemanticTokensBuilder() {
-        return command_crafter$semanticTokensBuilder;
-    }
-
-    @Override
-    public int command_crafter$getCursorOffset() {
-        return command_crafter$cursorOffset;
+    public AnalyzingResult command_crafter$getAnalyzingResult() {
+        return command_crafter$analyzingResult;
     }
 
     @Inject(
@@ -45,8 +38,8 @@ public class EntitySelectorReaderMixin implements SemanticBuilderContainer {
             )
     )
     private void command_crafter$highlightOptionName(CallbackInfo ci, @Local String name, @Local int startCursor) {
-        if(command_crafter$semanticTokensBuilder != null) {
-            command_crafter$semanticTokensBuilder.addAbsoluteMultiline(startCursor + command_crafter$cursorOffset, name.length(), TokenType.Companion.getPROPERTY(), 0);
+        if(command_crafter$analyzingResult != null) {
+            command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(startCursor, name.length(), TokenType.Companion.getPROPERTY(), 0);
         }
     }
 
@@ -60,8 +53,21 @@ public class EntitySelectorReaderMixin implements SemanticBuilderContainer {
             )
     )
     private void command_crafter$highlightAt(CallbackInfo ci) {
-        if(command_crafter$semanticTokensBuilder != null) {
-            command_crafter$semanticTokensBuilder.addAbsoluteMultiline(reader.getCursor() - 2 + command_crafter$cursorOffset, 2, TokenType.Companion.getCLASS(), 0);
+        if(command_crafter$analyzingResult != null) {
+            command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(reader.getCursor() - 2, 2, TokenType.Companion.getCLASS(), 0);
+        }
+    }
+
+    @Inject(
+            method = "readRegular",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Ljava/util/UUID;fromString(Ljava/lang/String;)Ljava/util/UUID;"
+            )
+    )
+    private void command_crafter$highlightRegular(CallbackInfo ci, @Local int startCursor) {
+        if(command_crafter$analyzingResult != null) {
+            command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(startCursor, reader.getCursor(), TokenType.Companion.getPARAMETER(), 0);
         }
     }
 }

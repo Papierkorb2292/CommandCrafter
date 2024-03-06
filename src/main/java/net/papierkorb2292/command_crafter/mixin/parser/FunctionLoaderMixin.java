@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 
 import com.google.common.collect.ImmutableMap;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.datafixers.util.Pair;
@@ -9,13 +11,11 @@ import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
 import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.server.DataPackContents;
+import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
-import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation;
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionPauseContext;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.Language;
 import net.papierkorb2292.command_crafter.parser.LanguageManager;
@@ -24,7 +24,6 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,16 +39,20 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
     private @Nullable DataPackContents command_crafter$resourceCreatorContext;
 
     @SuppressWarnings("DefaultAnnotationParam")
-    @Redirect(
+    @WrapOperation(
             method = "method_29451",
             remap = false,
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/server/function/CommandFunction;create(Lnet/minecraft/util/Identifier;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/ServerCommandSource;Ljava/util/List;)Lnet/minecraft/server/function/CommandFunction;",
+                    target = "Lnet/minecraft/server/function/CommandFunction;create(Lnet/minecraft/util/Identifier;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/AbstractServerCommandSource;Ljava/util/List;)Lnet/minecraft/server/function/CommandFunction;",
                     remap = true
             )
     )
-    private CommandFunction command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<ServerCommandSource> dispatcher, ServerCommandSource source, List<String> lines) {
+    private <T extends AbstractServerCommandSource<T>> CommandFunction<T> command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<T> dispatcher, T source, List<String> lines, Operation<CommandFunction<T>> op) {
+        if(!(source instanceof ServerCommandSource serverSource)) {
+            //noinspection MixinExtrasOperationParameters
+            return op.call(id, dispatcher, source, lines);
+        }
         var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, command_crafter$resourceCreatorContext);
         var infoSetCallbacks = new ArrayList<Function1<? super ParsedResourceCreator.ResourceStackInfo, Unit>>();
         if(resourceCreator != null) {
@@ -59,32 +62,25 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
                 return Unit.INSTANCE;
             });
         }
-        var reader = new DirectiveStringReader<>(lines, dispatcher, resourceCreator);
+        @SuppressWarnings("unchecked")
+        var reader = new DirectiveStringReader<>(lines, (CommandDispatcher<ServerCommandSource>) dispatcher, resourceCreator);
         var startCursor = reader.getAbsoluteCursor();
-        var parsed = LanguageManager.INSTANCE.parseToCommandsWithDebugInformation(
+        var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,
-                source,
-                new Language.TopLevelClosure(VanillaLanguage.NORMAL));
+                serverSource,
+                new Language.TopLevelClosure(new VanillaLanguage()));
 
         var functionStackInfo = new ParsedResourceCreator.ResourceStackInfo(id, new StringRange(startCursor, reader.getAbsoluteCursor()));
         for(var callback : infoSetCallbacks) {
             callback.invoke(functionStackInfo);
         }
-
-        var function = ParsedResourceCreator.Companion.createResourceCreatorFunction(
-                id,
-                parsed.getFirst(),
-                resourceCreator
-        );
-        var debugInformation = parsed.getSecond();
-        if(debugInformation != null) {
-            //noinspection unchecked
-            ((DebugInformationContainer<FunctionBreakpointLocation, FunctionPauseContext>) function).command_crafter$setDebugInformation(debugInformation);
-        }
+        var function = functionBuilder.toCommandFunction(id);
+        ParsedResourceCreator.Companion.addResourceCreatorToFunction(function, resourceCreator);
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().pop();
         }
-        return function;
+        //noinspection unchecked
+        return (CommandFunction<T>) function;
     }
 
     @ModifyReceiver(
@@ -95,7 +91,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             ),
             remap = false
     )
-    private ImmutableMap.Builder<Identifier, CommandFunction> command_crafter$addResourcesCreatedByFunctions(ImmutableMap.Builder<Identifier, CommandFunction> builder, Pair<Map<Identifier, List<TagGroupLoader.TrackedEntry>>, HashMap<Identifier, CompletableFuture<CommandFunction>>> intermediate) throws ExecutionException, InterruptedException {
+    private ImmutableMap.Builder<Identifier, CommandFunction<ServerCommandSource>> command_crafter$addResourcesCreatedByFunctions(ImmutableMap.Builder<Identifier, CommandFunction<ServerCommandSource>> builder, Pair<Map<Identifier, List<TagGroupLoader.TrackedEntry>>, HashMap<Identifier, CompletableFuture<CommandFunction<ServerCommandSource>>>> intermediate) throws ExecutionException, InterruptedException {
         for(var function : intermediate.getSecond().values()) {
             if(function.isCompletedExceptionally()) continue;
             ParsedResourceCreator.Companion.createResources(function.get(), builder, intermediate.getFirst());

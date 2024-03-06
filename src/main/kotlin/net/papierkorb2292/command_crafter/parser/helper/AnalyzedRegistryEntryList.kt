@@ -10,7 +10,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import java.util.*
 import java.util.stream.Stream
 
-class AnalyzedRegistryEntryList<T>(analyzingResult: AnalyzingResult) : RegistryEntryList<T> {
+class AnalyzedRegistryEntryList<T>(val analyzingResult: AnalyzingResult) : RegistryEntryList<T> {
     override fun iterator(): MutableIterator<RegistryEntry<T>> {
         throwOnUsage()
     }

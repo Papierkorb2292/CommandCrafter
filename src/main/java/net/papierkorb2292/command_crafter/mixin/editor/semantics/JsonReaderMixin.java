@@ -2,9 +2,9 @@ package net.papierkorb2292.command_crafter.mixin.editor.semantics;
 
 import com.google.gson.stream.JsonReader;
 import com.llamalad7.mixinextras.sugar.Local;
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @SuppressWarnings("unused")
 @Mixin(value = JsonReader.class, remap = false)
-public class JsonReaderMixin implements SemanticTokensCreator {
+public class JsonReaderMixin implements AnalyzingResultCreator {
 
     @Shadow private int pos;
     @Shadow int peeked;
@@ -35,13 +35,11 @@ public class JsonReaderMixin implements SemanticTokensCreator {
     @Shadow @Final private static int PEEKED_FALSE;
     @Shadow @Final private static int PEEKED_LONG;
     @Shadow @Final private static int PEEKED_NUMBER;
-    private SemanticTokensBuilder command_crafter$semanticTokensBuilder = null;
-    private int command_crafter$cursorOffset = 0;
+    private AnalyzingResult command_crafter$analyzingResult = null;
 
     @Override
-    public void command_crafter$setSemanticTokensBuilder(@NotNull SemanticTokensBuilder builder, int cursorOffset) {
-        command_crafter$semanticTokensBuilder = builder;
-        command_crafter$cursorOffset = cursorOffset;
+    public void command_crafter$setAnalyzingResult(@NotNull AnalyzingResult result) {
+        command_crafter$analyzingResult = result;
     }
 
     private int command_crafter$getStringLength(String string) {
@@ -66,11 +64,11 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             )
     )
     private void command_crafter$highlightName(CallbackInfoReturnable<String> cir, @Local String result) {
-        if(command_crafter$semanticTokensBuilder == null)
+        if(command_crafter$analyzingResult == null)
             return;
 
         var length = command_crafter$getStringLength(result);
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(pos + command_crafter$cursorOffset - length, length, TokenType.Companion.getPROPERTY(), 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(pos - length, length, TokenType.Companion.getPROPERTY(), 0);
     }
 
     @Inject(
@@ -82,14 +80,14 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             )
     )
     private void command_crafter$highlightString(CallbackInfoReturnable<String> cir, @Local String result) {
-        if(command_crafter$semanticTokensBuilder == null
+        if(command_crafter$analyzingResult == null
                 || peeked == PEEKED_BUFFERED //The value was already highlighted                       hopefully
         )
             return;
 
         var length = command_crafter$getStringLength(result);
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(
-                pos + command_crafter$cursorOffset - length,
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(
+                pos - length,
                 length,
                 peeked == PEEKED_LONG || peeked == PEEKED_NUMBER
                     ? TokenType.Companion.getNUMBER()
@@ -108,13 +106,13 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             )
     )
     private void command_crafter$highlightNonLongDouble(CallbackInfoReturnable<String> cir) {
-        if(command_crafter$semanticTokensBuilder == null
+        if(command_crafter$analyzingResult == null
                 || peeked == PEEKED_BUFFERED //The value was already highlighted                       hopefully
         )
             return;
 
         var length = command_crafter$getStringLength(peekedString);
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(pos + command_crafter$cursorOffset - length, length, TokenType.Companion.getNUMBER(), 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(pos - length, length, TokenType.Companion.getNUMBER(), 0);
     }
 
     @Inject(
@@ -136,13 +134,13 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             )
     )
     private void command_crafter$highlightNonLongInt(CallbackInfoReturnable<String> cir) {
-        if(command_crafter$semanticTokensBuilder == null
+        if(command_crafter$analyzingResult == null
                 || peeked == PEEKED_BUFFERED //The value was already highlighted                       hopefully
         )
             return;
 
         var length = command_crafter$getStringLength(peekedString);
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(pos + command_crafter$cursorOffset - length, length, TokenType.Companion.getNUMBER(), 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(pos - length, length, TokenType.Companion.getNUMBER(), 0);
     }
 
     @Inject(
@@ -153,11 +151,11 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             )
     )
     private void command_crafter$highlightPeekedLongNumbers(CallbackInfoReturnable<String> cir) {
-        if(command_crafter$semanticTokensBuilder == null)
+        if(command_crafter$analyzingResult == null)
             return;
 
         var length = Long.toString(peekedLong).length();
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(pos + command_crafter$cursorOffset - length, length, TokenType.Companion.getNUMBER(), 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(pos - length, length, TokenType.Companion.getNUMBER(), 0);
     }
 
     @Inject(
@@ -168,7 +166,7 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             )
     )
     private void command_crafter$highlightBooleans(CallbackInfoReturnable<Boolean> cir) {
-        if(command_crafter$semanticTokensBuilder == null)
+        if(command_crafter$analyzingResult == null)
             return;
 
         int length;
@@ -178,7 +176,7 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             length = 5;
         else return;
 
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(pos + command_crafter$cursorOffset - length, length, TokenType.Companion.getENUM_MEMBER(), 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(pos - length, length, TokenType.Companion.getENUM_MEMBER(), 0);
     }
 
     @Inject(
@@ -186,9 +184,9 @@ public class JsonReaderMixin implements SemanticTokensCreator {
             at = @At("RETURN")
     )
     private void command_crafter$highlightNull(CallbackInfo ci) {
-        if(command_crafter$semanticTokensBuilder == null)
+        if(command_crafter$analyzingResult == null)
             return;
 
-        command_crafter$semanticTokensBuilder.addAbsoluteMultiline(pos + command_crafter$cursorOffset - 4, 4, TokenType.Companion.getKEYWORD(), 0);
+        command_crafter$analyzingResult.getSemanticTokens().addAbsoluteMultiline(pos - 4, 4, TokenType.Companion.getKEYWORD(), 0);
     }
 }

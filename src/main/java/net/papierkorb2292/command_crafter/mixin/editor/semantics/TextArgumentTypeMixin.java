@@ -12,7 +12,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.SemanticTokensCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,7 +26,7 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var jsonReader = new JsonReader(new StringReader(range.get(context.getInput())));
-        ((SemanticTokensCreator)jsonReader).command_crafter$setSemanticTokensBuilder(result.getSemanticTokens(), reader.getReadCharacters() + range.getStart());
+        ((AnalyzingResultCreator)jsonReader).command_crafter$setAnalyzingResult(result);
         jsonReader.setLenient(false);
         try {
             new Gson().getAdapter(JsonElement.class).read(jsonReader);

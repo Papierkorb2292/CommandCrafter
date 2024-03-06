@@ -27,6 +27,6 @@ public class ArgumentCommandNodeMixin<T> implements AnalyzingCommandNode {
             analyzingCommandNode.command_crafter$analyze(context, range, reader, result, name);
             return;
         }
-        result.getSemanticTokens().addAbsoluteMultiline(range.getStart() + reader.getReadCharacters(), range.getLength(), TokenType.Companion.getPARAMETER(), 0);
+        result.getSemanticTokens().addAbsoluteMultiline(0, range.getLength(), TokenType.Companion.getPARAMETER(), 0);
     }
 }

@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
+import org.eclipse.lsp4j.debug.StepInTargetsResponse
 import org.eclipse.lsp4j.debug.SteppingGranularity
+import java.util.concurrent.CompletableFuture
 
 /**
  * This interface is used to define the debugging behaviour
@@ -37,16 +39,21 @@ interface DebugPauseHandler : DebugPauseActions {
      */
     fun findNextPauseLocation()
 
-    fun getStackFrames(): List<MinecraftStackFrame>
+    fun getStackFrames(sourceReference: Int?): List<MinecraftStackFrame>
+
+    fun onExitFrame()
 
     class SkipAllDummy(val setNextPauseCallback: () -> Unit) : DebugPauseHandler {
         override fun next(granularity: SteppingGranularity) {}
-        override fun stepIn(granularity: SteppingGranularity) {}
+        override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {}
         override fun stepOut(granularity: SteppingGranularity) {}
+        override fun stepInTargets(frameId: Int): CompletableFuture<StepInTargetsResponse>
+            = CompletableFuture.completedFuture(StepInTargetsResponse())
         override fun continue_() {}
         override fun findNextPauseLocation() {}
-        override fun getStackFrames() = emptyList<MinecraftStackFrame>()
 
+        override fun getStackFrames(sourceReference: Int?) = emptyList<MinecraftStackFrame>()
+        override fun onExitFrame() { }
 
         override fun shouldStopOnCurrentContext(): Boolean {
             setNextPauseCallback()

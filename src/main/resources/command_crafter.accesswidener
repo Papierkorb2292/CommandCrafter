@@ -1,3 +1,6 @@
 accessWidener v2 named
 
-accessible class net/minecraft/server/function/CommandFunctionManager$Execution
+accessible method net/minecraft/resource/ZipResourcePack$ZipFileWrapper open ()Ljava/util/zip/ZipFile;
+accessible class net/minecraft/server/function/FunctionBuilder
+accessible class net/minecraft/server/function/Macro$Line
+accessible class net/minecraft/server/function/Macro$VariableLine

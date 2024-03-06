@@ -42,7 +42,7 @@ public class CommandDispatcherMixin {
         if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
             return ARGUMENT_SEPARATOR_CHAR;
         }
-        if(!VanillaLanguage.Companion.isReaderImproved(reader)) {
+        if(!VanillaLanguage.Companion.isReaderEasyNextLine(reader)) {
             return c;
         }
         if(reader.canRead() && reader.peek() == '\n') {
@@ -67,7 +67,7 @@ public class CommandDispatcherMixin {
             if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
                 return false;
             }
-            if(VanillaLanguage.Companion.isReaderImproved(reader) && reader.canRead() && reader.peek() == '\n') {
+            if(VanillaLanguage.Companion.isReaderEasyNextLine(reader) && reader.canRead() && reader.peek() == '\n') {
                 var cursor = reader.getCursor();
                 if(!VanillaLanguage.Companion.skipImprovedCommandGap(directiveStringReader)) {
                     reader.setCursor(cursor);

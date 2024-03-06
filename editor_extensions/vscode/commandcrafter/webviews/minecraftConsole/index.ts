@@ -124,6 +124,8 @@ addEventListener("load", () => {
     }
 
     function addConsoleMessage(targetChannel: HTMLElement, content: String) {
+        const scrolledToBottom = log.scrollTop + log.clientHeight + 1 >= log.scrollHeight;
+        
         const prefixEnd = content.indexOf("]") + 1
         const prefixElement = document.createElement("span");
         const logLevelEndChar = content.charAt(prefixEnd - 2);
@@ -153,5 +155,9 @@ addEventListener("load", () => {
         }
         targetChannel.append(messageContentElement);
         targetChannel.append(document.createElement("br"));
+
+        if(scrolledToBottom) {
+            log.scrollTop = log.scrollHeight;
+        }
     }
 });
