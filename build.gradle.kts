@@ -19,8 +19,10 @@ dependencies {
 
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.19.0")
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.19.0")
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
