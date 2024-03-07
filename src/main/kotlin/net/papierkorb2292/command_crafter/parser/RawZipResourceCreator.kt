@@ -91,7 +91,7 @@ class RawZipResourceCreator {
                     val input = content.get()
                     val reader = input.bufferedReader()
                     val path = Path.of(resourceId.path)
-                    val id = Identifier(resourceId.namespace, Path.of(processor.type).relativize(path).toString())
+                    val id = Identifier(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
                     try {
                         if (processor.shouldProcess(args)) {
                             processor.process(args, id, reader, resourceCreator, dispatcher)
