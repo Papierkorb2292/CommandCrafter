@@ -43,7 +43,7 @@ class DirectiveStringReader<out ResourceCreator>(
         if(onlyReadEscapedMultiline) {
             val firstLineMappingMissing = escapedMultilineCursorMapper?.let { it.prevSourceEnd <= absoluteCursor } == true
             if(!string.endsWith('\\')) {
-                if(firstLineMappingMissing) {
+                if(super.canRead(1) && firstLineMappingMissing) {
                     escapedMultilineCursorMapper?.addMapping(absoluteCursor, cursor, remainingLength)
                 }
                 return super.canRead(length)
