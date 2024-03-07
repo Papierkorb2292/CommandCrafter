@@ -40,10 +40,10 @@ public abstract class BlockArgumentParserMixin {
             method = "parse",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;canRead()Z"
+                    target = "Lcom/mojang/brigadier/StringReader;canRead()Z",
+                    remap = false
             ),
-            cancellable = true,
-            remap = false
+            cancellable = true
     )
     private void command_crafter$parseInlineTag(CallbackInfo ci) throws CommandSyntaxException {
         if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
