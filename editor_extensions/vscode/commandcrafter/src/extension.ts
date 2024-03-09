@@ -5,6 +5,8 @@ import { State } from 'vscode-languageclient';
 export function activate(context: vscode.ExtensionContext) {
 	let minecraftLanguageClientRunner = new MinecraftLanguageClientRunner(new SocketConnectionType("localhost", 52853), context);
 	minecraftLanguageClientRunner.startLanguageClient();
+
+	context.subscriptions.push(vscode.commands.registerCommand('commandcrafter.activate', () => { }));
 }
 
 export function deactivate() {}

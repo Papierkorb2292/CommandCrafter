@@ -14,8 +14,7 @@
     "Other"
   ],
   "activationEvents": [
-    "workspaceContains:**/pack.mcmeta",
-    "onCommand:commandcrafter.activate"
+    "workspaceContains:**/pack.mcmeta"
   ],
   "main": "./dist/extension.js",
   "contributes": {
