@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.Appender
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configuration
+import org.apache.logging.log4j.core.layout.PatternLayout
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.reflect.full.staticProperties
@@ -56,8 +57,8 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         val ctx: LoggerContext = LogManager.getContext(false) as LoggerContext
         val config: Configuration = ctx.configuration
         val logger = config.loggers[""]!!
-        val serverQueueAppender = logger.appenders[VANILLA_SERVER_QUEUE]!!
-        val layout = serverQueueAppender.layout
+
+        val layout = PatternLayout.newBuilder().withPattern("[%d{HH:mm:ss} %level]: %msg%n").withConfiguration(config).build()
 
         @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val appender: Appender = QueueLogAppender.createAppender(EDITOR_LOG_QUEUE, "false", layout, null, null)
