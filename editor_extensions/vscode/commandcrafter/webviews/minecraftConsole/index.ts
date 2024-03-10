@@ -154,7 +154,6 @@ addEventListener("load", () => {
             messageContentElement.classList.add("warnMessageContent");
         }
         targetChannel.append(messageContentElement);
-        targetChannel.append(document.createElement("br"));
 
         if(scrolledToBottom) {
             log.scrollTop = log.scrollHeight;
