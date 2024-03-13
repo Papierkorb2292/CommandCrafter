@@ -11,6 +11,7 @@
 .clientButton {
     @extend .button;
     @extend .controlElement;
+    color: var(--vscode-editor-foreground);
 }
 
 .clientStartButton {
