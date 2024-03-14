@@ -22,6 +22,10 @@
       {
         "command": "commandcrafter.activate",
         "title": "Activate Command Crafter"
+      },
+      {
+        "command": "commandcrafter.toggleLanguageClient",
+        "title": "Start and stop the CommandCrafter language client"
       }
     ],
     "languages": [
