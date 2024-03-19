@@ -55,16 +55,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     ) {
         reader.endStatement()
         while (reader.canRead() && reader.currentLanguage == this) {
-            if (skipComments(reader)) {
+            if (LanguageManager.readDocComment(reader) != null) {
                 reader.endStatement()
                 continue
             }
+            reader.saveIndentation()
             if (reader.peek() == '\n') {
                 reader.skip()
                 reader.endStatement()
                 continue
             }
-            reader.saveIndentation()
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
                 //Can't verify syntax on macros
@@ -105,20 +105,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         reader.endStatementAndAnalyze(result)
         while (reader.canRead() && reader.currentLanguage == this) {
-            val startCursor = reader.absoluteCursor
-            if(skipComments(reader)) {
-                AnalyzingResult.getInlineRangesBetweenCursors(startCursor, reader.absoluteCursor, reader.lines) { line: Int, cursor: Int, length: Int ->
-                    result.semanticTokens.add(line, cursor, length, TokenType.COMMENT, 0)
-                }
+            if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
                 reader.endStatementAndAnalyze(result)
                 continue
             }
+            reader.saveIndentation()
             if(reader.peek() == '\n') {
                 reader.skip()
                 reader.endStatementAndAnalyze(result)
                 continue
             }
-            reader.saveIndentation()
             var parseResults: ParseResults<ServerCommandSource>? = null
             try {
                 if (reader.canRead() && reader.peek() == '/') {
@@ -226,16 +222,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         reader.endStatement()
         val elementBreakpointParsers = mutableListOf<FunctionElementDebugInformation.FunctionElementProcessor>()
         while (reader.canRead() && reader.currentLanguage == this) {
-            if (skipComments(reader)) {
+            if (LanguageManager.readDocComment(reader) != null) {
                 reader.endStatement()
                 continue
             }
+            reader.saveIndentation()
             if(reader.peek() == '\n') {
                 reader.skip()
                 reader.endStatement()
                 continue
             }
-            reader.saveIndentation()
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
                 reader.skip()

@@ -9,11 +9,13 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugPauseHandlerCreatorIndexConsumer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugPauseHandlerCreatorIndexProvider
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
@@ -21,7 +23,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.mixin.editor.semantics.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import org.eclipse.lsp4j.Diagnostic
@@ -38,7 +42,8 @@ object LanguageManager {
         override fun parseBreakpoints(
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
             server: MinecraftServer,
-            sourceReference: Int?
+            sourceReference: Int?,
+            debugConnection: EditorDebugConnection
         ): List<Breakpoint> = emptyList()
 
         override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) =
@@ -49,10 +54,10 @@ object LanguageManager {
                 }
                 debugFrame.pauseAtSection(debugFrame.contextChains[debugFrame.currentCommandIndex + 1].topContext, 0)
             }
-
     }
 
     fun parseToVanilla(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource, resource: RawResource, closure: Language.LanguageClosure) {
+        //TODO: Keep doc comment (or all comments)
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
         reader.resourceCreator.resourceStack.push(resource)
@@ -72,6 +77,9 @@ object LanguageManager {
         val closureDepth = reader.closureDepth
         val builder = FunctionBuilderAccessor.init<ServerCommandSource>()
         reader.enterClosure(closure)
+        val documentation = readDocComment(reader)
+        if(documentation != null)
+            (builder as DocumentationContainer).`command_crafter$setDocumentation`(documentation)
         val debugInformations: MutableList<FunctionDebugInformation> = mutableListOf(SKIP_DEBUG_INFORMATION)
         while(reader.closureDepth != closureDepth) {
             (builder as DebugPauseHandlerCreatorIndexConsumer)
@@ -105,6 +113,9 @@ object LanguageManager {
         reader.resourceCreator.functionStack.push(AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
+
+        result.documentation = readAndAnalyzeDocComment(reader, result)
+
         while(reader.closureDepth != closureDepth) {
             reader.currentLanguage?.analyze(reader, source, result)
             reader.updateLanguage()
@@ -121,6 +132,81 @@ object LanguageManager {
         }
 
         reader.resourceCreator.functionStack.pop()
+    }
+
+    fun readAndAnalyzeDocComment(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult): String? {
+        if(!reader.canRead() || reader.peek() != '#')
+            return null
+        val docCommentBuilder = StringBuilder()
+        while(reader.canRead() && reader.peek() == '#') {
+            reader.skip()
+            val lineStart = reader.cursor
+            var commentStart = reader.absoluteCursor - 1
+            while(reader.canRead()) {
+                val c = reader.read()
+                if(c == '\n') {
+                    result.semanticTokens.addAbsoluteMultiline(commentStart, reader.absoluteCursor - commentStart, TokenType.COMMENT, 0)
+                    break
+                }
+                if(c == ' ')
+                    continue
+                if(c == '@') {
+                    result.semanticTokens.addAbsoluteMultiline(commentStart, reader.absoluteCursor - commentStart - 1, TokenType.COMMENT, 0)
+                    val annotationStart = reader.absoluteCursor - 1
+                    while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
+                        reader.skip()
+                    val annotationEnd = reader.absoluteCursor
+                    val startPosition = AnalyzingResult.getPositionFromCursor(annotationStart, reader.lines)
+                    result.semanticTokens.add(
+                        startPosition.line,
+                        startPosition.character,
+                        annotationEnd - annotationStart,
+                        TokenType.MACRO,
+                        0
+                    )
+                    commentStart = reader.absoluteCursor
+                    continue
+                }
+                if(c == ':') {
+                    val string = reader.string
+                    val idStart = reader.readCharacters + string.subSequence(0, reader.cursor - 1)
+                        .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
+                    result.semanticTokens.addAbsoluteMultiline(commentStart, idStart - commentStart, TokenType.COMMENT, 0)
+                    while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
+                        reader.skip()
+                    val idEnd = reader.absoluteCursor
+                    val startPosition = AnalyzingResult.getPositionFromCursor(idStart, reader.lines)
+                    result.semanticTokens.add(
+                        startPosition.line,
+                        startPosition.character,
+                        idEnd - idStart,
+                        TokenType.PARAMETER,
+                        0
+                    )
+                    commentStart = idEnd
+                }
+            }
+            docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
+            docCommentBuilder.append(OpenFile.LINE_SEPARATOR)
+        }
+        return docCommentBuilder.toString()
+    }
+
+    fun readDocComment(reader: DirectiveStringReader<*>): String? {
+        if(!reader.canRead() || reader.peek() != '#')
+            return null
+        val docCommentBuilder = StringBuilder()
+        while(reader.canRead() && reader.peek() == '#') {
+            reader.skip()
+            val lineStart = reader.cursor
+            while(reader.canRead()) {
+                val c = reader.read()
+                if(c == '\n')
+                    break
+            }
+            docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
+        }
+        return docCommentBuilder.toString()
     }
 
     init {

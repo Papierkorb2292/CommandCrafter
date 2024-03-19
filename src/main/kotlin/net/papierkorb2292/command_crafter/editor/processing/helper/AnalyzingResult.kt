@@ -6,7 +6,7 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.Position
 
-class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf()) {
+class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf(), var documentation: String? = null) {
     constructor(lines: List<String>, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(SemanticTokensBuilder(lines), diagnostics)
 
     var completionProviders: MutableList<CompletionProvider> = mutableListOf()
@@ -28,7 +28,10 @@ class AnalyzingResult(val semanticTokens: SemanticTokensBuilder, val diagnostics
                 }
                 charactersLeft -= length
             }
-            return Position(if(zeroBased) lines.size - 1 else lines.size, lines.last().length)
+            val lastLineNumber = lines.size
+            val lastColumnNumber = lines.last().length
+            return if(zeroBased) Position(lastLineNumber - 1, lastColumnNumber)
+                else Position(lastLineNumber, lastColumnNumber + 1)
         }
 
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
