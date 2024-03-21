@@ -9,7 +9,6 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
@@ -187,7 +186,7 @@ object LanguageManager {
                 }
             }
             docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
-            docCommentBuilder.append(OpenFile.LINE_SEPARATOR)
+            docCommentBuilder.append('\n')
         }
         return docCommentBuilder.toString()
     }
@@ -205,6 +204,7 @@ object LanguageManager {
                     break
             }
             docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
+            docCommentBuilder.append('\n')
         }
         return docCommentBuilder.toString()
     }
