@@ -8,7 +8,7 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.CommandFunction
 import net.minecraft.util.Identifier
 
-class RawResourceFunctionArgument(val resource: RawResource): CommandFunctionArgumentType.FunctionArgument {
+class RawResourceFunctionArgument(val resource: RawResource, val isTag: Boolean = false): CommandFunctionArgumentType.FunctionArgument {
     override fun getFunctions(context: CommandContext<ServerCommandSource>?): MutableCollection<CommandFunction<ServerCommandSource>> {
         throw IllegalStateException("Tried to execute RawResource function argument")
     }

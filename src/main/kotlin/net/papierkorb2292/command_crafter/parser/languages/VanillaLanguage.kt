@@ -700,7 +700,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     return@entry Either.right(parseRawInlineFunction(reader, source))
                 }
                 return@entry Either.left(parseRawTagEntry(reader))
-            })
+            }, true)
         }
 
         fun parseParsedImprovedFunctionReference(reader: DirectiveStringReader<ParsedResourceCreator>, source: ServerCommandSource): MutableFunctionArgument? {

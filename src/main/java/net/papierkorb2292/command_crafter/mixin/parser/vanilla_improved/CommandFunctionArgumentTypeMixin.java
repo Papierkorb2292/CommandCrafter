@@ -55,6 +55,9 @@ public class CommandFunctionArgumentTypeMixin implements ServerSourceAware, Unpa
         if (!(argument instanceof RawResourceFunctionArgument resourceArgument)) {
             return null;
         }
+        if(resourceArgument.isTag()) {
+            return List.of(Either.left("#"), Either.right(resourceArgument.getResource()));
+        }
         return Collections.singletonList(Either.right(resourceArgument.getResource()));
     }
 }
