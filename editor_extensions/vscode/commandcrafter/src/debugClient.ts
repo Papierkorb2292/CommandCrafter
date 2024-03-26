@@ -83,6 +83,8 @@ export class DebugClient implements ConnectionFeature {
                     });
 
                     return new vscode.DebugAdapterInlineImplementation(debugAdapter);
+                }, (error) => {
+                    throw new Error("Error connecting to Minecraft debugger: " + error.message);
                 });
             }
         }));

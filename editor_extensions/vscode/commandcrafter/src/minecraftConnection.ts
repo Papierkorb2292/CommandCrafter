@@ -7,7 +7,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
-import { LanguageClientRunner } from './extension';
+import { LanguageClientRunner, findFiles } from './extension';
 import { DebugClient } from './debugClient';
 
 export interface MinecraftConnectionType extends Disposable {
@@ -22,11 +22,14 @@ export class SocketConnectionType implements MinecraftConnectionType {
 
     constructor(public address: string, public port: number) { }
 
-    connect() {
-        this.connection = net.connect({ host: this.address, port: this.port });
-        return Promise.resolve({
-            writer: this.connection,
-            reader: this.connection
+    connect(): Promise<StreamInfo> {
+        return new Promise((resolve, reject) => {
+            const connection = this.connection = net.connect({ host: this.address, port: this.port });
+            connection.on('connect', () => resolve({
+                writer: connection,
+                reader: connection
+            }));
+            connection.on('error', reject);
         });
     }
 
@@ -78,50 +81,54 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
         this.connectionFeatures.forEach(feature => feature.onConnectionTypeChange(this.connectionType));
     }
 
-    startLanguageClient(): LanguageClient {
+    startLanguageClient() {
         this.prevOutputChannel?.dispose();
-        const languageClient = new LanguageClient(
-    		"CommandCrafter Language Client",
-    		() => this.connectionType.connect().then((streamInfo) => {
-                const serviceRequest = JSON.stringify({
-                    "seq": 1,
-                    "type": "request",
-                    "command": "connectToService",
-                    "arguments": "languageServer"
-                });
-                streamInfo.writer.write(
-                    `Content-Length:${Buffer.byteLength(serviceRequest, 'utf-8')}\r\n\r\n${serviceRequest}`, 'utf-8'
-                );
-                return streamInfo;
-            }),
-    		{
-                documentSelector: [{ pattern: "**" }],
-                synchronize: {
-                    fileEvents: vscode.workspace.createFileSystemWatcher("**")
+        this.connectionType.connect().then((streamInfo) => {
+            const serviceRequest = JSON.stringify({
+                "seq": 1,
+                "type": "request",
+                "command": "connectToService",
+                "arguments": "languageServer"
+            });
+            streamInfo.writer.write(
+                `Content-Length:${Buffer.byteLength(serviceRequest, 'utf-8')}\r\n\r\n${serviceRequest}`, 'utf-8'
+            );
+            const languageClient = new LanguageClient(
+                "CommandCrafter Language Client",
+                () => Promise.resolve(streamInfo),
+                {
+                    documentSelector: [{ pattern: "**" }],
+                    synchronize: {
+                        fileEvents: vscode.workspace.createFileSystemWatcher("**")
+                    }
                 }
-            }
-        );
-
-        this.prevOutputChannel = languageClient.outputChannel;
-
-        languageClient.onDidChangeState((e) => {
-            this.clientState = e.newState;
-            switch(e.newState) {
-                case State.Starting:
-                    this.connectionFeatures.forEach(feature => feature.onLanguageClientStart(languageClient));
-                    break;
-                case State.Running:
-                    this.connectionFeatures.forEach(feature => feature.onLanguageClientReady(languageClient));
-                    break;
-                case State.Stopped:
-                    this.connectionFeatures.forEach(feature => feature.onLanguageClientStop());
-                    break;
-            }
-        });
-
-        languageClient.start();
-        this.languageClient = languageClient;
-        return languageClient;
+            );
+    
+            this.prevOutputChannel = languageClient.outputChannel;
+    
+            languageClient.onDidChangeState((e) => {
+                this.clientState = e.newState;
+                switch(e.newState) {
+                    case State.Starting:
+                        this.connectionFeatures.forEach(feature => feature.onLanguageClientStart(languageClient));
+                        break;
+                    case State.Running:
+                        this.connectionFeatures.forEach(feature => feature.onLanguageClientReady(languageClient));
+                        languageClient.onRequest("findFiles", (filePattern: string) => findFiles(filePattern))
+                        languageClient.onRequest("getFileContent", (path: string) =>
+                            vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
+                        break;
+                    case State.Stopped:
+                        this.connectionFeatures.forEach(feature => feature.onLanguageClientStop());
+                        break;
+                }
+            });
+    
+            languageClient.start();
+            this.languageClient = languageClient;
+        }, (error) => {
+            vscode.window.showInformationMessage(`Can't connect to Minecraft Language Server: ${error}`);
+        })
     }
 
     stopLanguageClient(): void {

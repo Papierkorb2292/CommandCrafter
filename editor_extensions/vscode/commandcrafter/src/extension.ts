@@ -16,3 +16,9 @@ export interface LanguageClientRunner {
 	startLanguageClient(): void;
 	stopLanguageClient(): void;
 }
+
+export function findFiles(filePattern: string): Thenable<string[]> {
+	return vscode.workspace.findFiles(filePattern, null).then((uris) => {
+		return uris.map(uri => uri.toString());
+	});
+}
