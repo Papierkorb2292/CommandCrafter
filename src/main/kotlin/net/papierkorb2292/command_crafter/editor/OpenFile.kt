@@ -10,9 +10,9 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
     companion object {
         const val LINE_SEPARATOR = "\r\n"
 
-        fun linesFromString(content: String) = linesFromStrings(content.split(LINE_SEPARATOR))
+        fun linesFromString(content: String) = linesFromStrings(content.lines())
         fun linesFromStrings(lines: List<String>): MutableList<StringBuffer> = lines.mapTo(ArrayList(lines.size), ::StringBuffer)
-        fun fromString(uri: String, content: String, version: Int = 0) = fromLines(uri, content.split(LINE_SEPARATOR), version)
+        fun fromString(uri: String, content: String, version: Int = 0) = fromLines(uri, content.lines(), version)
         fun fromLines(uri: String, lines: List<String>, version: Int = 0) = OpenFile(uri, lines.mapTo(ArrayList(lines.size), ::StringBuffer), version)
     }
 
@@ -46,7 +46,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
             return ""
         }
 
-        val newLines = newText.splitToSequence(LINE_SEPARATOR).iterator()
+        val newLines = newText.lineSequence().iterator()
         val startLineText = lines[startLine]
         val endLineText = lines[endLine]
         val secondLine = startLine + 1
