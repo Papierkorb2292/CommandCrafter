@@ -41,8 +41,7 @@ object LanguageManager {
         override fun parseBreakpoints(
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
             server: MinecraftServer,
-            sourceReference: Int?,
-            debugConnection: EditorDebugConnection
+            sourceReference: Int?
         ): List<Breakpoint> = emptyList()
 
         override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) =
