@@ -32,7 +32,7 @@ class EditorConnectionManager(
         connectionAcceptor.start()
         connector = Thread {
             while(connectionAcceptor.isRunning()) {
-                val editorConnection = connectionAcceptor.accept() ?: return@Thread
+                val editorConnection = connectionAcceptor.accept()
                 try {
                     handleConnection(editorConnection)
                 } catch(e: Exception) {

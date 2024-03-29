@@ -3,10 +3,10 @@ package net.papierkorb2292.command_crafter.editor.debugger.server
 import it.unimi.dsi.fastutil.ints.Int2ReferenceMap
 import it.unimi.dsi.fastutil.ints.Int2ReferenceOpenHashMap
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandlerFactory
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
@@ -25,9 +25,9 @@ class ServerDebugManager(private val server: MinecraftServer) {
 
     private val debugHandlers = additionalDebugHandlers.mapValues { (_, factory) ->
         factory.createDebugHandler(server)
-    } + (PackContentFileType.FunctionsFileType to functionDebugHandler)
+    } + (PackContentFileType.FUNCTIONS_FILE_TYPE to functionDebugHandler)
 
-    private val sourceReferencesMap = mutableMapOf<ServerPlayNetworkHandler, PlayerSourceReferences>()
+    private val sourceReferencesMap = mutableMapOf<EditorDebugConnection, PlayerSourceReferences>()
 
     fun setBreakpoints(
         breakpoints: Array<UnparsedServerBreakpoint>,
@@ -45,31 +45,35 @@ class ServerDebugManager(private val server: MinecraftServer) {
         return debugHandler.setBreakpoints(breakpoints, id, player, debuggerConnector)
     }
 
-    fun removePlayer(player: ServerPlayerEntity) {
-        debugHandlers.values.forEach { it.removePlayer(player) }
-        sourceReferencesMap.remove(player.networkHandler)
+    fun removeDebugConnection(debugConnection: EditorDebugConnection) {
+        debugHandlers.values.forEach { it.removeDebugConnection(debugConnection) }
+        sourceReferencesMap.remove(debugConnection)
     }
 
-    fun removeSourceReference(networkHandler: ServerPlayNetworkHandler, sourceReference: Int) {
-        val playerReferences = sourceReferencesMap[networkHandler] ?: return
+    fun onReload() {
+        debugHandlers.values.forEach { it.onReload() }
+    }
+
+    fun removeSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int) {
+        val playerReferences = sourceReferencesMap[debugConnection] ?: return
         playerReferences.sources.remove(sourceReference)
-        if(playerReferences.sources.isEmpty()) sourceReferencesMap.remove(networkHandler)
+        if(playerReferences.sources.isEmpty()) sourceReferencesMap.remove(debugConnection)
     }
 
-    fun addSourceReference(player: ServerPlayerEntity, response: (Int) -> SourceResponse): Int {
-        val references = sourceReferencesMap.getOrPut(player.networkHandler, ::PlayerSourceReferences)
+    fun addSourceReference(debugConnection: EditorDebugConnection, response: (Int) -> SourceResponse): Int {
+        val references = sourceReferencesMap.getOrPut(debugConnection, ::PlayerSourceReferences)
         val id = references.nextId++
         references.sources[id] = SourceReferenceGenerator(response)
         return id
     }
 
-    fun getSourceReferenceLines(player: ServerPlayerEntity, sourceReference: Int?): List<String>? {
-        val sourceReferences = sourceReferencesMap[player.networkHandler] ?: return null
+    fun getSourceReferenceLines(debugConnection: EditorDebugConnection, sourceReference: Int?): List<String>? {
+        val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
         return sourceReference?.let { sourceReferences.sources[it]?.generatedLines }
     }
 
-    fun retrieveSourceReference(player: ServerPlayerEntity, sourceReference: Int): SourceResponse? {
-        val sourceReferences = sourceReferencesMap[player.networkHandler] ?: return null
+    fun retrieveSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int): SourceResponse? {
+        val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
         return sourceReferences.sources[sourceReference]?.generateSourceReference(sourceReference)
     }
 

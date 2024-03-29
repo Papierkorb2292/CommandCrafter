@@ -2,24 +2,25 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import it.unimi.dsi.fastutil.objects.Reference2IntMap
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandlerFactory
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.removeExtension
-import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
-import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandler
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import org.eclipse.lsp4j.debug.*
+import org.eclipse.lsp4j.debug.Breakpoint
+import org.eclipse.lsp4j.debug.Source
+import org.eclipse.lsp4j.debug.SourceBreakpoint
 import java.util.*
 
 class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
@@ -40,16 +41,13 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
 
     private fun parseBreakpoints(
         breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
-        fileId: Identifier,
+        functionId: Identifier,
         fileSourceReference: Int?,
+        debugConnection: EditorDebugConnection
     ): List<Breakpoint> {
-        val functionId = fileId.removeExtension(FUNCTION_FILE_EXTENSTION) ?: return MinecraftDebuggerServer.rejectAllBreakpoints(
-            breakpoints,
-            MinecraftDebuggerServer.UNKNOWN_FUNCTION_REJECTION_REASON
-        )
         val source = Source().apply {
             this.name = getSourceName(functionId, fileSourceReference)
-            this.path = PackContentFileType.FunctionsFileType.toStringPath(functionId)
+            this.path = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(functionId)
         }
         val optionalFunction = server.commandFunctionManager.getFunction(functionId)
         return optionalFunction.map { function ->
@@ -60,7 +58,7 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
                     MinecraftDebuggerServer.DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON,
                     source
                 )
-            val parsedBreakpoints = debugInformation.parseBreakpointsAndRejectRest(breakpoints, server ,fileSourceReference)
+            val parsedBreakpoints = debugInformation.parseBreakpointsAndRejectRest(breakpoints, server, fileSourceReference, debugConnection)
             for(parsedBreakpoint in parsedBreakpoints) {
                 parsedBreakpoint.source = source
             }
@@ -78,74 +76,52 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         sourceBreakpoints: Array<UnparsedServerBreakpoint>,
         id: Identifier,
         player: ServerPlayerEntity,
-        debuggerConnection: ServerNetworkDebugConnection,
+        debugConnection: EditorDebugConnection,
         sourceReference: Int?
     ): Array<Breakpoint> = breakpointManager.onBreakpointUpdate(
         sourceBreakpoints,
-        debuggerConnection,
-        player,
-        id,
+        debugConnection,
+        id.removeExtension(FUNCTION_FILE_EXTENSTION) ?: id,
         sourceReference
     ).toTypedArray()
 
-    override fun removePlayer(player: ServerPlayerEntity) {
-        breakpointManager.removePlayer(player)
+    override fun removeDebugConnection(debugConnection: EditorDebugConnection) {
+        breakpointManager.removeDebugConnection(debugConnection)
     }
 
     fun functionHasBreakpoints(id: Identifier) = breakpointManager.breakpoints.values.any { it.containsKey(id) }
 
-    fun getFunctionBreakpoints(id: Identifier, sourceReferences: Reference2IntMap<ServerPlayNetworkHandler>? = null) =
-        breakpointManager.breakpoints.entries.flatMap { (networkHandler, functionBreakpoints) ->
+    fun getFunctionBreakpoints(id: Identifier, sourceReferences: Reference2IntMap<EditorDebugConnection>? = null): List<ServerBreakpoint<FunctionBreakpointLocation>> =
+        breakpointManager.breakpoints.entries.flatMap { (debugConnection, functionBreakpoints) ->
             @Suppress("DEPRECATION")
-            functionBreakpoints[id]?.get(sourceReferences?.get(networkHandler)) ?: emptyList()
-        }
+            functionBreakpoints[id]?.get(sourceReferences?.get(debugConnection))?.values ?: emptyList()
+        }.flatMap { it.list }
 
-    fun reloadBreakpoints() {
-        for(playerBreakpoints in breakpointManager.breakpoints.values) {
-            for((sourceFile, sourceReferences) in playerBreakpoints) {
-                for((sourceReference, serverBreakpoints) in sourceReferences) {
-                    for(breakpoint in serverBreakpoints) {
-                        breakpoint.action = null
-                    }
-                    val optionalFunction =
-                        server.commandFunctionManager.getFunction(sourceFile.removeExtension(FUNCTION_FILE_EXTENSTION))
-                    val validatedBreakpoints = optionalFunction.map { function ->
-                        @Suppress("UNCHECKED_CAST")
-                        val debugInformation =
-                            (function as DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame>).`command_crafter$getDebugInformation`()
-                                ?: return@map MinecraftDebuggerServer.rejectAllBreakpoints(
-                                    serverBreakpoints,
-                                    MinecraftDebuggerServer.DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON
-                                )
-                        debugInformation.parseBreakpointsAndRejectRest(LinkedList(serverBreakpoints), server, sourceReference)
-                    }.orElseGet {
-                        MinecraftDebuggerServer.rejectAllBreakpoints(
-                            serverBreakpoints,
-                            MinecraftDebuggerServer.UNKNOWN_FUNCTION_REJECTION_REASON
-                        )
-                    }
-                    validatedBreakpoints.forEachIndexed { index, breakpoint ->
-                        serverBreakpoints[index].editorConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
-                            this.breakpoint = breakpoint
-                            this.reason = BreakpointEventArgumentsReason.CHANGED
-                        })
-                    }
-                }
-            }
-        }
+    override fun onReload() {
+        breakpointManager.reloadBreakpoints()
     }
 
     fun addNewSourceReferenceBreakpoints(
         breakpoints: List<SourceBreakpoint>,
-        debuggerConnection: ServerNetworkDebugConnection,
-        sourceFile: Identifier,
+        debuggerConnection: EditorDebugConnection,
+        resourceId: Identifier,
         sourceReference: Int?,
     ) {
         breakpointManager.addNewSourceReferenceBreakpoints(
             breakpoints,
             debuggerConnection,
-            sourceFile.withExtension(FUNCTION_FILE_EXTENSTION),
+            resourceId,
             sourceReference
+        )
+    }
+
+    fun updateBreakpointParserBreakpoints(functionId: Identifier, sourceReference: Int?, debugConnection: EditorDebugConnection, breakpointParser: BreakpointParser<FunctionBreakpointLocation>, breakpointList: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>) {
+        breakpointManager.setParserBreakpoints(
+            functionId,
+            sourceReference,
+            breakpointParser,
+            breakpointList,
+            debugConnection
         )
     }
 }

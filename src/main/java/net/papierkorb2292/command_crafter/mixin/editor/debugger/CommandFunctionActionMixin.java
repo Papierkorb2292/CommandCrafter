@@ -10,6 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.Procedure;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.MacroValuesContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
@@ -22,7 +23,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -43,22 +43,26 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
         var debugInformation = ((DebugInformationContainer<?, FunctionDebugFrame>) container).command_crafter$getDebugInformation();
         if (debugInformation == null)
             return;
-        var lines = ((FileLinesContainer)function).command_crafter$getLines();
+        var lines = ((FileLinesContainer)function).command_crafter$getLines(); //TODO
         var fileLines = new HashMap<String, List<String>>();
         if (lines != null) {
-            fileLines.put(PackContentFileType.Companion.getFunctionsFileType().toStringPath(function.id()), lines);
+            fileLines.put(PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(function.id()), lines);
         }
+
+        MacroValuesContainer macroValuesContainer = function instanceof MacroValuesContainer macroValuesContainer2 ? macroValuesContainer2 : null;
+        var macroNames = macroValuesContainer != null ? macroValuesContainer.command_crafter$getMacroNames() : null;
+        var macroValues = macroValuesContainer != null ? macroValuesContainer.command_crafter$getMacroValues() : null;
+
         //noinspection unchecked
         var debugFrame = new FunctionDebugFrame(
                 pauseContext,
                 (Procedure<ServerCommandSource>) function,
                 debugInformation,
-                Collections.emptyList(), //TODO
-                Collections.emptyList(), //TODO
+                macroNames != null ? macroNames : List.of(),
+                macroValues != null ? macroValues : List.of(),
                 new CommandExecutionContextContinueCallback(commandExecutionContext),
                 fileLines
         );
-        pauseContext.getExecutionWrapper().addTo(debugFrame.getExecutionWrapper());
         pauseContext.pushDebugFrame(debugFrame);
         //noinspection unchecked
         commandExecutionContext.enqueueCommand((CommandQueueEntry<T>) new CommandQueueEntry<>(frame, ExitDebugFrameCommandAction.INSTANCE));
@@ -76,8 +80,8 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
         if (pauseContext == null || !(function instanceof DebugInformationContainer<?,?> container) || container.command_crafter$getDebugInformation() == null)
             return control;
         return () -> {
-            pauseContext.popDebugFrame();
             control.discard();
+            pauseContext.popDebugFrame();
         };
     }
 }

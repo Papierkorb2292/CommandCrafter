@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints
 
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import org.eclipse.lsp4j.debug.Breakpoint
 
 interface DebugHandler {
@@ -10,8 +10,9 @@ interface DebugHandler {
         sourceBreakpoints: Array<UnparsedServerBreakpoint>,
         id: Identifier,
         player: ServerPlayerEntity,
-        debuggerConnection: ServerNetworkDebugConnection,
+        debugConnection: EditorDebugConnection,
         sourceReference: Int? = null
     ): Array<Breakpoint>
-    fun removePlayer(player: ServerPlayerEntity)
+    fun removeDebugConnection(debugConnection: EditorDebugConnection)
+    fun onReload()
 }

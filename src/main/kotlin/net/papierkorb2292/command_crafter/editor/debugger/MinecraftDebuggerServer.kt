@@ -70,6 +70,8 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
             debugPauseActions = actions
             variablesReferencer = variables
+            if(args.threadId == null)
+                args.threadId = 0
             client?.stopped(args)
         }
 
@@ -97,10 +99,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         }
 
         override fun pushStackFrames(stackFrames: List<MinecraftStackFrame>) {
-            stackFrames.forEachIndexed { index, frame ->
+            stackFrames.forEach { frame ->
                 val frameRange = frame.visualContext.range
                 stackTrace += StackFrame().apply {
-                    id = index
+                    id = stackTrace.size
                     name = frame.name
                     line = frameRange.start.line
                     column = frameRange.start.character
@@ -123,14 +125,15 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         fun mapSourceToDatapack(source: Source): Boolean {
             val path = dataFolders.firstNotNullOfOrNull {
                 val file = it.resolve(source.path)
+                //TODO: Use vscode workspace instead of file system
                 if (file.exists()) file.toString() else null
             }
             if (path == null) return false
             source.path = path
-            source.sources = source.sources.mapNotNull { childSource ->
+            source.sources = source.sources?.mapNotNull { childSource ->
                 if (mapSourceToDatapack(childSource)) childSource
                 else null
-            }.toTypedArray()
+            }?.toTypedArray()
             return true
         }
     }
@@ -165,6 +168,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
                 return@flatMap emptySequence()
             }
             val path = Path.of(it)
+            //TODO: Use vscode workspace instead of file system
             if (!path.exists())
                 return@flatMap emptySequence()
             Files.walk(path).filter { candidate ->
@@ -175,6 +179,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun disconnect(args: DisconnectArguments): CompletableFuture<Void> {
+        //TODO: Remove breakpoints
         return CompletableFuture.completedFuture(null)
     }
 
@@ -294,7 +299,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     override fun source(args: SourceArguments): CompletableFuture<SourceResponse> {
         val reference = args.source.sourceReference ?: throw IllegalArgumentException("Source reference must be provided")
         val debugService = minecraftServer.debugService ?: throw UnsupportedOperationException(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
-        return debugService.retrieveSourceReference(reference)
+        return debugService.retrieveSourceReference(reference, editorDebugConnection)
     }
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {

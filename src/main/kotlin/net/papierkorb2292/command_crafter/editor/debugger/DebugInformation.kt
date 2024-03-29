@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.minecraft.server.MinecraftServer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
@@ -19,8 +20,8 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
 
     class Concat<L : Any, F : PauseContext.DebugFrame>(private val delegateDebugInformations: List<DebugInformation<L, F>>, private val pauseHandlerSelector: (F) -> Int) :
         DebugInformation<L, F> {
-        override fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<L>>, server: MinecraftServer, sourceReference: Int?) =
-            delegateDebugInformations.flatMap { it.parseBreakpoints(breakpoints, server, sourceReference) }
+        override fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<L>>, server: MinecraftServer, sourceReference: Int?, debugConnection: EditorDebugConnection) =
+            delegateDebugInformations.flatMap { it.parseBreakpoints(breakpoints, server, sourceReference, debugConnection) }
 
         override fun createDebugPauseHandler(debugFrame: F): DebugPauseHandler = object : DebugPauseHandler, FileContentReplacer {
             private var currentPauseHandler: DebugPauseHandler? = null

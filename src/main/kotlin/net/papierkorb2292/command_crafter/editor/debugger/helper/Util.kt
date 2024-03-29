@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.network.PacketByteBuf
+import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.networking.*
@@ -24,6 +25,21 @@ operator fun <S> ContextChain<S>.get(index: Int): CommandContext<S>? {
     if(accessor.modifiers.size > index) return accessor.modifiers[index]
     if(accessor.modifiers.size == index) return accessor.executable
     return null
+}
+
+fun <S> CommandContext<S>.getExcludeEmpty(index: Int): CommandContext<S>? {
+    var context = this
+    for(i in 0 until index) {
+        context = context.child ?: return null
+        while(context.redirectModifier == null && context.command == null) {
+            context = context.child ?: return null
+        }
+    }
+    return context
+}
+
+fun <S> CommandContext<S>.isDebuggable(): Boolean {
+    return if(this.child == null) this.command != null else this.redirectModifier != null
 }
 
 fun Identifier.removeExtension(extension: String)
@@ -73,9 +89,15 @@ fun PacketByteBuf.writeSource(source: Source) {
     writeNullableInt(source.sourceReference)
     writeNullableInt(source.presentationHint?.ordinal)
     writeNullableString(source.origin)
-    writeInt(source.sources.size)
-    for(s in source.sources) {
-        writeSource(s)
+    val sources = source.sources
+    if(sources == null) {
+        writeBoolean(false)
+    } else {
+        writeBoolean(true)
+        writeInt(sources.size)
+        for(s in sources) {
+            writeSource(s)
+        }
     }
 }
 
@@ -86,8 +108,10 @@ fun PacketByteBuf.readSource(): Source {
     source.sourceReference = readNullableInt()
     source.presentationHint = readNullableInt()?.run { SourcePresentationHint.values()[this] }
     source.origin = readNullableString()
-    source.sources = Array(readInt()) {
-        readSource()
+    if(readBoolean()) {
+        source.sources = Array(readInt()) {
+            readSource()
+        }
     }
     return source
 }
@@ -104,3 +128,5 @@ fun SourceBreakpoint.copy(): SourceBreakpoint {
     breakpoint.logMessage = logMessage
     return breakpoint
 }
+
+fun MinecraftServer.getDebugManager() = (this as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`()

@@ -36,6 +36,8 @@ interface DebugPauseHandler : DebugPauseActions {
      * This can happen when for example the previously specified
      * location to pause on has been skipped or when the execution has returned from
      * a subroutine that the DebugPauseHandler decided to step into.
+     *
+     * This method must in some way unpause the execution.
      */
     fun findNextPauseLocation()
 

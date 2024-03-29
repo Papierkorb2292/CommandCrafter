@@ -2,10 +2,7 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import net.minecraft.server.command.ServerCommandSource
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
-import org.eclipse.lsp4j.debug.SetVariableArguments
-import org.eclipse.lsp4j.debug.SetVariableResponse
-import org.eclipse.lsp4j.debug.Variable
-import org.eclipse.lsp4j.debug.VariablesArguments
+import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
 
 class ServerCommandSourceValueReference(
@@ -88,7 +85,7 @@ class ServerCommandSourceValueReference(
         it.indexedVariables = 0
     }
 
-    private fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+    fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
         variablesReferencerId = it
     }
 
@@ -99,7 +96,7 @@ class ServerCommandSourceValueReference(
         get() = 0
 
     override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-        if(args.filter != null) return CompletableFuture.completedFuture(emptyArray())
+        if(args.filter == VariablesArgumentsFilter.INDEXED) return CompletableFuture.completedFuture(emptyArray())
         val start = args.start ?: 0
         val count = args.count ?: (content.size - start)
         return CompletableFuture.completedFuture(content.entries.drop(start).take(count).map {

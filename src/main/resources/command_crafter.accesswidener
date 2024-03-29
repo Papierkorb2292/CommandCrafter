@@ -4,3 +4,4 @@ accessible method net/minecraft/resource/ZipResourcePack$ZipFileWrapper open ()L
 accessible class net/minecraft/server/function/FunctionBuilder
 accessible class net/minecraft/server/function/Macro$Line
 accessible class net/minecraft/server/function/Macro$VariableLine
+accessible class net/minecraft/command/argument/NbtPathArgumentType$PathNode

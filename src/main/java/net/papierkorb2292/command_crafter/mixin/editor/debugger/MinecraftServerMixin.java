@@ -26,7 +26,6 @@ public ServerDebugManager command_crafter$getServerDebugManager() {
             at = @At("RETURN")
     )
     private CompletableFuture<Void> command_crafter$reloadBreakpoints(CompletableFuture<Void> completionFuture) {
-        return completionFuture.thenRun(() ->
-                command_crafter$serverDebugManager.getFunctionDebugHandler().reloadBreakpoints());
+        return completionFuture.thenRun(command_crafter$serverDebugManager::onReload);
     }
 }

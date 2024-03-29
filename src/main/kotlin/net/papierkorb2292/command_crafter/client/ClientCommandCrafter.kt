@@ -37,9 +37,9 @@ object ClientCommandCrafter : ClientModInitializer {
                     executorService: ExecutorService
                 ): EditorConnectionManager.LaunchedService {
                     val server = MinecraftLanguageServer(serverConnection)
-                    val launcher = Launcher.Builder<EditorClient>()
+                    val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                         .setLocalService(server)
-                        .setRemoteInterface(EditorClient::class.java)
+                        .setRemoteInterface(CommandCrafterLanguageClient::class.java)
                         .setInput(editorConnection.inputStream)
                         .setOutput(editorConnection.outputStream)
                         .setExecutorService(executorService)

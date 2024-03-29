@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.registry.Registry
@@ -9,6 +10,7 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer
@@ -20,19 +22,19 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import net.papierkorb2292.command_crafter.mixin.editor.semantics.IdentifierAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.Range
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.debug.Breakpoint
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
+import java.util.concurrent.CompletableFuture
 
 object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(RegistryKey.ofRegistry(Identifier("command_crafter", "languages"))).buildAndRegister()!!
@@ -41,7 +43,8 @@ object LanguageManager {
         override fun parseBreakpoints(
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
             server: MinecraftServer,
-            sourceReference: Int?
+            sourceReference: Int?,
+            debugConnection: EditorDebugConnection
         ): List<Breakpoint> = emptyList()
 
         override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) =
@@ -108,7 +111,7 @@ object LanguageManager {
     }
 
     fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
-        reader.resourceCreator.functionStack.push(AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+        reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
 
@@ -129,7 +132,7 @@ object LanguageManager {
             }
         }
 
-        reader.resourceCreator.functionStack.pop()
+        reader.resourceCreator.resourceStack.pop()
     }
 
     fun readAndAnalyzeDocComment(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult): String? {
@@ -139,53 +142,73 @@ object LanguageManager {
         while(reader.canRead() && reader.peek() == '#') {
             reader.skip()
             val lineStart = reader.cursor
-            var commentStart = reader.absoluteCursor - 1
+            var highlightStart = lineStart - 1
             while(reader.canRead()) {
                 val c = reader.read()
                 if(c == '\n') {
-                    result.semanticTokens.addAbsoluteMultiline(commentStart, reader.absoluteCursor - commentStart, TokenType.COMMENT, 0)
+                    result.semanticTokens.addMultiline(highlightStart, reader.cursor - highlightStart, TokenType.COMMENT, 0)
                     break
                 }
                 if(c == ' ')
                     continue
                 if(c == '@') {
-                    result.semanticTokens.addAbsoluteMultiline(commentStart, reader.absoluteCursor - commentStart - 1, TokenType.COMMENT, 0)
-                    val annotationStart = reader.absoluteCursor - 1
+                    result.semanticTokens.addMultiline(highlightStart, reader.cursor - highlightStart - 1, TokenType.COMMENT, 0)
+                    val annotationStart = reader.cursor - 1
                     while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
                         reader.skip()
-                    val annotationEnd = reader.absoluteCursor
-                    val startPosition = AnalyzingResult.getPositionFromCursor(annotationStart, reader.lines)
-                    result.semanticTokens.add(
-                        startPosition.line,
-                        startPosition.character,
-                        annotationEnd - annotationStart,
-                        TokenType.MACRO,
-                        0
-                    )
-                    commentStart = reader.absoluteCursor
+                    val annotationEnd = reader.cursor
+                    result.semanticTokens.addMultiline(annotationStart, annotationEnd - annotationStart, TokenType.MACRO, 0)
+                    highlightStart = annotationEnd
                     continue
                 }
                 if(c == ':') {
                     val string = reader.string
-                    val idStart = reader.readCharacters + string.subSequence(0, reader.cursor - 1)
+                    val idStart = string.subSequence(0, reader.cursor - 1)
                         .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
-                    result.semanticTokens.addAbsoluteMultiline(commentStart, idStart - commentStart, TokenType.COMMENT, 0)
+                    result.semanticTokens.addMultiline(highlightStart, idStart - highlightStart, TokenType.COMMENT, 0)
                     while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
                         reader.skip()
-                    val idEnd = reader.absoluteCursor
-                    val startPosition = AnalyzingResult.getPositionFromCursor(idStart, reader.lines)
-                    result.semanticTokens.add(
-                        startPosition.line,
-                        startPosition.character,
-                        idEnd - idStart,
-                        TokenType.PARAMETER,
-                        0
-                    )
-                    commentStart = idEnd
+                    val idEnd = reader.cursor
+                    val idRange = StringRange(idStart, idEnd)
+                    result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
+                    val languageServer = reader.resourceCreator.languageServer
+                    result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
+                        val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                        languageServer.findFileAndAnalyze(
+                            Identifier(string.substring(idStart, idEnd)),
+                            keywords
+                        ).thenCompose { analyzingResult ->
+                            if(analyzingResult == null) {
+                                CompletableFuture.completedFuture(Hover(emptyList()))
+                            } else {
+                                languageServer.hoverDocumentation(
+                                    analyzingResult,
+                                    analyzingResult.toFileRange(idRange)
+                                )
+                            }
+                        }
+                    }, true)
+                    result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
+                        val client = languageServer.client ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
+                        val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                        PackContentFileType.findWorkspaceResourceFromId(
+                            Identifier(string.substring(idStart, idEnd)),
+                            client,
+                            keywords
+                        ).thenApply {
+                            Either.forLeft(
+                                if(it == null) {
+                                    emptyList()
+                                } else {
+                                    listOf(Location(it.second, Range(Position(), Position())))
+                                }
+                            )
+                        }
+                    }, true)
+                    highlightStart = idEnd
                 }
             }
             docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
-            docCommentBuilder.append('\n')
         }
         return docCommentBuilder.toString()
     }
@@ -203,7 +226,6 @@ object LanguageManager {
                     break
             }
             docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
-            docCommentBuilder.append('\n')
         }
         return docCommentBuilder.toString()
     }

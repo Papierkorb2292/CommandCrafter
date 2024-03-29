@@ -5,12 +5,10 @@ import com.mojang.brigadier.context.ContextChain
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.Procedure
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
-import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionPausedThrowable
-import net.papierkorb2292.command_crafter.editor.debugger.helper.ServerDebugManagerContainer
-import net.papierkorb2292.command_crafter.editor.debugger.helper.copy
-import net.papierkorb2292.command_crafter.editor.debugger.helper.get
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
+import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext.Companion.currentPauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.PositionableBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
@@ -25,6 +23,29 @@ class FunctionDebugFrame(
     val unpauseCallback: () -> Unit,
     val fileLines: Map<String, List<String>>,
 ) : PauseContext.DebugFrame {
+    companion object {
+        val functionCallDebugInfo = ThreadLocal<FunctionCallDebugInfo>()
+
+        fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {
+            val pauseContext = currentPauseContext.get() ?: return null
+            val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return null
+            return debugFrame.getCommandInfo(context)
+        }
+        fun checkSimpleActionPause(context: CommandContext<ServerCommandSource>, source: ServerCommandSource, commandInfo: CommandInfo? = null) {
+            val pauseContext = currentPauseContext.get() ?: return
+            val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return
+            val resolvedCommandInfo = commandInfo ?: debugFrame.getCommandInfo(context) ?: return
+            debugFrame.currentSectionIndex = resolvedCommandInfo.sectionOffset
+            debugFrame.checkPause(
+                resolvedCommandInfo,
+                context,
+                source
+            )
+            val sectionSources = debugFrame.currentSectionSources
+            sectionSources.currentSourceIndex += 1
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     val contextChains: List<ContextChain<ServerCommandSource>> =
         procedure.entries().mapNotNull {
@@ -47,8 +68,11 @@ class FunctionDebugFrame(
             currentSectionSources.currentSource = value
         }
 
-    var nextPauseRootContext: CommandContext<ServerCommandSource>? = null
-    var nextPauseSectionIndex: Int = 0
+    private var nextPauseRootContext: CommandContext<ServerCommandSource>? = null
+    private var nextPauseSectionIndex: Int = 0
+    
+    private var lastPauseContext: CommandContext<ServerCommandSource>? = null
+    private var lastPauseSourceIndex: Int = 0
 
     private var debugPauseHandler: DebugPauseHandler? = null
     override fun getDebugPauseHandler(): DebugPauseHandler {
@@ -58,43 +82,47 @@ class FunctionDebugFrame(
         return handler
     }
 
-    lateinit var breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>
+    var breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>
 
-    private val reloadBreakpointsCallback = {
-        val functionDebugHandler = (pauseContext.server as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`().functionDebugHandler
-        breakpoints = functionDebugHandler.getFunctionBreakpoints(procedure.id())
+    override fun onContinue(stackEntry: PauseContext.DebugFrameStack.Entry) {
+        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.id(), stackEntry.createdSourceReferences)
     }
 
     init {
-        pauseContext.addOnContinueListener(reloadBreakpointsCallback)
-        reloadBreakpointsCallback()
+        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.id())
         if(breakpoints.isNotEmpty()) {
             getDebugPauseHandler()
         }
     }
 
-    val executionWrapper = PauseContext.ExecutionWrapperConsumerImpl(pauseContext.server)
-
     fun getBreakpointsForCommand(commandRootContext: CommandContext<ServerCommandSource>): List<ServerBreakpoint<FunctionBreakpointLocation>> {
         return breakpoints.filter { it.action?.location?.commandLocationRoot == commandRootContext }
     }
 
-    fun checkPause(commandInfo: CommandInfo, sectionIndex: Int, context: CommandContext<*>, source: ServerCommandSource) {
-        currentSectionIndex = commandInfo.sectionOffset + sectionIndex
-        if (pauseContext.isDebugging()) {
-            if (nextPauseRootContext === contextChains[commandInfo.commandIndex].topContext && nextPauseSectionIndex == currentSectionIndex) {
+    fun checkPause(commandInfo: CommandInfo, context: CommandContext<*>, source: ServerCommandSource) {
+        currentCommandIndex = commandInfo.commandIndex
+        if(lastPauseContext === context && lastPauseSourceIndex == currentSectionSources.currentSourceIndex)
+            return
+        if(pauseContext.isDebugging()) {
+            if(nextPauseRootContext === contextChains[commandInfo.commandIndex].topContext && nextPauseSectionIndex <= currentSectionIndex) {
                 onReachedPauseLocation()
             }
-        } else {
-            for (breakpoint in commandInfo.breakpoint) {
-                val action = breakpoint.action
-                if (action != null && action.location.commandSectionLocation === context &&
-                    (action.condition == null || action.condition.checkCondition(source) && action.condition.checkHitCondition(
-                        source
-                    ))
-                ) {
-                    onBreakpointHit(breakpoint)
-                }
+            if(commandInfo.commandIndex > 0 && nextPauseRootContext === contextChains[commandInfo.commandIndex - 1].topContext) {
+                nextPauseRootContext = null
+                pauseContext.notifyClientPauseLocationSkipped()
+                getDebugPauseHandler().findNextPauseLocation()
+                checkPause(commandInfo, context, source)
+                return
+            }
+        }
+        for(breakpoint in commandInfo.breakpoints) {
+            val action = breakpoint.action
+            if(action != null && action.location.commandSectionLocation === context &&
+                (action.condition == null || action.condition.checkCondition(source) && action.condition.checkHitCondition(
+                    source
+                ))
+            ) {
+                onBreakpointHit(breakpoint)
             }
         }
     }
@@ -134,14 +162,14 @@ class FunctionDebugFrame(
         = currentSectionIndex < (currentContextChain as ContextChainAccessor<*>).modifiers.size
 
     override fun unpause() {
-        executionWrapper.runCallback(unpauseCallback)
+        pauseContext.executionWrapper.runCallback(unpauseCallback)
     }
 
     override fun shouldWrapInSourceReference(path: String): PauseContext.SourceReferenceWrapper? {
         val pauseHandler = getDebugPauseHandler()
         if(pauseHandler !is FileContentReplacer) return null
         val lines = fileLines[path] ?: return null
-        val editorConnection = pauseContext.editorConnection ?: return null
+        val editorConnection = pauseContext.debugConnection ?: return null
         val replacementData = pauseHandler.getReplacementData(path)
         if(replacementData == null || !replacementData.replacings.iterator().hasNext()) return null
         return PauseContext.SourceReferenceWrapper(replacementData.sourceReferenceCallback) { sourceReference ->
@@ -152,7 +180,7 @@ class FunctionDebugFrame(
                 lines,
                 newBreakpoints.asSequence() + replacementData.positionables
             ).applyReplacings(replacementData.replacings)
-            (pauseContext.server as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`().functionDebugHandler.addNewSourceReferenceBreakpoints(
+            pauseContext.server.getDebugManager().functionDebugHandler.addNewSourceReferenceBreakpoints(
                 newBreakpoints.map { it.sourceBreakpoint },
                 editorConnection,
                 procedure.id(),
@@ -163,23 +191,34 @@ class FunctionDebugFrame(
     }
 
     override fun onExitFrame() {
-        pauseContext.removeOnContinueListener(reloadBreakpointsCallback)
         debugPauseHandler?.onExitFrame()
+    }
+    
+    private fun startPause(): Nothing {
+        lastPauseContext = currentContext
+        lastPauseSourceIndex = currentSectionSources.currentSourceIndex
+        nextPauseRootContext = null
+        throw CommandExecutionPausedThrowable(pauseContext.executionWrapper)
+    }
+
+    fun resetLastPause() {
+        lastPauseContext = null
     }
 
     fun onBreakpointHit(breakpoint: ServerBreakpoint<FunctionBreakpointLocation>) {
         if(pauseContext.initBreakpointPause(breakpoint)) {
-            throw CommandExecutionPausedThrowable(executionWrapper)
+            startPause()
         }
     }
 
     fun onReachedPauseLocation() {
         if(pauseContext.initPauseLocationReached()) {
-            throw CommandExecutionPausedThrowable(executionWrapper)
+            startPause()
         }
     }
 
     class SectionSources(val sources: MutableList<ServerCommandSource>, val parentSourceIndices: MutableList<Int>, var currentSourceIndex: Int) {
+        fun hasCurrent(): Boolean = currentSourceIndex < sources.size
         fun hasNext(): Boolean = currentSourceIndex < sources.size - 1
         fun getNext(): ServerCommandSource? = if(hasNext()) sources[currentSourceIndex + 1] else null
 
@@ -190,5 +229,5 @@ class FunctionDebugFrame(
             }
     }
 
-    class CommandInfo(val commandIndex: Int, val breakpoint: List<ServerBreakpoint<FunctionBreakpointLocation>>, val sectionOffset: Int)
+    class CommandInfo(val commandIndex: Int, val breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>, val sectionOffset: Int)
 }

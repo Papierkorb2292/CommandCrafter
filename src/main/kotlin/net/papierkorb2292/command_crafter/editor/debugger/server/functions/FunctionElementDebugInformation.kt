@@ -1,11 +1,11 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.context.ParsedArgument
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import net.minecraft.command.SingleCommandAction
+import net.minecraft.command.argument.CommandFunctionArgumentType.FunctionArgument
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.Macro
@@ -16,13 +16,11 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
 import net.papierkorb2292.command_crafter.editor.debugger.server.StepInTargetsManager
-import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ArgumentBreakpointParserSupplier
-import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointAction
-import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
-import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.*
+import net.papierkorb2292.command_crafter.editor.debugger.variables.StringMapValueReference
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
+import net.papierkorb2292.command_crafter.editor.processing.helper. compareTo
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.VariableLineAccessor
@@ -45,9 +43,9 @@ class FunctionElementDebugInformation(
 ) : FunctionDebugInformation {
     companion object {
         private const val COMMAND_SOURCE_SCOPE_NAME = "Command-Source"
+        private const val FUNCTION_MACROS_SCOPE_NAME = "Macros"
         private const val STEP_IN_NEXT_SECTION_BEGINNING_LABEL = "Next section: beginning"
         private const val STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL = "Next section: follow context"
-        private const val STEP_IN_NEXT_SECTION_NEXT_SOURCE_LABEL = "Next section: follow next context"
         private const val STEP_IN_CURRENT_SECTION_LABEL = "Current section: "
 
         fun getFileBreakpointRange(breakpoint: ServerBreakpoint<FunctionBreakpointLocation>, lines: List<String>): StringRange {
@@ -92,20 +90,23 @@ class FunctionElementDebugInformation(
 
     var functionId: Identifier? = null
 
+
     override fun parseBreakpoints(
         breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
         server: MinecraftServer,
-        sourceReference: Int?
+        sourceReference: Int?,
+        debugConnection: EditorDebugConnection
     ): List<Breakpoint> {
+        val functionId = functionId ?: return emptyList()
         val result: MutableList<Breakpoint> = ArrayList()
+        val addedBreakpoints = BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>()
         dynamicBreakpoints.clear()
         for(element in elements) {
-            if(breakpoints.isEmpty()) break
-            element.parseBreakpoints(breakpoints, server, this, result, dynamicBreakpoints, sourceReference)
+            element.parseBreakpoints(breakpoints, server, this, result, addedBreakpoints, dynamicBreakpoints, sourceReference, debugConnection)
         }
+        server.getDebugManager().functionDebugHandler.updateBreakpointParserBreakpoints(functionId, sourceReference, debugConnection, this, addedBreakpoints)
         return result
     }
-
     override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) = FunctionElementDebugPauseHandler(debugFrame)
 
     inner class FunctionElementDebugPauseHandler(val debugFrame: FunctionDebugFrame) : DebugPauseHandler, FileContentReplacer {
@@ -113,8 +114,8 @@ class FunctionElementDebugInformation(
 
         private val sourceReferences = mutableSetOf<Int>()
 
-        private var stepInTargetSourceIndex: Int? = null
-        private var stepInTargetSourceSection: Int? = null
+        private var stepTargetSourceIndex: Int? = null
+        private var stepTargetSourceSection: Int? = null
 
         private val onReloadBreakpoints = {
             if(dynamicBreakpoints.isNotEmpty()) {
@@ -155,37 +156,44 @@ class FunctionElementDebugInformation(
 
         override fun next(granularity: SteppingGranularity) {
             if(debugFrame.currentSectionSources.hasNext()) {
-                stepInTargetSourceSection = debugFrame.currentSectionIndex
-                stepInTargetSourceIndex = debugFrame.currentSectionSources.currentSourceIndex + 1
+                stepTargetSourceSection = debugFrame.currentSectionIndex
+                stepTargetSourceIndex = debugFrame.currentSectionSources.currentSourceIndex + 1
                 debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, debugFrame.currentSectionIndex)
                 return
             }
             pauseAtNextCommand()
         }
         override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
+            val currentContext = debugFrame.currentContextChain[debugFrame.currentSectionIndex]
+            if(currentContext != null && currentContext.child == null && (currentContext.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true) {
+                debugFrame.pauseContext.stepIntoFrame()
+                return
+            }
             if(debugFrame.hasNextSection()) {
-                debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, debugFrame.currentSectionIndex + 1)
+                debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, getNextCommandSection())
                 return
             }
             next(granularity)
         }
 
         override fun shouldStopOnCurrentContext(): Boolean {
-            stepInTargetSourceIndex?.let { targetSourceIndex ->
+            stepTargetSourceIndex?.let { targetSourceIndex ->
                 var sourceIndex = debugFrame.currentSectionSources.currentSourceIndex
-                stepInTargetSourceSection?.let {
+                stepTargetSourceSection?.let {
+                    val contextChain = debugFrame.currentContextChain
                     for(i in debugFrame.currentSectionIndex downTo it + 1) {
+                        if(!contextChain[i]!!.isDebuggable()) continue
                         sourceIndex = debugFrame.sectionSources[i].parentSourceIndices[sourceIndex]
                     }
                 }
                 if(sourceIndex == targetSourceIndex) {
-                    stepInTargetSourceIndex = null
-                    stepInTargetSourceSection = null
+                    stepTargetSourceIndex = null
+                    stepTargetSourceSection = null
                     return true
                 }
                 if(sourceIndex > targetSourceIndex) {
-                    stepInTargetSourceIndex = null
-                    stepInTargetSourceSection = null
+                    stepTargetSourceIndex = null
+                    stepTargetSourceSection = null
                     debugFrame.pauseContext.notifyClientPauseLocationSkipped()
                     return true
                 }
@@ -218,18 +226,16 @@ class FunctionElementDebugInformation(
                 //frameId is the function frame, which doesn't have any step in targets
                 return CompletableFuture.completedFuture(StepInTargetsResponse())
             }
+            val contextChain = debugFrame.currentContextChain
+
             val sectionIndex = frameId - 1
-            @Suppress("UNCHECKED_CAST")
-            val modifiers = (debugFrame.currentContextChain as ContextChainAccessor<ServerCommandSource>).modifiers
-            if(sectionIndex > modifiers.size) {
-                //frameId refers to no section
-                return CompletableFuture.completedFuture(StepInTargetsResponse())
-            }
+            val sectionContext = contextChain.topContext.getExcludeEmpty(sectionIndex)
+                ?: return CompletableFuture.completedFuture(StepInTargetsResponse())
 
             val targets = mutableListOf<StepInTarget>()
             val targetsManager = debugFrame.pauseContext.stepInTargetsManager
-            if(sectionIndex == modifiers.size) {
-                val executable = (debugFrame.currentContextChain as ContextChainAccessor<*>).executable
+            val executable = (debugFrame.currentContextChain as ContextChainAccessor<*>).executable
+            if(sectionContext == executable) {
                 if((executable.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true) {
                     targets += StepInTarget().also {
                         it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
@@ -239,49 +245,32 @@ class FunctionElementDebugInformation(
                     }
                 }
             } else {
-                val modifier = modifiers[sectionIndex]
-                if(sectionIndex == debugFrame.currentSectionIndex) {
-                    targets += StepInTarget().also {
-                        it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
-                            debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, sectionIndex)
-                        })
-                        it.label = STEP_IN_NEXT_SECTION_BEGINNING_LABEL
-                    }
-                    val nextSectionSources = debugFrame.sectionSources[sectionIndex + 1]
-                    val currentSourceIndex = debugFrame.currentSectionSources.currentSourceIndex
-                    targets += StepInTarget().also {
-                        it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
-                            stepInTargetSourceIndex = currentSourceIndex
-                            stepInTargetSourceSection = sectionIndex
-                            debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, sectionIndex)
-                        })
-                        it.label = STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL
-                    }
-                    if((modifier.redirectModifier as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true
-                        && (nextSectionSources.parentSourceIndices.isEmpty()
-                                || nextSectionSources.parentSourceIndices.last() < currentSourceIndex)) {
+                val nextSectionIndex = getNextCommandSection()
+                targets += StepInTarget().also {
+                    it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
+                        debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, nextSectionIndex)
+                    })
+                    it.label = STEP_IN_NEXT_SECTION_BEGINNING_LABEL
+                }
+                val currentSourceIndex = debugFrame.currentSectionSources.currentSourceIndex
+                targets += StepInTarget().also {
+                    it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
+                        stepTargetSourceSection = nextSectionIndex
+                        stepTargetSourceIndex = currentSourceIndex
+                        debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, nextSectionIndex)
+                    })
+                    it.label = STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL
+                }
+                val nextSectionSources = debugFrame.sectionSources[debugFrame.currentSectionIndex + 1]
+                if((sectionContext.redirectModifier as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true
+                    && (nextSectionSources.parentSourceIndices.isEmpty()
+                            || nextSectionSources.parentSourceIndices.last() < currentSourceIndex)) {
 
-                        targets += StepInTarget().also {
-                            it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
-                                debugFrame.pauseContext.stepIntoFrame()
-                            })
-                            it.label = buildStepInCurrentLabel(modifier)
-                        }
-                    }
-                } else {
-                    var ancestorSourceIndex = debugFrame.currentSectionSources.currentSourceIndex
-                    for(i in debugFrame.currentSectionIndex downTo sectionIndex + 1 ) {
-                        ancestorSourceIndex = debugFrame.sectionSources[i].parentSourceIndices[ancestorSourceIndex]
-                    }
-                    if(debugFrame.sectionSources[sectionIndex].sources.size > ancestorSourceIndex + 1) {
-                        targets += StepInTarget().also {
-                            it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
-                                stepInTargetSourceIndex = ancestorSourceIndex + 1
-                                stepInTargetSourceSection = sectionIndex
-                                debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, debugFrame.currentSectionIndex)
-                            })
-                            it.label = STEP_IN_NEXT_SECTION_NEXT_SOURCE_LABEL
-                        }
+                    targets += StepInTarget().also {
+                        it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
+                            debugFrame.pauseContext.stepIntoFrame()
+                        })
+                        it.label = buildStepInCurrentLabel(sectionContext)
                     }
                 }
             }
@@ -294,8 +283,27 @@ class FunctionElementDebugInformation(
             debugFrame.pauseContext.removePause()
         }
 
+        private fun haveChildSourcesBeenGenerated(): Boolean { //TODO ?
+            val sectionSourcesList = debugFrame.sectionSources
+            if(sectionSourcesList.size <= debugFrame.currentSectionIndex + 1) return false
+            val nextSectionSources = sectionSourcesList[debugFrame.currentSectionIndex + 1]
+            return nextSectionSources.parentSourceIndices.last() >= debugFrame.currentSectionSources.currentSourceIndex - 1
+        }
+
         override fun findNextPauseLocation() {
-            debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, debugFrame.currentSectionIndex)
+            /*if((debugFrame.currentContext.redirectModifier as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true && haveChildSourcesBeenGenerated()) {
+                debugFrame.onReachedPauseLocation()
+                return
+            }*/
+            if(debugFrame.sectionSources.isEmpty() || debugFrame.currentSectionSources.hasCurrent()) {
+                debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, debugFrame.currentSectionIndex)
+                return
+            }
+            if(debugFrame.currentCommandIndex + 1 >= debugFrame.contextChains.size) {
+                debugFrame.pauseContext.pauseAfterExitFrame()
+                return
+            }
+            debugFrame.pauseAtSection(debugFrame.contextChains[debugFrame.currentCommandIndex + 1].topContext, 0)
         }
 
         fun pauseAtNextCommand() {
@@ -306,6 +314,17 @@ class FunctionElementDebugInformation(
             debugFrame.pauseAtSection(debugFrame.contextChains[debugFrame.currentCommandIndex + 1].topContext, 0)
         }
 
+        fun getNextCommandSection(): Int {
+            var nextSectionIndex = debugFrame.currentSectionIndex + 1
+            var nextContext = debugFrame.currentContext.child
+            while(nextContext.redirectModifier == null && nextContext.command == null) {
+                nextContext = nextContext.child
+                if(nextContext == null) return nextSectionIndex
+                nextSectionIndex++
+            }
+            return nextSectionIndex
+        }
+
         override fun getStackFrames(sourceReference: Int?): List<MinecraftStackFrame> {
             val contextChain = debugFrame.currentContextChain
             val cursorOffset = getCursorOffset(contextChain.topContext, sourceReference) ?: return emptyList()
@@ -314,15 +333,23 @@ class FunctionElementDebugInformation(
                 val variablesReferencer = ServerCommandSourceValueReference(debugFrame.pauseContext.variablesReferenceMapper, source, setter)
                 return Scope().apply {
                     name = COMMAND_SOURCE_SCOPE_NAME
-                    variablesReference = debugFrame.pauseContext.variablesReferenceMapper.addVariablesReferencer(variablesReferencer)
+                    variablesReference = variablesReferencer.getVariablesReferencerId()
                     namedVariables = variablesReferencer.namedVariableCount
                     indexedVariables = variablesReferencer.indexedVariableCount
                 }
             }
 
+            val macrosVariableReferencer = StringMapValueReference(debugFrame.pauseContext.variablesReferenceMapper, debugFrame.macroNames.zip(debugFrame.macroArguments).toMap())
+            val macrosScope = Scope().apply {
+                name = FUNCTION_MACROS_SCOPE_NAME
+                variablesReference = macrosVariableReferencer.getVariablesReferencerId()
+                namedVariables = macrosVariableReferencer.namedVariableCount
+                indexedVariables = macrosVariableReferencer.indexedVariableCount
+            }
+
             val source = Source().apply {
                 name = FunctionDebugHandler.getSourceName(sourceFunctionFile)
-                path = PackContentFileType.FunctionsFileType.toStringPath(sourceFunctionFile)
+                path = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(sourceFunctionFile)
             }
 
             val stackFrames = ArrayList<MinecraftStackFrame>(debugFrame.currentSectionIndex + 2)
@@ -333,8 +360,8 @@ class FunctionElementDebugInformation(
                     functionStackFrameRange
                 ),
                 arrayOf(
-                    createServerCommandSourceScope(debugFrame.currentSource)
-                    //TODO: Macros
+                    createServerCommandSourceScope(debugFrame.sectionSources[0].sources[0]),
+                    macrosScope
                 )
             )
 
@@ -352,11 +379,12 @@ class FunctionElementDebugInformation(
                     ),
                     arrayOf(
                         if (sectionIndex == debugFrame.currentSectionIndex)
-                            createServerCommandSourceScope(debugFrame.currentSource) {
+                            createServerCommandSourceScope(debugFrame.sectionSources[sectionIndex].sources[sourceIndex]) {
                                 debugFrame.currentSource = it
                             }
                         else
-                            createServerCommandSourceScope(debugFrame.sectionSources[sectionIndex].sources[sourceIndex])
+                            createServerCommandSourceScope(debugFrame.sectionSources[sectionIndex].sources[sourceIndex]),
+                        macrosScope
                     )
                 ))
             }
@@ -366,16 +394,27 @@ class FunctionElementDebugInformation(
             var lastRunningModifier = debugFrame.currentSectionIndex
             var sourceIndex = debugFrame.currentSectionSources.currentSourceIndex
 
+            if(debugFrame.pauseContext.peekDebugFrame() != debugFrame)
+                sourceIndex--
+
             if(debugFrame.currentSectionIndex == modifiers.size) {
                 @Suppress("UNCHECKED_CAST")
                 addStackFrameForSection((contextChain as ContextChainAccessor<ServerCommandSource>).executable, debugFrame.currentSectionIndex, sourceIndex)
+                if(lastRunningModifier == 0) {
+                    return stackFrames
+                }
                 lastRunningModifier -= 1
                 sourceIndex = debugFrame.sectionSources[debugFrame.currentSectionIndex].parentSourceIndices[sourceIndex]
             }
 
             for(i in lastRunningModifier downTo 0) {
+                if(modifiers[i].redirectModifier == null) {
+                    continue
+                }
                 addStackFrameForSection(modifiers[i], i, sourceIndex)
-                sourceIndex = debugFrame.sectionSources[debugFrame.currentSectionIndex].parentSourceIndices[sourceIndex]
+                if(i > 0) {
+                    sourceIndex = debugFrame.sectionSources[i].parentSourceIndices[sourceIndex]
+                }
             }
 
             return stackFrames
@@ -424,8 +463,10 @@ class FunctionElementDebugInformation(
             server: MinecraftServer,
             debugInformation: FunctionElementDebugInformation,
             parsed: MutableList<Breakpoint>,
+            addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>,
             dynamics: MutableMap<FunctionElementProcessor, List<ServerBreakpoint<FunctionBreakpointLocation>>>,
             sourceReference: Int?,
+            debugConnection: EditorDebugConnection?
         )
         fun parseDynamicBreakpoints(
             breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>,
@@ -451,13 +492,34 @@ class FunctionElementDebugInformation(
     }
 
     class CommandContextElementProcessor(val rootContext: CommandContext<ServerCommandSource>, val cursorOffset: Int, val breakpointRangeGetter: ((ServerBreakpoint<FunctionBreakpointLocation>) -> StringRange)? = null) : FunctionElementProcessor {
+        private val argumentBreakpointParserSuppliers: Map<ArgumentBreakpointParserSupplier, Any>
+        init {
+            val argumentBreakpointParserSuppliers = mutableMapOf<ArgumentBreakpointParserSupplier, Any>()
+            var context: CommandContext<ServerCommandSource>? = rootContext
+            while(context != null) {
+                for(parsedNode in context.nodes) {
+                    val node = parsedNode.node
+                    if(node is ArgumentCommandNode<*, *>) {
+                        val type = node.type
+                        if(type is ArgumentBreakpointParserSupplier) {
+                            argumentBreakpointParserSuppliers[type] = context.getArgument(node.name, FunctionArgument::class.java)
+                        }
+                    }
+                }
+                context = context.child
+            }
+            this.argumentBreakpointParserSuppliers = argumentBreakpointParserSuppliers
+        }
+
         override fun parseBreakpoints(
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
             server: MinecraftServer,
             debugInformation: FunctionElementDebugInformation,
             parsed: MutableList<Breakpoint>,
+            addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>,
             dynamics: MutableMap<FunctionElementProcessor, List<ServerBreakpoint<FunctionBreakpointLocation>>>,
-            sourceReference: Int?
+            sourceReference: Int?,
+            debugConnection: EditorDebugConnection?
         ) {
             val functionId = debugInformation.functionId ?: return
             val cursorOffset =
@@ -469,6 +531,7 @@ class FunctionElementDebugInformation(
                 rootContext.range.start + cursorOffset,
                 rootContext.lastChild.range.end + cursorOffset
             )
+            val emptyArgumentBreakpointParserSuppliers = argumentBreakpointParserSuppliers.toMutableMap()
             breakpoints@while(breakpoints.isNotEmpty()) {
                 val breakpoint = breakpoints.peek()
                 val breakpointRange = breakpointRangeGetter?.invoke(breakpoint) ?: getFileBreakpointRange(breakpoint, debugInformation.lines)
@@ -484,7 +547,9 @@ class FunctionElementDebugInformation(
                     val relativeBreakpointCursor = breakpointRange - cursorOffset
                     // Find the context containing the breakpoint
                     contexts@while(context != null) {
-                        if((context.redirectModifier as? ForkableNoPauseFlag)?.`command_crafter$cantPause`() == true) {
+                        if((context.redirectModifier == null && context.command == null) ||
+                            (context.redirectModifier as? ForkableNoPauseFlag)?.`command_crafter$cantPause`() == true) {
+
                             context = context.child
                             continue
                         }
@@ -498,13 +563,14 @@ class FunctionElementDebugInformation(
                                 }
                                 //The node contains the breakpoint
                                 val node = parsedNode.node
-                                if(node is ArgumentCommandNode<*, *>) {
+                                if(sourceReference == INITIAL_SOURCE_REFERENCE && debugConnection != null && node is ArgumentCommandNode<*, *>) {
                                     val type = node.type
-                                    val argument = context.getArgument(node.name, ParsedArgument::class.java)
-                                    if(type is ArgumentBreakpointParserSupplier && argument != null) {
+                                    val argument = context.getArgument(node.name, FunctionArgument::class.java)
+                                    if(type is ArgumentBreakpointParserSupplier) {
+                                        emptyArgumentBreakpointParserSuppliers -= type
                                         val breakpointList =
-                                            type.`command_crafter$getBreakpointParser`(argument.result, server)?.parseBreakpoints(
-                                                breakpoints, server, null
+                                            type.`command_crafter$getBreakpointParser`(argument, server)?.parseBreakpoints(
+                                                breakpoints, server, null, debugConnection
                                             )
                                         if (!breakpointList.isNullOrEmpty()) {
                                             parsed += breakpointList
@@ -521,6 +587,7 @@ class FunctionElementDebugInformation(
                                     )
                                 )
                                 parsed += MinecraftDebuggerServer.acceptBreakpoint(breakpoint.unparsed)
+                                addedBreakpoints.list += breakpoint
                                 continue@breakpoints
                             }
                         }
@@ -535,6 +602,13 @@ class FunctionElementDebugInformation(
                     breakpoint.unparsed,
                     MinecraftDebuggerServer.BREAKPOINT_AT_NO_CODE_REJECTION_REASON
                 )
+                addedBreakpoints.list += breakpoint
+            }
+            if(sourceReference == INITIAL_SOURCE_REFERENCE && debugConnection != null) {
+                for((supplier, arg) in emptyArgumentBreakpointParserSuppliers) {
+                    supplier.`command_crafter$getBreakpointParser`(arg, server)
+                        ?.parseBreakpoints(LinkedList(), server, sourceReference, debugConnection)
+                }
             }
         }
         override fun parseDynamicBreakpoints(
@@ -562,11 +636,13 @@ class FunctionElementDebugInformation(
             server: MinecraftServer,
             debugInformation: FunctionElementDebugInformation,
             parsed: MutableList<Breakpoint>,
+            addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>,
             dynamics: MutableMap<FunctionElementProcessor, List<ServerBreakpoint<FunctionBreakpointLocation>>>,
             sourceReference: Int?,
+            debugConnection: EditorDebugConnection?
         ) {
             if(sourceReference == INITIAL_SOURCE_REFERENCE) {
-                parseInitialSourceBreakpoints(breakpoints, server, debugInformation, parsed, dynamics)
+                parseInitialSourceBreakpoints(breakpoints, server, debugInformation, parsed, addedBreakpoints, dynamics)
                 return
             }
             val pauseHandler = debugInformation.sourceReferenceDebugHandlers[sourceReference] ?: return
@@ -576,9 +652,8 @@ class FunctionElementDebugInformation(
                 val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
                 val cursorOffset = pauseHandler.dynamicElementPositions[context]?.get(sourceReference)?.cursor ?: return
                 CommandContextElementProcessor(context, cursorOffset) {
-                    val lines = (server as ServerDebugManagerContainer)
-                        .`command_crafter$getServerDebugManager`()
-                        .getSourceReferenceLines(it.editorConnection.player, sourceReference)
+                    val lines = server.getDebugManager()
+                        .getSourceReferenceLines(it.debugConnection, sourceReference)
                         ?: debugInformation.lines
                     getFileBreakpointRange(it, lines)
                 }.parseBreakpoints(
@@ -586,8 +661,10 @@ class FunctionElementDebugInformation(
                     server,
                     debugInformation,
                     parsed,
+                    addedBreakpoints,
                     mutableMapOf(),
-                    INITIAL_SOURCE_REFERENCE
+                    INITIAL_SOURCE_REFERENCE,
+                    null
                 )
             }
         }
@@ -597,6 +674,7 @@ class FunctionElementDebugInformation(
             server: MinecraftServer,
             debugInformation: FunctionElementDebugInformation,
             parsed: MutableList<Breakpoint>,
+            addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>,
             dynamics: MutableMap<FunctionElementProcessor, List<ServerBreakpoint<FunctionBreakpointLocation>>>
         ) {
             val dynamicBreakpoints = mutableListOf<ServerBreakpoint<FunctionBreakpointLocation>>()
@@ -613,6 +691,7 @@ class FunctionElementDebugInformation(
                             breakpoint.unparsed,
                             MinecraftDebuggerServer.DYNAMIC_BREAKPOINT_REJECTION_REASON
                         )
+                        addedBreakpoints.list += breakpoint
                         continue@breakpoints
                     }
                     // The element is after the breakpoint (meaning no previous element
@@ -622,6 +701,7 @@ class FunctionElementDebugInformation(
                         breakpoint.unparsed,
                         MinecraftDebuggerServer.BREAKPOINT_AT_NO_CODE_REJECTION_REASON
                     )
+                    addedBreakpoints.list += breakpoint
                     continue@breakpoints
                 }
                 break
@@ -661,8 +741,10 @@ class FunctionElementDebugInformation(
                     frame.pauseContext.server,
                     debugInformation,
                     mutableListOf(),
+                    BreakpointManager.AddedBreakpointList(),
                     mutableMapOf(),
-                    INITIAL_SOURCE_REFERENCE
+                    INITIAL_SOURCE_REFERENCE,
+                    null
                 )
             }
         }
@@ -681,7 +763,7 @@ class FunctionElementDebugInformation(
         }
 
         override fun getReplacings(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Iterator<FileContentReplacer.Replacing>? {
-            if(path != PackContentFileType.FunctionsFileType.toStringPath(debugInformation.sourceFunctionFile))
+            if(path != PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(debugInformation.sourceFunctionFile))
                 return null
 
             fun mapToPosition(macroSourceCursor: Int): Position {

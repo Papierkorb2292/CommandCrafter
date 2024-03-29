@@ -1,16 +1,28 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import org.eclipse.lsp4j.Position
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import java.util.*
 
-class AnalyzingResourceCreator() {
-    val functionStack: Deque<Position> = LinkedList()
-    init {
-        functionStack.push(Position(0, 0))
+class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer, val sourceFunctionUri: String) {
+    val resourceStack: Deque<ResourceStackEntry> = LinkedList()
+
+    constructor(
+        languageServer: MinecraftLanguageServer,
+        sourceFunctionUri: String,
+        topLevelAnalyzingResult: AnalyzingResult,
+    ): this(languageServer, sourceFunctionUri) {
+        resourceStack.push(ResourceStackEntry(topLevelAnalyzingResult))
     }
 
-    constructor(resourceCreator: AnalyzingResourceCreator): this() {
-        functionStack.clear()
-        functionStack.addAll(resourceCreator.functionStack)
+    constructor(
+        languageServer: MinecraftLanguageServer,
+        sourceFunctionUri: String,
+        resourceCreator: AnalyzingResourceCreator,
+    ): this(languageServer, sourceFunctionUri) {
+        resourceStack.clear()
+        resourceStack.addAll(resourceCreator.resourceStack)
     }
+
+    data class ResourceStackEntry(val analyzingResult: AnalyzingResult)
 }

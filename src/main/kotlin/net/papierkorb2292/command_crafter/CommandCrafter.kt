@@ -12,7 +12,6 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -22,6 +21,7 @@ import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
+import org.eclipse.lsp4j.Position
 import java.io.BufferedReader
 
 
@@ -42,13 +42,17 @@ object CommandCrafter: ModInitializer {
         MinecraftLanguageServer.addAnalyzer(object: FileAnalyseHandler {
             override fun canHandle(file: OpenFile) = file.uri.endsWith(".mcfunction")
 
-            override fun analyze(file: OpenFile, server: MinecraftServerConnection): AnalyzingResult {
+            override fun analyze(
+                file: OpenFile,
+                languageServer: MinecraftLanguageServer
+            ): AnalyzingResult {
                 val lines = ArrayList<String>()
                 file.lines.mapTo(lines) { it.toString() }
-                val reader = DirectiveStringReader(lines, server.commandDispatcher, AnalyzingResourceCreator())
+                val reader = DirectiveStringReader(lines, languageServer.minecraftServer.commandDispatcher, AnalyzingResourceCreator(languageServer, file.uri))
+                val result = AnalyzingResult(reader, Position())
+                reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
 
-                val result = AnalyzingResult(lines)
-                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, server.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
+                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, languageServer.minecraftServer.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                 return result
             }

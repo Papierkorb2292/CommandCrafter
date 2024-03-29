@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import java.util.concurrent.CompletableFuture
 
@@ -82,5 +83,27 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
             val last = addNewLinesAndReturnLast(lines, newLines, secondLine)
             endLineText.replace(0, endChar, last)
         }
+    }
+
+    fun analyzeFile(languageServer: MinecraftLanguageServer): CompletableFuture<AnalyzingResult>? {
+        val runningAnalyzer = analyzingResult
+        if(runningAnalyzer != null)
+            return runningAnalyzer
+        for(analyzer in MinecraftLanguageServer.analyzers) {
+            if(analyzer.canHandle(this)) {
+                val version = version
+                return CompletableFuture.supplyAsync {
+                    analyzer.analyze(this, languageServer)
+                }.also { newRunningAnalyzer ->
+                    analyzingResult = newRunningAnalyzer
+                    newRunningAnalyzer.thenAccept {
+                        if(this.version != version)
+                            return@thenAccept
+                        languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, it.diagnostics, version))
+                    }
+                }
+            }
+        }
+        return null
     }
 }

@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.brigadier.context.StringRange
+import net.papierkorb2292.command_crafter.helper.binarySearch
 import org.apache.commons.compress.harmony.pack200.IntList
-import kotlin.math.min
 
 /**
  * This class is used to map between cursor positions,
@@ -80,33 +80,32 @@ class ProcessedInputCursorMapper {
     }
 
     private fun map(inputCursors: IntList, outputCursors: IntList, inputCursor: Int): Int {
-        for(i in 0 until inputCursors.size()) {
-            if(inputCursors[i] > inputCursor) {
-                if(i == 0)
-                    return outputCursors[0]
-                val startInputCursor = inputCursors[i - 1]
-                val length = lengths[i - 1]
-                val relativeCursor = inputCursor - startInputCursor
-                return outputCursors[i - 1] + if(relativeCursor > length) length else relativeCursor
-            }
+        var mappingIndex = inputCursors.binarySearch { index ->
+            if(inputCursors[index] <= inputCursor) -1
+            else if (inputCursors[index] + lengths[index] > inputCursor) 1
+            else 0
         }
-        val lastIndex = outputCursors.size() - 1
-        return outputCursors[lastIndex] + min(lengths[lastIndex], inputCursor - inputCursors[lastIndex])
+        if(mappingIndex < 0) {
+            if(mappingIndex == -1) {
+                return inputCursor
+            }
+            mappingIndex = -(mappingIndex + 2)
+        }
+        val startInputCursor = inputCursors[mappingIndex]
+        val relativeCursor = inputCursor - startInputCursor
+        return outputCursors[mappingIndex] + relativeCursor
     }
 
     private fun mapNoGaps(inputCursors: IntList, outputCursors: IntList, inputCursor: Int): Int? {
-        for(i in 0 until inputCursors.size()) {
-            if(inputCursors[i] > inputCursor) {
-                if(i == 0)
-                    return null
-                val startInputCursor = inputCursors[i - 1]
-                val length = lengths[i - 1]
-                val relativeCursor = inputCursor - startInputCursor
-                if(relativeCursor > length)
-                    return null
-                return outputCursors[i - 1] + relativeCursor
-            }
+        val mappingIndex = inputCursors.binarySearch { index ->
+            if(inputCursors[index] <= inputCursor) -1
+            else if (inputCursors[index] + lengths[index] > inputCursor) 1
+            else 0
         }
-        return null
+        if(mappingIndex < 0)
+            return null
+        val startInputCursor = inputCursors[mappingIndex]
+        val relativeCursor = inputCursor - startInputCursor
+        return outputCursors[mappingIndex] + relativeCursor
     }
 }

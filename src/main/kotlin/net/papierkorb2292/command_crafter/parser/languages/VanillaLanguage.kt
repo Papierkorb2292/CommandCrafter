@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser.languages
 
+import com.mojang.brigadier.ImmutableStringReader
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.CommandContextBuilder
@@ -34,17 +35,17 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.Range
+import org.eclipse.lsp4j.*
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import kotlin.math.max
 import kotlin.math.min
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor as FunctionBuilderAccessor_Debug
+import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor as FunctionBuilderAccessor_Parser
+import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
 
 data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources: Boolean = false) : Language {
 
@@ -60,6 +61,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 continue
             }
             reader.saveIndentation()
+            if(!reader.canRead()) {
+                break
+            }
             if (reader.peek() == '\n') {
                 reader.skip()
                 reader.endStatement()
@@ -67,12 +71,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
-                //Can't verify syntax on macros
-                if(easyNewLine) {
-                    resource.content += Either.left('$' + readEasyNewLineMacro(reader) + '\n')
-                } else {
-                    resource.content += Either.left(reader.readLine() + '\n')
-                }
+                val macro =
+                    if(easyNewLine) '$' + readEasyNewLineMacro(reader)
+                    else reader.readLine()
+
+                //For validation
+                FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
+                    macro.substring(1), reader.currentLine - 1
+                )
+
+                resource.content += Either.left(macro + '\n')
             } else {
                 reader.onlyReadEscapedMultiline = !easyNewLine
                 val parsed = parseCommand(reader, source)
@@ -110,12 +118,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 continue
             }
             reader.saveIndentation()
+            if(!reader.canRead()) {
+                break
+            }
             if(reader.peek() == '\n') {
                 reader.skip()
                 reader.endStatementAndAnalyze(result)
                 continue
             }
-            var parseResults: ParseResults<ServerCommandSource>? = null
             try {
                 if (reader.canRead() && reader.peek() == '/') {
                     if (reader.canRead(2) && reader.peek(1) == '/') {
@@ -129,23 +139,28 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.skip()
                 }
                 if(reader.canRead() && reader.peek() == '$') {
-                    //Macros aren't analyzed
-                    if(easyNewLine) {
-                        readEasyNewLineMacro(reader)
-                    } else {
-                        reader.readLine()
+                    //Macros aren't analyzed, but FunctionBuilder does some validation
+                    val startCursor = reader.cursor
+                    try {
+                        FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
+                            if(easyNewLine) {
+                                readEasyNewLineMacro(reader)
+                            } else {
+                                reader.readLine()
+                            },
+                            reader.currentLine - 1
+                        )
+                    } catch(e: IllegalArgumentException) {
+                        throw CursorAwareExceptionWrapper(e, startCursor)
                     }
                     reader.endStatementAndAnalyze(result)
                     continue
                 }
 
-                if(!easyNewLine) {
-                    reader.escapedMultilineCursorMapper = ProcessedInputCursorMapper()
-                }
                 reader.onlyReadEscapedMultiline = !easyNewLine
-                parseResults = reader.dispatcher.parse(reader, source)
+                val parseResults = reader.dispatcher.parse(reader, source)
+                advanceToParseResults(parseResults, reader)
                 createCommandSemantics(parseResults, result, reader)
-                reader.escapedMultilineCursorMapper = null
 
                 if(easyNewLine) {
                     val exceptions = parseResults.exceptions
@@ -165,9 +180,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader)
                 }
 
-                advanceToParseResults(parseResults, reader)
-                parseResults = null // Don't accidentally skip to the now completed reader when catching the 'NEEDS_NEW_LINE_EXCEPTION'
-
                 if(easyNewLine) {
                     reader.skipSpaces()
                     if (reader.canRead() && reader.peek() != '\n') {
@@ -180,21 +192,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.skip()
                 }
             } catch(e: Exception) {
-                val exceptionCursor =
-                    if (e is CommandSyntaxException && e.cursor != -1) {
-                        val cursor = e.cursor + reader.readCharacters
-                        if(parseResults != null)
-                            advanceToParseResults(parseResults, reader)
-                        cursor
-                    }
-                    else {
-                        if(parseResults != null)
-                            advanceToParseResults(parseResults, reader)
-                        reader.absoluteCursor
-                    }
+                if (e is CursorAwareException && e.`command_crafter$getCursor`() != -1) {
+                    val cursor = e.`command_crafter$getCursor`()
+                    reader.cursor  = cursor
+                }
                 reader.onlyReadEscapedMultiline = false
                 val startPosition =
-                    AnalyzingResult.getPositionFromCursor(exceptionCursor, reader.lines)
+                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.skippingCursor), reader.lines)
                 result.diagnostics += Diagnostic(
                     Range(
                         startPosition,
@@ -227,6 +231,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 continue
             }
             reader.saveIndentation()
+            if(!reader.canRead()) {
+                break
+            }
             if(reader.peek() == '\n') {
                 reader.skip()
                 reader.endStatement()
@@ -239,9 +246,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val cursorMapper = if(easyNewLine) ProcessedInputCursorMapper() else null
                 builder.addMacroCommand(
                     if(easyNewLine) readEasyNewLineMacro(reader, cursorMapper) else reader.readLine(),
-                    reader.currentLine
+                    reader.currentLine - 1
                 )
-                val macroLines = (builder as FunctionBuilderAccessor).macroLines
+                val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
                 @Suppress("UNCHECKED_CAST")
                 elementBreakpointParsers += FunctionElementDebugInformation.MacroElementProcessor(
                     macroLines.size - 1,
@@ -391,18 +398,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     fun createCommandSemantics(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
         var context = contextBuilder.build(result.reader.string)
-
-        val semanticTokens = analyzingResult.semanticTokens
-
-        val readCharactersOffset = if(reader.escapedMultilineCursorMapper == null) reader.readCharacters else 0
-        semanticTokens.cursorMapper = reader.escapedMultilineCursorMapper
+        val initialReadCharacters = reader.readCharacters
+        val initialSkippedChars = reader.skippedChars
 
         while(contextBuilder != null && context != null) {
             for (parsedNode in contextBuilder.nodes) {
                 val node = parsedNode.node
                 if (node is AnalyzingCommandNode) {
                     try {
-                        semanticTokens.cursorOffset = readCharactersOffset + parsedNode.range.start
+                        reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+                        reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
                         node.`command_crafter$analyze`(
                             context,
                             StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
@@ -411,7 +416,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             node.name
                         )
                     } catch(_: CommandSyntaxException) { }
-                    semanticTokens.cursorOffset = 0
+                    finally {
+                        reader.readCharacters = initialReadCharacters
+                        reader.skippedChars = initialSkippedChars
+                    }
                 }
             }
             if(context.child == null && contextBuilder.nodes.isNotEmpty()) {
@@ -420,9 +428,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             contextBuilder = contextBuilder.child
             context = context.child
         }
-
-        semanticTokens.cursorOffset = 0
-        semanticTokens.cursorMapper = null
     }
 
     private fun tryAnalyzeNextNode(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
@@ -445,7 +450,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         } catch(ignored: Exception) { }
 
         try {
-            analyzingResult.semanticTokens.cursorOffset = if(reader.escapedMultilineCursorMapper == null) reader.readCharacters + start else start
             (nextNode as AnalyzingCommandNode).`command_crafter$analyze`(
                 context.build(result.reader.string),
                 StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
@@ -454,7 +458,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 nextNode.name
             )
         } catch(_: CommandSyntaxException) { }
-        analyzingResult.semanticTokens.cursorOffset = 0
     }
 
     object VanillaLanguageType : LanguageManager.LanguageType {
@@ -567,11 +570,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
         }
 
-        fun isReaderEasyNextLine(reader: StringReader): Boolean {
+        fun isReaderVanilla(reader: ImmutableStringReader): Boolean {
+            return reader is DirectiveStringReader<*> && reader.currentLanguage is VanillaLanguage
+        }
+
+        fun isReaderEasyNextLine(reader: ImmutableStringReader): Boolean {
             return reader is DirectiveStringReader<*> && reader.currentLanguage is VanillaLanguage && (reader.currentLanguage as VanillaLanguage).easyNewLine
         }
 
-        fun isReaderInlineResources(reader: StringReader): Boolean {
+        fun isReaderInlineResources(reader: ImmutableStringReader): Boolean {
             return reader is DirectiveStringReader<*> && reader.currentLanguage is VanillaLanguage && (reader.currentLanguage as VanillaLanguage).inlineResources
         }
 
@@ -602,7 +609,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             registry: Registry<T>,
         ): AnalyzedRegistryEntryList<T> {
-            val analyzingResult = AnalyzingResult(reader.lines)
+            val analyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             analyzeTagTupleEntries(reader, analyzingResult) { entryReader, entryAnalyzingResult ->
                 val startCursor = reader.cursor
                 val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
@@ -750,10 +757,24 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(!reader.canRead()) {
                 return null
             }
-            val analyzingResult = AnalyzingResult(reader.lines)
+            val analyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             if(reader.canRead(4) && reader.string.startsWith("this", reader.cursor)) {
-                val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                analyzingResult.semanticTokens.add(position.line, position.character, 4, TokenType.KEYWORD, 0)
+                analyzingResult.semanticTokens.addMultiline(reader.cursor, 4, TokenType.KEYWORD, 0)
+                val resourceCreator = reader.resourceCreator
+                val languageServer = resourceCreator.languageServer
+                val functionAnalyzingResult = resourceCreator.resourceStack.element().analyzingResult
+                val argRange = StringRange(reader.cursor, reader.cursor + 4)
+                analyzingResult.addDefinitionProvider(AnalyzingResult.RangedDataProvider(argRange) {
+                    return@RangedDataProvider CompletableFuture.completedFuture(
+                        JsonRPCEither.forLeft(
+                            listOf(Location(resourceCreator.sourceFunctionUri, Range(functionAnalyzingResult.filePosition, functionAnalyzingResult.filePosition)))
+                        )
+                    )
+                }, true)
+                val fileRange = functionAnalyzingResult.toFileRange(argRange)
+                analyzingResult.addHoverProvider(AnalyzingResult.RangedDataProvider(argRange) {
+                    return@RangedDataProvider languageServer.hoverDocumentation(functionAnalyzingResult, fileRange)
+                }, true)
                 reader.cursor += 4
             } else if(reader.peek() == '{') {
                 analyzeInlineFunction(reader, source, analyzingResult)
@@ -867,7 +888,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
 
             while(reader.canRead()) {
-                entryAnalyzer(reader, analyzingResult)
+                val entryAnalyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+                entryAnalyzer(reader, entryAnalyzingResult)
+                analyzingResult.combineWith(entryAnalyzingResult)
                 reader.skipWhitespace()
                 if(!reader.canRead()) break
                 if(reader.peek() == ')') {
@@ -934,7 +957,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun skipImprovedCommandGap(reader: DirectiveStringReader<*>): Boolean {
             val cursor = reader.cursor
-            val line = reader.currentLine
             reader.skipSpaces()
             if(!reader.canRead() || reader.peek() != '\n') {
                 return true
@@ -975,6 +997,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
             reader.skip()
+        }
+    }
+
+    interface CursorAwareException {
+        fun `command_crafter$getCursor`(): Int
+    }
+    class CursorAwareExceptionWrapper(exception: Exception, val cursor: Int) : Exception(exception.message, exception), CursorAwareException {
+        override fun `command_crafter$getCursor`(): Int {
+            return cursor
         }
     }
 }

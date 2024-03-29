@@ -41,7 +41,8 @@ public abstract class BlockArgumentParserMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;canRead()Z",
-                    remap = false
+                    remap = false,
+                    ordinal = 0
             ),
             cancellable = true
     )

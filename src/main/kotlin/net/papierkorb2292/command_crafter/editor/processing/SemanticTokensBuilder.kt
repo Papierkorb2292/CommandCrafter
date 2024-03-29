@@ -1,14 +1,12 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.SemanticTokens
 import kotlin.math.min
 
-class SemanticTokensBuilder(private val lines: List<String>) {
-    var cursorOffset = 0
-    var cursorMapper: ProcessedInputCursorMapper? = null
-
+class SemanticTokensBuilder(val reader: DirectiveStringReader<*>) {
     private val data = ArrayList<Int>(100)
     private var dataSize = 100
     private var lastLine = 0
@@ -37,66 +35,31 @@ class SemanticTokensBuilder(private val lines: List<String>) {
         lastCursor = cursor
     }
 
-    fun addAbsoluteMultiline(
-        absoluteCursor: Int,
+    fun addMultiline(
+        cursor: Int,
         length: Int,
         type: TokenType,
         modifiers: Int
     ) {
+        val lines = reader.lines
         // Find the starting line
         if(lines.isEmpty())
             return
-        var offsetCursor = absoluteCursor + cursorOffset
-        val cursorMapper = cursorMapper
-        if(cursorMapper == null) {
-            var lineNumber = 0
-            var lineLength = lines[lineNumber].length + 1 //Account for '\n'
-            while(offsetCursor >= lineLength){
-                offsetCursor -= lineLength
-                if(++lineNumber >= lines.size)
-                    return //The specified region is outside the reader
-                lineLength = lines[lineNumber].length + 1
-            }
-
-            // Add the corresponding semantic tokens
-            var remainingLength = length
-            while(true) {
-                if(offsetCursor + remainingLength <= lineLength) {
-                    add(lineNumber, offsetCursor, remainingLength, type, modifiers)
-                    break
-                }
-                val sectionLength = lineLength - offsetCursor
-                add(lineNumber, offsetCursor, sectionLength, type, modifiers)
-                remainingLength -= sectionLength
-
-                if(++lineNumber >= lines.size) break
-                lineLength = lines[lineNumber].length
-                offsetCursor = 0
-            }
-            return
-        }
+        val offsetCursor = cursor + reader.readSkippingChars
+        val cursorMapper = reader.cursorMapper
         // Map the command cursor to an absolute cursor
-        var nextMappingIndex = 0
-        var mappingRelativeCursor = 0
-        while(nextMappingIndex < cursorMapper.targetCursors.size()) {
-            if(cursorMapper.targetCursors[nextMappingIndex] > offsetCursor) {
-                if(nextMappingIndex == 0) return
-                mappingRelativeCursor = min(
-                    cursorMapper.lengths[nextMappingIndex - 1],
-                    offsetCursor - cursorMapper.targetCursors[nextMappingIndex - 1]
-                )
-                break
-            }
-            nextMappingIndex++
+        var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
+            if(cursorMapper.targetCursors[index] <= offsetCursor) -1
+            else if (cursorMapper.targetCursors[index] + cursorMapper.lengths[index] > offsetCursor) 1
+            else 0
         }
-        if(nextMappingIndex == cursorMapper.targetCursors.size()) {
-            val lastIndex = cursorMapper.sourceCursors.size() - 1
-            mappingRelativeCursor = min(
-                cursorMapper.lengths[lastIndex],
-                offsetCursor - cursorMapper.targetCursors[lastIndex]
-            )
+        if(mappingIndex < 0) {
+            mappingIndex = -(mappingIndex + 2)
         }
-        var mappingIndex = nextMappingIndex - 1
+        var mappingRelativeCursor = offsetCursor
+        if(mappingIndex >= 0) {
+            mappingRelativeCursor -= cursorMapper.targetCursors[mappingIndex]
+        }
 
         // Get the corresponding line for the absolute cursor
         var lineNumber = 0
@@ -106,10 +69,16 @@ class SemanticTokensBuilder(private val lines: List<String>) {
         var remainingLength = length
         var prevMappingAbsoluteStart = 0
         while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size()) {
-            var remainingLengthCoveredByMapping = min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
+            var remainingLengthCoveredByMapping =
+                if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
+                    min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
+                else
+                    remainingLength
             remainingLength -= remainingLengthCoveredByMapping
 
-            val mappingAbsoluteStart = cursorMapper.sourceCursors[mappingIndex] + mappingRelativeCursor
+            val mappingAbsoluteStart =
+                if(mappingIndex >= 0) cursorMapper.sourceCursors[mappingIndex] + mappingRelativeCursor
+                else mappingRelativeCursor
             var cursorDelta = mappingAbsoluteStart - prevMappingAbsoluteStart
             prevMappingAbsoluteStart = mappingAbsoluteStart
 
@@ -142,8 +111,8 @@ class SemanticTokensBuilder(private val lines: List<String>) {
         }
     }
 
-    fun addAbsoluteMultiline(range: StringRange, type: TokenType, modifiers: Int) {
-        addAbsoluteMultiline(range.start, range.length, type, modifiers)
+    fun addMultiline(range: StringRange, type: TokenType, modifiers: Int) {
+        addMultiline(range.start, range.length, type, modifiers)
     }
 
     fun addRelative(lineDelta: Int, cursorDelta: Int, length: Int, type: TokenType, modifiers: Int) {

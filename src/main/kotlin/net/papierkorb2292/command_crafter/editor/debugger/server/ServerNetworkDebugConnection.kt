@@ -2,23 +2,32 @@ package net.papierkorb2292.command_crafter.editor.debugger.server
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.network.PacketByteBuf
+import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
-import net.papierkorb2292.command_crafter.editor.debugger.helper.*
+import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
+import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
+import net.papierkorb2292.command_crafter.editor.debugger.helper.readBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.helper.writeBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.networking.*
 import org.eclipse.lsp4j.debug.BreakpointEventArguments
 import org.eclipse.lsp4j.debug.StoppedEventArguments
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.collections.set
 
-class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEditorDebugConnection: UUID) : EditorDebugConnection {
-    private var currentPauseId: UUID? = null
+class ServerNetworkDebugConnection(player: ServerPlayerEntity, val clientEditorDebugConnection: UUID) : NetworkIdentifiedDebugConnection {
+    override val networkHandler: ServerPlayNetworkHandler = player.networkHandler
+    var currentPauseId: UUID? = null
+        private set
+
     private val packetSender = ServerPlayNetworking.getSender(player)
+    private val playerName = player.name.string
 
     override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
-        val pauseId = NetworkServerConnection.addServerDebugPause(DebugPauseInformation(actions, variables, player))
+        val pauseId = NetworkServerConnection.addServerDebugPause(DebugPauseInformation(actions, variables, clientEditorDebugConnection))
         currentPauseId = pauseId
         packetSender.sendPacket(
             NetworkServerConnection.setDebuggerPausedPacketChannel,
@@ -63,7 +72,11 @@ class ServerNetworkDebugConnection(val player: ServerPlayerEntity, val clientEdi
         packetSender.sendPacket(NetworkServerConnection.debuggerPauseLocationSkippedPacketChannel, PauseLocationSkippedS2CPacket(clientEditorDebugConnection).write())
     }
 
-    class DebugPauseInformation(val actions: DebugPauseActions, val pauseContext: VariablesReferencer, val player: ServerPlayerEntity)
+    override fun toString(): String {
+        return "ServerNetworkDebugConnection(player=${playerName})"
+    }
+
+    class DebugPauseInformation(val actions: DebugPauseActions, val pauseContext: VariablesReferencer, val clientEditorDebugConnection: UUID)
 
     class PopStackFramesS2CPacket(val amount: Int, val editorDebugConnection: UUID): ByteBufWritable {
         constructor(buf: PacketByteBuf): this(buf.readInt(), buf.readUuid())

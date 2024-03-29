@@ -24,15 +24,18 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 @Mixin(SingleCommandAction.class)
 public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> implements DebugPauseHandlerCreatorIndexConsumer {
-    //TODO Multi action mutable sources
+
     @Shadow @Final private ContextChain<T> contextChain;
 
     @Override
@@ -63,12 +66,13 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
                     opcode = Opcodes.GETFIELD
             )
     )
-    private ContextChain<T> command_crafter$advanceContextChainForContinue(ContextChain<T> chain, @Share("debugFrame") LocalRef<FunctionDebugFrame> frameRef) {
+    private ContextChain<T> command_crafter$advanceContextChainForContinue(ContextChain<T> chain, @Share("debugFrame") LocalRef<FunctionDebugFrame> frameRef, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("sectionIndex") LocalIntRef sectionIndexRef) {
         var frame = frameRef.get();
         if (frame != null) {
-            for (var i = 0; i < frame.getCurrentSectionIndex(); i++) {
+            for (var i = commandInfoRef.get().getSectionOffset(); i < frame.getCurrentSectionIndex(); i++) {
                 chain = chain.nextStage();
             }
+            sectionIndexRef.set(Math.max(frame.getCurrentSectionIndex(), commandInfoRef.get().getSectionOffset()));
         }
         return chain;
     }
@@ -81,8 +85,11 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
                     remap = false
             )
     )
-    private void command_crafter$advanceCommandSection(T baseSource, List<T> sources, CommandExecutionContext<T> context, Frame frame, ExecutionFlags flags, CallbackInfo ci, @Share("sectionIndex") LocalIntRef sectionIndexRef) {
-        sectionIndexRef.set(sectionIndexRef.get() + 1);
+    private void command_crafter$advanceCommandSection(T baseSource, List<T> sources, CommandExecutionContext<T> context, Frame frame, ExecutionFlags flags, CallbackInfo ci, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
+        var debugFrame = debugFrameRef.get();
+        if (debugFrame != null) {
+            debugFrame.setCurrentSectionIndex(debugFrame.getCurrentSectionIndex() + 1);
+        }
     }
 
     @ModifyVariable(
@@ -93,14 +100,16 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
             ),
             ordinal = 1
     )
-    private List<T> command_crafter$createFirstSectionSources(List<T> sources, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef, @Share("sectionIndex") LocalIntRef sectionIndexRef) {
+    private List<T> command_crafter$createFirstSectionSources(List<T> sources, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         var debugFrame = debugFrameRef.get();
         if(debugFrame == null) return sources;
-        var absoluteSectionIndex = commandInfoRef.get().getSectionOffset();
+        var absoluteSectionIndex = debugFrame.getCurrentSectionIndex();
         if(debugFrame.getSectionSources().size() > absoluteSectionIndex) {
             //noinspection unchecked
             return (List<T>) debugFrame.getSectionSources().get(absoluteSectionIndex).getSources();
         }
+        //Make mutable for debugger variable references
+        sources = new ArrayList<>(sources);
         //noinspection unchecked
         debugFrame.getSectionSources().add(new FunctionDebugFrame.SectionSources((List<ServerCommandSource>) sources, new ArrayList<>(), 0));
         return sources;
@@ -111,10 +120,10 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
             at = @At("STORE"),
             ordinal = 2
     )
-    private List<T> command_crafter$createNextSectionSources(List<T> sources, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef, @Share("sectionIndex") LocalIntRef sectionIndexRef) {
+    private List<T> command_crafter$createNextSectionSources(List<T> sources, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         var debugFrame = debugFrameRef.get();
         if(debugFrame == null) return sources;
-        var absoluteSectionIndex = sectionIndexRef.get() + commandInfoRef.get().getSectionOffset() + 1;
+        var absoluteSectionIndex = debugFrame.getCurrentSectionIndex() + 1;
         if(debugFrame.getSectionSources().size() > absoluteSectionIndex) {
             //noinspection unchecked
             return (List<T>) debugFrame.getSectionSources().get(absoluteSectionIndex).getSources();
@@ -122,6 +131,21 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
         //noinspection unchecked
         debugFrame.getSectionSources().add(new FunctionDebugFrame.SectionSources((List<ServerCommandSource>) sources, new ArrayList<>(), 0));
         return sources;
+    }
+
+    @ModifyArg(
+            method = "execute",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Ljava/util/List;addAll(Ljava/util/Collection;)Z"
+            )
+    )
+    private Collection<T> command_crafter$setParentSourceIndices(Collection<T> newSources, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
+        var debugFrame = debugFrameRef.get();
+        if(debugFrame == null) return newSources;
+        var sectionSources = debugFrame.getSectionSources().get(debugFrame.getCurrentSectionIndex() + 1);
+        sectionSources.getParentSourceIndices().addAll(Collections.nCopies(newSources.size(), debugFrame.getCurrentSectionSources().getCurrentSourceIndex() - 1));
+        return newSources;
     }
 
     @ModifyExpressionValue(
@@ -132,11 +156,11 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
                     remap = false
             )
     )
-    private RedirectModifier<T> command_crafter$createNextForwardedSectionSources(RedirectModifier<T> modifier, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef, @Share("sectionIndex") LocalIntRef sectionIndexRef) {
+    private RedirectModifier<T> command_crafter$createNextForwardedSectionSources(RedirectModifier<T> modifier, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         if (modifier != null) return modifier;
         var debugFrame = debugFrameRef.get();
         if(debugFrame == null) return null;
-        var absoluteSectionIndex = sectionIndexRef.get() + commandInfoRef.get().getSectionOffset() + 1;
+        var absoluteSectionIndex = debugFrame.getCurrentSectionIndex() + 1;
         if (debugFrame.getSectionSources().size() <= absoluteSectionIndex) {
             var sectionSources = debugFrame.getSectionSources();
             sectionSources.add(sectionSources.get(sectionSources.size() - 1));
@@ -148,19 +172,19 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
             method = "execute",
             at = @At(
                     value = "INVOKE",
-                    target = "Ljava/util/Iterator;next()Ljava/lang/Object;"
+                    target = "Ljava/util/Iterator;next()Ljava/lang/Object;",
+                    ordinal = 0
             )
     )
-    private Object command_crafter$checkIteratingSectionPause(
+    private Object command_crafter$checkIteratingModifierPause(
             Object source,
             @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef,
             @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef,
-            @Share("sectionIndex") LocalIntRef sectionIndexRef,
             @Local CommandContext<ServerCommandSource> topContext
             ) {
         var debugFrame = debugFrameRef.get();
         if(debugFrame == null) return source;
-        debugFrame.checkPause(commandInfoRef.get(), sectionIndexRef.get(), topContext, (ServerCommandSource) source);
+        debugFrame.checkPause(commandInfoRef.get(), topContext, (ServerCommandSource) source);
         var sectionSources = debugFrame.getCurrentSectionSources();
         sectionSources.setCurrentSourceIndex(sectionSources.getCurrentSourceIndex() + 1);
         return source;
@@ -170,12 +194,13 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
             method = "execute",
             at = @At(
                     value = "INVOKE",
-                    target = "Ljava/util/List;iterator()Ljava/util/Iterator;"
+                    target = "Ljava/util/List;iterator()Ljava/util/Iterator;",
+                    ordinal = 0
             )
     )
-    private List<T> command_crafter$skipProcessedSources(List<T> sources, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef, @Share("sectionIndex") LocalIntRef sectionIndexRef) {
+    private List<T> command_crafter$skipProcessedSources(List<T> sources, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         var debugFrame = debugFrameRef.get();
         if(debugFrame == null) return sources;
-        return sources.subList(debugFrame.getSectionSources().get(sectionIndexRef.get()).getCurrentSourceIndex(), sources.size());
+        return sources.subList(debugFrame.getCurrentSectionSources().getCurrentSourceIndex(), sources.size());
     }
 }

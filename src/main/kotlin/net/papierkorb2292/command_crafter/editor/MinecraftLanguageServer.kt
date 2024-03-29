@@ -1,24 +1,33 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.StringRange
+import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.MinecraftLanguageServerExtension
 import net.papierkorb2292.command_crafter.editor.console.*
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnection)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
     : MinecraftServerConnectedLanguageServer, EditorClientAware,
     MinecraftLanguageServerExtension {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
+
+        val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
+        val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
 
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
@@ -27,7 +36,11 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
         const val CLIENT_LOG_CHANNEL = "client"
     }
 
-    private var client: EditorClient? = null
+    var minecraftServer = minecraftServer
+        private set
+    var client: CommandCrafterLanguageClient? = null
+        private set
+
     private var remote: Endpoint? = null
     private var running = true
 
@@ -71,6 +84,8 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
             setTextDocumentSync(TextDocumentSyncOptions().apply {
                 change = TextDocumentSyncKind.Incremental
                 openClose = true
+                hoverProvider = Either.forLeft(true)
+                definitionProvider = Either.forLeft(true)
             })
             semanticTokensProvider = SemanticTokensWithRegistrationOptions(
                 SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS),
@@ -109,7 +124,7 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
                 if(params == null) return
                 val textDocument = params.textDocument
                 openFiles[textDocument.uri] = OpenFile(textDocument.uri, OpenFile.linesFromString(textDocument.text), textDocument.version).also {
-                    analyzeFile(it)
+                    it.analyzeFile(this@MinecraftLanguageServer)
                 }
             }
 
@@ -121,29 +136,7 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
                 for(change in params.contentChanges) {
                     file.applyContentChange(change)
                 }
-                analyzeFile(file)
-            }
-
-            fun analyzeFile(file: OpenFile): CompletableFuture<AnalyzingResult>? {
-                val runningAnalyzer = file.analyzingResult
-                if(runningAnalyzer != null)
-                    return runningAnalyzer
-                for(analyzer in analyzers) {
-                    if(analyzer.canHandle(file)) {
-                        val version = file.version
-                        return CompletableFuture.supplyAsync {
-                            analyzer.analyze(file, minecraftServer)
-                        }.apply {
-                            file.analyzingResult = this
-                            thenAccept {
-                                if(file.version != version)
-                                    return@thenAccept
-                                client?.publishDiagnostics(PublishDiagnosticsParams(file.uri, it.diagnostics, version))
-                            }
-                        }
-                    }
-                }
-                return null
+                file.analyzeFile(this@MinecraftLanguageServer)
             }
 
             override fun didClose(params: DidCloseTextDocumentParams?) {
@@ -162,7 +155,7 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
                 val file = openFiles[params.textDocument.uri]
                     ?: return CompletableFuture.completedFuture(SemanticTokens())
 
-                val analyzer = analyzeFile(file)
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
                     ?: return CompletableFuture.completedFuture(SemanticTokens())
                 return analyzer.thenApply { it.semanticTokens.build() }
             }
@@ -172,9 +165,33 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
                 val file = openFiles[params.textDocument.uri]
                     ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
 
-                val analyzer = analyzeFile(file)
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
                     ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
                 return analyzer.thenApply { DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics)) }
+            }
+
+
+
+            override fun hover(params: HoverParams): CompletableFuture<Hover> {
+                val file = openFiles[params.textDocument.uri] ?: return emptyHoverDefault
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyHoverDefault
+
+                val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, params.position)
+                return analyzer.thenCompose {
+                    val provider = it.getHoverProviderForCursor(cursor) ?: return@thenCompose emptyHoverDefault
+                    provider.dataProvider(cursor)
+                }
+            }
+
+            override fun definition(params: DefinitionParams): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
+                val file = openFiles[params.textDocument.uri] ?: return emptyDefinitionDefault
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyDefinitionDefault
+
+                val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, params.position)
+                return analyzer.thenCompose {
+                    val provider = it.getDefinitionProviderForCursor(cursor) ?: return@thenCompose emptyDefinitionDefault
+                    provider.dataProvider(cursor)
+                }
             }
         }
     }
@@ -203,7 +220,119 @@ class MinecraftLanguageServer(private var minecraftServer: MinecraftServerConnec
         }
     }
 
-    override fun connect(client: EditorClient) {
+    override fun connect(client: CommandCrafterLanguageClient) {
         this.client = client
+    }
+
+    fun getOpenFile(uri: String) = openFiles[uri]
+
+    fun markDocumentation(documentation: String): CompletableFuture<String> {
+        val client = client ?: return CompletableFuture.completedFuture(documentation)
+        val reader = StringReader(documentation)
+        val replacings = mutableListOf<CompletableFuture<Pair<StringRange, String?>>>()
+        while(reader.canRead()) {
+            val i = reader.cursor
+            val c = reader.read()
+            if(c == '@') {
+                while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
+                    reader.skip()
+                val end = reader.cursor
+                replacings += CompletableFuture.completedFuture(StringRange(i, end) to "**${reader.string.subSequence(i, end)}**")
+                continue
+            }
+            if(c == ':') {
+                val idStart = documentation.subSequence(0, i)
+                    .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
+                while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
+                    reader.skip()
+                val idEnd = reader.cursor
+                val resourceSearchKeywords = PackContentFileType.parseKeywords(reader.string, idStart, idEnd).toSet()
+                val range = StringRange(idStart, idEnd)
+                replacings += PackContentFileType.findWorkspaceResourceFromId(
+                    Identifier(documentation.substring(idStart, idEnd)),
+                    client,
+                    resourceSearchKeywords
+                ).thenApply { resource ->
+                    range to
+                            if(resource == null) "`${range.get(reader.string)}`"
+                            else "[${range.get(reader.string)}](${resource.second})"
+                }
+            }
+        }
+        return CompletableFuture.allOf(*replacings.toTypedArray()).thenApply {
+            val newDocumentation = StringBuilder(documentation)
+            for(replacing in replacings) {
+                val (range, replacement) = replacing.get()
+                if(replacement == null) continue
+                val offset = newDocumentation.length - documentation.length
+                newDocumentation.replace(range.start + offset, range.end + offset, replacement)
+            }
+            newDocumentation.toString()
+        }
+    }
+
+    fun hoverDocumentation(analyzingResult: AnalyzingResult, fileRange: Range): CompletableFuture<Hover> {
+        return hoverDocumentation(analyzingResult.documentation, fileRange)
+    }
+    fun hoverDocumentation(documentation: String?, fileRange: Range): CompletableFuture<Hover> {
+        if(documentation == null)
+            return CompletableFuture.completedFuture(
+                Hover(emptyList(), fileRange)
+            )
+        return markDocumentation(documentation).thenApply {
+            Hover(MarkupContent("markdown", it), fileRange)
+        }
+    }
+
+    fun findFileAndAnalyze(id: Identifier, packContentFileType: PackContentFileType): CompletableFuture<out AnalyzingResult?> {
+        val client = client ?: return CompletableFuture.completedFuture(null)
+        return PackContentFileType.findWorkspaceResourceFromIdAndPackContentFileType(
+            id,
+            packContentFileType,
+            client
+        ).thenCompose { fileUri ->
+            if (fileUri == null) {
+                return@thenCompose CompletableFuture.completedFuture(null)
+            }
+            analyzeFileFromUri(fileUri)
+        }
+    }
+
+    fun findFileAndGetDocs(id: Identifier, packContentFileType: PackContentFileType): CompletableFuture<String?> {
+        return findFileAndAnalyze(id, packContentFileType).thenApply {
+            it?.documentation
+        }
+    }
+
+    fun findFileAndAnalyze(id: Identifier, packContentKeywords: Set<String>): CompletableFuture<out AnalyzingResult?> {
+        val client = client ?: return CompletableFuture.completedFuture(null)
+        return PackContentFileType.findWorkspaceResourceFromId(
+            id,
+            client,
+            packContentKeywords
+        ).thenCompose { fileUri ->
+            if (fileUri == null) {
+                return@thenCompose CompletableFuture.completedFuture(null)
+            }
+            analyzeFileFromUri(fileUri.second)
+        }
+    }
+
+    fun findFileAndGetDocs(id: Identifier, packContentKeywords: Set<String>): CompletableFuture<String?> {
+        return findFileAndAnalyze(id, packContentKeywords).thenApply {
+            it?.documentation
+        }
+    }
+
+    fun analyzeFileFromUri(uri: String): CompletableFuture<out AnalyzingResult?> {
+        val client = client ?: return CompletableFuture.completedFuture(null)
+        val openFile = openFiles[uri]
+        return if (openFile != null) {
+            openFile.analyzeFile(this) ?: CompletableFuture.completedFuture(null)
+        } else {
+            client.getFileContent(uri).thenCompose { content ->
+                OpenFile.fromString(uri, content, 0).analyzeFile(this) ?: CompletableFuture.completedFuture(null)
+            }
+        }
     }
 }

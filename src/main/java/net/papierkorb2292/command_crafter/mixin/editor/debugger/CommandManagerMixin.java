@@ -71,14 +71,14 @@ public abstract class CommandManagerMixin {
                 } finally {
                     if(resetContext)
                         PauseContext.Companion.resetPauseContext();
-                    CURRENT_CONTEXT.set(null);
+                    CURRENT_CONTEXT.remove();
                 }
             });
             ((ExecutionCompletedFutureProvider) executionContext)
                     .command_crafter$getExecutionCompletedFuture()
                     .thenRun(executionContext::close);
             if(resetContext) {
-                CURRENT_CONTEXT.set(null);
+                CURRENT_CONTEXT.remove();
                 PauseContext.Companion.resetPauseContext();
                 ci.cancel();
                 return;

@@ -18,7 +18,7 @@ interface ServerDebugConnectionService {
         editorDebugConnection: EditorDebugConnection
     ): CompletableFuture<SetBreakpointsResponse>
 
-    fun retrieveSourceReference(sourceReference: Int): CompletableFuture<SourceResponse>
+    fun retrieveSourceReference(sourceReference: Int, editorDebugConnection: EditorDebugConnection): CompletableFuture<SourceResponse>
 
     fun removeEditorDebugConnection(editorDebugConnection: EditorDebugConnection)
 }

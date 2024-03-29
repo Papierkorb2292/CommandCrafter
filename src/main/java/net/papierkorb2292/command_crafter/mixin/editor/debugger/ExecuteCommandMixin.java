@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
+import net.minecraft.command.CommandAction;
 import net.minecraft.command.ExecutionControl;
 import net.minecraft.command.ExecutionFlags;
 import net.minecraft.command.ReturnValueConsumer;
@@ -84,7 +85,10 @@ public class ExecuteCommandMixin {
         if(debugFrame == null) return original;
         var commandInfo = commandInfoRef.get();
         return control -> {
-            debugFrame.checkPause(commandInfo, 0, contextChain.getTopContext(), (ServerCommandSource)source);
+            debugFrame.setCurrentSectionIndex(commandInfo.getSectionOffset());
+            debugFrame.checkPause(commandInfo, contextChain.getTopContext(), (ServerCommandSource)source);
+            var sectionSources = debugFrame.getCurrentSectionSources();
+            sectionSources.setCurrentSourceIndex(sectionSources.getCurrentSourceIndex() + 1);
             original.accept(control);
         };
     }
@@ -94,14 +98,33 @@ public class ExecuteCommandMixin {
             method = "enqueueExecutions",
             at = @At("STORE")
     )
-    private static ReturnValueConsumer command_crafter$advanceSectionSources(ReturnValueConsumer original, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
+    private static <T extends AbstractServerCommandSource<T>> ReturnValueConsumer command_crafter$setParentSourceIndex(ReturnValueConsumer original, T baseSource, List<T> sources, Function<T, T> functionSourceGetter, IntPredicate predicate, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         var debugFrame = debugFrameRef.get();
         if(debugFrame == null) return original;
 
         return (success, returnValue) -> {
-            var sectionSources = debugFrame.getCurrentSectionSources();
-            sectionSources.setCurrentSourceIndex(sectionSources.getCurrentSourceIndex() + 1);
+            if(predicate.test(returnValue)) {
+                var sectionSources = debugFrame.getCurrentSectionSources();
+                var currentSourceIndex = sectionSources.getCurrentSourceIndex() - 1;
+                debugFrame.getSectionSources().get(debugFrame.getCurrentSectionIndex() + 1).getParentSourceIndices().add(currentSourceIndex);
+            }
             original.onResult(success, returnValue);
+        };
+    }
+
+    @ModifyArg(
+            method = "enqueueExecutions",
+            at = @At(
+                    value = "INVOKE:LAST",
+                    target = "Lnet/minecraft/command/ExecutionControl;enqueueAction(Lnet/minecraft/command/CommandAction;)V"
+            )
+    )
+    private static <T extends AbstractServerCommandSource<T>> CommandAction<T> command_crafter$advanceCurrentSectionIndex(CommandAction<T> original, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef) {
+        var debugFrame = debugFrameRef.get();
+        if(debugFrame == null) return original;
+        return (context, frame) -> {
+            debugFrame.setCurrentSectionIndex(commandInfoRef.get().getSectionOffset() + 1);
+            original.execute(context, frame);
         };
     }
 }

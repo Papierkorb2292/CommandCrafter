@@ -8,6 +8,7 @@ import kotlin.Unit;
 import net.minecraft.command.CommandExecutionContext;
 import net.minecraft.command.CommandQueueEntry;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionCompletedFutureProvider;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -33,12 +34,10 @@ public class CommandExecutionContextMixin<T> implements ExecutionCompletedFuture
             )
     )
     public void command_crafter$setCommandQueueEntry(CommandQueueEntry<T> commandQueueEntry, CommandExecutionContext<T> context, Operation<Void> op) {
-        command_crafter$currentCommandQueueEntry = commandQueueEntry;
-        try {
-            op.call(commandQueueEntry, context);
-        } finally {
-            command_crafter$currentCommandQueueEntry = null;
-        }
+        if(!(commandQueueEntry.action() instanceof ExitDebugFrameCommandAction))
+            command_crafter$currentCommandQueueEntry = commandQueueEntry;
+        op.call(commandQueueEntry, context);
+        command_crafter$currentCommandQueueEntry = null;
     }
 
     @WrapWithCondition(

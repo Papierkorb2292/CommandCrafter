@@ -18,6 +18,9 @@ interface UnparsableCommandNode {
     ): List<Either<String, RawResource>>
 
     companion object {
-        fun unparseNodeFromStringRange(context: CommandContext<ServerCommandSource>, range: StringRange) = context.input.substring(range.start, min(range.end, context.input.length))
+        fun unparseNodeFromStringRange(context: CommandContext<ServerCommandSource>, range: StringRange) =
+            sanitizeMultiline(context.input.substring(range.start, min(range.end, context.input.length)))
+
+        fun sanitizeMultiline(string: String) = string.trimIndent().replace('\n', ' ')
     }
 }

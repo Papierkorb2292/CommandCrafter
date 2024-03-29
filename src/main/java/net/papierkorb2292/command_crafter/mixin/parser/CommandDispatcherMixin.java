@@ -12,6 +12,7 @@ import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.parser.helper.DirectiveStringReaderConsumer;
 import net.papierkorb2292.command_crafter.parser.helper.ServerSourceAware;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Final;
@@ -68,9 +69,7 @@ public class CommandDispatcherMixin {
                 return false;
             }
             if(VanillaLanguage.Companion.isReaderEasyNextLine(reader) && reader.canRead() && reader.peek() == '\n') {
-                var cursor = reader.getCursor();
                 if(!VanillaLanguage.Companion.skipImprovedCommandGap(directiveStringReader)) {
-                    reader.setCursor(cursor);
                     return false;
                 }
                 reader.setCursor(reader.getCursor() - 1);
@@ -83,21 +82,20 @@ public class CommandDispatcherMixin {
             method = "lambda$parseNodes$1(Lcom/mojang/brigadier/ParseResults;Lcom/mojang/brigadier/ParseResults;)I",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/ParseResults;getExceptions()Ljava/util/Map;"
+                    target = "Lcom/mojang/brigadier/ParseResults;getExceptions()Ljava/util/Map;",
+                    ordinal = 0
             ),
             cancellable = true,
             remap = false
     )
     private static void command_crafter$useFurtherParsedResults(ParseResults<?> a, ParseResults<?> b, CallbackInfoReturnable<Integer> cir) {
-        var reader = a.getReader();
-        var cursorA = a.getReader().getCursor();
-        if(reader instanceof DirectiveStringReader<?> directiveStringReader)
-            cursorA += directiveStringReader.getReadCharacters();
+        var readerA = a.getReader();
+        var readerB = b.getReader();
+        if(!VanillaLanguage.Companion.isReaderVanilla(readerA) || !VanillaLanguage.Companion.isReaderVanilla(readerB))
+            return;
+        var cursorA = ((DirectiveStringReader<?>) readerA).getAbsoluteCursor();
+        var cursorB = ((DirectiveStringReader<?>) readerB).getAbsoluteCursor();
 
-        reader = b.getReader();
-        var cursorB = b.getReader().getCursor();
-        if(reader instanceof DirectiveStringReader<?> directiveStringReader)
-            cursorB += directiveStringReader.getReadCharacters();
         var lengthCompare = Integer.compare(cursorB, cursorA);
         if(lengthCompare != 0) {
             cir.setReturnValue(lengthCompare);
@@ -129,5 +127,50 @@ public class CommandDispatcherMixin {
             serverSourceAware.command_crafter$setServerCommandSource(source);
         }
         return node;
+    }
+
+    @ModifyExpressionValue(
+            method = "parse(Lcom/mojang/brigadier/StringReader;Ljava/lang/Object;)Lcom/mojang/brigadier/ParseResults;",
+            at = @At(
+                    value = "NEW",
+                    target = "com/mojang/brigadier/context/CommandContextBuilder"
+            ),
+            remap = false
+    )
+    private CommandContextBuilder<?> command_crafter$setContextBuilderReader(CommandContextBuilder<?> builder, @Local StringReader reader) {
+        if(reader instanceof DirectiveStringReader<?> directiveStringReader) {
+            ((DirectiveStringReaderConsumer)builder).command_crafter$setStringReader(directiveStringReader);
+        }
+        return builder;
+    }
+
+    @ModifyExpressionValue(
+            method = "parseNodes",
+            at = @At(
+                    value = "NEW",
+                    target = "com/mojang/brigadier/context/CommandContextBuilder"
+            ),
+            remap = false
+    )
+    private CommandContextBuilder<?> command_crafter$setRedirectContextBuilderReader(CommandContextBuilder<?> builder, @Local(ordinal = 1) StringReader reader) {
+        if(reader instanceof DirectiveStringReader<?> directiveStringReader) {
+            ((DirectiveStringReaderConsumer)builder).command_crafter$setStringReader(directiveStringReader);
+        }
+        return builder;
+    }
+
+    @ModifyExpressionValue(
+            method = "parseNodes",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/context/CommandContextBuilder;copy()Lcom/mojang/brigadier/context/CommandContextBuilder;"
+            ),
+            remap = false
+    )
+    private CommandContextBuilder<?> command_crafter$setChildContextBuilderReader(CommandContextBuilder<?> builder, @Local StringReader reader) {
+        if(reader instanceof DirectiveStringReader<?> directiveStringReader) {
+            ((DirectiveStringReaderConsumer)builder).command_crafter$setStringReader(directiveStringReader);
+        }
+        return builder;
     }
 }
