@@ -38,8 +38,7 @@
     ]
   },
   "mixins": [
-    "command_crafter.mixins.json",
-    "client_command_crafter.mixins.json"
+    "command_crafter.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.15.6",
