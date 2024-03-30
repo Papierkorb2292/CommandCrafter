@@ -136,98 +136,126 @@ object LanguageManager {
     }
 
     fun readAndAnalyzeDocComment(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult): String? {
-        if(!reader.canRead() || reader.peek() != '#')
-            return null
         val docCommentBuilder = StringBuilder()
-        while(reader.canRead() && reader.peek() == '#') {
-            reader.skip()
-            val lineStart = reader.cursor
-            var highlightStart = lineStart - 1
-            while(reader.canRead()) {
-                val c = reader.read()
-                if(c == '\n') {
-                    result.semanticTokens.addMultiline(highlightStart, reader.cursor - highlightStart, TokenType.COMMENT, 0)
-                    break
-                }
-                if(c == ' ')
-                    continue
-                if(c == '@') {
-                    result.semanticTokens.addMultiline(highlightStart, reader.cursor - highlightStart - 1, TokenType.COMMENT, 0)
-                    val annotationStart = reader.cursor - 1
-                    while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
-                        reader.skip()
-                    val annotationEnd = reader.cursor
-                    result.semanticTokens.addMultiline(annotationStart, annotationEnd - annotationStart, TokenType.MACRO, 0)
-                    highlightStart = annotationEnd
-                    continue
-                }
-                if(c == ':') {
-                    val string = reader.string
-                    val idStart = string.subSequence(0, reader.cursor - 1)
-                        .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
-                    result.semanticTokens.addMultiline(highlightStart, idStart - highlightStart, TokenType.COMMENT, 0)
-                    while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
-                        reader.skip()
-                    val idEnd = reader.cursor
-                    val idRange = StringRange(idStart, idEnd)
-                    result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
-                    val languageServer = reader.resourceCreator.languageServer
-                    result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                        val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                        languageServer.findFileAndAnalyze(
-                            Identifier(string.substring(idStart, idEnd)),
-                            keywords
-                        ).thenCompose { analyzingResult ->
-                            if(analyzingResult == null) {
-                                CompletableFuture.completedFuture(Hover(emptyList()))
-                            } else {
-                                languageServer.hoverDocumentation(
-                                    analyzingResult,
-                                    analyzingResult.toFileRange(idRange)
+        val foundComment = reader.trySkipWhitespace {
+            if(!reader.canRead() || reader.peek() != '#')
+                return@trySkipWhitespace false
+            while(reader.canRead() && reader.peek() == '#') {
+                reader.skip()
+                val lineStart = reader.cursor
+                var highlightStart = lineStart - 1
+                while(reader.canRead()) {
+                    val c = reader.read()
+                    if(c == '\n') {
+                        result.semanticTokens.addMultiline(
+                            highlightStart,
+                            reader.cursor - highlightStart,
+                            TokenType.COMMENT,
+                            0
+                        )
+                        break
+                    }
+                    if(c == ' ')
+                        continue
+                    if(c == '@') {
+                        result.semanticTokens.addMultiline(
+                            highlightStart,
+                            reader.cursor - highlightStart - 1,
+                            TokenType.COMMENT,
+                            0
+                        )
+                        val annotationStart = reader.cursor - 1
+                        while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
+                            reader.skip()
+                        val annotationEnd = reader.cursor
+                        result.semanticTokens.addMultiline(
+                            annotationStart,
+                            annotationEnd - annotationStart,
+                            TokenType.MACRO,
+                            0
+                        )
+                        highlightStart = annotationEnd
+                        continue
+                    }
+                    if(c == ':') {
+                        val string = reader.string
+                        val idStart = string.subSequence(0, reader.cursor - 1)
+                            .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
+                        result.semanticTokens.addMultiline(
+                            highlightStart,
+                            idStart - highlightStart,
+                            TokenType.COMMENT,
+                            0
+                        )
+                        while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
+                            reader.skip()
+                        val idEnd = reader.cursor
+                        val idRange = StringRange(idStart, idEnd)
+                        result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
+                        val languageServer = reader.resourceCreator.languageServer
+                        result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
+                            val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                            languageServer.findFileAndAnalyze(
+                                Identifier(string.substring(idStart, idEnd)),
+                                keywords
+                            ).thenCompose { analyzingResult ->
+                                if(analyzingResult == null) {
+                                    CompletableFuture.completedFuture(Hover(emptyList()))
+                                } else {
+                                    languageServer.hoverDocumentation(
+                                        analyzingResult,
+                                        analyzingResult.toFileRange(idRange)
+                                    )
+                                }
+                            }
+                        }, true)
+                        result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
+                            val client = languageServer.client
+                                ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
+                            val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                            PackContentFileType.findWorkspaceResourceFromId(
+                                Identifier(string.substring(idStart, idEnd)),
+                                client,
+                                keywords
+                            ).thenApply {
+                                Either.forLeft(
+                                    if(it == null) {
+                                        emptyList()
+                                    } else {
+                                        listOf(Location(it.second, Range(Position(), Position())))
+                                    }
                                 )
                             }
-                        }
-                    }, true)
-                    result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                        val client = languageServer.client ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
-                        val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                        PackContentFileType.findWorkspaceResourceFromId(
-                            Identifier(string.substring(idStart, idEnd)),
-                            client,
-                            keywords
-                        ).thenApply {
-                            Either.forLeft(
-                                if(it == null) {
-                                    emptyList()
-                                } else {
-                                    listOf(Location(it.second, Range(Position(), Position())))
-                                }
-                            )
-                        }
-                    }, true)
-                    highlightStart = idEnd
+                        }, true)
+                        highlightStart = idEnd
+                    }
                 }
+                docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
             }
-            docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
+            return@trySkipWhitespace true
         }
-        return docCommentBuilder.toString()
+        return if(foundComment) docCommentBuilder.toString() else null
     }
 
     fun readDocComment(reader: DirectiveStringReader<*>): String? {
-        if(!reader.canRead() || reader.peek() != '#')
-            return null
         val docCommentBuilder = StringBuilder()
-        while(reader.canRead() && reader.peek() == '#') {
-            reader.skip()
-            val lineStart = reader.cursor
-            while(reader.canRead()) {
-                val c = reader.read()
-                if(c == '\n')
-                    break
+        val foundComment = reader.trySkipWhitespace {
+            if(!reader.canRead() || reader.peek() != '#')
+                return@trySkipWhitespace false
+            while(reader.canRead() && reader.peek() == '#') {
+                reader.skip()
+                val lineStart = reader.cursor
+                while(reader.canRead()) {
+                    val c = reader.read()
+                    if(c == '\n') {
+                        break
+                    }
+                }
+                docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
             }
-            docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
+            return@trySkipWhitespace true
         }
-        return docCommentBuilder.toString()
+        return if(foundComment) docCommentBuilder.toString() else null
     }
 
     init {
