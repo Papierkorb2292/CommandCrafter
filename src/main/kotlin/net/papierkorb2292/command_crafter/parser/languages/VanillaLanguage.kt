@@ -71,16 +71,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
-                val macro =
-                    if(easyNewLine) '$' + readEasyNewLineMacro(reader)
-                    else reader.readLine()
-
+                val macro = readMacro(reader)
                 //For validation
                 FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
-                    macro.substring(1), reader.currentLine - 1
+                    macro, reader.currentLine - 1
                 )
 
-                resource.content += Either.left(macro + '\n')
+                resource.content += Either.left("$${macro}\n")
             } else {
                 reader.onlyReadEscapedMultiline = !easyNewLine
                 val parsed = parseCommand(reader, source)
@@ -143,11 +140,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     val startCursor = reader.cursor
                     try {
                         FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
-                            if(easyNewLine) {
-                                readEasyNewLineMacro(reader)
-                            } else {
-                                reader.readLine()
-                            },
+                            readMacro(reader),
                             reader.currentLine - 1
                         )
                     } catch(e: IllegalArgumentException) {
@@ -245,7 +238,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val startCursor = reader.absoluteCursor
                 val cursorMapper = if(easyNewLine) ProcessedInputCursorMapper() else null
                 builder.addMacroCommand(
-                    if(easyNewLine) readEasyNewLineMacro(reader, cursorMapper) else reader.readLine(),
+                    readMacro(reader, cursorMapper),
                     reader.currentLine - 1
                 )
                 val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
@@ -333,10 +326,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun readEasyNewLineMacro(reader: DirectiveStringReader<*>, cursorMapper: ProcessedInputCursorMapper? = null): String {
+    private fun readMacro(reader: DirectiveStringReader<*>, cursorMapper: ProcessedInputCursorMapper? = null): String {
         if(!reader.canRead()) return ""
         if(reader.peek() == '$')
             reader.skip()
+        if(!easyNewLine) {
+            reader.onlyReadEscapedMultiline = true
+            val macro = reader.readLine()
+            reader.onlyReadEscapedMultiline = false
+            return macro
+        }
         val firstLineStart = reader.absoluteCursor
         val macroBuilder = StringBuilder(reader.readLine())
         cursorMapper?.addMapping(firstLineStart, 0, reader.absoluteCursor - firstLineStart)
