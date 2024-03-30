@@ -142,18 +142,24 @@ object LanguageManager {
                 return@trySkipWhitespace false
             while(reader.canRead() && reader.peek() == '#') {
                 reader.skip()
-                val lineStart = reader.cursor
+                var lineStart = reader.cursor
                 var highlightStart = lineStart - 1
                 while(reader.canRead()) {
                     val c = reader.read()
                     if(c == '\n') {
+                        if(reader.peek(-2) != '\\') {
+                            break
+                        }
                         result.semanticTokens.addMultiline(
                             highlightStart,
                             reader.cursor - highlightStart,
                             TokenType.COMMENT,
                             0
                         )
-                        break
+                        docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor - 2))
+                        reader.skipSpaces()
+                        lineStart = reader.cursor
+                        highlightStart = lineStart
                     }
                     if(c == ' ')
                         continue
@@ -230,6 +236,12 @@ object LanguageManager {
                         highlightStart = idEnd
                     }
                 }
+                result.semanticTokens.addMultiline(
+                    highlightStart,
+                    reader.cursor - highlightStart,
+                    TokenType.COMMENT,
+                    0
+                )
                 docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
             }
             return@trySkipWhitespace true
@@ -244,10 +256,16 @@ object LanguageManager {
                 return@trySkipWhitespace false
             while(reader.canRead() && reader.peek() == '#') {
                 reader.skip()
-                val lineStart = reader.cursor
+                var lineStart = reader.cursor
                 while(reader.canRead()) {
                     val c = reader.read()
                     if(c == '\n') {
+                        if(reader.peek(-2) == '\\') {
+                            docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor - 2))
+                            reader.skipSpaces()
+                            lineStart = reader.cursor
+                            continue
+                        }
                         break
                     }
                 }
