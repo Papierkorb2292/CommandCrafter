@@ -11,13 +11,17 @@ class NbtValueReference(
     private val nbtSetter: (NbtElement?) -> NbtElement?
 ): VariableValueReference {
 
+    companion object {
+        fun getTypeName(nbtType: NbtType<*>) = "NBT: ${nbtType.crashReportName}"
+    }
+
     private var variablesReferencer: CountedVariablesReferencer? = null
     private var variablesReferencerId: Int? = null
 
     override fun getVariable(name: String) = Variable().also {
         it.name = name
         it.value = nbt.asString()
-        it.type = "NBT: ${nbt.nbtType.crashReportName}"
+        it.type = getTypeName(nbt.nbtType)
         it.variablesReference = getVariablesReferencerId()
         variablesReferencer?.run {
             it.namedVariables = this.namedVariableCount
@@ -27,7 +31,7 @@ class NbtValueReference(
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
         it.value = nbt.asString()
-        it.type = "NBT: ${nbt.nbtType.crashReportName}"
+        it.type = getTypeName(nbt.nbtType)
         it.variablesReference = getVariablesReferencerId()
         variablesReferencer?.run {
             it.namedVariables = this.namedVariableCount

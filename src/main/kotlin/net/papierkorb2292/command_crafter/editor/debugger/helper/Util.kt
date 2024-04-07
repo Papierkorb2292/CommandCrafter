@@ -52,24 +52,24 @@ fun Identifier.withExtension(extension: String)
 fun PacketByteBuf.writeBreakpoint(breakpoint: Breakpoint) {
     writeVarInt(breakpoint.id)
     writeBoolean(breakpoint.isVerified)
-
-    writeNullableInt(breakpoint.line)
-    writeNullableInt(breakpoint.endLine)
-    writeNullableInt(breakpoint.column)
-    writeNullableInt(breakpoint.endColumn)
     writeNullableString(breakpoint.message)
+    writeNullable(breakpoint.source, PacketByteBuf::writeSource)
+    writeNullableVarInt(breakpoint.line)
+    writeNullableVarInt(breakpoint.column)
+    writeNullableVarInt(breakpoint.endLine)
+    writeNullableVarInt(breakpoint.endColumn)
 }
 
 fun PacketByteBuf.readBreakpoint(): Breakpoint {
     val breakpoint = Breakpoint()
     breakpoint.id = readVarInt()
     breakpoint.isVerified = readBoolean()
-
-    breakpoint.line = readNullableInt()
-    breakpoint.endLine = readNullableInt()
-    breakpoint.column = readNullableInt()
-    breakpoint.endColumn = readNullableInt()
     breakpoint.message = readNullableString()
+    breakpoint.source = readNullable(PacketByteBuf::readSource)
+    breakpoint.line = readNullableVarInt()
+    breakpoint.column = readNullableVarInt()
+    breakpoint.endLine = readNullableVarInt()
+    breakpoint.endColumn = readNullableVarInt()
     return breakpoint
 }
 

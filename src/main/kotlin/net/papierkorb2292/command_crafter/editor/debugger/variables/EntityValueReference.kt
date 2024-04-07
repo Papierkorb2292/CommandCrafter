@@ -19,6 +19,11 @@ class EntityValueReference(
     private val entitySetter: (Entity?) -> Entity?
 ): VariableValueReference, CountedVariablesReferencer {
 
+    companion object {
+        const val TYPE = "Entity"
+        const val NBT_VARIABLE_NAME = "NBT"
+    }
+
     private var entityNbtValueReference = createEntityNbtValueReference()
 
     private fun createEntityNbtValueReference() = entity?.run {
@@ -38,24 +43,24 @@ class EntityValueReference(
                 return customName.string
             return "${entity.type.name.string} ${entity.uuidAsString}"
         }
-        return "None"
+        return VariableValueReference.NONE_VALUE
     }
 
     override fun getVariable(name: String) = Variable().also {
         it.name = name
         it.value = getValue()
-        it.type = "Entity"
+        it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = if(entity != null) 1 else 0
-        it.indexedVariables = 0
+        it.namedVariables = namedVariableCount
+        it.indexedVariables = indexedVariableCount
     }
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
         it.value = getValue()
-        it.type = "Entity"
+        it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = if(entity != null) 1 else 0
-        it.indexedVariables = 0
+        it.namedVariables = namedVariableCount
+        it.indexedVariables = indexedVariableCount
     }
 
     private fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
@@ -83,14 +88,14 @@ class EntityValueReference(
     override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
         val entityNbtValueReferencer = entityNbtValueReference
         if(args.start.run { this == null || this == 0 } && args.count.run { this == null || this > 0 } && entityNbtValueReferencer != null) {
-            return CompletableFuture.completedFuture(arrayOf(entityNbtValueReferencer.getVariable("NBT")))
+            return CompletableFuture.completedFuture(arrayOf(entityNbtValueReferencer.getVariable(NBT_VARIABLE_NAME)))
         }
         return CompletableFuture.completedFuture(arrayOf())
     }
 
     override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
         val entityNbtValueReferencer = entityNbtValueReference
-        if (args.name != "NBT" || entityNbtValueReferencer == null) {
+        if (args.name != NBT_VARIABLE_NAME || entityNbtValueReferencer == null) {
             return CompletableFuture.completedFuture(null)
         }
         entityNbtValueReferencer.setValue(args.value)

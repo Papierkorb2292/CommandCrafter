@@ -2,14 +2,15 @@ package net.papierkorb2292.command_crafter.editor.debugger.server
 
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.debugger.helper.Positionable
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 
 interface FileContentReplacer {
     companion object {
         fun concatReplacementData(data: List<ReplacementDataProvider>): ReplacementDataProvider? {
             if(data.isEmpty()) return null
             if(data.size == 1) return data.single()
-            val replacings = data.flatMap { it.replacings.asSequence() }.asSequence()
-            val positionables = data.flatMap { it.positionables.asSequence() }.asSequence()
+            val replacings = data.flatMap { it.replacings }.asSequence()
+            val positionables = data.flatMap { it.positionables }.asSequence()
             return ReplacementDataProvider(replacings, positionables) { sourceReference ->
                 data.forEach { it.sourceReferenceCallback(sourceReference) }
             }
@@ -34,8 +35,8 @@ interface FileContentReplacer {
 
     class Document(val lines: List<String>, val positionables: Sequence<Positionable>) {
 
-        fun applyReplacings(replacings: Sequence<Replacing>): Document {
-            if(!replacings.iterator().hasNext()) return this
+        fun applyReplacings(replacings: Sequence<Replacing>): Pair<Document, ProcessedInputCursorMapper> {
+            if(!replacings.iterator().hasNext()) return this to ProcessedInputCursorMapper()
             val replacingsSorted = replacings.sortedWith { a, b ->
                 val lineCmp = a.startLine.compareTo(b.startLine)
                 if(lineCmp != 0) lineCmp
@@ -47,6 +48,23 @@ interface FileContentReplacer {
                 else a.char?.compareTo(b.char ?: 0) ?: 0
             }.toList()
             var positionablesIndex = 0
+
+            var currentCursorMappingLength = 0
+            var currentCursorMappingSourceChar = 0
+            var currentCursorMappingTargetChar = 0
+
+            val resultCursorMapper = ProcessedInputCursorMapper()
+
+            fun addCursorMapping() {
+                resultCursorMapper.addMapping(
+                    currentCursorMappingSourceChar,
+                    currentCursorMappingTargetChar,
+                    currentCursorMappingLength
+                )
+                currentCursorMappingSourceChar += currentCursorMappingLength
+                currentCursorMappingTargetChar += currentCursorMappingLength
+                currentCursorMappingLength = 0
+            }
 
             val resultLines = mutableListOf<String>()
             val resultPositionables = mutableListOf<Positionable>()
@@ -67,22 +85,33 @@ interface FileContentReplacer {
                     resultPositionables += pos
                     positionablesIndex++
                 }
+                val startLineString = lines[startLine]
+                currentCursorMappingLength += startLineString.length - startChar + 1
                 if(resultLines.isEmpty()) {
-                    resultLines.add(lines[startLine].substring(startChar))
+                    resultLines.add(startLineString.substring(startChar))
                 } else {
-                    resultLines[resultLines.lastIndex] += lines[startLine].substring(startChar)
+                    resultLines[resultLines.lastIndex] += startLineString.substring(startChar)
                 }
                 for(i in startLine + 1 until endLine) {
-                    resultLines.add(lines[i])
+                    val currentLine = lines[i]
+                    resultLines.add(currentLine)
+                    currentCursorMappingLength += currentLine.length + 1
                 }
                 resultLines.add(lines[endLine].substring(0, endChar))
+                currentCursorMappingLength += endChar
             }
-            fun addReplacement(replacement: String) {
+            fun addReplacement(replacing: Replacing) {
+                val replacement = replacing.replacement
+                addCursorMapping()
+                currentCursorMappingTargetChar += replacement.length
+                currentCursorMappingSourceChar += countCharsBetweenPos(
+                    replacing.startLine, replacing.startChar, replacing.endLine, replacing.endChar, 1
+                )
+                val lines = replacement.splitToSequence('\n')
                 if(resultLines.isEmpty()) {
-                    resultLines.addAll(replacement.splitToSequence('\n'))
+                    resultLines.addAll(lines)
                     return
                 }
-                val lines = replacement.splitToSequence('\n')
                 val first = lines.firstOrNull() ?: return
                 resultLines[resultLines.lastIndex] += first
                 resultLines.addAll(lines.drop(1))
@@ -96,13 +125,14 @@ interface FileContentReplacer {
                 if(replacing.endLine > nextRepl.startLine || (replacing.endLine == nextRepl.startLine && replacing.endChar > nextRepl.startChar)) {
                     throw IllegalArgumentException("Replacings must not overlap")
                 }
-                addReplacement(replacing.replacement)
+                addReplacement(replacing)
                 addExisting(replacing.endLine, nextRepl.startLine, replacing.endChar, nextRepl.startChar)
             }
             val last = replacingsSorted.last()
-            addReplacement(last.replacement)
+            addReplacement(last)
             addExisting(last.endLine, lines.size - 1, last.endChar, lines.last().length)
-            return Document(resultLines, resultPositionables.asSequence())
+            addCursorMapping()
+            return Document(resultLines, resultPositionables.asSequence()) to resultCursorMapper
         }
 
         fun concatLines(lineSeparator: String = OpenFile.LINE_SEPARATOR): String {
@@ -116,6 +146,17 @@ interface FileContentReplacer {
             builder.append(lines.last())
 
             return builder.toString()
+        }
+
+        fun countCharsBetweenPos(startLine: Int, startChar: Int, endLine: Int, endChar: Int, lineSeparatorLength: Int): Int {
+            if(startLine > endLine) throw IllegalArgumentException("startLine must be <= endLine")
+            if(startLine == endLine) {
+                if(startChar > endChar) throw IllegalArgumentException("startChar must be <= endChar if startLine == endLine")
+                return endChar - startChar
+            }
+            val startLineLength = lines[startLine].length + lineSeparatorLength - startChar
+            val betweenLineLengths = (startLine + 1 until endLine).sumOf { lines[it].length + lineSeparatorLength }
+            return startLineLength + betweenLineLengths + endChar
         }
     }
 }

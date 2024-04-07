@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -109,6 +110,7 @@ class PauseContext(val server: MinecraftServer) {
         private set
     var isPaused: Boolean = false
         private set
+    val debugFrameDepth get() = debugFrameStack.stack.size
 
     private var pauseOnFrameEnter = false
     private var pauseOnFrameExit: Int? = null
@@ -285,9 +287,10 @@ class PauseContext(val server: MinecraftServer) {
                 continue
             }
             val sourceReferenceId = server.getDebugManager().addSourceReference(debugConnection) {
+                val (content, cursorMapper) = sourceReferenceWrapper.content(it)
                 SourceResponse().apply {
-                    content = sourceReferenceWrapper.content(it)
-                }
+                    this.content = content
+                } to cursorMapper
             }
             debugStackEntry.createdSourceReferences.put(debugConnection, sourceReferenceId)
             sourceReferenceWrapper.sourceReferenceCallback(sourceReferenceId)
@@ -304,7 +307,7 @@ class PauseContext(val server: MinecraftServer) {
         fun onContinue(stackEntry: DebugFrameStack.Entry)
     }
 
-    class SourceReferenceWrapper(val sourceReferenceCallback: (Int) -> Unit, val content: (Int) -> String)
+    class SourceReferenceWrapper(val sourceReferenceCallback: (Int) -> Unit, val content: (Int) -> Pair<String, ProcessedInputCursorMapper>)
 
     class DebugFrameStack {
         val stack = LinkedList<Entry>()

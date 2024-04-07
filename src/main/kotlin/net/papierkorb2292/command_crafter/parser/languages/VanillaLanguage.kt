@@ -35,6 +35,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -234,11 +235,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
-                reader.skip()
                 val startCursor = reader.absoluteCursor
-                val cursorMapper = if(easyNewLine) ProcessedInputCursorMapper() else null
                 builder.addMacroCommand(
-                    readMacro(reader, cursorMapper),
+                    readMacro(reader),
                     reader.currentLine - 1
                 )
                 val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
@@ -247,7 +246,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     macroLines.size - 1,
                     StringRange.between(startCursor, reader.absoluteCursor),
                     macroLines.last() as Macro.VariableLine<ServerCommandSource>,
-                    cursorMapper
+                    reader.cursorMapper,
+                    reader.readCharacters,
+                    reader.skippedChars
                 )
                 reader.endStatement()
                 continue
@@ -260,17 +261,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val contextChain = ContextChain.tryFlatten(parsed.context.build(string)).orElseThrow {
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
             }
-            elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(
-                contextChain.topContext,
-                startCursor
-            )
+            elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(contextChain.topContext)
             builder.addAction(SingleCommandAction.Sourced(string, contextChain))
             reader.endStatement()
         }
         return reader.resourceCreator?.run {
+            @Suppress("UNCHECKED_CAST")
             FunctionElementDebugInformation(
                 elementBreakpointParsers,
-                reader.lines,
+                reader as DirectiveStringReader<ParsedResourceCreator>,
                 VanillaBreakpointConditionParser,
                 functionId.withExtension(".mcfunction")
             ).also { debugInformation ->
@@ -326,25 +325,30 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun readMacro(reader: DirectiveStringReader<*>, cursorMapper: ProcessedInputCursorMapper? = null): String {
+    private fun readMacro(reader: DirectiveStringReader<*>): String {
         if(!reader.canRead()) return ""
-        if(reader.peek() == '$')
-            reader.skip()
         if(!easyNewLine) {
             reader.onlyReadEscapedMultiline = true
             val macro = reader.readLine()
             reader.onlyReadEscapedMultiline = false
-            return macro
+            return if(macro.startsWith('$')) macro.substring(1) else macro
         }
-        val firstLineStart = reader.absoluteCursor
+        reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.remainingLengthWithoutNewline)
+        if(reader.peek() == '$')
+            reader.skip()
         val macroBuilder = StringBuilder(reader.readLine())
-        cursorMapper?.addMapping(firstLineStart, 0, reader.absoluteCursor - firstLineStart)
+        var indentStartCursor = reader.cursor
         while(reader.tryReadIndentation { it > reader.currentIndentation }) {
+            val skippedChars = reader.cursor - indentStartCursor
+            @Suppress("KotlinConstantConditions")
+            (reader as StringReaderAccessor).setString(reader.string.substring(indentStartCursor - 1) + ' ') //Also removes newline
+            reader.cursor = indentStartCursor
+            reader.skippedChars += skippedChars
+            reader.readCharacters += skippedChars
             macroBuilder.append(' ')
-            val start = reader.absoluteCursor
-            val prevMacroLength = macroBuilder.length
+            reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.remainingLengthWithoutNewline)
             macroBuilder.append(reader.readLine())
-            cursorMapper?.addMapping(start, prevMacroLength, reader.absoluteCursor - start)
+            indentStartCursor = reader.cursor
         }
         return macroBuilder.toString()
     }

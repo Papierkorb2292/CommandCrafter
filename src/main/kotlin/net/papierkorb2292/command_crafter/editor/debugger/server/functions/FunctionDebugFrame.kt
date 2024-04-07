@@ -25,6 +25,7 @@ class FunctionDebugFrame(
 ) : PauseContext.DebugFrame {
     companion object {
         val functionCallDebugInfo = ThreadLocal<FunctionCallDebugInfo>()
+        val commandResult = ThreadLocal<CommandResult?>()
 
         fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {
             val pauseContext = currentPauseContext.get() ?: return null
@@ -176,7 +177,7 @@ class FunctionDebugFrame(
             val newBreakpoints = breakpoints.map {
                 PositionableBreakpoint(it.unparsed.sourceBreakpoint.copy())
             }
-            val replacedDocument = FileContentReplacer.Document(
+            val (replacedDocument, cursorMapper) = FileContentReplacer.Document(
                 lines,
                 newBreakpoints.asSequence() + replacementData.positionables
             ).applyReplacings(replacementData.replacings)
@@ -186,7 +187,7 @@ class FunctionDebugFrame(
                 procedure.id(),
                 sourceReference
             )
-            replacedDocument.concatLines()
+            replacedDocument.concatLines() to cursorMapper
         }
     }
 

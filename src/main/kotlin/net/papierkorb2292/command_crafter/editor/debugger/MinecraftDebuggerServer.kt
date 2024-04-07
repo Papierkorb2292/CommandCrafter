@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
+import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.SynchronizedObject
-import net.papierkorb2292.command_crafter.CommandCrafter
+import kotlinx.atomicfu.locks.withLock
+import net.papierkorb2292.command_crafter.editor.CommandCrafterDebugClient
 import net.papierkorb2292.command_crafter.editor.EditorService
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
@@ -11,17 +13,13 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Unp
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import org.eclipse.lsp4j.debug.*
-import org.eclipse.lsp4j.debug.services.IDebugProtocolClient
 import org.eclipse.lsp4j.debug.services.IDebugProtocolServer
-import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
 import java.util.concurrent.CompletableFuture
-import kotlin.io.path.exists
-import kotlin.io.path.isDirectory
+import java.util.concurrent.Executors
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.streams.asSequence
+
 
 class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnection) : IDebugProtocolServer, EditorService {
     companion object {
@@ -56,12 +54,13 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         }
     }
 
-    private var client: IDebugProtocolClient? = null
+    private var client: CommandCrafterDebugClient? = null
 
     private var debugPauseActions: DebugPauseActions? = null
     private var variablesReferencer: VariablesReferencer? = null
-    private var dataFolders: Collection<Path> = emptyList()
-    private val stackTrace = Collections.synchronizedList(ArrayList<Pair<StackFrame, Array<Scope>>>())
+    /** Must be used with [stackTraceLock] */
+    private val stackTrace = ArrayList<Pair<StackFrame, Array<Scope>>>()
+    private val stackTraceLock = ReentrantLock()
 
     private var nextBreakpointId = 0
     private val nextBreakpointIdLock = SynchronizedObject()
@@ -83,8 +82,9 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         override fun updateReloadedBreakpoint(update: BreakpointEventArguments) {
             val source = update.breakpoint.source
-            if(source != null) mapSourceToDatapack(source)
-            client?.breakpoint(update)
+            mapSourceToDatapack(source).thenAccept {
+                client?.breakpoint(update)
+            }
         }
 
         override fun reserveBreakpointIds(count: Int) =
@@ -95,24 +95,34 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             }
 
         override fun popStackFrames(stackFrames: Int) {
-            stackTrace.subList(max(stackTrace.size - stackFrames, 0), stackTrace.size).clear()
+            stackTraceLock.withLock {
+                stackTrace.subList(max(stackTrace.size - stackFrames, 0), stackTrace.size).clear()
+            }
         }
 
         override fun pushStackFrames(stackFrames: List<MinecraftStackFrame>) {
-            stackFrames.forEach { frame ->
-                val frameRange = frame.visualContext.range
-                stackTrace += StackFrame().apply {
-                    id = stackTrace.size
-                    name = frame.name
-                    line = frameRange.start.line
-                    column = frameRange.start.character
-                    endLine = frameRange.end.line
-                    endColumn = frameRange.end.character
-                    source = frame.visualContext.source
-                    presentationHint = frame.presentationHint
-                    mapSourceToDatapack(source)
-                } to frame.variableScopes
-            }
+            // Make sure that lock() and unlock() are called on the same thread
+            val lockExecutor = Executors.newSingleThreadExecutor()
+            CompletableFuture.runAsync({
+                stackTraceLock.lock()
+            }, lockExecutor).thenCompose {
+                CompletableFuture.allOf(*stackFrames.map { frame ->
+                    val frameRange = frame.visualContext.range
+                    stackTrace += StackFrame().apply {
+                        id = stackTrace.size
+                        name = frame.name
+                        line = frameRange.start.line
+                        column = frameRange.start.character
+                        endLine = frameRange.end.line
+                        endColumn = frameRange.end.character
+                        source = frame.visualContext.source
+                        presentationHint = frame.presentationHint
+                    } to frame.variableScopes
+                    mapSourceToDatapack(frame.visualContext.source)
+                }.toTypedArray())
+            }.whenCompleteAsync({ _, _ ->
+                stackTraceLock.unlock()
+            }, lockExecutor)
         }
 
         override fun onPauseLocationSkipped() {
@@ -121,24 +131,44 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
                 output = "Skipped pause location"
             })
         }
-
-        fun mapSourceToDatapack(source: Source): Boolean {
-            val path = dataFolders.firstNotNullOfOrNull {
-                val file = it.resolve(source.path)
-                //TODO: Use vscode workspace instead of file system
-                if (file.exists()) file.toString() else null
-            }
-            if (path == null) return false
-            source.path = path
-            source.sources = source.sources?.mapNotNull { childSource ->
-                if (mapSourceToDatapack(childSource)) childSource
-                else null
-            }?.toTypedArray()
-            return true
-        }
     }
 
     private var initializeArgs = InitializeRequestArguments()
+
+    /**
+     * If a source path can't be parsed by [PackContentFileType.parsePath],
+     * this function returns a CompletableFuture which resolves to **false**
+     * after child sources have been mapped.
+     *
+     * Otherwise, it sends a request to the editor to search for fitting resources.
+     * Upon receiving a response, the provided Source will be updated and the
+     * returned CompletableFuture will be completed with **true** if a file for this source
+     * and all child sources could be found, **false** otherwise.
+     */
+    fun mapSourceToDatapack(source: Source): CompletableFuture<Boolean> {
+        val client = client ?: return CompletableFuture.completedFuture(false)
+
+        val mappingChildSourcesFutures = source.sources?.map { mapSourceToDatapack(it) }?.toTypedArray()
+
+        val parsedPath = PackContentFileType.parsePath(Path.of(source.path))
+            ?: return if(mappingChildSourcesFutures != null) {
+                CompletableFuture.allOf(*mappingChildSourcesFutures)
+                    .thenApply { false }
+            } else CompletableFuture.completedFuture(false)
+
+        val mappingCurrentSourceFuture = PackContentFileType.findWorkspaceResourceFromIdAndPackContentFileType(
+            parsedPath.id, parsedPath.type, client
+        ).thenApply {
+            source.path = it ?: return@thenApply false
+            true
+        }
+
+        return if(mappingChildSourcesFutures != null) {
+            CompletableFuture.allOf(*mappingChildSourcesFutures, mappingCurrentSourceFuture).thenApply {
+                mappingCurrentSourceFuture.get() && mappingChildSourcesFutures.all { it.get() }
+            }
+        } else mappingCurrentSourceFuture
+    }
 
     override fun initialize(args: InitializeRequestArguments): CompletableFuture<Capabilities> {
         initializeArgs = args
@@ -155,31 +185,15 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun launch(args: MutableMap<String, Any>): CompletableFuture<Void> {
-        stackTrace.clear()
+        stackTraceLock.withLock {
+            stackTrace.clear()
+        }
         debugPauseActions = null
         nextBreakpointId = 0
-        val dataFoldersArg = args["dataFolders"]
-        if(dataFoldersArg !is Collection<*>) {
-            return CompletableFuture.failedFuture(IllegalArgumentException("'dataFolders' argument must be an array"))
-        }
-        dataFolders = dataFoldersArg.flatMap {
-            if (it !is String) {
-                CommandCrafter.LOGGER.warn("Encountered invalid data folder path while starting debugger: $it")
-                return@flatMap emptySequence()
-            }
-            val path = Path.of(it)
-            //TODO: Use vscode workspace instead of file system
-            if (!path.exists())
-                return@flatMap emptySequence()
-            Files.walk(path).filter { candidate ->
-                candidate.isDirectory() && candidate.fileName.toString() == "data"
-            }.asSequence()
-        }
         return CompletableFuture.completedFuture(null)
     }
 
     override fun disconnect(args: DisconnectArguments): CompletableFuture<Void> {
-        //TODO: Remove breakpoints
         return CompletableFuture.completedFuture(null)
     }
 
@@ -209,6 +223,11 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         }
         val debugService = minecraftServer.debugService ?: return rejectAll(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
         return debugService.setBreakpoints(unparsedBreakpoints, args.source, parsedPath.type, parsedPath.id, editorDebugConnection)
+            .thenCompose { response ->
+                CompletableFuture.allOf(*response.breakpoints.toList().mapNotNull {
+                    mapSourceToDatapack(it.source ?: return@mapNotNull null)
+                }.toTypedArray()).thenApply { response }
+            }
     }
 
     override fun threads(): CompletableFuture<ThreadsResponse> {
@@ -247,28 +266,36 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun stackTrace(args: StackTraceArguments): CompletableFuture<StackTraceResponse> {
-        val startFrameNumber = stackTrace.size - (args.startFrame ?: 0)
-        val amount = args.levels.run {
-            if(this == null || this == 0) stackTrace.size
-            else min(this, startFrameNumber)
-        }
-        val startFrameIndex = startFrameNumber - 1
-        return CompletableFuture.completedFuture(StackTraceResponse().apply {
-            stackFrames = Array(amount) {
-                stackTrace[startFrameIndex - it].first
+        return CompletableFuture.supplyAsync {
+            stackTraceLock.withLock {
+                val startFrameNumber = stackTrace.size - (args.startFrame ?: 0)
+                val amount = args.levels.run {
+                    if(this == null || this == 0) stackTrace.size
+                    else min(this, startFrameNumber)
+                }
+                val startFrameIndex = startFrameNumber - 1
+                StackTraceResponse().apply {
+                    stackFrames = Array(amount) {
+                        stackTrace[startFrameIndex - it].first
+                    }
+                    totalFrames = stackTrace.size
+                }
             }
-            totalFrames = stackTrace.size
-        })
+        }
     }
 
     override fun scopes(args: ScopesArguments): CompletableFuture<ScopesResponse> {
-        val stackTrace = stackTrace
-        val frameId = args.frameId
-        return CompletableFuture.completedFuture(ScopesResponse().apply {
-            scopes =
-                if(stackTrace.size > frameId) stackTrace[frameId].second
-                else arrayOf()
-        })
+        return CompletableFuture.supplyAsync {
+            stackTraceLock.withLock {
+                val stackTrace = stackTrace
+                val frameId = args.frameId
+                ScopesResponse().apply {
+                    scopes =
+                        if(stackTrace.size > frameId) stackTrace[frameId].second
+                        else arrayOf()
+                }
+            }
+        }
     }
 
     override fun variables(args: VariablesArguments): CompletableFuture<VariablesResponse> {
@@ -304,7 +331,9 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         minecraftServer = connection
-        stackTrace.clear()
+        stackTraceLock.withLock {
+            stackTrace.clear()
+        }
         if(debugPauseActions != null) {
             client?.continued(ContinuedEventArguments().apply { threadId =  0 })
             debugPauseActions = null
@@ -322,13 +351,25 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             }
             return
         }
+
+        fun sendBreakpointToClient(breakpoint: Breakpoint) {
+            val args = BreakpointEventArguments()
+            args.breakpoint = breakpoint
+            args.reason = BreakpointEventArgumentsReason.CHANGED
+            client.breakpoint(args)
+        }
+
         for((path, data) in breakpoints) {
             debugService.setBreakpoints(data.second, data.first, path.type, path.id, editorDebugConnection).thenAccept {
                 for(breakpoint in it.breakpoints) {
-                    val args = BreakpointEventArguments()
-                    args.breakpoint = breakpoint
-                    args.reason = BreakpointEventArgumentsReason.CHANGED
-                    client.breakpoint(args)
+                    val source = breakpoint.source
+                    if(source == null) {
+                        sendBreakpointToClient(breakpoint)
+                        continue
+                    }
+                    mapSourceToDatapack(source).thenAccept {
+                        sendBreakpointToClient(breakpoint)
+                    }
                 }
             }
         }
@@ -338,7 +379,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         minecraftServer.debugService?.removeEditorDebugConnection(editorDebugConnection)
     }
 
-    fun connect(client: IDebugProtocolClient) {
+    fun connect(client: CommandCrafterDebugClient) {
         this.client = client
     }
 }

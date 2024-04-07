@@ -19,3 +19,11 @@ fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size(), comparison: 
 
     return -(low + 1)
 }
+
+inline fun <reified T> arrayOfNotNull(vararg elements: T?): Array<T> {
+    var index = 0
+    return Array(elements.count { it != null }) {
+        while (elements[index] == null) index++
+        elements[index++]!!
+    }
+}

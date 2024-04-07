@@ -8,15 +8,20 @@ class IdValueReference(
     private var id: Identifier?,
     private val idSetter: (Identifier?) -> Identifier?
 ): VariableValueReference {
+
+    companion object {
+        const val TYPE = "Identifier"
+    }
+
     override fun getVariable(name: String) = Variable().also {
         it.name = name
-        it.value = id?.toString() ?: "None"
-        it.type = "Identifier"
+        it.value = id?.toString() ?: VariableValueReference.NONE_VALUE
+        it.type = TYPE
     }
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = id?.toString() ?: "None"
-        it.type = "Identifier"
+        it.value = id?.toString() ?: VariableValueReference.NONE_VALUE
+        it.type = TYPE
     }
 
     override fun setValue(value: String) {

@@ -5,6 +5,13 @@ import org.eclipse.lsp4j.jsonrpc.MessageConsumer
 import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugResponseMessage
 import java.util.function.Function
 
+/**
+ * A message wrapper that emits the initialized event when the initialize request is received.
+ *
+ * This is necessary, because the initialized event must be sent after the response to the initialize
+ * request, but the initialize request handler ([MinecraftDebuggerServer.initialize]) can only send
+ * requests before the response is sent, not afterward.
+ */
 class InitializedEventEmittingMessageWrapper : Function<MessageConsumer, MessageConsumer> {
     var client: IDebugProtocolClient? = null
 

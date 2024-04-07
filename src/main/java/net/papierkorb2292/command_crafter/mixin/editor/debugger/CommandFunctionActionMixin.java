@@ -1,10 +1,9 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import net.minecraft.command.CommandExecutionContext;
-import net.minecraft.command.CommandFunctionAction;
-import net.minecraft.command.CommandQueueEntry;
-import net.minecraft.command.Frame;
+import kotlin.Pair;
+import kotlin.Unit;
+import net.minecraft.command.*;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.Procedure;
@@ -12,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutio
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MacroValuesContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
@@ -30,6 +30,8 @@ import java.util.List;
 public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>> {
 
     @Shadow @Final private Procedure<T> function;
+
+    @Shadow @Final private boolean propagateReturn;
 
     @Inject(
             method = "execute(Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/command/CommandExecutionContext;Lnet/minecraft/command/Frame;)V",
@@ -63,25 +65,81 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
                 new CommandExecutionContextContinueCallback(commandExecutionContext),
                 fileLines
         );
-        pauseContext.pushDebugFrame(debugFrame);
         //noinspection unchecked
-        commandExecutionContext.enqueueCommand((CommandQueueEntry<T>) new CommandQueueEntry<>(frame, ExitDebugFrameCommandAction.INSTANCE));
+        commandExecutionContext.enqueueCommand((CommandQueueEntry<T>) new CommandQueueEntry<>(frame,
+                new ExitDebugFrameCommandAction(
+                        pauseContext.getDebugFrameDepth(),
+                        FunctionDebugFrame.Companion.getCommandResult(),
+                        true, //TODO: Should be !propagateReturn once tags are implemented as well
+                        null
+                )));
+        pauseContext.pushDebugFrame(debugFrame);
     }
 
     @ModifyExpressionValue(
             method = "execute(Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/command/CommandExecutionContext;Lnet/minecraft/command/Frame;)V",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/command/Frame;frameControl()Lnet/minecraft/command/Frame$Control;"
+                    value = "FIELD",
+                    target = "Lnet/minecraft/command/CommandFunctionAction;returnValueConsumer:Lnet/minecraft/command/ReturnValueConsumer;"
             )
     )
-    private Frame.Control command_crafter$exitDebugFrameOnPropagatedReturn(Frame.Control control) {
+    private ReturnValueConsumer command_crafter$saveReturnValue(ReturnValueConsumer returnValueConsumer, T abstractServerCommandSource, CommandExecutionContext<T> commandExecutionContext, Frame frame) {
         var pauseContext = PauseContext.Companion.getCurrentPauseContext().get();
-        if (pauseContext == null || !(function instanceof DebugInformationContainer<?,?> container) || container.command_crafter$getDebugInformation() == null)
-            return control;
-        return () -> {
-            control.discard();
-            pauseContext.popDebugFrame();
+        if (pauseContext == null)
+            return returnValueConsumer;
+        var currentFrameDepth =  pauseContext.getDebugFrameDepth();
+        return new ReturnValueConsumer() {
+            @Override
+            public void onResult(boolean successful, int returnValue) {
+                setCommandResult(successful, returnValue);
+                if (!pauseContext.isDebugging()) {
+                    returnValueConsumer.onResult(successful, returnValue);
+                    return;
+                }
+                enqueueFrameExitWithReturnValue();
+            }
+
+            @Override
+            public void onSuccess(int successful) {
+                setCommandResult(true, successful);
+                if (!pauseContext.isDebugging()) {
+                    returnValueConsumer.onSuccess(successful);
+                    return;
+                }
+                enqueueFrameExitWithReturnValue();
+            }
+
+            @Override
+            public void onFailure() {
+                setCommandResult(false, 0);
+                if (!pauseContext.isDebugging()) {
+                    returnValueConsumer.onFailure();
+                    return;
+                }
+                enqueueFrameExitWithReturnValue();
+            }
+
+            private void setCommandResult(boolean successful, int returnValue) {
+                FunctionDebugFrame.Companion.getCommandResult().set(new CommandResult(new Pair<>(successful, returnValue)));
+            }
+
+            private void enqueueFrameExitWithReturnValue() {
+                var exitDebugFrameCommandAction = new ExitDebugFrameCommandAction(
+                        currentFrameDepth,
+                        null,
+                        false,
+                        () -> {
+                            var commandResult = FunctionDebugFrame.Companion.getCommandResult().get();
+                            if(commandResult == null) return Unit.INSTANCE;
+                            var returnValue = commandResult.getReturnValue();
+                            if(returnValue != null)
+                                returnValueConsumer.onResult(returnValue.getFirst(), returnValue.getSecond());
+                            return Unit.INSTANCE;
+                        }
+                );
+                //noinspection unchecked
+                commandExecutionContext.enqueueCommand((CommandQueueEntry<T>) new CommandQueueEntry<>(frame, exitDebugFrameCommandAction));
+            }
         };
     }
 }

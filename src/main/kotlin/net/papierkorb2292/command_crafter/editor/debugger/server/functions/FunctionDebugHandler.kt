@@ -30,8 +30,8 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
 
         fun getSourceName(base: String, sourceReference: Int? = INITIAL_SOURCE_REFERENCE): String {
             return if(sourceReference != INITIAL_SOURCE_REFERENCE) {
-                "$base@$sourceReference"
-            } else base
+                "fun $base@$sourceReference"
+            } else "fun $base"
         }
 
         private val FUNCTION_FILE_EXTENSTION = ".mcfunction"

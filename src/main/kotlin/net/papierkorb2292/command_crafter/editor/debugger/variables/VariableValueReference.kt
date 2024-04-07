@@ -5,6 +5,8 @@ import org.eclipse.lsp4j.debug.Variable
 
 interface VariableValueReference {
     companion object {
+        const val NONE_VALUE = "None"
+
         fun isNone(value: String): Boolean {
             val lowercase = value.lowercase()
             return lowercase == "n" || lowercase == "none" || lowercase == "null"

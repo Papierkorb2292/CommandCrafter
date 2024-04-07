@@ -61,9 +61,9 @@ object ClientCommandCrafter : ClientModInitializer {
                 ): EditorConnectionManager.LaunchedService {
                     val server = MinecraftDebuggerServer(serverConnection)
                     val messageWrapper = InitializedEventEmittingMessageWrapper()
-                    val launcher = DebugLauncher.Builder<IDebugProtocolClient>()
+                    val launcher = DebugLauncher.Builder<CommandCrafterDebugClient>()
                         .setLocalService(server)
-                        .setRemoteInterface(IDebugProtocolClient::class.java)
+                        .setRemoteInterface(CommandCrafterDebugClient::class.java)
                         .setInput(editorConnection.inputStream)
                         .setOutput(editorConnection.outputStream)
                         .setExecutorService(executorService)

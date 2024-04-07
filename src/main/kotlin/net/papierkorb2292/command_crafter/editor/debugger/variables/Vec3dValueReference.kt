@@ -10,6 +10,13 @@ class Vec3dValueReference(
     private val vec3dSetter: (Vec3d?) -> Vec3d?
 ): VariableValueReference, CountedVariablesReferencer {
 
+    companion object {
+        const val TYPE = "Vec3d"
+        const val X_COMPONENT_NAME = "x"
+        const val Y_COMPONENT_NAME = "y"
+        const val Z_COMPONENT_NAME = "z"
+    }
+
     private var variablesReferencerId: Int? = null
     private val valueReferences = mutableMapOf<String, DoubleValueReference>()
 
@@ -17,7 +24,7 @@ class Vec3dValueReference(
     private fun updateValueReferences() {
         valueReferences.clear()
         vec3d?.run {
-            valueReferences["x"] = DoubleValueReference(x) {
+            valueReferences[X_COMPONENT_NAME] = DoubleValueReference(x) {
                 if(it == null) return@DoubleValueReference x
                 val newVec = vec3dSetter(Vec3d(it, y, z))
                 vec3d = newVec
@@ -27,7 +34,7 @@ class Vec3dValueReference(
                 }
                 else newVec.x
             }
-            valueReferences["y"] = DoubleValueReference(y) {
+            valueReferences[Y_COMPONENT_NAME] = DoubleValueReference(y) {
                 if(it == null) return@DoubleValueReference y
                 val newVec = vec3dSetter(Vec3d(x, it, z))
                 vec3d = newVec
@@ -37,7 +44,7 @@ class Vec3dValueReference(
                 }
                 else newVec.y
             }
-            valueReferences["z"] = DoubleValueReference(z) {
+            valueReferences[Z_COMPONENT_NAME] = DoubleValueReference(z) {
                 if(it == null) return@DoubleValueReference z
                 val newVec = vec3dSetter(Vec3d(x, y, it))
                 vec3d = newVec
@@ -53,20 +60,20 @@ class Vec3dValueReference(
     override fun getVariable(name: String) = Variable().also {
         it.name = name
         val vec3d = vec3d
-        it.value = if(vec3d == null) "None" else "${vec3d.x}, ${vec3d.y}, ${vec3d.z}"
-        it.type = "Vec3d"
+        it.value = if(vec3d == null) VariableValueReference.NONE_VALUE else "${vec3d.x}, ${vec3d.y}, ${vec3d.z}"
+        it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = if(vec3d != null) 3 else 0
-        it.indexedVariables = 0
+        it.namedVariables = namedVariableCount
+        it.indexedVariables = indexedVariableCount
     }
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
         val vec3d = vec3d
-        it.value = if(vec3d == null) "None" else "${vec3d.x}, ${vec3d.y}, ${vec3d.z}"
-        it.type = "Vec3d"
+        it.value = if(vec3d == null) VariableValueReference.NONE_VALUE else "${vec3d.x}, ${vec3d.y}, ${vec3d.z}"
+        it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = if(vec3d != null) 3 else 0
-        it.indexedVariables = 0
+        it.namedVariables = namedVariableCount
+        it.indexedVariables = indexedVariableCount
     }
 
     private fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
@@ -87,9 +94,9 @@ class Vec3dValueReference(
     }
 
     override val namedVariableCount: Int
-        get() = 0
+        get() = if(vec3d != null) 3 else 0
     override val indexedVariableCount: Int
-        get() = 3
+        get() = 0
 
     override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
         if(args.filter == VariablesArgumentsFilter.INDEXED) return CompletableFuture.completedFuture(emptyArray())

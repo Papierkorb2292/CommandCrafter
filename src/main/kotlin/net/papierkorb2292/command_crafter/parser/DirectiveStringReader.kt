@@ -36,6 +36,8 @@ class DirectiveStringReader<out ResourceCreator>(
         }
     }
 
+    val remainingLengthWithoutNewline get() = remainingLength - if(string.endsWith('\n')) 1 else 0
+
     var readCharacters = 0
     var skippedChars = 0
     val readSkippingChars
@@ -217,20 +219,15 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun readIndentation(): Int {
-        var indent = 0
-        while(canRead() && peek() == ' ') {
-            skip()
-            indent++
-        }
-        return indent
+        val start = cursor
+        while(canRead() && peek() == ' ') skip()
+        return cursor - start
     }
 
     inline fun tryReadIndentation(predicate: (Int) -> Boolean): Boolean {
         val startCursor = cursor
         val indent = readIndentation()
-        if(predicate(indent)) {
-            return true
-        }
+        if(predicate(indent)) return true
         cursor = startCursor
         return false
     }

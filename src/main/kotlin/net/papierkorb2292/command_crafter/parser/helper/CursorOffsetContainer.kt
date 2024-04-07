@@ -5,3 +5,5 @@ interface CursorOffsetContainer {
     fun `command_crafter$getReadCharacters`(): Int
     fun `command_crafter$getSkippedChars`(): Int
 }
+
+fun CursorOffsetContainer.getCursorOffset() = `command_crafter$getReadCharacters`() - `command_crafter$getSkippedChars`()

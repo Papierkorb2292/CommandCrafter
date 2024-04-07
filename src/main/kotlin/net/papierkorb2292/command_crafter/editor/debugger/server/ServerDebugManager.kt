@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Deb
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.debug.SourceResponse
 
@@ -60,7 +61,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
         if(playerReferences.sources.isEmpty()) sourceReferencesMap.remove(debugConnection)
     }
 
-    fun addSourceReference(debugConnection: EditorDebugConnection, response: (Int) -> SourceResponse): Int {
+    fun addSourceReference(debugConnection: EditorDebugConnection, response: SourceReferenceSupplier): Int {
         val references = sourceReferencesMap.getOrPut(debugConnection, ::PlayerSourceReferences)
         val id = references.nextId++
         references.sources[id] = SourceReferenceGenerator(response)
@@ -69,7 +70,14 @@ class ServerDebugManager(private val server: MinecraftServer) {
 
     fun getSourceReferenceLines(debugConnection: EditorDebugConnection, sourceReference: Int?): List<String>? {
         val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
-        return sourceReference?.let { sourceReferences.sources[it]?.generatedLines }
+        val sourceReferenceId = sourceReference ?: return null
+        return sourceReferences.sources[sourceReferenceId]?.getLinesOrGenerate(sourceReferenceId)
+    }
+
+    fun getSourceReferenceCursorMapper(debugConnection: EditorDebugConnection, sourceReference: Int?): ProcessedInputCursorMapper? {
+        val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
+        val sourceReferenceId = sourceReference ?: return null
+        return sourceReferences.sources[sourceReferenceId]?.getCursorMapperOrGenerate(sourceReferenceId)
     }
 
     fun retrieveSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int): SourceResponse? {
@@ -77,15 +85,29 @@ class ServerDebugManager(private val server: MinecraftServer) {
         return sourceReferences.sources[sourceReference]?.generateSourceReference(sourceReference)
     }
 
-    class PlayerSourceReferences(val sources: Int2ReferenceMap<SourceReferenceGenerator> = Int2ReferenceOpenHashMap(), var nextId: Int = 0)
+    class PlayerSourceReferences(val sources: Int2ReferenceMap<SourceReferenceGenerator> = Int2ReferenceOpenHashMap(), var nextId: Int = 1)
 
-    class SourceReferenceGenerator(private val responseCallback: (Int) -> SourceResponse) {
-        var generatedLines: List<String> = emptyList()
+    class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier) {
+        var generatedResponse: SourceResponse? = null
             private set
+        var cursorMapper: ProcessedInputCursorMapper? = null
+            private set
+        val generatedLines: List<String>?
+            get() = generatedResponse?.content?.lines()
 
         fun generateSourceReference(id: Int) =
-            responseCallback(id).also { response ->
-                generatedLines = response.content.split('\n')
-            }
+            responseCallback(id).also { (response, cursorMapper) ->
+                generatedResponse = response
+                this.cursorMapper = cursorMapper
+            }.first
+
+        fun getLinesOrGenerate(id: Int) = generatedLines ?: generateSourceReference(id).content.lines()
+        fun getCursorMapperOrGenerate(sourceReferenceId: Int): ProcessedInputCursorMapper {
+            if(cursorMapper == null)
+                generateSourceReference(sourceReferenceId)
+            return cursorMapper!!
+        }
     }
 }
+
+typealias SourceReferenceSupplier = (Int) -> Pair<SourceResponse, ProcessedInputCursorMapper>

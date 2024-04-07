@@ -183,7 +183,9 @@ class BreakpointManager<TBreakpointLocation>(
             } else if(sourceBreakpoint1.line > sourceBreakpoint2.line) {
                 1
             } else {
-                sourceBreakpoint1.column.compareTo(sourceBreakpoint2.column)
+                val column1 = sourceBreakpoint1.column ?: return@sortedWith -1
+                val column2 = sourceBreakpoint2.column ?: return@sortedWith 1
+                column1.compareTo(column2)
             }
         }.mapIndexedTo(LinkedList()) { sortedIndex, breakpoint ->
             val unparsedBreakpoint = breakpoint.value

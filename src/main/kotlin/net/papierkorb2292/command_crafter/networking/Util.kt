@@ -52,7 +52,7 @@ fun PacketByteBuf.writeNullableVarInt(value: Int?) {
         return
     }
     writeByte(i and 63 or 128)
-    i ushr 6
+    i = i ushr 6
     while (i and -128 != 0) {
         writeByte(i and 127 or 128)
         i = i ushr 7

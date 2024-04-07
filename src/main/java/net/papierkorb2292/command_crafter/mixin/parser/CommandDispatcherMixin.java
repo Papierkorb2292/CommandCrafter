@@ -20,6 +20,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -159,15 +160,15 @@ public class CommandDispatcherMixin {
         return builder;
     }
 
-    @ModifyExpressionValue(
+    @ModifyArg(
             method = "parseNodes",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/context/CommandContextBuilder;copy()Lcom/mojang/brigadier/context/CommandContextBuilder;"
+                    target= "Lcom/mojang/brigadier/tree/CommandNode;parse(Lcom/mojang/brigadier/StringReader;Lcom/mojang/brigadier/context/CommandContextBuilder;)V"
             ),
             remap = false
     )
-    private CommandContextBuilder<?> command_crafter$setChildContextBuilderReader(CommandContextBuilder<?> builder, @Local StringReader reader) {
+    private CommandContextBuilder<?> command_crafter$setChildContextBuilderReader(StringReader reader, CommandContextBuilder<?> builder) {
         if(reader instanceof DirectiveStringReader<?> directiveStringReader) {
             ((DirectiveStringReaderConsumer)builder).command_crafter$setStringReader(directiveStringReader);
         }

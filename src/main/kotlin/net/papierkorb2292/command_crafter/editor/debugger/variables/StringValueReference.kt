@@ -8,20 +8,25 @@ class StringValueReference(
     private var string: String?,
     private val stringSetter: (String?) -> String?
 ): VariableValueReference {
+
+    companion object {
+        const val TYPE = "String"
+    }
+
     override fun getVariable(name: String): Variable = Variable().also {
         it.name = name
         it.value = constructValue()
-        it.type = "String"
+        it.type = TYPE
     }
     override fun getSetVariableResponse(): SetVariableResponse = SetVariableResponse().also {
         it.value = constructValue()
-        it.type = "String"
+        it.type = TYPE
     }
 
     private fun constructValue(): String = string?.run {
         @Suppress("DEPRECATION")
         "\"${StringEscapeUtils.escapeJava(this)}\""
-    } ?: "None"
+    } ?: VariableValueReference.NONE_VALUE
 
     override fun setValue(value: String) {
         string = stringSetter(

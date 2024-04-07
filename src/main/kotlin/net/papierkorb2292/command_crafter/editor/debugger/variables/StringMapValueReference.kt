@@ -8,6 +8,10 @@ class StringMapValueReference(
     private var values: Map<String, String?>,
     private val setter: ((Map<String, String?>) -> Unit)? = null
 ) : VariableValueReference, CountedVariablesReferencer {
+    companion object {
+        const val TYPE = "String-Map"
+    }
+
     private val content = values.mapValues {
         (name, value) -> StringValueReference(value) { newValue ->
             val setter = setter ?: return@StringValueReference this.values[name]
@@ -49,7 +53,7 @@ class StringMapValueReference(
     override fun getVariable(name: String) = Variable().also {
         it.name = name
         it.value = constructValue()
-        it.type = "String-Map"
+        it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount
         it.indexedVariables = indexedVariableCount
@@ -57,7 +61,7 @@ class StringMapValueReference(
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
         it.value = constructValue()
-        it.type = "String-Map"
+        it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount
         it.indexedVariables = indexedVariableCount

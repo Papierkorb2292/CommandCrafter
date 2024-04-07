@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { LanguageClientRunner } from './extension';
+import { LanguageClientRunner, findFiles } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
 
 // The debug adapter implementation is similar to vscodes StreamDebugAdapter implementation,
 // which isn't available through the API.
@@ -9,7 +9,6 @@ export class DebugClient implements ConnectionFeature {
     private static readonly TWO_CRLF = '\r\n\r\n';
 	private static readonly HEADER_LINESEPARATOR = /\r?\n/;
 	private static readonly HEADER_FIELDSEPARATOR = /: */;
-
 
     private connectionType: MinecraftConnectionType | undefined;
 
@@ -23,71 +22,103 @@ export class DebugClient implements ConnectionFeature {
                 }
 
                 return connectionType.connect().then((streamInfo) => {
-                    const sendMessageEventEmitter = new vscode.EventEmitter<vscode.DebugProtocolMessage>()
-    
-                    let rawData = Buffer.allocUnsafe(0);
-                    let contentLength = -1;
-                    streamInfo.reader.on('data', (data) => {
-                        rawData = Buffer.concat([rawData, data]);
-    
-                        while(true) {
-                            if(contentLength >= 0) {
-                                if(rawData.length >= contentLength) {
-                                    const message = rawData.toString('utf8', 0, contentLength);
-                                    rawData = rawData.slice(contentLength);
-                                    contentLength = -1;
-                                    if(message.length > 0) {
-                                        try {
-                                            sendMessageEventEmitter.fire(<vscode.DebugProtocolMessage>JSON.parse(message));
-                                        } catch (e) {
-                                            console.error(e);
-                                        }
-                                    }
-                                    continue;
-                                }
-                            } else {
-                                const idx = rawData.indexOf(DebugClient.TWO_CRLF);
-                                if (idx !== -1) {
-                                    const header = rawData.toString('utf8', 0, idx);
-                                    const lines = header.split(DebugClient.HEADER_LINESEPARATOR);
-                                    for (const h of lines) {
-                                        const kvPair = h.split(DebugClient.HEADER_FIELDSEPARATOR);
-                                        if (kvPair[0] === 'Content-Length') {
-                                            contentLength = Number(kvPair[1]);
-                                        }
-                                    }
-                                    rawData = rawData.slice(idx + DebugClient.TWO_CRLF.length);
-                                    continue;
-                                }
-                            }
-                            break;
-                        }
-                    });
-                    
-                    const debugAdapter: vscode.DebugAdapter = {
-                        onDidSendMessage: sendMessageEventEmitter.event,
-                        handleMessage(message) {
-                            const json = JSON.stringify(message);
-                            streamInfo.writer.write(`Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`, 'utf8');
-                        },
-                        dispose() {
-                            connectionType.dispose();
-                        }
-                    }
-                    debugAdapter.handleMessage(
-                    {
-                        "seq": 1,
-                        "type": "request",
-                        "command": "connectToService",
-                        "arguments": "debugger"
-                    });
-
-                    return new vscode.DebugAdapterInlineImplementation(debugAdapter);
+                    return debugClient.connectToStream(streamInfo, connectionType);
                 }, (error) => {
                     throw new Error("Error connecting to Minecraft debugger: " + error.message);
                 });
             }
         }));
+    }
+
+    private connectToStream(streamInfo: StreamInfo, connectionType: MinecraftConnectionType): vscode.DebugAdapterDescriptor {
+        const sendMessageEventEmitter = new vscode.EventEmitter<vscode.DebugProtocolMessage>()
+
+        const debugAdapter: vscode.DebugAdapter = {
+            onDidSendMessage: sendMessageEventEmitter.event,
+            handleMessage(message) {
+                const json = JSON.stringify(message);
+                streamInfo.writer.write(`Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`, 'utf8');
+            },
+            dispose() {
+                connectionType.dispose();
+            }
+        }
+
+        let rawData = Buffer.allocUnsafe(0);
+        let contentLength = -1;
+        streamInfo.reader.on('data', (data) => {
+            rawData = Buffer.concat([rawData, data]);
+
+            while(true) {
+                if(contentLength >= 0) {
+                    if(rawData.length >= contentLength) {
+                        const message = rawData.toString('utf8', 0, contentLength);
+                        rawData = rawData.slice(contentLength);
+                        contentLength = -1;
+                        if(message.length > 0) {
+                            try {
+                                this.handleReceivedMessage(
+                                    JSON.parse(message),
+                                    sendMessageEventEmitter,
+                                    debugAdapter.handleMessage
+                                );
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
+                        continue;
+                    }
+                } else {
+                    const idx = rawData.indexOf(DebugClient.TWO_CRLF);
+                    if (idx !== -1) {
+                        const header = rawData.toString('utf8', 0, idx);
+                        const lines = header.split(DebugClient.HEADER_LINESEPARATOR);
+                        for (const h of lines) {
+                            const kvPair = h.split(DebugClient.HEADER_FIELDSEPARATOR);
+                            if (kvPair[0] === 'Content-Length') {
+                                contentLength = Number(kvPair[1]);
+                            }
+                        }
+                        rawData = rawData.slice(idx + DebugClient.TWO_CRLF.length);
+                        continue;
+                    }
+                }
+                break;
+            }
+        });
+        
+        debugAdapter.handleMessage(
+        {
+            "seq": 1,
+            "type": "request",
+            "command": "connectToService",
+            "arguments": "debugger"
+        });
+
+        return new vscode.DebugAdapterInlineImplementation(debugAdapter);
+    }
+
+    private handleReceivedMessage(message: any, vscodeHandleEventEmitter: vscode.EventEmitter<vscode.DebugProtocolMessage>, messageSender: (message: any) => void) {
+        if(message.type === 'request' && message.command == 'findFiles') {
+            findFiles(message.arguments as string).then(files => {
+                messageSender({
+                        type: 'response',
+                        request_seq: message.seq,
+                        success: true,
+                        body: files
+                    });
+            }, error => {
+                messageSender({
+                    type: 'response',
+                    request_seq: message.seq,
+                    success: false,
+                    message: 'cancelled',
+                    body: { error: error.message }
+                });
+            });
+            return;
+        }
+        vscodeHandleEventEmitter.fire(<vscode.DebugProtocolMessage>message);
     }
     
     onLanguageClientStart(languageClient: LanguageClient) { }

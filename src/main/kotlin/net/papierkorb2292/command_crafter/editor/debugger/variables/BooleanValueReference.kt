@@ -3,27 +3,27 @@ package net.papierkorb2292.command_crafter.editor.debugger.variables
 import org.eclipse.lsp4j.debug.SetVariableResponse
 import org.eclipse.lsp4j.debug.Variable
 
-class DoubleValueReference(
-    private var double: Double?,
-    private val doubleSetter: (Double?) -> Double?
+class BooleanValueReference(
+    private var boolean: Boolean?,
+    private val booleanSetter: (Boolean?) -> Boolean?
 ): VariableValueReference {
     companion object {
-        const val TYPE = "Double"
+        const val TYPE = "Bool"
     }
 
     override fun getVariable(name: String): Variable = Variable().also {
         it.name = name
-        it.value = double?.toString() ?: VariableValueReference.NONE_VALUE
+        it.value = boolean?.toString() ?: VariableValueReference.NONE_VALUE
         it.type = TYPE
     }
     override fun getSetVariableResponse(): SetVariableResponse = SetVariableResponse().also {
-        it.value = double?.toString() ?: VariableValueReference.NONE_VALUE
+        it.value = boolean?.toString() ?: VariableValueReference.NONE_VALUE
         it.type = TYPE
     }
     override fun setValue(value: String) {
-        double = doubleSetter(
+        boolean = booleanSetter(
             if(VariableValueReference.isNone(value)) null
-            else value.toDoubleOrNull()
+            else value.lowercase().toBooleanStrictOrNull() ?: value.toIntOrNull()?.let { it != 0 }
         )
     }
 }
