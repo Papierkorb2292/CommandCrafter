@@ -31,4 +31,6 @@ make in vscode:
 
 ## License
 
-This mod is licensed under the Apache v2.0 License (see [LICENSE](LICENSE))
+This mod is licensed under the MIT License (see [LICENSE](LICENSE)).
+
+This mod distributes with the [LSP4J library](https://github.com/eclipse-lsp4j/lsp4j), which is licensed under the Eclipse Distribution License 1.0 (see https://www.eclipse.org/org/documents/edl-v10.html)

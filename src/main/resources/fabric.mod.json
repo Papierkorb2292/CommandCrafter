@@ -13,7 +13,7 @@
     "sources": "https://github.com/FabricMC/fabric-example-mod"
   },
 
-  "license": "Apache-1.0",
+  "license": ["MIT","EDL-1.0"],
   "icon": "assets/command_crafter/icon.png",
 
   "environment": "*",
