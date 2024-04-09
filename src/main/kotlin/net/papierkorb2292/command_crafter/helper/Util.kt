@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.helper
 
 import org.apache.commons.compress.harmony.pack200.IntList
+import java.util.concurrent.Semaphore
 
 fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size(), comparison: (index: Int) -> Int): Int {
     var low = fromIndex
@@ -25,5 +26,14 @@ inline fun <reified T> arrayOfNotNull(vararg elements: T?): Array<T> {
     return Array(elements.count { it != null }) {
         while (elements[index] == null) index++
         elements[index++]!!
+    }
+}
+
+inline fun <T> Semaphore.withAcquired(block: () -> T): T {
+    acquire()
+    try {
+        return block()
+    } finally {
+        release()
     }
 }

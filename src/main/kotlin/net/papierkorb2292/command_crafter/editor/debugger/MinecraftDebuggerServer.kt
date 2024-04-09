@@ -1,10 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
-import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.withLock
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.CommandCrafterDebugClient
 import net.papierkorb2292.command_crafter.editor.EditorService
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
@@ -14,14 +11,14 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.helper.withAcquired
 import org.eclipse.lsp4j.debug.*
 import org.eclipse.lsp4j.debug.services.IDebugProtocolServer
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import kotlin.math.max
 import kotlin.math.min
-
 
 class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnection) : IDebugProtocolServer, EditorService {
     companion object {
@@ -62,7 +59,11 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     private var variablesReferencer: VariablesReferencer? = null
     /** Must be used with [stackTraceLock] */
     private val stackTrace = ArrayList<Pair<StackFrame, Array<Scope>>>()
-    private val stackTraceLock = ReentrantLock()
+    /**
+     * Uses the java Semaphore to allow for the lock to be released from another thread
+     * than the one that acquired it (required for pushing debug frames)
+     * */
+    private val stackTraceLock = Semaphore(1, true)
 
     private var nextBreakpointId = 0
     private val nextBreakpointIdLock = SynchronizedObject()
@@ -109,34 +110,29 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             }
 
         override fun popStackFrames(stackFrames: Int) {
-            stackTraceLock.withLock {
+            stackTraceLock.withAcquired {
                 stackTrace.subList(max(stackTrace.size - stackFrames, 0), stackTrace.size).clear()
             }
         }
 
         override fun pushStackFrames(stackFrames: List<MinecraftStackFrame>) {
-            // Make sure that lock() and unlock() are called on the same thread
-            val lockExecutor = Executors.newSingleThreadExecutor()
-            CompletableFuture.runAsync({
-                stackTraceLock.lock()
-            }, lockExecutor).thenCompose {
-                CompletableFuture.allOf(*stackFrames.map { frame ->
-                    val frameRange = frame.visualContext.range
-                    stackTrace += StackFrame().apply {
-                        id = stackTrace.size
-                        name = frame.name
-                        line = frameRange.start.line
-                        column = frameRange.start.character
-                        endLine = frameRange.end.line
-                        endColumn = frameRange.end.character
-                        source = frame.visualContext.source
-                        presentationHint = frame.presentationHint
-                    } to frame.variableScopes
-                    mapSourceToDatapack(frame.visualContext.source)
-                }.toTypedArray())
-            }.whenCompleteAsync({ _, _ ->
-                stackTraceLock.unlock()
-            }, lockExecutor)
+            stackTraceLock.acquire()
+            CompletableFuture.allOf(*stackFrames.map { frame ->
+                val frameRange = frame.visualContext.range
+                stackTrace += StackFrame().apply {
+                    id = stackTrace.size
+                    name = frame.name
+                    line = frameRange.start.line
+                    column = frameRange.start.character
+                    endLine = frameRange.end.line
+                    endColumn = frameRange.end.character
+                    source = frame.visualContext.source
+                    presentationHint = frame.presentationHint
+                } to frame.variableScopes
+                mapSourceToDatapack(frame.visualContext.source)
+            }.toTypedArray()).whenCompleteAsync { _, _ ->
+                stackTraceLock.release()
+            }
         }
 
         override fun output(args: OutputEventArguments) {
@@ -198,7 +194,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun launch(args: MutableMap<String, Any>): CompletableFuture<Void> {
-        stackTraceLock.withLock {
+        stackTraceLock.withAcquired {
             stackTrace.clear()
         }
         debugPauseActions = null
@@ -300,7 +296,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     override fun stackTrace(args: StackTraceArguments): CompletableFuture<StackTraceResponse> {
         return CompletableFuture.supplyAsync {
-            stackTraceLock.withLock {
+            stackTraceLock.withAcquired {
                 val startFrameNumber = stackTrace.size - (args.startFrame ?: 0)
                 val amount = args.levels.run {
                     if(this == null || this == 0) stackTrace.size
@@ -319,7 +315,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     override fun scopes(args: ScopesArguments): CompletableFuture<ScopesResponse> {
         return CompletableFuture.supplyAsync {
-            stackTraceLock.withLock {
+            stackTraceLock.withAcquired {
                 val stackTrace = stackTrace
                 val frameId = args.frameId
                 ScopesResponse().apply {
@@ -368,7 +364,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             return
         }
         minecraftServer = connection
-        stackTraceLock.withLock {
+        stackTraceLock.withAcquired {
             stackTrace.clear()
         }
         if(debugPauseActions != null) {
