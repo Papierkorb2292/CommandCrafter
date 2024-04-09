@@ -16,7 +16,7 @@ import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
-class PauseContext(val server: MinecraftServer) {
+class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: EditorDebugConnection?, val pauseOnEntry: Boolean = false) {
     companion object {
         val currentPauseContext = ThreadLocal<PauseContext>()
 
@@ -37,8 +37,11 @@ class PauseContext(val server: MinecraftServer) {
             executionPausedThrowable.wrapperConsumer.accept(object : ExecutionWrapper {
                 override fun runWrapped(inner: () -> Unit) {
                     currentPauseContext.set(pauseContext)
-                    inner.invoke()
-                    resetPauseContext()
+                    try {
+                        inner.invoke()
+                    } finally {
+                        resetPauseContext()
+                    }
                 }
             })
             resetPauseContext()
@@ -106,7 +109,7 @@ class PauseContext(val server: MinecraftServer) {
 
     private val debugFrameStack = DebugFrameStack()
 
-    var debugConnection: EditorDebugConnection? = null
+    var debugConnection: EditorDebugConnection? = oneTimeDebugConnection
         private set
     var isPaused: Boolean = false
         private set
@@ -121,7 +124,7 @@ class PauseContext(val server: MinecraftServer) {
 
     fun pushDebugFrame(frame: DebugFrame) {
         debugFrameStack.push(frame)
-        if(pauseOnFrameEnter) {
+        if(pauseOnFrameEnter || (pauseOnEntry && debugFrameStack.stack.size == 1)) {
             pauseOnFrameEnter = false
             frame.getDebugPauseHandler().findNextPauseLocation()
         }
@@ -137,12 +140,13 @@ class PauseContext(val server: MinecraftServer) {
             if(pauseOnFrameExit == null) {
                 notifyClientPauseLocationSkipped()
                 currentDebugPauseHandler?.findNextPauseLocation()
-                return
-            }
-            if(pauseOnFrameExit == debugFrameStack.stack.size + 1) {
+            } else if(pauseOnFrameExit == debugFrameStack.stack.size + 1) {
                 pauseOnFrameExit = null
                 currentDebugPauseHandler?.findNextPauseLocation()
             }
+        }
+        if(debugFrameStack.stack.isEmpty() && oneTimeDebugConnection != null) {
+            oneTimeDebugConnection.lifecycle.shouldExitEvent.complete(ExitedEventArguments())
         }
     }
     fun peekDebugFrame() =
@@ -184,21 +188,24 @@ class PauseContext(val server: MinecraftServer) {
     }
 
     fun initBreakpointPause(breakpoint: ServerBreakpoint<*>): Boolean {
-        var debugConnection = debugConnection
+        var debugConnection = debugConnection ?: oneTimeDebugConnection
         if(debugConnection != null) {
             if(breakpoint.debugConnection != debugConnection) {
                 //A different debugee is currently debugging the function
                 return false
             }
             val currentDebugFrame = debugFrameStack.peek()
-            if(currentDebugFrame != null && breakpoint.unparsed.sourceReference == null && breakpoint.debugConnection in currentDebugFrame.createdSourceReferences.keys) {
+            if(currentDebugFrame != null && breakpoint.unparsed.sourceReference != null && breakpoint.debugConnection !in currentDebugFrame.createdSourceReferences.keys) {
                 //This breakpoint shouldn't be paused at, because it doesn't belong to the debugee's sourceReference
                 return false
             }
+        } else if(breakpoint.debugConnection.oneTimeDebugTarget != null) {
+            // The breakpoint comes from a one time debugee
+            return false
         } else {
             debugConnection = breakpoint.debugConnection
-            this.debugConnection = debugConnection
         }
+        this.debugConnection = debugConnection
         debugFrameStack.peek()!!.everPaused = true
         isPaused = true
         updateStackFrames(debugConnection)
@@ -212,16 +219,14 @@ class PauseContext(val server: MinecraftServer) {
     fun initPauseLocationReached(): Boolean {
         if(currentDebugPauseHandler?.shouldStopOnCurrentContext() == false)
             return false
-        debugConnection?.let { connection ->
-            debugFrameStack.peek()!!.everPaused = true
-            isPaused = true
-            updateStackFrames(connection)
-            connection.pauseStarted(debugPauseActionsWrapper, StoppedEventArguments().also {
-                it.reason = StoppedEventArgumentsReason.PAUSE
-            }, variablesReferenceMapper)
-            return true
-        }
-        return false
+        val connection = debugConnection ?: return false
+        debugFrameStack.peek()!!.everPaused = true
+        isPaused = true
+        updateStackFrames(connection)
+        connection.pauseStarted(debugPauseActionsWrapper, StoppedEventArguments().also {
+            it.reason = StoppedEventArgumentsReason.PAUSE
+        }, variablesReferenceMapper)
+        return true
     }
 
     private val onContinueListeners = mutableListOf<() -> Unit>()

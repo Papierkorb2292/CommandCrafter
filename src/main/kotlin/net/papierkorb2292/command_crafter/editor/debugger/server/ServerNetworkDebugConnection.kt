@@ -1,30 +1,81 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
+import com.google.gson.Gson
+import com.google.gson.JsonElement
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.network.PacketByteBuf
+import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
-import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
-import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
-import net.papierkorb2292.command_crafter.editor.debugger.helper.readBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.helper.writeBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.networking.*
-import org.eclipse.lsp4j.debug.BreakpointEventArguments
-import org.eclipse.lsp4j.debug.StoppedEventArguments
+import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.set
 
-class ServerNetworkDebugConnection(player: ServerPlayerEntity, val clientEditorDebugConnection: UUID) : NetworkIdentifiedDebugConnection {
+class ServerNetworkDebugConnection(
+    player: ServerPlayerEntity,
+    val clientEditorDebugConnection: UUID,
+    override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null
+) : NetworkIdentifiedDebugConnection {
+    companion object {
+        val outputGson = Gson()
+    }
+
     override val networkHandler: ServerPlayNetworkHandler = player.networkHandler
+    override val lifecycle = EditorDebugConnection.Lifecycle()
+
     var currentPauseId: UUID? = null
         private set
 
     private val packetSender = ServerPlayNetworking.getSender(player)
     private val playerName = player.name.string
+
+    init {
+        lifecycle.shouldExitEvent.thenAccept {
+            packetSender.sendPacket(NetworkServerConnection.debuggerExitPacketChannel, DebuggerExitS2CPacket(it, clientEditorDebugConnection).write())
+        }
+        if(oneTimeDebugTarget != null) {
+            val server = player.server
+            val pauseContext = PauseContext(server, this, oneTimeDebugTarget.stopOnEntry)
+            lifecycle.configurationDoneEvent.thenRunAsync({
+                PauseContext.currentPauseContext.set(pauseContext)
+                try {
+                    runOneTimeDebugTarget(server, oneTimeDebugTarget)
+                } catch (e: Throwable) {
+                    if(e !is ExecutionPausedThrowable) throw e
+                    PauseContext.wrapExecution(e)
+                } finally {
+                    PauseContext.resetPauseContext()
+                }
+            }, server)
+        }
+    }
+
+    private fun runOneTimeDebugTarget(server: MinecraftServer, oneTimeDebugTarget: EditorDebugConnection.DebugTarget) {
+        when(oneTimeDebugTarget.targetFileType) {
+            PackContentFileType.FUNCTIONS_FILE_TYPE -> {
+                val function = server.commandFunctionManager.getFunction(oneTimeDebugTarget.targetId)
+                function.ifPresentOrElse({
+                    server.commandFunctionManager.execute(it, server.commandSource)
+                }, {
+                    output(OutputEventArguments().apply {
+                        category = OutputEventArgumentsCategory.IMPORTANT
+                        output = "Function '${oneTimeDebugTarget.targetId}' not found"
+                    })
+                })
+            }
+            else -> output(OutputEventArguments().apply {
+                category = OutputEventArgumentsCategory.IMPORTANT
+                output = "Tried to run unsupported debug target type: ${oneTimeDebugTarget.targetFileType}"
+            })
+        }
+    }
 
     override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
         val pauseId = NetworkServerConnection.addServerDebugPause(DebugPauseInformation(actions, variables, clientEditorDebugConnection))
@@ -68,13 +119,28 @@ class ServerNetworkDebugConnection(player: ServerPlayerEntity, val clientEditorD
         packetSender.sendPacket(NetworkServerConnection.pushStackFramesPacketChannel, PushStackFramesS2CPacket(stackFrames, clientEditorDebugConnection).write())
     }
 
-    override fun onPauseLocationSkipped() {
-        packetSender.sendPacket(NetworkServerConnection.debuggerPauseLocationSkippedPacketChannel, PauseLocationSkippedS2CPacket(clientEditorDebugConnection).write())
+    override fun output(args: OutputEventArguments) {
+        packetSender.sendPacket(NetworkServerConnection.debuggerOutputPacketChannel, DebuggerOutputS2CPacket(args, clientEditorDebugConnection).write())
     }
 
     override fun toString(): String {
         return "ServerNetworkDebugConnection(player=${playerName})"
     }
+
+    /*fun prepareOneTimeFunctionDebug(function: CommandFunction<ServerCommandSource>, pauseOnEntry: Boolean) {
+        preparedOneTimeDebugPauseContext = PauseContext(server, this, pauseOnEntry)
+        lifecycle.configurationDoneEvent.thenRunAsync({
+            PauseContext.currentPauseContext.set(preparedOneTimeDebugPauseContext)
+            try {
+                server.commandFunctionManager.execute(function, server.commandSource)
+            } catch (e: Throwable) {
+                if(e !is ExecutionPausedThrowable) throw e
+                PauseContext.wrapExecution(e)
+            } finally {
+                PauseContext.resetPauseContext()
+            }
+        }, server)
+    }*/
 
     class DebugPauseInformation(val actions: DebugPauseActions, val pauseContext: VariablesReferencer, val clientEditorDebugConnection: UUID)
 
@@ -152,10 +218,27 @@ class ServerNetworkDebugConnection(player: ServerPlayerEntity, val clientEditorD
         }
     }
 
-    class PauseLocationSkippedS2CPacket(val editorDebugConnection: UUID) : ByteBufWritable {
-        constructor(buf: PacketByteBuf) : this(buf.readUuid())
+    class DebuggerOutputS2CPacket(val args: OutputEventArguments, val editorDebugConnection: UUID) : ByteBufWritable {
+        constructor(buf: PacketByteBuf) : this(OutputEventArguments().apply {
+            category = buf.readNullableString()
+            output = buf.readString()
+            group = buf.readNullableEnumConstant(OutputEventArgumentsGroup::class.java)
+            variablesReference = buf.readNullableVarInt()
+            source = buf.readNullable { buf.readSource() }
+            line = buf.readNullableVarInt()
+            column = buf.readNullableVarInt()
+            data = outputGson.fromJson(buf.readString(), JsonElement::class.java)
+        }, buf.readUuid())
 
         override fun write(buf: PacketByteBuf) {
+            buf.writeNullableString(args.category)
+            buf.writeString(args.output)
+            buf.writeNullable(args.group, PacketByteBuf::writeEnumConstant)
+            buf.writeNullableVarInt(args.variablesReference)
+            buf.writeNullable(args.source, PacketByteBuf::writeSource)
+            buf.writeNullableVarInt(args.line)
+            buf.writeNullableVarInt(args.column)
+            buf.writeString(outputGson.toJson(args.data))
             buf.writeUuid(editorDebugConnection)
         }
     }
@@ -174,6 +257,43 @@ class ServerNetworkDebugConnection(player: ServerPlayerEntity, val clientEditorD
         override fun write(buf: PacketByteBuf) {
             buf.writeInt(start)
             buf.writeUuid(requestId)
+        }
+    }
+
+    class ConfigurationDoneC2SPacket(val debugConnectionId: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(buf.readUuid())
+        override fun write(buf: PacketByteBuf) {
+            buf.writeUuid(debugConnectionId)
+        }
+    }
+
+    class DebuggerExitS2CPacket(val args: ExitedEventArguments, val editorDebugConnection: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(
+            ExitedEventArguments().apply { exitCode = buf.readVarInt() },
+            buf.readUuid()
+        )
+
+        override fun write(buf: PacketByteBuf) {
+            buf.writeVarInt(args.exitCode)
+            buf.writeUuid(editorDebugConnection)
+        }
+    }
+
+    class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?, val debugConnectionId: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(buf.readNullable {
+            EditorDebugConnection.DebugTarget(
+                buf.readEnumConstant(PackContentFileType::class.java),
+                buf.readIdentifier(),
+                buf.readBoolean()
+            )
+        }, buf.readUuid())
+        override fun write(buf: PacketByteBuf) {
+            buf.writeNullable(oneTimeDebugTarget) { targetBuf, target ->
+                targetBuf.writeEnumConstant(target.targetFileType)
+                targetBuf.writeIdentifier(target.targetId)
+                targetBuf.writeBoolean(target.stopOnEntry)
+            }
+            buf.writeUuid(debugConnectionId)
         }
     }
 }

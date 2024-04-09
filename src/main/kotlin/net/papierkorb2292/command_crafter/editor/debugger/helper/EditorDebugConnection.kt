@@ -1,12 +1,15 @@
 package net.papierkorb2292.command_crafter.editor.debugger.helper
 
+import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
-import org.eclipse.lsp4j.debug.BreakpointEventArguments
-import org.eclipse.lsp4j.debug.StoppedEventArguments
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
 
 interface EditorDebugConnection {
+    val lifecycle: Lifecycle
+    val oneTimeDebugTarget: DebugTarget?
     fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer)
     fun pauseEnded()
     fun isPaused(): Boolean
@@ -14,8 +17,21 @@ interface EditorDebugConnection {
     fun reserveBreakpointIds(count: Int): CompletableFuture<ReservedBreakpointIdStart>
     fun popStackFrames(stackFrames: Int)
     fun pushStackFrames(stackFrames: List<MinecraftStackFrame>)
-    fun onPauseLocationSkipped()
+    fun output(args: OutputEventArguments)
 
+    class Lifecycle {
+        val configurationDoneEvent: CompletableFuture<Void> = CompletableFuture()
+        val shouldExitEvent: CompletableFuture<ExitedEventArguments> = CompletableFuture()
+    }
+
+    data class DebugTarget(val targetFileType: PackContentFileType, val targetId: Identifier, val stopOnEntry: Boolean)
+}
+
+fun EditorDebugConnection.onPauseLocationSkipped() {
+    output(OutputEventArguments().apply {
+        category = OutputEventArgumentsCategory.IMPORTANT
+        output = "Skipped pause location"
+    })
 }
 
 typealias ReservedBreakpointIdStart = Int

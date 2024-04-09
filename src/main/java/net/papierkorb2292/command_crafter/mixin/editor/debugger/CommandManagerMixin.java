@@ -31,7 +31,7 @@ public abstract class CommandManagerMixin {
             )
     )
     private static void command_crafter$createPauseContext(ServerCommandSource commandSource, Consumer<CommandExecutionContext<ServerCommandSource>> callback, CallbackInfo ci, @Share("resetContext") LocalBooleanRef resetContextRef) {
-        resetContextRef.set(PauseContext.Companion.trySetUpPauseContext(() -> new PauseContext(commandSource.getServer())));
+        resetContextRef.set(PauseContext.Companion.trySetUpPauseContext(() -> new PauseContext(commandSource.getServer(), null, false)));
     }
 
     @Inject(
@@ -81,9 +81,8 @@ public abstract class CommandManagerMixin {
                 CURRENT_CONTEXT.remove();
                 PauseContext.Companion.resetPauseContext();
                 ci.cancel();
-                return;
             }
-            throw throwable;
+            return;
         }
         if (resetContext) {
             PauseContext.Companion.resetPauseContext();

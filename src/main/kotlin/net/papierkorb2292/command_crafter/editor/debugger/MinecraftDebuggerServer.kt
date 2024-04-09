@@ -3,6 +3,8 @@ package net.papierkorb2292.command_crafter.editor.debugger
 import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.withLock
+import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.CommandCrafterDebugClient
 import net.papierkorb2292.command_crafter.editor.EditorService
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
@@ -66,6 +68,18 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     private val nextBreakpointIdLock = SynchronizedObject()
 
     private val editorDebugConnection = object : EditorDebugConnection {
+        override val lifecycle = EditorDebugConnection.Lifecycle()
+        override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?
+            get() = this@MinecraftDebuggerServer.oneTimeDebugTarget
+
+        init {
+            lifecycle.shouldExitEvent.thenAccept {
+                val client = client ?: return@thenAccept
+                client.terminated(TerminatedEventArguments())
+                client.exited(it)
+            }
+        }
+
         override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
             debugPauseActions = actions
             variablesReferencer = variables
@@ -125,15 +139,13 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             }, lockExecutor)
         }
 
-        override fun onPauseLocationSkipped() {
-            client?.output(OutputEventArguments().apply {
-                category = OutputEventArgumentsCategory.IMPORTANT
-                output = "Skipped pause location"
-            })
+        override fun output(args: OutputEventArguments) {
+            client?.output(args)
         }
     }
 
     private var initializeArgs = InitializeRequestArguments()
+    private var oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null
 
     /**
      * If a source path can't be parsed by [PackContentFileType.parsePath],
@@ -181,6 +193,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun configurationDone(args: ConfigurationDoneArguments?): CompletableFuture<Void> {
+        editorDebugConnection.lifecycle.configurationDoneEvent.complete(null)
         return CompletableFuture.completedFuture(null)
     }
 
@@ -190,6 +203,26 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         }
         debugPauseActions = null
         nextBreakpointId = 0
+        val functionToDebug = args["function"]
+        val stopOnEntry = args["stopOnEntry"]
+        if(functionToDebug != null) {
+            val functionId = (functionToDebug as? String)?.let { Identifier.tryParse(it) }
+            if(functionId == null) {
+                client?.exited(ExitedEventArguments().apply { exitCode = 4 })
+                throw IllegalArgumentException("'function' must be a valid function id")
+            }
+            if(stopOnEntry !is Boolean?) {
+                client?.exited(ExitedEventArguments().apply { exitCode = 3 })
+                throw IllegalArgumentException("'stopOnEntry' must be a boolean")
+            }
+            if(minecraftServer.debugService == null) {
+                throw UnsupportedOperationException(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
+            }
+            oneTimeDebugTarget = EditorDebugConnection.DebugTarget(PackContentFileType.FUNCTIONS_FILE_TYPE, functionId, stopOnEntry ?: false)
+        } else if(stopOnEntry != null) {
+            client?.exited(ExitedEventArguments().apply { exitCode = 2 })
+            throw IllegalArgumentException("'stopOnEntry' must be used with 'function'")
+        }
         return CompletableFuture.completedFuture(null)
     }
 
@@ -330,6 +363,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
+        if(oneTimeDebugTarget != null) {
+            client?.exited(ExitedEventArguments().apply { exitCode = 1 })
+            return
+        }
         minecraftServer = connection
         stackTraceLock.withLock {
             stackTrace.clear()

@@ -13,6 +13,8 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Pos
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
+import org.eclipse.lsp4j.debug.OutputEventArguments
+import org.eclipse.lsp4j.debug.OutputEventArgumentsCategory
 
 class FunctionDebugFrame(
     val pauseContext: PauseContext,
@@ -193,6 +195,22 @@ class FunctionDebugFrame(
 
     override fun onExitFrame() {
         debugPauseHandler?.onExitFrame()
+        if(pauseContext.debugFrameDepth == 0 && pauseContext.oneTimeDebugConnection != null) {
+            pauseContext.oneTimeDebugConnection.output(OutputEventArguments().apply {
+                category = OutputEventArgumentsCategory.IMPORTANT
+                val result = commandResult.get()
+                output = if(result == null) {
+                    "No return information available"
+                } else {
+                    val returnValue = result.returnValue
+                    if(returnValue == null) {
+                        "Function didn't return a value"
+                    } else {
+                        "Function returned ${if(returnValue.first) "successfully" else "unsuccessfully"} with value ${returnValue.second}"
+                    }
+                }
+            })
+        }
     }
     
     private fun startPause(): Nothing {

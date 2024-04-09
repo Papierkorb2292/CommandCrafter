@@ -48,13 +48,13 @@ import java.util.concurrent.CompletableFuture
 class NetworkServerConnection private constructor(private val client: MinecraftClient, initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
     companion object {
         const val SERVER_LOG_CHANNEL = "server"
-
         private val requestConnectionPacketChannel = Identifier("command_crafter", "request_network_server_connection")
-        private val initializeConnectionPacketChannel = Identifier("command_crafter", "initialize_network_server_connection")
 
+        private val initializeConnectionPacketChannel = Identifier("command_crafter", "initialize_network_server_connection")
         private val logMessagePacketChannel = Identifier("command_crafter", "log_message")
 
         val setBreakpointsRequestPacketChannel = Identifier("command_crafter", "set_breakpoints_request")
+
         val setBreakpointsResponsePacketChannel = Identifier("command_crafter", "set_breakpoints_response")
         val popStackFramesPacketChannel = Identifier("command_crafter", "debugger_pop_stack_frames")
         val pushStackFramesPacketChannel = Identifier("command_crafter", "debugger_push_stack_frames")
@@ -68,11 +68,15 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val setVariableResponsePacketChannel = Identifier("command_crafter", "set_variable_response")
         val stepInTargetsRequestPacketChannel = Identifier("command_crafter", "step_in_targets_request")
         val stepInTargetsResponsePacketChannel = Identifier("command_crafter", "step_in_targets_response")
-        val debuggerPauseLocationSkippedPacketChannel = Identifier("command_crafter", "debugger_pause_location_skipped")
+        val debuggerOutputPacketChannel = Identifier("command_crafter", "debugger_output")
         val sourceReferenceRequestPacketChannel = Identifier("command_crafter", "source_reference_request")
         val sourceReferenceResponsePacketChannel = Identifier("command_crafter", "source_reference_response")
         val reserveBreakpointIdsRequestPacketChannel = Identifier("command_crafter", "reserve_breakpoint_ids_request")
         val reserveBreakpointIdsResponsePacketChannel = Identifier("command_crafter", "reserve_breakpoint_ids_response")
+        val debuggerConfigurationDonePacketChannel = Identifier("command_crafter", "debugger_configuration_done")
+        val debuggerExitPacketChannel = Identifier("command_crafter", "debugger_exit")
+        val editorDebugConnectionRegistrationPacketChannel = Identifier("command_crafter", "editor_debug_connection_registration")
+
 
         val currentGetVariablesRequests: MutableMap<UUID, CompletableFuture<Array<Variable>>> = mutableMapOf()
         val currentSetVariableRequests: MutableMap<UUID, CompletableFuture<VariablesReferencer.SetVariableResult?>> = mutableMapOf()
@@ -157,9 +161,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val packet = NetworkDebugPauseActions.StepInTargetsResponseS2CPacket(buf)
                 currentStepInTargetsRequests.remove(packet.requestId)?.complete(packet.response)
             }
-            ClientPlayNetworking.registerGlobalReceiver(debuggerPauseLocationSkippedPacketChannel) { _, _, buf, _ ->
-                val packet = ServerNetworkDebugConnection.PauseLocationSkippedS2CPacket(buf)
-                clientEditorDebugConnections.inverse()[packet.editorDebugConnection]?.onPauseLocationSkipped()
+            ClientPlayNetworking.registerGlobalReceiver(debuggerOutputPacketChannel) { _, _, buf, _ ->
+                val packet = ServerNetworkDebugConnection.DebuggerOutputS2CPacket(buf)
+                clientEditorDebugConnections.inverse()[packet.editorDebugConnection]?.output(packet.args)
             }
             ClientPlayNetworking.registerGlobalReceiver(sourceReferenceResponsePacketChannel) { _, _, buf, _ ->
                 val packet = SourceReferenceResponseS2CPacket(buf)
@@ -173,6 +177,11 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                         ServerNetworkDebugConnection.ReserveBreakpointIdsResponseC2SPacket(it, packet.requestId).write()
                     )
                 }
+            }
+            ClientPlayNetworking.registerGlobalReceiver(debuggerExitPacketChannel) { _, _, buf, _ ->
+                val packet = ServerNetworkDebugConnection.DebuggerExitS2CPacket(buf)
+                val editorConnection = clientEditorDebugConnections.inverse()[packet.editorDebugConnection] ?: return@registerGlobalReceiver
+                editorConnection.lifecycle.shouldExitEvent.complete(packet.args)
             }
         }
 
@@ -271,6 +280,15 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val packet = ServerNetworkDebugConnection.ReserveBreakpointIdsResponseC2SPacket(buf)
                 currentBreakpointIdsRequests.remove(packet.requestId)?.complete(packet.start)
             }
+            ServerPlayNetworking.registerGlobalReceiver(debuggerConfigurationDonePacketChannel) { _, _, _, buf, _ ->
+                val packet = ServerNetworkDebugConnection.ConfigurationDoneC2SPacket(buf)
+                val debugConnection = serverEditorDebugConnections[packet.debugConnectionId] ?: return@registerGlobalReceiver
+                debugConnection.lifecycle.configurationDoneEvent.complete(null)
+            }
+            ServerPlayNetworking.registerGlobalReceiver(editorDebugConnectionRegistrationPacketChannel) { _, player, _, buf, _ ->
+                val packet = ServerNetworkDebugConnection.DebugConnectionRegistrationC2SPacket(buf)
+                serverEditorDebugConnections.putIfAbsent(packet.debugConnectionId, ServerNetworkDebugConnection(player, packet.debugConnectionId, packet.oneTimeDebugTarget))
+            }
 
             ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, server -> server.execute {
                 serverEditorDebugConnections.values.removeIf {
@@ -368,7 +386,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             id: Identifier,
             editorDebugConnection: EditorDebugConnection
         ): CompletableFuture<SetBreakpointsResponse> {
-            val debugConnectionId = clientEditorDebugConnections.computeIfAbsent(editorDebugConnection) { UUID.randomUUID() }
+            val debugConnectionId = getOrCreateDebugConnectionId(editorDebugConnection)
             val completableFuture = CompletableFuture<SetBreakpointsResponse>()
             val requestId = UUID.randomUUID()
             currentBreakpointRequests[requestId] = {
@@ -389,7 +407,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
 
         override fun retrieveSourceReference(sourceReference: Int, editorDebugConnection: EditorDebugConnection): CompletableFuture<SourceResponse> {
-            val debugConnectionId = clientEditorDebugConnections.computeIfAbsent(editorDebugConnection) { UUID.randomUUID() }
+            val debugConnectionId = getOrCreateDebugConnectionId(editorDebugConnection)
             val completableFuture = CompletableFuture<SourceResponse>()
             val requestId = UUID.randomUUID()
             currentSourceReferenceRequests[requestId] = completableFuture
@@ -406,6 +424,23 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 editorDebugConnectionRemovedPacketChannel,
                 EditorDebugConnectionRemovedC2SPacket(id).write()
             )
+        }
+
+        private fun getOrCreateDebugConnectionId(editorDebugConnection: EditorDebugConnection): UUID {
+            return clientEditorDebugConnections.computeIfAbsent(editorDebugConnection) {
+                val id = UUID.randomUUID()
+                ClientPlayNetworking.send(
+                    editorDebugConnectionRegistrationPacketChannel,
+                    ServerNetworkDebugConnection.DebugConnectionRegistrationC2SPacket(it.oneTimeDebugTarget, id).write()
+                )
+                it.lifecycle.configurationDoneEvent.thenRun {
+                    ClientPlayNetworking.send(
+                        debuggerConfigurationDonePacketChannel,
+                        ServerNetworkDebugConnection.ConfigurationDoneC2SPacket(id).write()
+                    )
+                }
+                id
+            }
         }
     }
 

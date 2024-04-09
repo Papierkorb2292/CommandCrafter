@@ -67,6 +67,10 @@
               "function": {
                 "type": "string",
                 "description": "Optional: The id of a function to run and debug. If omitted, all datapack functions can be debugged, but won't be run at launch"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Optional: Whether to stop on the first line of the function. Must only be used with the 'function' property. Defaults to false."
               }
             }
           }
@@ -81,22 +85,23 @@
 
         "configurationSnippets": [
           {
-            "label": "Minecraft Debug: Launch",
+            "label": "Minecraft: Debug",
             "description": "A new configuration for launching the Minecraft debugger",
             "body": {
               "type": "commandcrafter",
               "request": "launch",
-              "name": "Launch Minecraft Debugger"
+              "name": "Minecraft Debugger"
             }
           },
           {
-            "label": "Minecraft Debug: Debug Function",
-            "description": "A new configuration for launching the Minecraft debugger and debugging a function",
+            "label": "Minecraft: Debug Function",
+            "description": "A new configuration for launching the Minecraft debugger and debugging a single function call with it",
             "body": {
               "type": "commandcrafter",
               "request": "launch",
-              "name": "Debugging function <Function>",
-              "function": "<Function Id>"
+              "name": "${1:<Function Id>}.mcfunction",
+              "function": "${1:<Function Id>}",
+              "stopOnEntry": false
             }
           }
         ]
