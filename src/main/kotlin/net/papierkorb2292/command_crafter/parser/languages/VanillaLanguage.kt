@@ -337,11 +337,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         if(reader.peek() == '$')
             reader.skip()
         val macroBuilder = StringBuilder(reader.readLine())
-        var indentStartCursor = reader.cursor
+        var indentStartCursor = reader.cursor - 1
         while(reader.tryReadIndentation { it > reader.currentIndentation }) {
             val skippedChars = reader.cursor - indentStartCursor
             @Suppress("KotlinConstantConditions")
-            (reader as StringReaderAccessor).setString(reader.string.substring(indentStartCursor - 1) + ' ') //Also removes newline
+            (reader as StringReaderAccessor).setString(reader.string.substring(0, indentStartCursor - 1) + ' ' + reader.string.substring(reader.cursor)) //Also removes newline
             reader.cursor = indentStartCursor
             reader.skippedChars += skippedChars
             reader.readCharacters += skippedChars
