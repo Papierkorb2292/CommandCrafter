@@ -2,8 +2,12 @@
   "name": "commandcrafter",
   "displayName": "CommandCrafter",
   "publisher": "Papierkorb2292",
-  "description": "TODO",
-  "version": "0.0.1",
+  "description": "Adds Minecraft Datapack support when used in conjunction with the CommandCrafter Minecraft mod",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Papierkorb2292/CommandCrafter/tree/master/editor_extensions/vscode/commandcrafter"
+  },
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.77.0"
   },
