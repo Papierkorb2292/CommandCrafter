@@ -232,7 +232,6 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     private val onContinueListeners = mutableListOf<() -> Unit>()
 
     fun addOnContinueListener(callback: () -> Unit) {
-        //TODO: Called multiple times
         onContinueListeners += callback
     }
     fun removeOnContinueListener(callback: () -> Unit) {
@@ -287,19 +286,19 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
                 continue
             }
             val sourceReferenceWrapper = debugStackEntry.frame.shouldWrapInSourceReference(sourcePath)
-            if (sourceReferenceWrapper == null) {
-                wrappedStackFrames.add(stackFrame)
-                continue
+            if(sourceReferenceWrapper != null) {
+                val sourceReferenceId = server.getDebugManager().addSourceReference(debugConnection, sourceReferenceWrapper.originalLines) {
+                    val (content, cursorMapper) = sourceReferenceWrapper.content(it)
+                    SourceResponse().apply {
+                        this.content = content
+                    } to cursorMapper
+                }
+                debugStackEntry.createdSourceReferences.put(debugConnection, sourceReferenceId)
+                sourceReferenceWrapper.sourceReferenceCallback(sourceReferenceId)
+                // The stack frames must be created again, since getStackFrames should be passed the new sourceReference
+                return getSourceReferenceWrappedStackFrames(debugStackEntry, debugConnection)
             }
-            val sourceReferenceId = server.getDebugManager().addSourceReference(debugConnection) {
-                val (content, cursorMapper) = sourceReferenceWrapper.content(it)
-                SourceResponse().apply {
-                    this.content = content
-                } to cursorMapper
-            }
-            debugStackEntry.createdSourceReferences.put(debugConnection, sourceReferenceId)
-            sourceReferenceWrapper.sourceReferenceCallback(sourceReferenceId)
-            wrappedStackFrames.add(wrapStackFrameWithSourceReference(stackFrame, sourceReferenceId))
+            wrappedStackFrames.add(stackFrame)
         }
         return wrappedStackFrames
     }
@@ -312,7 +311,11 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         fun onContinue(stackEntry: DebugFrameStack.Entry)
     }
 
-    class SourceReferenceWrapper(val sourceReferenceCallback: (Int) -> Unit, val content: (Int) -> Pair<String, ProcessedInputCursorMapper>)
+    class SourceReferenceWrapper(
+        val sourceReferenceCallback: (Int) -> Unit,
+        val originalLines: List<String>,
+        val content: (Int) -> Pair<String, ProcessedInputCursorMapper>
+    )
 
     class DebugFrameStack {
         val stack = LinkedList<Entry>()

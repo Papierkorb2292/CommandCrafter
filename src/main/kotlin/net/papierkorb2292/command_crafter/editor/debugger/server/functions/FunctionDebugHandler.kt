@@ -20,7 +20,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Unp
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.debug.Source
-import org.eclipse.lsp4j.debug.SourceBreakpoint
 import java.util.*
 
 class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
@@ -37,7 +36,7 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         private val FUNCTION_FILE_EXTENSTION = ".mcfunction"
     }
 
-    private val breakpointManager = BreakpointManager(::parseBreakpoints)
+    private val breakpointManager = BreakpointManager(::parseBreakpoints, server)
 
     private fun parseBreakpoints(
         breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
@@ -48,6 +47,7 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         val source = Source().apply {
             this.name = getSourceName(functionId, fileSourceReference)
             this.path = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(functionId)
+            this.sourceReference = fileSourceReference
         }
         val optionalFunction = server.commandFunctionManager.getFunction(functionId)
         return optionalFunction.map { function ->
@@ -89,6 +89,10 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         breakpointManager.removeDebugConnection(debugConnection)
     }
 
+    override fun removeSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int?) {
+        breakpointManager.removeSourceReference(debugConnection, sourceReference)
+    }
+
     fun functionHasBreakpoints(id: Identifier) = breakpointManager.breakpoints.values.any { it.containsKey(id) }
 
     fun getFunctionBreakpoints(id: Identifier, sourceReferences: Reference2IntMap<EditorDebugConnection>? = null): List<ServerBreakpoint<FunctionBreakpointLocation>> =
@@ -102,7 +106,7 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
     }
 
     fun addNewSourceReferenceBreakpoints(
-        breakpoints: List<SourceBreakpoint>,
+        breakpoints: List<BreakpointManager.NewSourceReferenceBreakpoint>,
         debuggerConnection: EditorDebugConnection,
         resourceId: Identifier,
         sourceReference: Int?,

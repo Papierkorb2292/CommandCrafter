@@ -40,7 +40,7 @@ object CommandCrafter: ModInitializer {
 
     private fun initializeEditor() =
         MinecraftLanguageServer.addAnalyzer(object: FileAnalyseHandler {
-            override fun canHandle(file: OpenFile) = file.uri.endsWith(".mcfunction")
+            override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
 
             override fun analyze(
                 file: OpenFile,

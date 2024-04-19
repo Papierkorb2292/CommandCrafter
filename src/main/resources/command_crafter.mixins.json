@@ -84,6 +84,7 @@
     "parser.DataPackContentsAccessor",
     "parser.DataPackContentsMixin",
     "parser.DirectoryResourcePackAccessor",
+    "parser.ExpandedMacroMixin",
     "parser.FunctionBuilderAccessor",
     "parser.FunctionLoaderMixin",
     "parser.LiteralCommandNodeMixin",

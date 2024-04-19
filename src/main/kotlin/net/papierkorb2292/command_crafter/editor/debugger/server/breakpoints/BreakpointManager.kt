@@ -1,10 +1,15 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints
 
+import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.copy
+import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.debug.BreakpointEventArguments
 import org.eclipse.lsp4j.debug.BreakpointEventArgumentsReason
@@ -18,7 +23,8 @@ class BreakpointManager<TBreakpointLocation>(
         fileId: Identifier,
         fileSourceReference: Int?,
         debugConnection: EditorDebugConnection
-    ) -> List<Breakpoint>
+    ) -> List<Breakpoint>,
+    val server: MinecraftServer
 ) {
     val fileBreakpoints: MutableMap<EditorDebugConnection, MutableMap<FileBreakpointSource, MutableList<ServerBreakpoint<TBreakpointLocation>>>> = mutableMapOf()
     val breakpoints: MutableMap<EditorDebugConnection, MutableMap<Identifier, MutableMap<Int?, MutableMap<BreakpointParser<TBreakpointLocation>, AddedBreakpointList<TBreakpointLocation>>>>> = mutableMapOf()
@@ -28,6 +34,7 @@ class BreakpointManager<TBreakpointLocation>(
         fileBreakpoints.remove(debugConnection)
     }
 
+    fun getResourceBreakpoints(debugConnection: EditorDebugConnection, sourceFile: Identifier, sourceReference: Int? = INITIAL_SOURCE_REFERENCE) = breakpoints[debugConnection]?.get(sourceFile)?.get(sourceReference)
     fun getOrCreateResourceBreakpoints(debugConnection: EditorDebugConnection, sourceFile: Identifier, sourceReference: Int? = INITIAL_SOURCE_REFERENCE) = breakpoints.getOrPut(debugConnection, ::mutableMapOf).getOrPut(sourceFile, ::mutableMapOf).getOrPut(sourceReference, ::mutableMapOf)
 
     fun setParserBreakpoints(
@@ -42,7 +49,7 @@ class BreakpointManager<TBreakpointLocation>(
             return
         }
         val resourceBreakpoints = getOrCreateResourceBreakpoints(debugConnection, resourceId, sourceReference)
-        val prevBreakpoints = resourceBreakpoints.put(breakpointParser, breakpoints) ?: return
+        val prevBreakpoints = resourceBreakpoints.put(breakpointParser, breakpoints) ?: AddedBreakpointList()
         if(sourceReference != INITIAL_SOURCE_REFERENCE) return
 
         val prevBreakpointIds = prevBreakpoints.list.mapTo(HashSet()) { it.unparsed.id }
@@ -54,11 +61,31 @@ class BreakpointManager<TBreakpointLocation>(
                 val breakpointParserBreakpoints =
                     if(added.isEmpty()) subSourceBreakpoints[breakpointParser] ?: continue
                     else subSourceBreakpoints.getOrPut(breakpointParser) { AddedBreakpointList(mutableListOf()) }
-                val modified = breakpointParserBreakpoints.list.removeAll { it.unparsed.id in removedIds } || added.isNotEmpty()
+                val modified = breakpointParserBreakpoints.list.removeAll {
+                    if(it.unparsed.originBreakpointId in removedIds) {
+                        debugConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
+                            breakpoint = Breakpoint().apply { id = it.unparsed.id }
+                            reason = BreakpointEventArgumentsReason.REMOVED
+                        })
+                        true
+                    } else false
+                } || added.isNotEmpty()
                 if(!modified) continue
                 reserveBreakpointIds(debugConnection, added.size).thenApply { addedIdStart ->
                     val addedCopied = added.mapIndexed { index, original ->
-                        UnparsedServerBreakpoint(addedIdStart + index, subSourceReference, original.unparsed.sourceBreakpoint)
+                        val newSourceBreakpoint = original.unparsed.sourceBreakpoint.copy()
+                        val sourceReferenceEntry = server.getDebugManager().getSourceReferenceEntry(debugConnection, subSourceReference)
+                            ?: throw IllegalArgumentException("Couldn't retrieve entry for source reference when adding new breakpoints to original file")
+                        val initialSourceCursor = AnalyzingResult.getCursorFromPosition(
+                            sourceReferenceEntry.originalLines,
+                            Position(newSourceBreakpoint.line, newSourceBreakpoint.column),
+                            false
+                        )
+                        val mappedCursor = sourceReferenceEntry.getCursorMapperOrGenerate(sourceReference!!).mapToTarget(initialSourceCursor, true)
+                        val newPosition = AnalyzingResult.getPositionFromCursor(mappedCursor, sourceReferenceEntry.getLinesOrGenerate(sourceReference), false)
+                        newSourceBreakpoint.line = newPosition.line
+                        newSourceBreakpoint.column = newPosition.character
+                        UnparsedServerBreakpoint(addedIdStart + index, subSourceReference, newSourceBreakpoint, original.unparsed.id)
                     }
                     val updatedBreakpoints = onBreakpointUpdate(
                         (subSourceBreakpoints.flatMap { breakpointParserBreakpointsEntry ->
@@ -76,12 +103,6 @@ class BreakpointManager<TBreakpointLocation>(
                         debugConnection,
                         resourceId
                     )
-                    removedIds.forEach {
-                        debugConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
-                            breakpoint = Breakpoint().apply { id = it }
-                            reason = BreakpointEventArgumentsReason.REMOVED
-                        })
-                    }
                 }
             }
         }
@@ -112,7 +133,12 @@ class BreakpointManager<TBreakpointLocation>(
         resourceId: Identifier,
         sourceReference: Int?,
     ): List<Breakpoint> {
-        val (sortedBreakpoints, unsortIndices) = getSorted(breakpoints, debugConnection)
+        val prevBreakpoints = getResourceBreakpoints(debugConnection, resourceId, sourceReference)
+            ?.flatMap { it.value.list }?.associateBy { it.unparsed.id }
+        val (sortedBreakpoints, unsortIndices) = getSorted(Array(breakpoints.size) {
+            val prevBreakpoint = prevBreakpoints?.get(breakpoints[it].id) ?: return@Array breakpoints[it]
+            breakpoints[it].copy(originBreakpointId = prevBreakpoint.unparsed.originBreakpointId)
+        }, debugConnection)
         setFileBreakpoints(resourceId, sourceReference, sortedBreakpoints, debugConnection)
         val parsed = parser(sortedBreakpoints, resourceId, sourceReference, debugConnection)
         return List(parsed.size) {
@@ -121,17 +147,18 @@ class BreakpointManager<TBreakpointLocation>(
     }
 
     fun addNewSourceReferenceBreakpoints(
-        breakpoints: List<SourceBreakpoint>,
+        breakpoints: List<NewSourceReferenceBreakpoint>,
         debuggerConnection: EditorDebugConnection,
         resourceId: Identifier,
         sourceReference: Int?,
     ) {
         reserveBreakpointIds(debuggerConnection, breakpoints.size).thenApply { addedIdStart ->
-            val unparsed = breakpoints.mapIndexed { index, sourceBreakpoint ->
+            val unparsed = breakpoints.mapIndexed { index, addedBreakpoint ->
                 UnparsedServerBreakpoint(
                     addedIdStart + index,
                     sourceReference,
-                    sourceBreakpoint
+                    addedBreakpoint.sourceBreakpoint,
+                    addedBreakpoint.originId
                 )
             }
             sendNewSourceReferenceBreakpoints(onBreakpointUpdate(
@@ -142,6 +169,8 @@ class BreakpointManager<TBreakpointLocation>(
             ), sourceReference, debuggerConnection, resourceId)
         }
     }
+
+    data class NewSourceReferenceBreakpoint(val sourceBreakpoint: SourceBreakpoint, val originId: Int?)
 
     private fun sendNewSourceReferenceBreakpoints(
         breakpoints: List<Breakpoint>,
@@ -212,7 +241,15 @@ class BreakpointManager<TBreakpointLocation>(
                 val sourceEntriesIt = source.value.iterator()
                 while(sourceEntriesIt.hasNext()) {
                     val sourceEntry = sourceEntriesIt.next()
-                    sourceEntry.value.list.removeAll { it.unparsed.id in prevBreakpoints }
+                    sourceEntry.value.list.removeAll {
+                        if(it.unparsed.originBreakpointId in prevBreakpoints) {
+                            debugConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
+                                breakpoint = Breakpoint().apply { this.id = it.unparsed.id }
+                                reason = BreakpointEventArgumentsReason.REMOVED
+                            })
+                            true
+                        } else false
+                    }
                     if(sourceEntry.value.list.isEmpty()) sourceEntriesIt.remove()
                 }
                 if(source.value.isEmpty()) sourcesIt.remove()
@@ -238,7 +275,15 @@ class BreakpointManager<TBreakpointLocation>(
                 if(source.key == INITIAL_SOURCE_REFERENCE) {
                     source.value.remove(breakpointParser)
                 } else {
-                    source.value[breakpointParser]?.list?.removeAll { it.unparsed.id in prevBreakpoints }
+                    source.value[breakpointParser]?.list?.removeAll {
+                        if(it.unparsed.originBreakpointId in prevBreakpoints) {
+                            debugConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
+                                breakpoint = Breakpoint().apply { this.id = it.unparsed.id }
+                                reason = BreakpointEventArgumentsReason.REMOVED
+                            })
+                            true
+                        } else false
+                    }
                 }
                 if(source.value.isEmpty()) sourcesIt.remove()
             }
@@ -267,6 +312,30 @@ class BreakpointManager<TBreakpointLocation>(
                     })
                 }
             }
+        }
+    }
+
+    fun removeSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int?) {
+        val connectionFileBreakpoints = fileBreakpoints[debugConnection] ?: return
+        val removedBreakpointsEntry = connectionFileBreakpoints.firstNotNullOfOrNull { entry ->
+            if(entry.key.sourceReference == sourceReference) entry
+            else null
+        } ?: return
+        removedBreakpointsEntry.value.forEach { serverBreakpoint ->
+            debugConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
+                breakpoint = Breakpoint().apply { id = serverBreakpoint.unparsed.id }
+                reason = BreakpointEventArgumentsReason.REMOVED
+            })
+        }
+        connectionFileBreakpoints.remove(removedBreakpointsEntry.key)
+        if(connectionFileBreakpoints.isEmpty()) fileBreakpoints.remove(debugConnection)
+        val connectionResourceBreakpoints = breakpoints[debugConnection] ?: return
+        val idBreakpoints = connectionResourceBreakpoints[removedBreakpointsEntry.key.fileId] ?: return
+        idBreakpoints.remove(sourceReference)
+        if(idBreakpoints.isEmpty()) {
+            connectionResourceBreakpoints.remove(removedBreakpointsEntry.key.fileId)
+            if(connectionResourceBreakpoints.isEmpty())
+                breakpoints.remove(debugConnection)
         }
     }
 

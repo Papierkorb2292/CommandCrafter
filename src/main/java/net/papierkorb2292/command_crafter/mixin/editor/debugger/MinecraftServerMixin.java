@@ -17,7 +17,7 @@ public class MinecraftServerMixin implements ServerDebugManagerContainer {
 
     @NotNull
     @Override
-public ServerDebugManager command_crafter$getServerDebugManager() {
+    public ServerDebugManager command_crafter$getServerDebugManager() {
         return command_crafter$serverDebugManager;
     }
 

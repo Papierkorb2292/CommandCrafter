@@ -2,12 +2,14 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 
 import net.minecraft.server.function.ExpandedMacro;
 import net.minecraft.server.function.Macro;
+import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
-import net.papierkorb2292.command_crafter.parser.helper.FileLinesContainer;
+import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,11 +17,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import java.util.List;
 
 @Mixin({Macro.class, ExpandedMacro.class})
-public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseResourceContainer, DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame>, FileLinesContainer {
+public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseResourceContainer, DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame>, FileSourceContainer {
 
     private ParsedResourceCreator command_crafter$resourceCreator;
     private DebugInformation<FunctionBreakpointLocation, FunctionDebugFrame> command_crafter$debugInformation;
-    private List<String> command_crafter$lines;
+    private List<String> command_crafter$fileSourceLines;
+    private Identifier command_crafter$fileSourceId;
+    private PackContentFileType command_crafter$fileSourceType;
 
     public void command_crafter$setResourceCreator(ParsedResourceCreator command_crafter$resourceCreator) {
         this.command_crafter$resourceCreator = command_crafter$resourceCreator;
@@ -41,12 +45,26 @@ public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseRe
     }
 
     @Override
-    public void command_crafter$setLines(@NotNull List<String> lines) {
-        this.command_crafter$lines = lines;
+    public void command_crafter$setFileSource(@NotNull List<String> lines, @NotNull Identifier fileId, @NotNull PackContentFileType fileType) {
+        this.command_crafter$fileSourceLines = lines;
+        this.command_crafter$fileSourceId = fileId;
+        this.command_crafter$fileSourceType = fileType;
     }
 
     @Override
-    public List<String> command_crafter$getLines() {
-        return command_crafter$lines;
+    public List<String> command_crafter$getFileSourceLines() {
+        return command_crafter$fileSourceLines;
+    }
+
+    @Nullable
+    @Override
+    public Identifier command_crafter$getFileSourceId() {
+        return command_crafter$fileSourceId;
+    }
+
+    @Nullable
+    @Override
+    public PackContentFileType command_crafter$getFileSourceType() {
+        return command_crafter$fileSourceType;
     }
 }

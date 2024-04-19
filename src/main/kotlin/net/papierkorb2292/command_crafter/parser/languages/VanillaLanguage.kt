@@ -75,7 +75,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val macro = readMacro(reader)
                 //For validation
                 FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
-                    macro, reader.currentLine - 1
+                    macro, reader.currentLine
                 )
 
                 resource.content += Either.left("$${macro}\n")
@@ -142,7 +142,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     try {
                         FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
                             readMacro(reader),
-                            reader.currentLine - 1
+                            reader.currentLine
                         )
                     } catch(e: IllegalArgumentException) {
                         throw CursorAwareExceptionWrapper(e, startCursor)
@@ -236,19 +236,20 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
                 val startCursor = reader.absoluteCursor
+                val startSkippedCharacters = reader.skippedChars
                 builder.addMacroCommand(
                     readMacro(reader),
-                    reader.currentLine - 1
+                    reader.currentLine
                 )
+                val endCursorWithoutNewLine = reader.absoluteCursor - if(reader.canRead()) 1 else 0
                 val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
                 @Suppress("UNCHECKED_CAST")
                 elementBreakpointParsers += FunctionElementDebugInformation.MacroElementProcessor(
                     macroLines.size - 1,
-                    StringRange.between(startCursor, reader.absoluteCursor),
+                    StringRange.between(startCursor, endCursorWithoutNewLine),
                     macroLines.last() as Macro.VariableLine<ServerCommandSource>,
                     reader.cursorMapper,
-                    reader.readCharacters,
-                    reader.skippedChars
+                    startSkippedCharacters
                 )
                 reader.endStatement()
                 continue

@@ -14,5 +14,6 @@ interface DebugHandler {
         sourceReference: Int? = null
     ): Array<Breakpoint>
     fun removeDebugConnection(debugConnection: EditorDebugConnection)
+    fun removeSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int?)
     fun onReload()
 }

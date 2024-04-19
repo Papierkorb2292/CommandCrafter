@@ -5,6 +5,7 @@ import com.google.gson.JsonElement
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.function.Macro
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
@@ -21,7 +22,8 @@ import kotlin.collections.set
 class ServerNetworkDebugConnection(
     player: ServerPlayerEntity,
     val clientEditorDebugConnection: UUID,
-    override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null
+    override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null,
+    override var nextSourceReference: Int = 1
 ) : NetworkIdentifiedDebugConnection {
     companion object {
         val outputGson = Gson()
@@ -62,6 +64,13 @@ class ServerNetworkDebugConnection(
             PackContentFileType.FUNCTIONS_FILE_TYPE -> {
                 val function = server.commandFunctionManager.getFunction(oneTimeDebugTarget.targetId)
                 function.ifPresentOrElse({
+                    if(it is Macro<*>) {
+                        output(OutputEventArguments().apply {
+                            category = OutputEventArgumentsCategory.IMPORTANT
+                            output = "Functions with macros can't be run directly"
+                        })
+                        return@ifPresentOrElse
+                    }
                     server.commandFunctionManager.execute(it, server.commandSource)
                 }, {
                     output(OutputEventArguments().apply {
@@ -121,6 +130,11 @@ class ServerNetworkDebugConnection(
 
     override fun output(args: OutputEventArguments) {
         packetSender.sendPacket(NetworkServerConnection.debuggerOutputPacketChannel, DebuggerOutputS2CPacket(args, clientEditorDebugConnection).write())
+    }
+
+    override fun onSourceReferenceAdded() {
+        nextSourceReference++
+        packetSender.sendPacket(NetworkServerConnection.sourceReferenceAddedPacketChannel, SourceReferenceAddedS2CPacket(clientEditorDebugConnection).write())
     }
 
     override fun toString(): String {
@@ -279,21 +293,29 @@ class ServerNetworkDebugConnection(
         }
     }
 
-    class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?, val debugConnectionId: UUID): ByteBufWritable {
+    class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?, val nextSourceReference: Int, val debugConnectionId: UUID): ByteBufWritable {
         constructor(buf: PacketByteBuf): this(buf.readNullable {
             EditorDebugConnection.DebugTarget(
                 buf.readEnumConstant(PackContentFileType::class.java),
                 buf.readIdentifier(),
                 buf.readBoolean()
             )
-        }, buf.readUuid())
+        }, buf.readVarInt(), buf.readUuid())
         override fun write(buf: PacketByteBuf) {
             buf.writeNullable(oneTimeDebugTarget) { targetBuf, target ->
                 targetBuf.writeEnumConstant(target.targetFileType)
                 targetBuf.writeIdentifier(target.targetId)
                 targetBuf.writeBoolean(target.stopOnEntry)
             }
+            buf.writeVarInt(nextSourceReference)
             buf.writeUuid(debugConnectionId)
+        }
+    }
+
+    class SourceReferenceAddedS2CPacket(val editorDebugConnection: UUID): ByteBufWritable {
+        constructor(buf: PacketByteBuf): this(buf.readUuid())
+        override fun write(buf: PacketByteBuf) {
+            buf.writeUuid(editorDebugConnection)
         }
     }
 }

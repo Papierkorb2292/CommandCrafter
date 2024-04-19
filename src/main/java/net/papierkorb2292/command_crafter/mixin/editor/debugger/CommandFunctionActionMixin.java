@@ -14,8 +14,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
-import net.papierkorb2292.command_crafter.parser.helper.FileLinesContainer;
+import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -45,10 +44,13 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
         var debugInformation = ((DebugInformationContainer<?, FunctionDebugFrame>) container).command_crafter$getDebugInformation();
         if (debugInformation == null)
             return;
-        var lines = ((FileLinesContainer)function).command_crafter$getLines(); //TODO
         var fileLines = new HashMap<String, List<String>>();
-        if (lines != null) {
-            fileLines.put(PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(function.id()), lines);
+        if (function instanceof FileSourceContainer fileSource) {
+            var lines = fileSource.command_crafter$getFileSourceLines();
+            var fileId = fileSource.command_crafter$getFileSourceId();
+            var fileType = fileSource.command_crafter$getFileSourceType();
+            if(lines != null && fileId != null && fileType != null)
+                fileLines.put(fileType.toStringPath(fileId), lines);
         }
 
         MacroValuesContainer macroValuesContainer = function instanceof MacroValuesContainer macroValuesContainer2 ? macroValuesContainer2 : null;

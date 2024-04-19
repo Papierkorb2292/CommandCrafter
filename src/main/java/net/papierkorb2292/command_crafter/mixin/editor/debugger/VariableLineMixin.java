@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.command.SourcedCommandAction;
 import net.minecraft.server.function.Macro;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugPauseHandlerCreatorIndexConsumer;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.IsMacroContainer;
 import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -45,6 +46,17 @@ public class VariableLineMixin<T> implements DebugPauseHandlerCreatorIndexConsum
                 }
                 contexts = contexts.getChild();
             }
+        }
+        return action;
+    }
+
+    @ModifyReturnValue(
+            method = "instantiate(Ljava/util/List;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/util/Identifier;)Lnet/minecraft/command/SourcedCommandAction;",
+            at = @At("RETURN")
+    )
+    private SourcedCommandAction<T> command_crafter$setIsMacro(SourcedCommandAction<T> action) {
+        if(action instanceof SingleCommandActionAccessor<?> accessor) {
+            ((IsMacroContainer)accessor.getContextChain()).command_crafter$setIsMacro(true);
         }
         return action;
     }

@@ -93,6 +93,25 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
             return null
         }
 
+        fun parsePath(path: String): ParsedPath? {
+            val segments = path.split('/', '\\')
+            for(i in 0 until segments.size - 2) {
+                val currentFolder = segments[i]
+                if(currentFolder !in packTypeFolders) continue
+                for(j in segments.size - 1 downTo i + 1) {
+                    val potentialContentTypePath = segments.subList(i + 2, j).joinToString("/")
+                    val type = types[potentialContentTypePath] ?: continue
+                    if(type.packType.folderName != currentFolder) continue
+                    val id = Identifier.of(
+                        segments[i + 1],
+                        segments.subList(j, segments.size).joinToString("/")
+                    ) ?: continue
+                    return ParsedPath(id, type)
+                }
+            }
+            return null
+        }
+
         fun findWorkspaceResourceFromId(id: Identifier, editorClientFileFinder: EditorClientFileFinder, keywords: Set<String>): CompletableFuture<Pair<PackContentFileType, String>?> {
             val dotIndex = id.path.lastIndexOf('.')
             val fileExtensionPath =

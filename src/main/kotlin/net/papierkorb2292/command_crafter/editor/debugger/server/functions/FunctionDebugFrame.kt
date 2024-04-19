@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext.Companion.currentPauseContext
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.PositionableBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
@@ -88,11 +89,11 @@ class FunctionDebugFrame(
     var breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>
 
     override fun onContinue(stackEntry: PauseContext.DebugFrameStack.Entry) {
-        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.id(), stackEntry.createdSourceReferences)
+        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.getOriginalId(), stackEntry.createdSourceReferences)
     }
 
     init {
-        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.id())
+        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.getOriginalId())
         if(breakpoints.isNotEmpty()) {
             getDebugPauseHandler()
         }
@@ -174,19 +175,20 @@ class FunctionDebugFrame(
         val lines = fileLines[path] ?: return null
         val editorConnection = pauseContext.debugConnection ?: return null
         val replacementData = pauseHandler.getReplacementData(path)
-        if(replacementData == null || !replacementData.replacings.iterator().hasNext()) return null
-        return PauseContext.SourceReferenceWrapper(replacementData.sourceReferenceCallback) { sourceReference ->
-            val newBreakpoints = breakpoints.map {
-                PositionableBreakpoint(it.unparsed.sourceBreakpoint.copy())
-            }
+        if(replacementData == null || !replacementData.replacements.iterator().hasNext()) return null
+        return PauseContext.SourceReferenceWrapper(replacementData.sourceReferenceCallback, lines) { sourceReference ->
+            val newBreakpoints = pauseContext.server.getDebugManager().functionDebugHandler
+                .getFunctionBreakpoints(procedure.getOriginalId()).map {
+                    PositionableBreakpoint(it.unparsed.copy())
+                }
             val (replacedDocument, cursorMapper) = FileContentReplacer.Document(
                 lines,
                 newBreakpoints.asSequence() + replacementData.positionables
-            ).applyReplacings(replacementData.replacings)
+            ).applyReplacements(replacementData.replacements)
             pauseContext.server.getDebugManager().functionDebugHandler.addNewSourceReferenceBreakpoints(
-                newBreakpoints.map { it.sourceBreakpoint },
+                newBreakpoints.map { BreakpointManager.NewSourceReferenceBreakpoint(it.breakpoint.sourceBreakpoint, it.breakpoint.id) },
                 editorConnection,
-                procedure.id(),
+                procedure.getOriginalId(),
                 sourceReference
             )
             replacedDocument.concatLines() to cursorMapper

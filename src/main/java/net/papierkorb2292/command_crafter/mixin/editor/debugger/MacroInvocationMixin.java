@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import net.minecraft.command.MacroInvocation;
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider;
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper;
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import org.apache.commons.compress.harmony.pack200.IntList;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
@@ -70,8 +70,8 @@ public class MacroInvocationMixin implements MacroCursorMapperProvider {
 
     @NotNull
     @Override
-    public ProcessedInputCursorMapper command_crafter$getCursorMapper(@NotNull List<String> arguments) {
-        var mapper = new ProcessedInputCursorMapper();
+    public SplitProcessedInputCursorMapper command_crafter$getCursorMapper(@NotNull List<String> arguments) {
+        var mapper = new SplitProcessedInputCursorMapper();
 
         var currentCommandLength = 0;
         for(int i = 0; i < variables.size(); i++) {

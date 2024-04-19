@@ -1,17 +1,21 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
+import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.debugger.helper.Positionable
+import net.papierkorb2292.command_crafter.parser.helper.CombinedProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
+import kotlin.math.min
 
 interface FileContentReplacer {
     companion object {
         fun concatReplacementData(data: List<ReplacementDataProvider>): ReplacementDataProvider? {
             if(data.isEmpty()) return null
             if(data.size == 1) return data.single()
-            val replacings = data.flatMap { it.replacings }.asSequence()
+            val replacements = data.flatMap { it.replacements }.asSequence()
             val positionables = data.flatMap { it.positionables }.asSequence()
-            return ReplacementDataProvider(replacings, positionables) { sourceReference ->
+            return ReplacementDataProvider(replacements, positionables) { sourceReference ->
                 data.forEach { it.sourceReferenceCallback(sourceReference) }
             }
         }
@@ -20,24 +24,25 @@ interface FileContentReplacer {
     fun getReplacementData(path: String): ReplacementDataProvider?
 
     data class ReplacementDataProvider(
-        val replacings: Sequence<Replacing>,
+        val replacements: Sequence<Replacement>,
         val positionables: Sequence<Positionable>,
         val sourceReferenceCallback: (Int) -> Unit,
     )
 
-    data class Replacing(
+    data class Replacement(
         val startLine: Int,
         val startChar: Int,
         val endLine: Int,
         val endChar: Int,
-        val replacement: String
+        val string: String,
+        val cursorMapper: ProcessedInputCursorMapper
     )
 
     class Document(val lines: List<String>, val positionables: Sequence<Positionable>) {
 
-        fun applyReplacings(replacings: Sequence<Replacing>): Pair<Document, ProcessedInputCursorMapper> {
-            if(!replacings.iterator().hasNext()) return this to ProcessedInputCursorMapper()
-            val replacingsSorted = replacings.sortedWith { a, b ->
+        fun applyReplacements(replacements: Sequence<Replacement>): Pair<Document, ProcessedInputCursorMapper> {
+            if(!replacements.iterator().hasNext()) return this to OffsetProcessedInputCursorMapper(0)
+            val replacementsSorted = replacements.sortedWith { a, b ->
                 val lineCmp = a.startLine.compareTo(b.startLine)
                 if(lineCmp != 0) lineCmp
                 else a.startChar.compareTo(b.startChar)
@@ -49,90 +54,132 @@ interface FileContentReplacer {
             }.toList()
             var positionablesIndex = 0
 
-            var currentCursorMappingLength = 0
             var currentCursorMappingSourceChar = 0
             var currentCursorMappingTargetChar = 0
 
-            val resultCursorMapper = ProcessedInputCursorMapper()
+            val resultCursorMapperEntries = mutableListOf<CombinedProcessedInputCursorMapper.Entry>()
 
-            fun addCursorMapping() {
-                resultCursorMapper.addMapping(
-                    currentCursorMappingSourceChar,
-                    currentCursorMappingTargetChar,
-                    currentCursorMappingLength
-                )
-                currentCursorMappingSourceChar += currentCursorMappingLength
-                currentCursorMappingTargetChar += currentCursorMappingLength
-                currentCursorMappingLength = 0
-            }
-
-            val resultLines = mutableListOf<String>()
+            val resultLines = mutableListOf("")
             val resultPositionables = mutableListOf<Positionable>()
 
             fun addExisting(startLine: Int, endLine: Int, startChar: Int, endChar: Int) {
                 while(positionablesIndex < positionablesSorted.size) {
                     val pos = positionablesSorted[positionablesIndex]
-                    if(pos.line > endLine || (pos.line == endLine && pos.char?.let { it >= endChar } == true))
+                    if(pos.line > endLine + 1 || (pos.line == endLine + 1 && pos.char >= endChar + 1))
                         break
-                    if(pos.line < startLine || (pos.line == startLine && pos.char?.let { it < startChar} == true)) {
+                    if(pos.line < startLine + 1 || (pos.line == startLine + 1 && pos.char < startChar + 1)) {
                         positionablesIndex++
                         continue
                     }
                     pos.setPos(
-                        pos.line - startLine + resultLines.size,
-                        pos.char?.let { it - if(pos.line == startLine) startChar + resultLines[startLine].length else 0 }
+                        pos.line - startLine + resultLines.size - 1,
+                        pos.char - if(pos.line == startLine) startChar + resultLines[startLine].length else 0
                     )
                     resultPositionables += pos
                     positionablesIndex++
                 }
+                var contentLength = 0
                 val startLineString = lines[startLine]
-                currentCursorMappingLength += startLineString.length - startChar + 1
-                if(resultLines.isEmpty()) {
-                    resultLines.add(startLineString.substring(startChar))
+                if(startLine == endLine) {
+                    val content = startLineString.substring(startChar, endChar)
+                    resultLines[resultLines.lastIndex] += content
+                    contentLength += content.length
                 } else {
+                    contentLength += startLineString.length - startChar + 1
                     resultLines[resultLines.lastIndex] += startLineString.substring(startChar)
+                    for(i in startLine + 1 until endLine) {
+                        val currentLine = lines[i]
+                        resultLines.add(currentLine)
+                        contentLength += currentLine.length + 1
+                    }
+                    resultLines.add(lines[endLine].substring(0, endChar))
+                    contentLength += endChar
                 }
-                for(i in startLine + 1 until endLine) {
-                    val currentLine = lines[i]
-                    resultLines.add(currentLine)
-                    currentCursorMappingLength += currentLine.length + 1
-                }
-                resultLines.add(lines[endLine].substring(0, endChar))
-                currentCursorMappingLength += endChar
-            }
-            fun addReplacement(replacing: Replacing) {
-                val replacement = replacing.replacement
-                addCursorMapping()
-                currentCursorMappingTargetChar += replacement.length
-                currentCursorMappingSourceChar += countCharsBetweenPos(
-                    replacing.startLine, replacing.startChar, replacing.endLine, replacing.endChar, 1
+                resultCursorMapperEntries += CombinedProcessedInputCursorMapper.Entry(
+                    StringRange(currentCursorMappingSourceChar, currentCursorMappingSourceChar + contentLength),
+                    StringRange(currentCursorMappingTargetChar, currentCursorMappingTargetChar + contentLength),
+                    OffsetProcessedInputCursorMapper(currentCursorMappingTargetChar - currentCursorMappingSourceChar)
                 )
-                val lines = replacement.splitToSequence('\n')
-                if(resultLines.isEmpty()) {
-                    resultLines.addAll(lines)
-                    return
+                currentCursorMappingSourceChar += contentLength
+                currentCursorMappingTargetChar += contentLength
+            }
+            fun addReplacement(replacement: Replacement) {
+                val lines = replacement.string.split('\n').toMutableList()
+                var countedLength = 0
+                var startLine = replacement.startLine
+                var startChar = replacement.startChar
+                var addedLength = 0
+                fun addUntilLength(length: Int): Boolean {
+                    while(addedLength < length) {
+                        val line = lines.removeFirstOrNull() ?: return false
+                        if(line.length + addedLength > length) {
+                            val char = length - addedLength
+                            val content = line.substring(0, char)
+                            lines.add(0, line.substring(char))
+                            resultLines[resultLines.lastIndex] += content
+                            addedLength += content.length
+                            return true
+                        }
+                        resultLines[resultLines.lastIndex] += line
+                        addedLength += line.length + 1
+                    }
+                    return true
                 }
-                val first = lines.firstOrNull() ?: return
-                resultLines[resultLines.lastIndex] += first
-                resultLines.addAll(lines.drop(1))
+                while(positionablesIndex < positionablesSorted.size) {
+                    val pos = positionablesSorted[positionablesIndex]
+                    val posLine = pos.line - 1
+                    val posChar = pos.char - 1
+                    if(posLine > replacement.endLine || (posLine == replacement.endLine && posChar >= replacement.endChar))
+                        break
+                    if(posLine < replacement.startLine || (posLine == replacement.startLine && posChar < replacement.startChar)) {
+                        positionablesIndex++
+                        continue
+                    }
+                    countedLength += countCharsBetweenPos(
+                        startLine, startChar, posLine, posChar, 1
+                    )
+                    startLine = posLine
+                    startChar = posChar
+                    val posTargetCursor = replacement.cursorMapper.mapToTarget(countedLength, true)
+                    require(posTargetCursor >= 0) { "Replacement CursorMapper mapped positionable to before the replacement (positionable: $pos)" }
+                    require(posTargetCursor >= addedLength) { "Replacement CursorMapper is not allowed to change order of cursors (happened when mapping positionable: $pos)" }
+                    require(addUntilLength(posTargetCursor)) { "Replacement CursorMapper mapped positionable to after the replacement (positionable: $pos)" }
+                    pos.setPos(
+                        resultLines.size,
+                        resultLines.last().length + 1
+                    )
+                    resultPositionables += pos
+                    positionablesIndex++
+                }
+                countedLength += countCharsBetweenPos(
+                    startLine, startChar, replacement.endLine, replacement.endChar, 1
+                )
+                resultCursorMapperEntries += CombinedProcessedInputCursorMapper.Entry(
+                    StringRange(currentCursorMappingSourceChar, currentCursorMappingSourceChar + countedLength),
+                    StringRange(currentCursorMappingTargetChar, currentCursorMappingTargetChar + replacement.string.length),
+                    replacement.cursorMapper
+                )
+                currentCursorMappingTargetChar += replacement.string.length
+                currentCursorMappingSourceChar += countedLength
+                addUntilLength(replacement.string.length)
             }
 
-            val first = replacingsSorted.first()
+            val first = replacementsSorted.first()
             addExisting(0, first.startLine, 0, first.startChar)
-            for(i in 0 until replacingsSorted.size - 1) {
-                val replacing = replacingsSorted[i]
-                val nextRepl = replacingsSorted[i + 1]
-                if(replacing.endLine > nextRepl.startLine || (replacing.endLine == nextRepl.startLine && replacing.endChar > nextRepl.startChar)) {
-                    throw IllegalArgumentException("Replacings must not overlap")
+            for(i in 0 until replacementsSorted.size - 1) {
+                val replacement = replacementsSorted[i]
+                val nextRepl = replacementsSorted[i + 1]
+                require(!(replacement.endLine > nextRepl.startLine || (replacement.endLine == nextRepl.startLine && replacement.endChar > nextRepl.startChar))) {
+                    "Replacements must not overlap: $replacement and $nextRepl"
                 }
-                addReplacement(replacing)
-                addExisting(replacing.endLine, nextRepl.startLine, replacing.endChar, nextRepl.startChar)
+                addReplacement(replacement)
+                addExisting(replacement.endLine, nextRepl.startLine, replacement.endChar + 1, nextRepl.startChar)
             }
-            val last = replacingsSorted.last()
+            val last = replacementsSorted.last()
             addReplacement(last)
-            addExisting(last.endLine, lines.size - 1, last.endChar, lines.last().length)
-            addCursorMapping()
-            return Document(resultLines, resultPositionables.asSequence()) to resultCursorMapper
+            val endChar = lines.last().length
+            addExisting(last.endLine, lines.size - 1, min(last.endChar + 1, endChar), endChar)
+            return Document(resultLines, resultPositionables.asSequence()) to CombinedProcessedInputCursorMapper(resultCursorMapperEntries)
         }
 
         fun concatLines(lineSeparator: String = OpenFile.LINE_SEPARATOR): String {

@@ -4,6 +4,7 @@ import kotlinx.atomicfu.locks.SynchronizedObject
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.CommandCrafterDebugClient
 import net.papierkorb2292.command_crafter.editor.EditorService
+import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
@@ -14,7 +15,6 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.helper.withAcquired
 import org.eclipse.lsp4j.debug.*
 import org.eclipse.lsp4j.debug.services.IDebugProtocolServer
-import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Semaphore
 import kotlin.math.max
@@ -28,7 +28,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         const val FILE_TYPE_NOT_SUPPORTED_REJECTION_REASON = "File type not supported by server"
         const val DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON = "No debug information available for this function"
         const val UNKNOWN_FUNCTION_REJECTION_REASON = "Function not known to server"
-        const val DYNAMIC_BREAKPOINT_REJECTION_REASON = "Dynamic breakpoint will be validated once function is called"
+        const val DYNAMIC_BREAKPOINT_MESSAGE = "Dynamic breakpoint will be validated once function is called"
 
         fun rejectAllBreakpoints(breakpoints: Array<UnparsedServerBreakpoint>, reason: String, source: Source? = null)
             = Array(breakpoints.size) { rejectBreakpoint(breakpoints[it], reason, source) }
@@ -68,10 +68,13 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     private var nextBreakpointId = 0
     private val nextBreakpointIdLock = SynchronizedObject()
 
+
+
     private val editorDebugConnection = object : EditorDebugConnection {
         override val lifecycle = EditorDebugConnection.Lifecycle()
         override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?
             get() = this@MinecraftDebuggerServer.oneTimeDebugTarget
+        override var nextSourceReference = 1
 
         init {
             lifecycle.shouldExitEvent.thenAccept {
@@ -97,7 +100,31 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         override fun updateReloadedBreakpoint(update: BreakpointEventArguments) {
             val source = update.breakpoint.source
+            if(source == null) {
+                client?.breakpoint(update)
+                return
+            }
             mapSourceToDatapack(source).thenAccept {
+                val parsedPath = PackContentFileType.parsePath(source.path)
+                if(parsedPath != null) {
+                    val breakpointResource = ClientBreakpointResource(parsedPath.type, parsedPath.id, source.sourceReference)
+                    val resourceBreakpoints = breakpoints.getOrPut(breakpointResource) { mutableMapOf<SourceBreakpoint, UnparsedServerBreakpoint>() to source }.first
+                    val prevSourceBreakpoint = resourceBreakpoints.firstNotNullOfOrNull { (sourceBreakpoint, breakpoint) ->
+                        if(breakpoint.id == update.breakpoint.id) sourceBreakpoint else null
+                    }
+                    val sourceBreakpoint = SourceBreakpoint().apply {
+                        line = update.breakpoint.line
+                        column = update.breakpoint.column
+                        if(prevSourceBreakpoint != null) {
+                            hitCondition = prevSourceBreakpoint.hitCondition
+                            condition = prevSourceBreakpoint.condition
+                            logMessage = prevSourceBreakpoint.logMessage
+                        }
+                    }
+                    resourceBreakpoints[sourceBreakpoint] = UnparsedServerBreakpoint(
+                        update.breakpoint.id, source.sourceReference, sourceBreakpoint
+                    )
+                }
                 client?.breakpoint(update)
             }
         }
@@ -138,6 +165,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         override fun output(args: OutputEventArguments) {
             client?.output(args)
         }
+
+        override fun onSourceReferenceAdded() {
+            nextSourceReference++
+        }
     }
 
     private var initializeArgs = InitializeRequestArguments()
@@ -158,7 +189,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         val mappingChildSourcesFutures = source.sources?.map { mapSourceToDatapack(it) }?.toTypedArray()
 
-        val parsedPath = PackContentFileType.parsePath(Path.of(source.path))
+        val parsedPath = PackContentFileType.parsePath(source.path)
             ?: return if(mappingChildSourcesFutures != null) {
                 CompletableFuture.allOf(*mappingChildSourcesFutures)
                     .thenApply { false }
@@ -230,25 +261,45 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         return CompletableFuture.completedFuture(null)
     }
 
-    val breakpoints: MutableMap<PackContentFileType.ParsedPath, Pair<Source, Array<UnparsedServerBreakpoint>>> = mutableMapOf()
+    private val breakpoints: MutableMap<ClientBreakpointResource, Pair<MutableMap<SourceBreakpoint, UnparsedServerBreakpoint>, Source>> = mutableMapOf()
 
     override fun setBreakpoints(args: SetBreakpointsArguments): CompletableFuture<SetBreakpointsResponse> {
-        val unparsedBreakpoints = synchronized(nextBreakpointIdLock) {
-            Array(args.breakpoints.size) {
-                UnparsedServerBreakpoint(nextBreakpointId++, args.source.sourceReference, args.breakpoints[it])
-            }
-        }
+
+        val parsedPath = PackContentFileType.parsePath(EditorURI.parseURI(args.source.path).path)
+        val breakpointResource = parsedPath?.let { ClientBreakpointResource(parsedPath.type, parsedPath.id, args.source.sourceReference) }
+        val prevBreakpoints = breakpoints[breakpointResource]?.first
+
+        var unparsedBreakpoints: Array<UnparsedServerBreakpoint>? = null
 
         fun rejectAll(reason: String): CompletableFuture<SetBreakpointsResponse> {
             val response = SetBreakpointsResponse()
-            response.breakpoints = rejectAllBreakpoints(unparsedBreakpoints, reason, args.source)
+            response.breakpoints = rejectAllBreakpoints(
+                unparsedBreakpoints ?: synchronized(nextBreakpointIdLock) {
+                    Array(args.breakpoints.size) {
+                        UnparsedServerBreakpoint(nextBreakpointId++, args.source.sourceReference, args.breakpoints[it])
+                    }
+                },
+                reason,
+                args.source
+            )
             return CompletableFuture.completedFuture(response)
         }
-        val parsedPath = PackContentFileType.parsePath(Path.of(args.source.path)) ?: return rejectAll(FILE_TYPE_NOT_DETERMINED_REJECTION_REASON)
+
+        if(breakpointResource == null)
+            return rejectAll(FILE_TYPE_NOT_DETERMINED_REJECTION_REASON)
+
+        unparsedBreakpoints = synchronized(nextBreakpointIdLock) {
+            Array(args.breakpoints.size) {
+                prevBreakpoints?.get(args.breakpoints[it])
+                    ?: UnparsedServerBreakpoint(nextBreakpointId++, args.source.sourceReference, args.breakpoints[it])
+            }
+        }
+
         if(unparsedBreakpoints.isEmpty()) {
-            breakpoints.remove(parsedPath)
+            breakpoints.remove(breakpointResource)
         } else {
-            breakpoints[parsedPath] = args.source to unparsedBreakpoints
+
+            breakpoints[breakpointResource] = unparsedBreakpoints.associateByTo(mutableMapOf()) { it.sourceBreakpoint } to args.source
         }
         val debugService = minecraftServer.debugService ?: return rejectAll(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
         return debugService.setBreakpoints(unparsedBreakpoints, args.source, parsedPath.type, parsedPath.id, editorDebugConnection)
@@ -355,7 +406,9 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     override fun source(args: SourceArguments): CompletableFuture<SourceResponse> {
         val reference = args.source.sourceReference ?: throw IllegalArgumentException("Source reference must be provided")
         val debugService = minecraftServer.debugService ?: throw UnsupportedOperationException(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
-        return debugService.retrieveSourceReference(reference, editorDebugConnection)
+        return debugService.retrieveSourceReference(reference, editorDebugConnection).thenApply {
+            it ?: throw IllegalArgumentException("Source reference not found")
+        }
     }
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
@@ -374,10 +427,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         val client = client ?: return
         val debugService = connection.debugService
         if(debugService == null) {
-            for((source, breakpoints) in breakpoints.values) {
-                for(breakpoint in breakpoints) {
+            for(file in breakpoints.values) {
+                for(breakpoint in file.first.values) {
                     val args = BreakpointEventArguments()
-                    args.breakpoint = rejectBreakpoint(breakpoint, SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON, source)
+                    args.breakpoint = rejectBreakpoint(breakpoint, SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON, file.second)
                     args.reason = BreakpointEventArgumentsReason.CHANGED
                     client.breakpoint(args)
                 }
@@ -392,8 +445,8 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             client.breakpoint(args)
         }
 
-        for((path, data) in breakpoints) {
-            debugService.setBreakpoints(data.second, data.first, path.type, path.id, editorDebugConnection).thenAccept {
+        for((resource, data) in breakpoints) {
+            debugService.setBreakpoints(data.first.values.toTypedArray(), data.second, resource.packContentFileType, resource.id, editorDebugConnection).thenAccept {
                 for(breakpoint in it.breakpoints) {
                     val source = breakpoint.source
                     if(source == null) {
@@ -415,4 +468,6 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     fun connect(client: CommandCrafterDebugClient) {
         this.client = client
     }
+
+    private data class ClientBreakpointResource(val packContentFileType: PackContentFileType, val id: Identifier, val sourceReference: Int?)
 }

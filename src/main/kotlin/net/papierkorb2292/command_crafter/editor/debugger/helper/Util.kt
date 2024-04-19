@@ -6,6 +6,7 @@ import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.function.Procedure
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.networking.*
@@ -130,3 +131,5 @@ fun SourceBreakpoint.copy(): SourceBreakpoint {
 }
 
 fun MinecraftServer.getDebugManager() = (this as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`()
+
+fun Procedure<*>.getOriginalId() = (this as? ProcedureOriginalIdContainer)?.`command_crafter$getOriginalId`() ?: id()

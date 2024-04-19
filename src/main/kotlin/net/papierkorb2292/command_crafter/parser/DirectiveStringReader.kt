@@ -7,7 +7,7 @@ import net.minecraft.server.command.ServerCommandSource
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.apache.commons.compress.harmony.pack200.IntList
 import java.io.IOException
 import java.io.Reader
@@ -18,7 +18,7 @@ class DirectiveStringReader<out ResourceCreator>(
     var lines: List<String>,
     val dispatcher: CommandDispatcher<ServerCommandSource>,
     val resourceCreator: ResourceCreator,
-    val cursorMapper: ProcessedInputCursorMapper = ProcessedInputCursorMapper(),
+    val cursorMapper: SplitProcessedInputCursorMapper = SplitProcessedInputCursorMapper(),
 ) : StringReader(""),
     LineAwareStringReader {
 

@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture
 interface EditorDebugConnection {
     val lifecycle: Lifecycle
     val oneTimeDebugTarget: DebugTarget?
+    val nextSourceReference: Int
     fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer)
     fun pauseEnded()
     fun isPaused(): Boolean
@@ -18,6 +19,7 @@ interface EditorDebugConnection {
     fun popStackFrames(stackFrames: Int)
     fun pushStackFrames(stackFrames: List<MinecraftStackFrame>)
     fun output(args: OutputEventArguments)
+    fun onSourceReferenceAdded()
 
     class Lifecycle {
         val configurationDoneEvent: CompletableFuture<Void> = CompletableFuture()

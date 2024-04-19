@@ -229,7 +229,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
     fun markDocumentation(documentation: String): CompletableFuture<String> {
         val client = client ?: return CompletableFuture.completedFuture(documentation)
         val reader = StringReader(documentation)
-        val replacings = mutableListOf<CompletableFuture<Pair<StringRange, String?>>>()
+        val replacements = mutableListOf<CompletableFuture<Pair<StringRange, String?>>>()
         while(reader.canRead()) {
             val i = reader.cursor
             val c = reader.read()
@@ -237,7 +237,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
                     reader.skip()
                 val end = reader.cursor
-                replacings += CompletableFuture.completedFuture(StringRange(i, end) to "**${reader.string.subSequence(i, end)}**")
+                replacements += CompletableFuture.completedFuture(StringRange(i, end) to "**${reader.string.subSequence(i, end)}**")
                 continue
             }
             if(c == ':') {
@@ -248,7 +248,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 val idEnd = reader.cursor
                 val resourceSearchKeywords = PackContentFileType.parseKeywords(reader.string, idStart, idEnd).toSet()
                 val range = StringRange(idStart, idEnd)
-                replacings += PackContentFileType.findWorkspaceResourceFromId(
+                replacements += PackContentFileType.findWorkspaceResourceFromId(
                     Identifier(documentation.substring(idStart, idEnd)),
                     client,
                     resourceSearchKeywords
@@ -259,10 +259,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 }
             }
         }
-        return CompletableFuture.allOf(*replacings.toTypedArray()).thenApply {
+        return CompletableFuture.allOf(*replacements.toTypedArray()).thenApply {
             val newDocumentation = StringBuilder(documentation)
-            for(replacing in replacings) {
-                val (range, replacement) = replacing.get()
+            for(replacement in replacements) {
+                val (range, replacement) = replacement.get()
                 if(replacement == null) continue
                 val offset = newDocumentation.length - documentation.length
                 newDocumentation.replace(range.start + offset, range.end + offset, replacement)

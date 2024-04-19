@@ -28,10 +28,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandAct
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.VariableLineAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator
-import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
-import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
-import net.papierkorb2292.command_crafter.parser.helper.getCursorOffset
+import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.debug.*
@@ -99,7 +96,8 @@ class FunctionElementDebugInformation(
         val functionId = functionId ?: return emptyList()
         val result: MutableList<Breakpoint> = ArrayList()
         val addedBreakpoints = BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>()
-        dynamicBreakpoints.clear()
+        if(sourceReference == INITIAL_SOURCE_REFERENCE)
+            dynamicBreakpoints.clear()
         for(element in elements) {
             element.parseBreakpoints(breakpoints, server, this, result, addedBreakpoints, dynamicBreakpoints, sourceReference, debugConnection)
         }
@@ -300,19 +298,38 @@ class FunctionElementDebugInformation(
         }
 
         override fun getStackFrames(sourceReference: Int?): List<MinecraftStackFrame> {
+            val contextChain = debugFrame.currentContextChain
+            val lines = getLinesForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, sourceReference)
+            val sourceReferenceCursorMapper = debugFrame.pauseContext.server.getDebugManager().getSourceReferenceCursorMapper(debugFrame.pauseContext.debugConnection!!, sourceReference)
 
             fun getContextRange(context: CommandContext<*>): Range {
                 val firstParsedNode = context.nodes.first()
                 val lastParsedNode = context.nodes.last()
+
+                if((contextChain as IsMacroContainer).`command_crafter$getIsMacro`()) {
+                    val absoluteMacroStartCursor = reader.cursorMapper.mapToSource(
+                        (firstParsedNode as CursorOffsetContainer).getCursorOffset()
+                    ) + 1
+                    val sourceReferenceCursor = sourceReferenceCursorMapper?.mapToTarget(absoluteMacroStartCursor) ?: absoluteMacroStartCursor
+                    return Range(
+                        AnalyzingResult.getPositionFromCursor(
+                            sourceReferenceCursor + firstParsedNode.range.start,
+                            lines,
+                            false
+                        ),
+                        AnalyzingResult.getPositionFromCursor(
+                            sourceReferenceCursor + lastParsedNode.range.end,
+                            lines,
+                            false
+                        )
+                    )
+                }
                 val startAbsoluteCursor = reader.cursorMapper.mapToSource(
                     firstParsedNode.range.start + (firstParsedNode as CursorOffsetContainer).getCursorOffset()
                 )
                 val endAbsoluteCursor = reader.cursorMapper.mapToSource(
                     lastParsedNode.range.end + (lastParsedNode as CursorOffsetContainer).getCursorOffset()
                 )
-
-                val lines = getLinesForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, sourceReference)
-                val sourceReferenceCursorMapper = debugFrame.pauseContext.server.getDebugManager().getSourceReferenceCursorMapper(debugFrame.pauseContext.debugConnection!!, sourceReference)
 
                 return Range(
                     AnalyzingResult.getPositionFromCursor(
@@ -328,7 +345,6 @@ class FunctionElementDebugInformation(
                 )
             }
 
-            val contextChain = debugFrame.currentContextChain
 
             fun createServerCommandSourceScope(source: ServerCommandSource, setter: ((ServerCommandSource) -> Unit)? = null): Scope {
                 val variablesReferencer = ServerCommandSourceValueReference(debugFrame.pauseContext.variablesReferenceMapper, source, setter)
@@ -470,10 +486,14 @@ class FunctionElementDebugInformation(
             path: String,
             frame: FunctionDebugFrame,
             debugInformation: FunctionElementDebugInformation,
-        ): Iterator<FileContentReplacer.Replacing>?
+        ): Iterator<FileContentReplacer.Replacement>?
     }
 
-    class CommandContextElementProcessor(val rootContext: CommandContext<ServerCommandSource>, val breakpointRangeGetter: ((ServerBreakpoint<FunctionBreakpointLocation>, Int?) -> StringRange)? = null) : FunctionElementProcessor {
+    class CommandContextElementProcessor(
+        val rootContext: CommandContext<ServerCommandSource>,
+        val isMacro: Boolean = false,
+        val breakpointRangeGetter: ((ServerBreakpoint<FunctionBreakpointLocation>, Int?) -> StringRange)? = null
+    ) : FunctionElementProcessor {
         private val argumentBreakpointParserSuppliers: Map<ArgumentBreakpointParserSupplier, Any>
         init {
             val argumentBreakpointParserSuppliers = mutableMapOf<ArgumentBreakpointParserSupplier, Any>()
@@ -504,6 +524,7 @@ class FunctionElementDebugInformation(
             debugConnection: EditorDebugConnection?
         ) {
             val functionId = debugInformation.functionId ?: return
+            val useChildBreakpointParsers = debugConnection != null && (sourceReference == INITIAL_SOURCE_REFERENCE || !debugInformation.sourceReferenceDebugHandlers.containsKey(sourceReference))
             val lastContext = rootContext.lastChild
             val originalFunctionFileRange = debugInformation.reader.cursorMapper.mapToSource(StringRange(
                 rootContext.range.start + (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset(),
@@ -531,6 +552,7 @@ class FunctionElementDebugInformation(
                 if(comparedToCurrentElement == 0) {
                     // The element contains the breakpoint
                     var context: CommandContext<ServerCommandSource>? = this.rootContext
+                    var prevCursorOffset = (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset()
                     // Find the context containing the breakpoint
                     contexts@while(context != null) {
                         if((context.redirectModifier == null && context.command == null) ||
@@ -540,7 +562,16 @@ class FunctionElementDebugInformation(
                             continue
                         }
                         for(parsedNode in context.nodes) {
-                            val absoluteNodeRange = debugInformation.reader.cursorMapper.mapToSource(parsedNode.range + (parsedNode as CursorOffsetContainer).getCursorOffset())
+                            val absoluteNodeRange =
+                                if(!isMacro) {
+                                    val nextCursorOffset = (parsedNode as CursorOffsetContainer).getCursorOffset()
+                                    val range = debugInformation.reader.cursorMapper.mapToSource(StringRange(parsedNode.range.start + prevCursorOffset, parsedNode.range.end + nextCursorOffset))
+                                    prevCursorOffset = nextCursorOffset
+                                    range
+                                } else {
+                                    val start = debugInformation.reader.cursorMapper.mapToSource(prevCursorOffset)
+                                    StringRange(start + parsedNode.range.start, start + parsedNode.range.end)
+                                }
                             val comparedToNode = breakpointRange.compareTo(sourceReferenceCursorMapper?.mapToTarget(absoluteNodeRange) ?: absoluteNodeRange)
                             if(comparedToNode <= 0) {
                                 if(comparedToNode < 0) {
@@ -550,18 +581,29 @@ class FunctionElementDebugInformation(
                                 }
                                 //The node contains the breakpoint
                                 val node = parsedNode.node
-                                if(sourceReference == INITIAL_SOURCE_REFERENCE && debugConnection != null && node is ArgumentCommandNode<*, *>) {
+                                // The node could have its own breakpoint parser, but it should not be used
+                                // when the breakpoints belong to a source reference that was created for the current
+                                // function (because the child breakpoint parser already received breakpoints from the file
+                                // it originally came from, so having other files contribute to the breakpoints would be confusing).
+                                // However, breakpoints should be given to the child breakpoint parser if the source reference could
+                                // belong to the child breakpoint parser.
+                                if(debugConnection != null && node is ArgumentCommandNode<*, *>) {
                                     val type = node.type
                                     val argument = context.getArgument(node.name, FunctionArgument::class.java)
                                     if(type is ArgumentBreakpointParserSupplier) {
-                                        emptyArgumentBreakpointParserSuppliers -= type
-                                        val breakpointList =
-                                            type.`command_crafter$getBreakpointParser`(argument, server)?.parseBreakpoints(
+                                        val parser = type.`command_crafter$getBreakpointParser`(argument, server)
+                                        if(parser != null) {
+                                            if(!useChildBreakpointParsers) {
+                                                break@contexts // Reject breakpoint
+                                            }
+                                            emptyArgumentBreakpointParserSuppliers -= type
+                                            val breakpointList = parser.parseBreakpoints(
                                                 breakpoints, server, null, debugConnection
                                             )
-                                        if (!breakpointList.isNullOrEmpty()) {
-                                            parsed += breakpointList
-                                            continue@breakpoints
+                                            if(breakpointList.isNotEmpty()) {
+                                                parsed += breakpointList
+                                                continue@breakpoints
+                                            }
                                         }
                                     }
                                 }
@@ -591,7 +633,7 @@ class FunctionElementDebugInformation(
                 )
                 addedBreakpoints.list += breakpoint
             }
-            if(sourceReference == INITIAL_SOURCE_REFERENCE && debugConnection != null) {
+            if(useChildBreakpointParsers && debugConnection != null) {
                 for((supplier, arg) in emptyArgumentBreakpointParserSuppliers) {
                     supplier.`command_crafter$getBreakpointParser`(arg, server)
                         ?.parseBreakpoints(LinkedList(), server, sourceReference, debugConnection)
@@ -611,12 +653,11 @@ class FunctionElementDebugInformation(
         private val elementIndex: Int,
         private val macroFileRange: StringRange,
         private val macroLine: Macro.VariableLine<ServerCommandSource>,
-        private val fileCursorMapper: ProcessedInputCursorMapper,
-        private val macroReadCharacters: Int,
+        private val fileCursorMapper: SplitProcessedInputCursorMapper,
         private val macroSkippedChars: Int
     ): FunctionElementProcessor {
         init {
-            (macroLine as CursorOffsetContainer).`command_crafter$setCursorOffset`(macroReadCharacters, macroSkippedChars)
+            (macroLine as CursorOffsetContainer).`command_crafter$setCursorOffset`(macroFileRange.start, macroSkippedChars)
         }
 
         override fun parseBreakpoints(
@@ -638,7 +679,7 @@ class FunctionElementDebugInformation(
             val action = frame.procedure.entries()[elementIndex] as? SingleCommandAction.Sourced ?: return
             @Suppress("UNCHECKED_CAST")
             val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
-            CommandContextElementProcessor(context)
+            CommandContextElementProcessor(context, true)
                 .parseBreakpoints(
                     breakpoints,
                     server,
@@ -666,19 +707,18 @@ class FunctionElementDebugInformation(
                 val comparedToCurrentElement =
                     breakpointRange.compareTo(macroFileRange)
                 if(comparedToCurrentElement <= 0) {
+                    breakpoints.poll()
                     if(comparedToCurrentElement == 0) {
                         // The element contains the breakpoint
                         dynamicBreakpoints += breakpoint
-                        parsed += MinecraftDebuggerServer.rejectBreakpoint(
-                            breakpoint.unparsed,
-                            MinecraftDebuggerServer.DYNAMIC_BREAKPOINT_REJECTION_REASON
-                        )
+                        val parsedBreakpoint = MinecraftDebuggerServer.acceptBreakpoint(breakpoint.unparsed)
+                        parsedBreakpoint.message = MinecraftDebuggerServer.DYNAMIC_BREAKPOINT_MESSAGE
+                        parsed += parsedBreakpoint
                         addedBreakpoints.list += breakpoint
                         continue@breakpoints
                     }
                     // The element is after the breakpoint (meaning no previous element
                     // contained the breakpoint)
-                    breakpoints.poll()
                     parsed += MinecraftDebuggerServer.rejectBreakpoint(
                         breakpoint.unparsed,
                         MinecraftDebuggerServer.BREAKPOINT_AT_NO_CODE_REJECTION_REASON
@@ -710,11 +750,11 @@ class FunctionElementDebugInformation(
 
             @Suppress("UNCHECKED_CAST")
             val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
-            CommandContextElementProcessor(context) { breakpoint, _ ->
+            CommandContextElementProcessor(context, true) { breakpoint, _ ->
                 val breakpointFileRange = getFileBreakpointRange(breakpoint, debugInformation.lines)
-                val macroCursorOffset = macroReadCharacters - macroSkippedChars
-                val unresolvedMacroRange = fileCursorMapper.mapToTarget(breakpointFileRange) - macroCursorOffset
-                resolvedMacroCursorMapper.mapToTarget(unresolvedMacroRange) + macroCursorOffset
+                val macroCursorOffset = macroFileRange.start - macroSkippedChars
+                val unresolvedMacroRange = fileCursorMapper.mapToTarget(breakpointFileRange, true) - macroCursorOffset
+                resolvedMacroCursorMapper.mapToTarget(unresolvedMacroRange - 1, true) + macroCursorOffset
             }.parseBreakpoints(
                 LinkedList(breakpoints),
                 frame.pauseContext.server,
@@ -727,14 +767,9 @@ class FunctionElementDebugInformation(
             )
         }
 
-        override fun getReplacings(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Iterator<FileContentReplacer.Replacing>? {
+        override fun getReplacings(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Iterator<FileContentReplacer.Replacement>? {
             if(path != PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(debugInformation.sourceFunctionFile))
                 return null
-
-            /*fun mapToPosition(macroSourceCursor: Int): Position {
-                val fileCursor = macroInFileCursorMapper?.mapToSource(macroSourceCursor) ?: (macroFileRange.start + macroSourceCursor)
-                return AnalyzingResult.getPositionFromCursor(fileCursor, debugInformation.lines)
-            }*/
 
             val action = frame.procedure.entries()[elementIndex] as? SingleCommandActionAccessor<*> ?: return null
             val commandString = action.contextChain.topContext.input
@@ -742,44 +777,24 @@ class FunctionElementDebugInformation(
             val startPos = AnalyzingResult.getPositionFromCursor(macroFileRange.start, debugInformation.lines)
             val endPos = AnalyzingResult.getPositionFromCursor(macroFileRange.end, debugInformation.lines)
 
-            return listOf(FileContentReplacer.Replacing(
-                startPos.line, startPos.character, endPos.line, endPos.character, commandString
-            )).iterator()
-
-            /*val invocation = (macroLine as VariableLineAccessor).invocation
+            val invocation = (macroLine as VariableLineAccessor).invocation
             val variableIndices = macroLine.dependentVariables
             val variableArguments = variableIndices.map { frame.macroArguments[it] }
             @Suppress("CAST_NEVER_SUCCEEDS")
             val cursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(variableArguments)
 
-            val lineStart = mapToPosition(0)
-            val lineStartNext = mapToPosition(1)
-
-            val gaps = cursorMapper.getSourceGaps()
-            val result = ArrayList<FileContentReplacer.Replacing>(gaps.size + 1)
-            result += FileContentReplacer.Replacing(lineStart.line, lineStartNext.line, lineStart.character, lineStartNext.character, "")
-            return gaps.mapIndexedTo(result) { index, gap ->
-                val start = mapToPosition(gap.start)
-                val end = mapToPosition(gap.end)
-                val replacement = variableArguments[index]
-                FileContentReplacer.Replacing(start.line, end.line, start.character, end.character, replacement)
-            }.iterator()*/
-        }
-    }
-
-    class ElementPosition(var cursor: Int, override var line: Int, override var char: Int?, val lines: List<String>): Positionable {
-        companion object {
-            fun fromCursor(cursor: Int, lines: List<String>): ElementPosition {
-                val pos = AnalyzingResult.getPositionFromCursor(cursor, lines, false)
-                return ElementPosition(cursor, pos.line, pos.character, lines)
-            }
-        }
-
-        fun copy() = ElementPosition(cursor, line, char, lines)
-        override fun setPos(line: Int, char: Int?) {
-            this.line = line
-            this.char = char
-            cursor = AnalyzingResult.getCursorFromPosition(lines, Position(line, char ?: 0), false)
+            return listOf(FileContentReplacer.Replacement(
+                startPos.line,
+                startPos.character,
+                endPos.line,
+                endPos.character,
+                commandString,
+                OffsetProcessedInputCursorMapper(macroFileRange.start)
+                    .thenMapWith(fileCursorMapper)
+                    .thenMapWith(OffsetProcessedInputCursorMapper(-(macroFileRange.start - macroSkippedChars)))
+                    .thenMapWith(RemoveFirstCharProcessedInputCursorMapper) //Account for removal of '$'
+                    .thenMapWith(cursorMapper)
+            )).iterator()
         }
     }
 }

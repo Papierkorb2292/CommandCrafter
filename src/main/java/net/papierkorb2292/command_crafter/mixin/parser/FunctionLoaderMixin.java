@@ -16,11 +16,14 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.Language;
 import net.papierkorb2292.command_crafter.parser.LanguageManager;
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper;
+import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -64,7 +67,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             });
         }
         @SuppressWarnings("unchecked")
-        var reader = new DirectiveStringReader<>(lines, (CommandDispatcher<ServerCommandSource>) dispatcher, resourceCreator, new ProcessedInputCursorMapper());
+        var reader = new DirectiveStringReader<>(lines, (CommandDispatcher<ServerCommandSource>) dispatcher, resourceCreator, new SplitProcessedInputCursorMapper());
         var startCursor = reader.getAbsoluteCursor();
         var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,
@@ -76,6 +79,9 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             callback.invoke(functionStackInfo);
         }
         var function = functionBuilder.toCommandFunction(id);
+        if(function instanceof FileSourceContainer container) {
+            container.command_crafter$setFileSource(lines, UtilKt.withExtension(id, ".mcfunction"), PackContentFileType.FUNCTIONS_FILE_TYPE);
+        }
         ParsedResourceCreator.Companion.addResourceCreatorToFunction(function, resourceCreator);
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().pop();

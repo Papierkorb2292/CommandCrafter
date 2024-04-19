@@ -35,7 +35,8 @@ class ServerDebugManager(private val server: MinecraftServer) {
         fileType: PackContentFileType,
         id: Identifier,
         player: ServerPlayerEntity,
-        debuggerConnector: ServerNetworkDebugConnection
+        debuggerConnector: ServerNetworkDebugConnection,
+        sourceReference: Int? = null
     ): Array<Breakpoint> {
 
         val debugHandler = debugHandlers[fileType]
@@ -43,7 +44,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
                 breakpoints,
                 MinecraftDebuggerServer.FILE_TYPE_NOT_SUPPORTED_REJECTION_REASON
             )
-        return debugHandler.setBreakpoints(breakpoints, id, player, debuggerConnector)
+        return debugHandler.setBreakpoints(breakpoints, id, player, debuggerConnector, sourceReference)
     }
 
     fun removeDebugConnection(debugConnection: EditorDebugConnection) {
@@ -58,14 +59,22 @@ class ServerDebugManager(private val server: MinecraftServer) {
     fun removeSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int) {
         val playerReferences = sourceReferencesMap[debugConnection] ?: return
         playerReferences.sources.remove(sourceReference)
+        for(debugHandler in debugHandlers.values)
+            debugHandler.removeSourceReference(debugConnection, sourceReference)
         if(playerReferences.sources.isEmpty()) sourceReferencesMap.remove(debugConnection)
     }
 
-    fun addSourceReference(debugConnection: EditorDebugConnection, response: SourceReferenceSupplier): Int {
+    fun addSourceReference(debugConnection: EditorDebugConnection, originalLines: List<String>, response: SourceReferenceSupplier): Int {
         val references = sourceReferencesMap.getOrPut(debugConnection, ::PlayerSourceReferences)
-        val id = references.nextId++
-        references.sources[id] = SourceReferenceGenerator(response)
+        val id = debugConnection.nextSourceReference
+        debugConnection.onSourceReferenceAdded()
+        references.sources[id] = SourceReferenceGenerator(response, originalLines)
         return id
+    }
+
+    fun getSourceReferenceEntry(debugConnection: EditorDebugConnection, sourceReference: Int?): SourceReferenceGenerator? {
+        val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
+        return sourceReferences.sources[sourceReference ?: return null]
     }
 
     fun getSourceReferenceLines(debugConnection: EditorDebugConnection, sourceReference: Int?): List<String>? {
@@ -85,9 +94,9 @@ class ServerDebugManager(private val server: MinecraftServer) {
         return sourceReferences.sources[sourceReference]?.generateSourceReference(sourceReference)
     }
 
-    class PlayerSourceReferences(val sources: Int2ReferenceMap<SourceReferenceGenerator> = Int2ReferenceOpenHashMap(), var nextId: Int = 1)
+    class PlayerSourceReferences(val sources: Int2ReferenceMap<SourceReferenceGenerator> = Int2ReferenceOpenHashMap())
 
-    class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier) {
+    class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier, val originalLines: List<String>) {
         var generatedResponse: SourceResponse? = null
             private set
         var cursorMapper: ProcessedInputCursorMapper? = null
@@ -96,7 +105,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
             get() = generatedResponse?.content?.lines()
 
         fun generateSourceReference(id: Int) =
-            responseCallback(id).also { (response, cursorMapper) ->
+            generatedResponse ?: responseCallback(id).also { (response, cursorMapper) ->
                 generatedResponse = response
                 this.cursorMapper = cursorMapper
             }.first

@@ -24,6 +24,7 @@ import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.DataPackContentsAccessor
+import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer
 import java.util.*
 import java.util.stream.Collectors
 
@@ -52,7 +53,15 @@ class ParsedResourceCreator(
             var resourceId = 0
             for(childFunction in resourceCreator.functions) {
                 val functionId = resourceCreator.getPath(resourceId++)
-                functionMapBuilder.put(functionId, childFunction.resource.toCommandFunction(functionId))
+                val generatedChildFunction = childFunction.resource.toCommandFunction(functionId)
+                if(function is FileSourceContainer && generatedChildFunction is FileSourceContainer) {
+                    val lines = function.`command_crafter$getFileSourceLines`()
+                    val fileId = function.`command_crafter$getFileSourceId`()
+                    val fileType= function.`command_crafter$getFileSourceType`()
+                    if(lines != null && fileId != null && fileType != null)
+                        generatedChildFunction.`command_crafter$setFileSource`(lines, fileId, fileType)
+                }
+                functionMapBuilder.put(functionId, generatedChildFunction)
                 childFunction.idSetter(functionId)
             }
             resourceId = 0
