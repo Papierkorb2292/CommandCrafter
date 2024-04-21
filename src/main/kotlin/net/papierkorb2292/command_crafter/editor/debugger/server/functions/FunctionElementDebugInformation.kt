@@ -589,7 +589,7 @@ class FunctionElementDebugInformation(
                                 // belong to the child breakpoint parser.
                                 if(debugConnection != null && node is ArgumentCommandNode<*, *>) {
                                     val type = node.type
-                                    val argument = context.getArgument(node.name, FunctionArgument::class.java)
+                                    val argument = context.getArgument(node.name, Object::class.java)
                                     if(type is ArgumentBreakpointParserSupplier) {
                                         val parser = type.`command_crafter$getBreakpointParser`(argument, server)
                                         if(parser != null) {
