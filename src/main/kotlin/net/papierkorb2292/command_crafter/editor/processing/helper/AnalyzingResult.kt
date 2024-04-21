@@ -138,6 +138,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
 
     companion object {
         fun getPositionFromCursor(cursor: Int, lines: List<String>, zeroBased: Boolean = true): Position {
+            if(lines.isEmpty()) return Position()
             var charactersLeft = cursor
             for((index, line) in lines.withIndex()) {
                 val length = line.length + 1
@@ -154,6 +155,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
         }
 
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
+            if(lines.isEmpty()) return 0
             var cursor = 0
             val lineIndex = if(zeroBased) position.line else position.line - 1
             for((index, line) in lines.withIndex()) {
