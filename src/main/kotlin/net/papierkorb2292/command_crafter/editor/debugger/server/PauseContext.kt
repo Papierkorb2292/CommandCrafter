@@ -189,6 +189,10 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
 
     fun initBreakpointPause(breakpoint: ServerBreakpoint<*>): Boolean {
         var debugConnection = debugConnection ?: oneTimeDebugConnection
+        if(breakpoint.debugConnection.isPaused()) {
+            //The debuggee already paused somewhere
+            return false
+        }
         if(debugConnection != null) {
             if(breakpoint.debugConnection != debugConnection) {
                 //A different debugee is currently debugging the function
