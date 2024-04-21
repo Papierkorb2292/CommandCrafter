@@ -429,11 +429,8 @@ class FunctionElementDebugInformation(
             if(debugFrame.currentSectionIndex == modifiers.size) {
                 @Suppress("UNCHECKED_CAST")
                 addStackFrameForSection((contextChain as ContextChainAccessor<ServerCommandSource>).executable, debugFrame.currentSectionIndex, sourceIndex)
-                if(lastRunningModifier == 0) {
-                    return stackFrames
-                }
                 lastRunningModifier -= 1
-                sourceIndex = debugFrame.sectionSources[debugFrame.currentSectionIndex].parentSourceIndices[sourceIndex]
+                sourceIndex = debugFrame.sectionSources[debugFrame.currentSectionIndex].parentSourceIndices.getOrNull(sourceIndex) ?: return stackFrames
             }
 
             for(i in lastRunningModifier downTo 0) {
@@ -441,9 +438,7 @@ class FunctionElementDebugInformation(
                     continue
                 }
                 addStackFrameForSection(modifiers[i], i, sourceIndex)
-                if(i > 0) {
-                    sourceIndex = debugFrame.sectionSources[i].parentSourceIndices[sourceIndex]
-                }
+                sourceIndex = debugFrame.sectionSources[i].parentSourceIndices.getOrNull(sourceIndex) ?: break
             }
 
             return stackFrames
