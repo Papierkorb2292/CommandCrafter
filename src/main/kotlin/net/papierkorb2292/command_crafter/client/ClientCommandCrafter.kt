@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.registry.BuiltinRegistries
 import net.minecraft.server.command.CommandManager
@@ -11,7 +12,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmitti
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.debug.services.IDebugProtocolClient
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
@@ -108,6 +108,9 @@ object ClientCommandCrafter : ClientModInitializer {
         }
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             setDefaultServerConnection()
+        }
+        ClientLifecycleEvents.CLIENT_STOPPING.register {
+            editorConnectionManager.leave()
         }
 
         editorConnectionManager.startServer()

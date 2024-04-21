@@ -101,6 +101,12 @@ class EditorConnectionManager(
         }
     }
 
+    fun leave() {
+        for(editorServer in runningServices.keys) {
+            editorServer.leave()
+        }
+    }
+
     interface ServiceLauncher {
         fun launch(serverConnection: MinecraftServerConnection, editorConnection: EditorConnection, executorService: ExecutorService): LaunchedService
     }

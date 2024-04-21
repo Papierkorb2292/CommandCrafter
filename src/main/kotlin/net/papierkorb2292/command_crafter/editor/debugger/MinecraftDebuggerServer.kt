@@ -465,6 +465,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         minecraftServer.debugService?.removeEditorDebugConnection(editorDebugConnection)
     }
 
+    override fun leave() {
+        client?.terminated(TerminatedEventArguments())
+    }
+
     fun connect(client: CommandCrafterDebugClient) {
         this.client = client
     }
