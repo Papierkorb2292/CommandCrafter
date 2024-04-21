@@ -236,7 +236,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ServerPlayNetworking.registerGlobalReceiver(debugPauseActionPacketChannel) { server, _, _, buf, _ ->
                 val packet = NetworkDebugPauseActions.DebugPauseActionC2SPacket(buf)
                 val debugPause = serverDebugPauses[packet.pauseId] ?: return@registerGlobalReceiver
-                server.execute { packet.action.apply(debugPause.actions, packet) }
+                packet.action.apply(debugPause.actions, packet)
             }
             ServerPlayNetworking.registerGlobalReceiver(getVariablesRequestPacketChannel) { server, _, _, buf, packetSender ->
                 val packet = NetworkVariablesReferencer.GetVariablesRequestC2SPacket(buf)
@@ -297,7 +297,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             ServerPlayNetworking.registerGlobalReceiver(editorDebugConnectionRegistrationPacketChannel) { _, player, _, buf, _ ->
                 val packet = ServerNetworkDebugConnection.DebugConnectionRegistrationC2SPacket(buf)
-                serverEditorDebugConnections.putIfAbsent(packet.debugConnectionId, ServerNetworkDebugConnection(player, packet.debugConnectionId, packet.oneTimeDebugTarget, packet.nextSourceReference))
+                serverEditorDebugConnections.putIfAbsent(packet.debugConnectionId, ServerNetworkDebugConnection(player, packet.debugConnectionId, packet.oneTimeDebugTarget, packet.nextSourceReference, packet.suspendServer))
             }
 
             ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, server -> server.execute {
@@ -441,7 +441,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val id = UUID.randomUUID()
                 ClientPlayNetworking.send(
                     editorDebugConnectionRegistrationPacketChannel,
-                    ServerNetworkDebugConnection.DebugConnectionRegistrationC2SPacket(it.oneTimeDebugTarget, it.nextSourceReference, id).write()
+                    ServerNetworkDebugConnection.DebugConnectionRegistrationC2SPacket(it.oneTimeDebugTarget, it.nextSourceReference, it.suspendServer, id).write()
                 )
                 it.lifecycle.configurationDoneEvent.thenRun {
                     ClientPlayNetworking.send(

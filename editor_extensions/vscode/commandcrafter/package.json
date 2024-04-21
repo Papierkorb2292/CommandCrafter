@@ -75,6 +75,10 @@
               "stopOnEntry": {
                 "type": "boolean",
                 "description": "Optional: Whether to stop on the first line of the function. Must only be used with the 'function' property. Defaults to false."
+              },
+              "suspendServer": {
+                "type": "boolean",
+                "description": "Optional: Whether to suspend the server when the debugger is paused. If 'false', the server will continue ticking. Defaults to 'true'."
               }
             }
           }
@@ -94,7 +98,8 @@
             "body": {
               "type": "commandcrafter",
               "request": "launch",
-              "name": "Minecraft Debugger"
+              "name": "Minecraft Debugger",
+              "suspendServer": true
             }
           },
           {
@@ -105,7 +110,8 @@
               "request": "launch",
               "name": "${1:<Function Id>}.mcfunction",
               "function": "${1:<Function Id>}",
-              "stopOnEntry": false
+              "stopOnEntry": false,
+              "suspendServer": true
             }
           }
         ]

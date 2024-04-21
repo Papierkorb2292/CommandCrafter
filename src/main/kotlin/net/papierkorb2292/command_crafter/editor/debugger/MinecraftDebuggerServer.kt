@@ -75,6 +75,8 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?
             get() = this@MinecraftDebuggerServer.oneTimeDebugTarget
         override var nextSourceReference = 1
+        override val suspendServer: Boolean
+            get() = this@MinecraftDebuggerServer.suspendServer
 
         init {
             lifecycle.shouldExitEvent.thenAccept {
@@ -173,6 +175,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     private var initializeArgs = InitializeRequestArguments()
     private var oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null
+    private var suspendServer = true
 
     /**
      * If a source path can't be parsed by [PackContentFileType.parsePath],
@@ -250,6 +253,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             client?.exited(ExitedEventArguments().apply { exitCode = 2 })
             throw IllegalArgumentException("'stopOnEntry' must be used with 'function'")
         }
+        val suspendServerArg = args["suspendServer"]
+        if(suspendServerArg !is Boolean?)
+            throw IllegalArgumentException("'suspendServer' must be a boolean")
+        suspendServer = suspendServerArg ?: true
         return CompletableFuture.completedFuture(null)
     }
 

@@ -166,7 +166,9 @@ class FunctionDebugFrame(
         = currentSectionIndex < (currentContextChain as ContextChainAccessor<*>).modifiers.size
 
     override fun unpause() {
-        pauseContext.executionWrapper.runCallback(unpauseCallback)
+        pauseContext.server.execute {
+            pauseContext.executionWrapper.runCallback(unpauseCallback)
+        }
     }
 
     override fun shouldWrapInSourceReference(path: String): PauseContext.SourceReferenceWrapper? {
@@ -215,11 +217,11 @@ class FunctionDebugFrame(
         }
     }
     
-    private fun startPause(): Nothing {
+    private fun startPause() {
         lastPauseContext = currentContext
         lastPauseSourceIndex = currentSectionSources.currentSourceIndex
         nextPauseRootContext = null
-        throw CommandExecutionPausedThrowable(pauseContext.executionWrapper)
+        pauseContext.suspend() { CommandExecutionPausedThrowable(pauseContext.executionWrapper) }
     }
 
     fun resetLastPause() {

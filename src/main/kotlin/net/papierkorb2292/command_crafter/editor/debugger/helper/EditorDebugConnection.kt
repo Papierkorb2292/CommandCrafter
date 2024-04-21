@@ -11,6 +11,7 @@ interface EditorDebugConnection {
     val lifecycle: Lifecycle
     val oneTimeDebugTarget: DebugTarget?
     val nextSourceReference: Int
+    val suspendServer: Boolean
     fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer)
     fun pauseEnded()
     fun isPaused(): Boolean

@@ -23,7 +23,8 @@ class ServerNetworkDebugConnection(
     player: ServerPlayerEntity,
     val clientEditorDebugConnection: UUID,
     override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null,
-    override var nextSourceReference: Int = 1
+    override var nextSourceReference: Int = 1,
+    override val suspendServer: Boolean = true
 ) : NetworkIdentifiedDebugConnection {
     companion object {
         val outputGson = Gson()
@@ -293,14 +294,14 @@ class ServerNetworkDebugConnection(
         }
     }
 
-    class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?, val nextSourceReference: Int, val debugConnectionId: UUID): ByteBufWritable {
+    class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?, val nextSourceReference: Int, val suspendServer: Boolean, val debugConnectionId: UUID): ByteBufWritable {
         constructor(buf: PacketByteBuf): this(buf.readNullable {
             EditorDebugConnection.DebugTarget(
                 buf.readEnumConstant(PackContentFileType::class.java),
                 buf.readIdentifier(),
                 buf.readBoolean()
             )
-        }, buf.readVarInt(), buf.readUuid())
+        }, buf.readVarInt(), buf.readBoolean(), buf.readUuid())
         override fun write(buf: PacketByteBuf) {
             buf.writeNullable(oneTimeDebugTarget) { targetBuf, target ->
                 targetBuf.writeEnumConstant(target.targetFileType)
@@ -308,6 +309,7 @@ class ServerNetworkDebugConnection(
                 targetBuf.writeBoolean(target.stopOnEntry)
             }
             buf.writeVarInt(nextSourceReference)
+            buf.writeBoolean(suspendServer)
             buf.writeUuid(debugConnectionId)
         }
     }

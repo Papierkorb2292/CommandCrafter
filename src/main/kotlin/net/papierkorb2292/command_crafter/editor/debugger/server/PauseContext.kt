@@ -13,8 +13,10 @@ import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesRef
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.*
+import java.lang.Thread
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Supplier
 
 class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: EditorDebugConnection?, val pauseOnEntry: Boolean = false) {
     companion object {
@@ -117,6 +119,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
 
     private var pauseOnFrameEnter = false
     private var pauseOnFrameExit: Int? = null
+    private var suspendedServer = false
 
     fun isDebugging(): Boolean {
         return debugConnection != null
@@ -180,7 +183,8 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         debugConnection?.pauseEnded()
         debugFrameStack.stack.forEach { it.frame.onContinue(it) }
         onContinueListeners.forEach { it() }
-        peekDebugFrame()?.unpause()
+        if(!suspendedServer)
+            peekDebugFrame()?.unpause()
     }
 
     fun notifyClientPauseLocationSkipped() {
@@ -231,6 +235,15 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             it.reason = StoppedEventArgumentsReason.PAUSE
         }, variablesReferenceMapper)
         return true
+    }
+
+    fun suspend(executionPausedThrowable: Supplier<Throwable>) {
+        if(!debugConnection!!.suspendServer)
+            throw executionPausedThrowable.get()
+        suspendedServer = true
+        while(isPaused)
+            Thread.sleep(100)
+        suspendedServer = false
     }
 
     private val onContinueListeners = mutableListOf<() -> Unit>()
