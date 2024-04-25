@@ -1,15 +1,22 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.tree.RootCommandNode
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.registry.BuiltinRegistries
+import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
+import net.minecraft.server.command.CommandOutput
+import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.util.math.Vec2f
+import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
+import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.jsonrpc.Launcher
@@ -85,11 +92,26 @@ object ClientCommandCrafter : ClientModInitializer {
     private fun initializeEditor() {
         val registryWrapperLookup = BuiltinRegistries.createWrapperLookup()
         fun setDefaultServerConnection() {
+            @Suppress("UNCHECKED_CAST")
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
-                CommandManager(
-                    CommandManager.RegistrationEnvironment.ALL,
-                    CommandManager.createRegistryAccess(registryWrapperLookup)
-                ).dispatcher,
+                CommandDispatcher(
+                    limitCommandTreeForSource(
+                        CommandManager(
+                            CommandManager.RegistrationEnvironment.ALL,
+                            CommandManager.createRegistryAccess(registryWrapperLookup)
+                        ), ServerCommandSource(
+                            CommandOutput.DUMMY,
+                            Vec3d.ZERO,
+                            Vec2f.ZERO,
+                            null,
+                            2,
+                            "",
+                            ScreenTexts.EMPTY,
+                            null,
+                            null
+                        )
+                    ) as RootCommandNode<ServerCommandSource>
+                ),
                 2
             )
         }

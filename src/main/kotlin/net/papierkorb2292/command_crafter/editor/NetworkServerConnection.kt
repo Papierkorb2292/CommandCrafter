@@ -4,8 +4,6 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.tree.CommandNode
-import com.mojang.brigadier.tree.RootCommandNode
 import io.netty.channel.local.LocalChannel
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
@@ -14,7 +12,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.client.MinecraftClient
 import net.minecraft.command.CommandRegistryAccess
-import net.minecraft.command.CommandSource
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
 import net.minecraft.screen.ScreenTexts
@@ -40,8 +37,8 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.CommandManagerAccessor
 import net.papierkorb2292.command_crafter.networking.*
+import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -331,12 +328,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             requestPacket: RequestNetworkServerConnectionC2SPacket,
             packetSender: PacketSender,
         ) {
-            val map: MutableMap<CommandNode<ServerCommandSource>, CommandNode<CommandSource>> = Maps.newHashMap()
-            val rootCommandNode = RootCommandNode<CommandSource>()
-            val commandManager = server.commandManager
-            val dispatcher = commandManager.dispatcher
-            map[dispatcher.root] = rootCommandNode
-            val serverCommandSource = ServerCommandSource(
+            val rootCommandNode = limitCommandTreeForSource(server.commandManager, ServerCommandSource(
                 CommandOutput.DUMMY,
                 Vec3d.ZERO,
                 Vec2f.ZERO,
@@ -346,13 +338,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 ScreenTexts.EMPTY,
                 null,
                 null
-            )
-            (commandManager as CommandManagerAccessor).callMakeTreeForSource(
-                dispatcher.root,
-                rootCommandNode,
-                serverCommandSource,
-                map
-            )
+            ))
 
             val responsePacket = InitializeNetworkServerConnectionS2CPacket(
                 CommandTreeS2CPacket(rootCommandNode),
