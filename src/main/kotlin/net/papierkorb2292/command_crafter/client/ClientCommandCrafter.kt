@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.tree.RootCommandNode
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
@@ -92,7 +91,6 @@ object ClientCommandCrafter : ClientModInitializer {
     private fun initializeEditor() {
         val registryWrapperLookup = BuiltinRegistries.createWrapperLookup()
         fun setDefaultServerConnection() {
-            @Suppress("UNCHECKED_CAST")
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
                 CommandDispatcher(
                     limitCommandTreeForSource(
@@ -110,7 +108,7 @@ object ClientCommandCrafter : ClientModInitializer {
                             null,
                             null
                         )
-                    ) as RootCommandNode<ServerCommandSource>
+                    )
                 ),
                 2
             )

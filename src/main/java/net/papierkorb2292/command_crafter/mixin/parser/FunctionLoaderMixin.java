@@ -9,6 +9,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.datafixers.util.Pair;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
+import net.minecraft.command.CommandSource;
 import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.server.DataPackContents;
 import net.minecraft.server.command.AbstractServerCommandSource;
@@ -67,7 +68,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             });
         }
         @SuppressWarnings("unchecked")
-        var reader = new DirectiveStringReader<>(lines, (CommandDispatcher<ServerCommandSource>) dispatcher, resourceCreator, new SplitProcessedInputCursorMapper());
+        var reader = new DirectiveStringReader<>(lines, (CommandDispatcher<CommandSource>)(Object)dispatcher, resourceCreator, new SplitProcessedInputCursorMapper());
         var startCursor = reader.getAbsoluteCursor();
         var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,

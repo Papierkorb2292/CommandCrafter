@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.parser;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -104,10 +105,11 @@ public class DatapackCommandMixin {
             output.getParentFile().mkdirs();
             try(var outputStream = new FileOutputStream(output)) {
                 var zipOutput = new ZipOutputStream(outputStream);
+                //noinspection unchecked
                 RawZipResourceCreator.Companion.buildDatapack(
                         pack,
                         argsBuilder.build(),
-                        context.getSource().getServer().getCommandManager().getDispatcher(),
+                        (CommandDispatcher<CommandSource>)(Object)context.getSource().getServer().getCommandManager().getDispatcher(),
                         zipOutput
                 );
                 zipOutput.close();

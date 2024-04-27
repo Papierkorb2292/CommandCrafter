@@ -3,6 +3,9 @@ package net.papierkorb2292.command_crafter
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry
+import net.minecraft.client.MinecraftClient
+import net.minecraft.client.network.ClientCommandSource
+import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer
 import net.minecraft.registry.Registry
 import net.minecraft.screen.ScreenTexts
@@ -51,8 +54,8 @@ object CommandCrafter: ModInitializer {
                 val reader = DirectiveStringReader(lines, languageServer.minecraftServer.commandDispatcher, AnalyzingResourceCreator(languageServer, file.uri))
                 val result = AnalyzingResult(reader, Position())
                 reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-
-                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, languageServer.minecraftServer.functionPermissionLevel, "", ScreenTexts.EMPTY, null, null)
+                val minecraftClient = MinecraftClient.getInstance()
+                val source = ClientCommandSource(minecraftClient.networkHandler!!, minecraftClient)
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                 return result
             }
@@ -72,7 +75,7 @@ object CommandCrafter: ModInitializer {
                 id: Identifier,
                 content: BufferedReader,
                 resourceCreator: RawZipResourceCreator,
-                dispatcher: CommandDispatcher<ServerCommandSource>,
+                dispatcher: CommandDispatcher<CommandSource>,
             ) {
                 val reader = DirectiveStringReader(content.lines().toList(), dispatcher, resourceCreator)
                 val resource = RawResource(RawResource.FUNCTION_TYPE)
@@ -90,7 +93,7 @@ object CommandCrafter: ModInitializer {
                 args: DatapackBuildArgs,
                 id: Identifier,
                 content: BufferedReader,
-                dispatcher: CommandDispatcher<ServerCommandSource>,
+                dispatcher: CommandDispatcher<CommandSource>,
             ) {
                 process(args, id, content, RawZipResourceCreator(), dispatcher)
             }

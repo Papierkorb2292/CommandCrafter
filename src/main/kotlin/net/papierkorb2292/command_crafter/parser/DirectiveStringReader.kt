@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.command.CommandSource
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
@@ -16,7 +16,7 @@ import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
     var lines: List<String>,
-    val dispatcher: CommandDispatcher<ServerCommandSource>,
+    val dispatcher: CommandDispatcher<CommandSource>,
     val resourceCreator: ResourceCreator,
     val cursorMapper: SplitProcessedInputCursorMapper = SplitProcessedInputCursorMapper(),
 ) : StringReader(""),

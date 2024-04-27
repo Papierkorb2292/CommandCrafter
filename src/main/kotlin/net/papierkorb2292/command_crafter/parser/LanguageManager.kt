@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
+import net.minecraft.command.CommandSource
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.server.MinecraftServer
@@ -110,7 +111,7 @@ object LanguageManager {
         return builder
     }
 
-    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: ServerCommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
+    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
         reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)

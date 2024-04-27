@@ -11,6 +11,7 @@ import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.datafixers.util.Either
+import net.minecraft.command.CommandSource
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.registry.DynamicRegistryManager
@@ -92,7 +93,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     override fun analyze(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        source: ServerCommandSource,
+        source: CommandSource,
         result: AnalyzingResult,
     ) {
         fun advanceToParseResults(parseResults: ParseResults<*>, reader: DirectiveStringReader<*>) {
@@ -278,9 +279,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun parseCommand(reader: DirectiveStringReader<*>, source: ServerCommandSource): ParseResults<ServerCommandSource> {
+    private fun <S: CommandSource> parseCommand(reader: DirectiveStringReader<*>, source: S): ParseResults<S> {
         try {
-            val parseResults: ParseResults<ServerCommandSource> = reader.dispatcher.parse(reader, source)
+            @Suppress("UNCHECKED_CAST")
+            val parseResults: ParseResults<S> = reader.dispatcher.parse(reader, source) as ParseResults<S>
             val exceptions = parseResults.exceptions
             if (exceptions.isNotEmpty()) {
                 throw exceptions.values.first()
@@ -395,7 +397,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
-    fun analyzeParsedCommand(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
         var parentNode = contextBuilder.rootNode
         while(contextBuilder != null) {
@@ -415,9 +417,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     private fun analyzeCommandNode(
-        parsedNode: ParsedCommandNode<ServerCommandSource>,
-        parentNode: CommandNode<ServerCommandSource>,
-        contextBuilder: CommandContextBuilder<ServerCommandSource>,
+        parsedNode: ParsedCommandNode<CommandSource>,
+        parentNode: CommandNode<CommandSource>,
+        contextBuilder: CommandContextBuilder<CommandSource>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
     ) {
@@ -479,14 +481,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: CommandNode<ServerCommandSource>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: CommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         if(reader.canRead() && reader.peek() == ' ')
             reader.skip()
         else if(isReaderEasyNextLine(reader))
             skipImprovedCommandGap(reader)
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
-        var furthestParsedContext: CommandContextBuilder<ServerCommandSource>? = null
+        var furthestParsedContext: CommandContextBuilder<CommandSource>? = null
         for(nextNode in parentNode.children) {
             val newReader = reader.copy()
             val start = newReader.cursor

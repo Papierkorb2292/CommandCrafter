@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Either
+import net.minecraft.command.CommandSource
 import net.minecraft.resource.*
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
@@ -29,7 +30,7 @@ class RawZipResourceCreator {
 
         val DATA_TYPE_PROCESSORS: MutableList<DataTypeProcessor> = ArrayList()
 
-        fun buildDatapack(pack: ResourcePack, args: DatapackBuildArgs, dispatcher: CommandDispatcher<ServerCommandSource>, output: ZipOutputStream) {
+        fun buildDatapack(pack: ResourcePack, args: DatapackBuildArgs, dispatcher: CommandDispatcher<CommandSource>, output: ZipOutputStream) {
             val resourceCreator = RawZipResourceCreator()
             when (pack) {
                 is DirectoryResourcePack -> {
@@ -82,7 +83,7 @@ class RawZipResourceCreator {
             content: InputSupplier<InputStream>,
             resourceCreator: RawZipResourceCreator,
             args: DatapackBuildArgs,
-            dispatcher: CommandDispatcher<ServerCommandSource>,
+            dispatcher: CommandDispatcher<CommandSource>,
         ) {
             val resourceExtension = Files.getFileExtension(fileId.path)
             val resourceId = Identifier(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
@@ -152,7 +153,7 @@ class RawZipResourceCreator {
     interface DataTypeProcessor {
         val type: String
         fun shouldProcess(args: DatapackBuildArgs): Boolean
-        fun process(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, resourceCreator: RawZipResourceCreator, dispatcher: CommandDispatcher<ServerCommandSource>)
-        fun validate(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, dispatcher: CommandDispatcher<ServerCommandSource>)
+        fun process(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, resourceCreator: RawZipResourceCreator, dispatcher: CommandDispatcher<CommandSource>)
+        fun validate(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, dispatcher: CommandDispatcher<CommandSource>)
     }
 }

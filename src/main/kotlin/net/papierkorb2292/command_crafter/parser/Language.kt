@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import net.minecraft.command.CommandSource
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.FunctionBuilder
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
@@ -16,7 +17,7 @@ interface Language {
 
     fun analyze(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        source: ServerCommandSource,
+        source: CommandSource,
         result: AnalyzingResult
     )
 

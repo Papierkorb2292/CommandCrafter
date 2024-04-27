@@ -364,8 +364,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    override val commandDispatcher: CommandDispatcher<ServerCommandSource> = CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(client.networkHandler?.registryManager, client.networkHandler?.enabledFeatures))) as CommandDispatcher<ServerCommandSource>
+    override val commandDispatcher = CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(client.networkHandler?.registryManager, client.networkHandler?.enabledFeatures)))
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {
