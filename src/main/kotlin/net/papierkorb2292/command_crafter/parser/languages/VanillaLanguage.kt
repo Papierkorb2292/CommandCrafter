@@ -3,14 +3,13 @@ package net.papierkorb2292.command_crafter.parser.languages
 import com.mojang.brigadier.ImmutableStringReader
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
-import com.mojang.brigadier.context.CommandContextBuilder
-import com.mojang.brigadier.context.ContextChain
-import com.mojang.brigadier.context.ParsedArgument
-import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.context.*
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
+import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
+import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.datafixers.util.Either
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
@@ -25,6 +24,7 @@ import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.server.function.Macro
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.minecraft.util.math.MathHelper
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
@@ -32,9 +32,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
@@ -42,8 +40,6 @@ import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import kotlin.math.max
-import kotlin.math.min
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor as FunctionBuilderAccessor_Debug
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor as FunctionBuilderAccessor_Parser
 import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
@@ -152,9 +148,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
 
                 reader.onlyReadEscapedMultiline = !easyNewLine
-                val parseResults = reader.dispatcher.parse(reader, source)
+                    val parseResults = reader.dispatcher.parse(reader, source)
                 advanceToParseResults(parseResults, reader)
-                createCommandSemantics(parseResults, result, reader)
+                analyzeParsedCommand(parseResults, result, reader)
 
                 if(easyNewLine) {
                     val exceptions = parseResults.exceptions
@@ -198,7 +194,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         startPosition,
                         Position(startPosition.line, reader.lines[startPosition.line].length)
                     ),
-                    e.message,
+                    e.message ?: e.toString(),
                     DiagnosticSeverity.Error,
                     null
                 )
@@ -399,61 +395,134 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
-    fun createCommandSemantics(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    fun analyzeParsedCommand(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
-        var context = contextBuilder.build(result.reader.string)
-        val initialReadCharacters = reader.readCharacters
-        val initialSkippedChars = reader.skippedChars
-
-        while(contextBuilder != null && context != null) {
+        var parentNode = contextBuilder.rootNode
+        while(contextBuilder != null) {
             for (parsedNode in contextBuilder.nodes) {
-                val node = parsedNode.node
-                if (node is AnalyzingCommandNode) {
-                    try {
-                        reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
-                        reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
-                        node.`command_crafter$analyze`(
-                            context,
-                            StringRange(parsedNode.range.start, max(min(parsedNode.range.end, context.input.length), parsedNode.range.start)),
-                            reader,
-                            analyzingResult,
-                            node.name
-                        )
-                    } catch(_: CommandSyntaxException) { }
-                    finally {
-                        reader.readCharacters = initialReadCharacters
-                        reader.skippedChars = initialSkippedChars
-                    }
-                }
-            }
-            if(context.child == null && contextBuilder.nodes.isNotEmpty()) {
-                tryAnalyzeNextNode(result, analyzingResult, contextBuilder.nodes.last().node.children, contextBuilder, reader)
+                analyzeCommandNode(
+                    parsedNode,
+                    parentNode,
+                    contextBuilder,
+                    analyzingResult,
+                    reader
+                )
+                parentNode = parsedNode.node
             }
             contextBuilder = contextBuilder.child
-            context = context.child
+        }
+        tryAnalyzeNextNode(analyzingResult, parentNode.resolveRedirects(), result.context, reader)
+    }
+
+    private fun analyzeCommandNode(
+        parsedNode: ParsedCommandNode<ServerCommandSource>,
+        parentNode: CommandNode<ServerCommandSource>,
+        contextBuilder: CommandContextBuilder<ServerCommandSource>,
+        analyzingResult: AnalyzingResult,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+    ) {
+        val initialReadCharacters = reader.readCharacters
+        val initialSkippedChars = reader.skippedChars
+        val commandInput = reader.string
+        val context = contextBuilder.build(commandInput)
+        val node = parsedNode.node
+        if (node is AnalyzingCommandNode) {
+            reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+            reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
+            val readSkippingChars = reader.readSkippingChars
+            try {
+                node.`command_crafter$analyze`(
+                    context,
+                    StringRange(parsedNode.range.start, MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)),
+                    reader,
+                    analyzingResult,
+                    node.name
+                )
+            } catch(_: CommandSyntaxException) {
+            } finally {
+                reader.readCharacters = initialReadCharacters
+                reader.skippedChars = initialSkippedChars
+            }
+            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`()) {
+                val completionParentNode = parentNode.resolveRedirects()
+                analyzingResult.addCompletionProvider(
+                    AnalyzingResult.RangedDataProvider(StringRange(parsedNode.range.start, parsedNode.range.end)) { cursor ->
+                        val endCursor = cursor - readSkippingChars
+                        val truncatedInput = commandInput.substring(0, endCursor)
+                        val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
+                        val suggestionFutures = completionParentNode.children.map { child ->
+                            child.listSuggestions(
+                                contextBuilder.build(truncatedInput),
+                                SuggestionsBuilder(
+                                    truncatedInput, truncatedInputLowerCase,
+                                    parsedNode.range.start
+                                )
+                            ).thenApply { it.list }
+                        }.toTypedArray()
+                        CompletableFuture.allOf(*suggestionFutures).thenApply {
+                            try {
+                                reader.readCharacters =
+                                    (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+                                reader.skippedChars =
+                                    (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
+                                suggestionFutures.flatMap { it.get() }
+                                    .map { it.toTextEditCompletionItem(reader) }
+                            } finally {
+                                reader.readCharacters = initialReadCharacters
+                                reader.skippedChars = initialSkippedChars
+                            }
+                        }
+                    },
+                    true
+                )
+            }
         }
     }
 
-    private fun tryAnalyzeNextNode(result: ParseResults<ServerCommandSource>, analyzingResult: AnalyzingResult, nodes: Collection<CommandNode<ServerCommandSource>>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
-        if (nodes.size != 1) return
-        val nextNode = nodes.first()
-        if (nextNode !is ArgumentCommandNode<*, *>) return
-        val prevReader = result.reader
-        if(!prevReader.canRead()) return
-        val newReader: StringReader
-        if(prevReader is DirectiveStringReader<*>) {
-            newReader = prevReader.copy()
-        } else {
-            newReader = StringReader(prevReader.string)
-            newReader.cursor = prevReader.cursor
-        }
-        val start = newReader.cursor
-        try {
-            val argumentResult = nextNode.type.parse(newReader)
-            context.withArgument(nextNode.name, ParsedArgument(start, newReader.cursor, argumentResult))
-        } catch(ignored: Exception) { }
+    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: CommandNode<ServerCommandSource>, context: CommandContextBuilder<ServerCommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+        if(reader.canRead() && reader.peek() == ' ')
+            reader.skip()
+        else if(isReaderEasyNextLine(reader))
+            skipImprovedCommandGap(reader)
 
-        try {
+        var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
+        var furthestParsedContext: CommandContextBuilder<ServerCommandSource>? = null
+        for(nextNode in parentNode.children) {
+            val newReader = reader.copy()
+            val start = newReader.cursor
+            val newContext = context.copy()
+            when(nextNode) {
+                is LiteralCommandNode<*> -> {
+                    var literalIndex = 0
+                    while(newReader.canRead() && literalIndex < nextNode.literal.length && newReader.peek() == nextNode.literal[literalIndex]) {
+                        literalIndex++
+                        newReader.skip()
+                    }
+                }
+                is ArgumentCommandNode<*, *> -> {
+                    try {
+                        val argument = nextNode.type.parse(newReader)
+                        newContext.withArgument(nextNode.name, ParsedArgument(start, newReader.cursor, argument))
+                    } catch(_: Exception) { }
+                }
+                else -> continue
+            }
+            newContext.withNode(nextNode, StringRange(start, newReader.string.length))
+            if(furthestParsedReader == null || newReader.cursor > furthestParsedReader.cursor) {
+                furthestParsedReader = newReader
+                furthestParsedContext = newContext
+            }
+        }
+        if(furthestParsedContext == null || furthestParsedReader == null) return
+        analyzeCommandNode(
+            furthestParsedContext.nodes.last(),
+            parentNode,
+            furthestParsedContext,
+            analyzingResult,
+            furthestParsedReader
+        )
+
+        /*try {
             (nextNode as AnalyzingCommandNode).`command_crafter$analyze`(
                 context.build(result.reader.string),
                 StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
@@ -461,7 +530,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 analyzingResult,
                 nextNode.name
             )
-        } catch(_: CommandSyntaxException) { }
+        } catch(_: CommandSyntaxException) { }*/
     }
 
     object VanillaLanguageType : LanguageManager.LanguageType {

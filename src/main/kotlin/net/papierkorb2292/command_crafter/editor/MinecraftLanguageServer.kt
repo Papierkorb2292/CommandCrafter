@@ -28,6 +28,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
         val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
+        val emptyCompletionsDefault: CompletableFuture<Either<List<CompletionItem>, CompletionList>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
 
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
@@ -39,6 +40,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
     var minecraftServer = minecraftServer
         private set
     var client: CommandCrafterLanguageClient? = null
+        private set
+    var clientCapabilities: ClientCapabilities? = null
         private set
 
     private var remote: Endpoint? = null
@@ -79,13 +82,17 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         client.updateChannel(Channel(CLIENT_LOG_CHANNEL, serverCommandExecutor != null))
     }
 
-    override fun initialize(params: InitializeParams?): CompletableFuture<InitializeResult> {
+    override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
+        clientCapabilities = params.capabilities
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
             setTextDocumentSync(TextDocumentSyncOptions().apply {
                 change = TextDocumentSyncKind.Incremental
                 openClose = true
                 hoverProvider = Either.forLeft(true)
                 definitionProvider = Either.forLeft(true)
+                completionProvider = CompletionOptions().apply {
+                    resolveProvider = true
+                }
             })
             semanticTokensProvider = SemanticTokensWithRegistrationOptions(
                 SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS),
@@ -148,6 +155,21 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
             override fun didSave(params: DidSaveTextDocumentParams?) {
 
+            }
+
+            override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
+                val file = openFiles[position.textDocument.uri] ?: return emptyCompletionsDefault
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
+
+                val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, position.position)
+                return analyzer.thenCompose { analyzingResult ->
+                    val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenCompose emptyCompletionsDefault
+                    provider.dataProvider(cursor).thenApply { Either.forLeft(it) }
+                }
+            }
+
+            override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {
+                return CompletableFuture.completedFuture(unresolved)
             }
 
             override fun semanticTokensFull(params: SemanticTokensParams?): CompletableFuture<SemanticTokens> {

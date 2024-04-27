@@ -25,3 +25,10 @@ fun limitCommandTreeForSource(commandManager: CommandManager, source: ServerComm
     )
     return rootNode
 }
+
+fun <S> CommandNode<S>.resolveRedirects(): CommandNode<S> {
+    var node = this
+    while(node.redirect != null)
+        node = node.redirect
+    return node
+}

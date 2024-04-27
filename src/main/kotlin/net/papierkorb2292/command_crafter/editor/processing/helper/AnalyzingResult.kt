@@ -5,7 +5,6 @@ import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilde
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.debug.CompletionItem
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
 import kotlin.math.min
@@ -50,7 +49,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
     }
 
     fun getCompletionProviderForCursor(cursor: Int) =
-        getRangedDataProviderForCursor(completionProviders, cursor)
+        getRangedDataProviderForCursor(completionProviders, cursor, true)
 
     fun getHoverProviderForCursor(cursor: Int) =
         getRangedDataProviderForCursor(hoverProviders, cursor)
@@ -89,7 +88,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
         }
 
         var remainingLength = unmappedProvider.cursorRange.length
-        while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size()) {
+        while((remainingLength > 0 || mappingIndex <= 0) && mappingIndex < cursorMapper.targetCursors.size()) {
             val remainingLengthCoveredByMapping =
                 if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
                     min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
@@ -98,10 +97,10 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
             val mappingAbsoluteStart =
                 if(mappingIndex >= 0) cursorMapper.sourceCursors[mappingIndex] + mappingRelativeCursor
                 else mappingRelativeCursor
+            val mappedStartPosition = startCursor + unmappedProvider.cursorRange.length - remainingLength
             addRangedDataProvider(dest, RangedDataProvider(StringRange(mappingAbsoluteStart, mappingAbsoluteStart + remainingLengthCoveredByMapping)) {
                 val mappingRelative = it - mappingAbsoluteStart
-                val mappingStartPosition = startCursor - remainingLength
-                unmappedProvider.dataProvider(mappingRelative + mappingStartPosition)
+                unmappedProvider.dataProvider(mappingRelative + mappedStartPosition)
             })
             remainingLength -= remainingLengthCoveredByMapping
             mappingRelativeCursor = 0
@@ -115,15 +114,18 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
      * This allows a binary search to later be performed on the list.
      */
     private fun checkCanAddRangedDataProvider(dest: List<RangedDataProvider<*>>, provider: RangedDataProvider<*>) {
-        dest.lastOrNull()?.let {
-            if(it.cursorRange.end > provider.cursorRange.start) {
-                throw IllegalArgumentException("Ranged data providers must be added in order and not overlap")
-            }
+        val last = dest.lastOrNull() ?: return
+        if(last.cursorRange.end > provider.cursorRange.start) {
+            throw IllegalArgumentException("Ranged data providers must be added in order and not overlap")
         }
     }
 
-    private fun <TData> getRangedDataProviderForCursor(providers: List<RangedDataProvider<TData>>, cursor: Int): RangedDataProvider<TData>? {
-        val index = providers.binarySearch { -cursor.compareTo(it.cursorRange) }
+    private fun <TData> getRangedDataProviderForCursor(providers: List<RangedDataProvider<TData>>, cursor: Int, inclusiveRangeEnd: Boolean = false): RangedDataProvider<TData>? {
+        val index = providers.binarySearch {
+            if(cursor < it.cursorRange.start) 1
+            else if(cursor > it.cursorRange.end || (!inclusiveRangeEnd && cursor == it.cursorRange.end)) -1
+            else 0
+        }
         return if(index >= 0) providers[index] else null
     }
 
@@ -200,7 +202,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
         }
     }
 
-    class RangedDataProvider<TData>(val cursorRange: StringRange, val dataProvider: (Int) -> TData) {
+    class RangedDataProvider<out TData>(val cursorRange: StringRange, val dataProvider: (Int) -> TData) {
         init {
             if(cursorRange.start > cursorRange.end) {
                 throw IllegalArgumentException("Start cursor must not be greater than end cursor")
