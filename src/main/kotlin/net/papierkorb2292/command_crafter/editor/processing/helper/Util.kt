@@ -2,7 +2,10 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
+import net.minecraft.network.PacketByteBuf
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.networking.readRange
+import net.papierkorb2292.command_crafter.networking.writeRange
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -10,6 +13,14 @@ import java.util.*
 
 fun Position.advance() = advance(1)
 fun Position.advance(amount: Int) = Position(line, character + amount)
+fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
+    val oneBasedOffset = if(zeroBased) 0 else 1
+    return Position(
+        line + other.line - oneBasedOffset,
+        if(line != 0) character
+        else character + other.character - oneBasedOffset
+    )
+}
 
 operator fun Int.compareTo(range: StringRange): Int {
     if(this < range.start) return -1
@@ -33,48 +44,87 @@ fun standardizeKeyword(keyword: String): String {
     else lower
 }
 
-fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>, replaceEndCursor: Int?): CompletionItem {
-    if(replaceEndCursor != null) {
-        toInsertReplaceCompletionItem(reader, replaceEndCursor)?.let {
-            return it
-        }
-    }
-    return toTextEditCompletionItem(reader)
-}
-
-fun Suggestion.toTextEditCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>) =
-    CompletionItem().apply {
-        label = text
-        detail = tooltip?.string
-        textEdit = Either.forLeft(TextEdit(
-            Range(
-                AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.start + reader.readSkippingChars), reader.lines),
-                AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.end + reader.readSkippingChars), reader.lines)
-            ),
-            text
-        ))
-    }
-
-fun Suggestion.toInsertReplaceCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>, replaceEndCursor: Int): CompletionItem? {
-    val clientCapabilities = reader.resourceCreator.languageServer.clientCapabilities
-    if(clientCapabilities == null || !clientCapabilities.textDocument.completion.completionItem.insertReplaceSupport)
-        return null
+fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>): CompletionItem {
+    val replaceEndCursor = (this as SuggestionReplaceEndContainer).`command_crafter$getReplaceEnd`()
     return CompletionItem().apply {
         label = text
-        detail = tooltip.string
-        val completionStartPos = AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.start + reader.skippingCursor), reader.lines)
-        textEdit = Either.forRight(
+        detail = tooltip?.string
+        val insertRange = Range(
+            AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.start + reader.readSkippingChars), reader.lines),
+            AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.end + reader.readSkippingChars), reader.lines)
+        )
+        textEdit = if(replaceEndCursor != null) Either.forRight(
             InsertReplaceEdit(
                 text,
+                insertRange,
                 Range(
-                    completionStartPos,
-                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.end + reader.skippingCursor), reader.lines)
-                ),
-                Range(
-                    completionStartPos,
-                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(replaceEndCursor + reader.skippingCursor), reader.lines)
+                    insertRange.start,
+                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(replaceEndCursor + reader.readSkippingChars), reader.lines)
                 )
             )
+        ) else Either.forLeft(
+            TextEdit(insertRange, text)
         )
     }
 }
+
+fun PacketByteBuf.writeNullableCompletionItems(items: List<CompletionItem>?) {
+    writeNullable(items, PacketByteBuf::writeCompletionItems)
+}
+
+fun PacketByteBuf.readNullableCompletionItems(): List<CompletionItem>? {
+    return readNullable(PacketByteBuf::readCompletionItems)
+}
+
+fun PacketByteBuf.writeCompletionItems(items: List<CompletionItem>) {
+    writeCollection(items, PacketByteBuf::writeCompletionItem)
+}
+
+fun PacketByteBuf.readCompletionItems(): List<CompletionItem> {
+    return readCollection(::ArrayList, PacketByteBuf::readCompletionItem)
+}
+
+fun PacketByteBuf.writeCompletionItem(item: CompletionItem) {
+    //TODO: Encode more fields
+    writeString(item.label)
+    writeNullable(item.detail, PacketByteBuf::writeString)
+    writeNullable(item.textEdit, PacketByteBuf::writeEitherTextEdit)
+}
+
+fun PacketByteBuf.readCompletionItem() = CompletionItem().apply {
+    label = readString()
+    detail = readNullable(PacketByteBuf::readString)
+    textEdit = readNullable(PacketByteBuf::readEitherTextEdit)
+}
+
+fun PacketByteBuf.writeEitherTextEdit(textEdit: Either<TextEdit, InsertReplaceEdit>) {
+    textEdit.map(
+        {
+            writeBoolean(false)
+            writeTextEdit(it)
+        },
+        {
+            writeBoolean(true);
+            writeInsertReplaceEdit(it)
+        }
+    )
+}
+
+fun PacketByteBuf.readEitherTextEdit(): Either<TextEdit, InsertReplaceEdit> =
+    if(readBoolean()) Either.forRight(readInsertReplaceEdit())
+    else Either.forLeft(readTextEdit())
+
+fun PacketByteBuf.writeTextEdit(textEdit: TextEdit) {
+    writeRange(textEdit.range)
+    writeString(textEdit.newText)
+}
+
+fun PacketByteBuf.readTextEdit() = TextEdit(readRange(), readString())
+
+fun PacketByteBuf.writeInsertReplaceEdit(edit: InsertReplaceEdit) {
+    writeString(edit.newText)
+    writeRange(edit.insert)
+    writeRange(edit.replace)
+}
+
+fun PacketByteBuf.readInsertReplaceEdit() = InsertReplaceEdit(readString(), readRange(), readRange())

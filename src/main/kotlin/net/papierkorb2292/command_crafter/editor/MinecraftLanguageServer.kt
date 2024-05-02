@@ -61,6 +61,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         minecraftServer = connection
 
         connectServerConsole()
+        analyzeAllFiles()
     }
 
     private fun connectServerConsole() {
@@ -80,6 +81,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
             })
         }
         client.updateChannel(Channel(CLIENT_LOG_CHANNEL, serverCommandExecutor != null))
+    }
+
+    private fun analyzeAllFiles() {
+        for (file in openFiles.values) {
+            file.analyzeFile(this)
+        }
     }
 
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
@@ -164,7 +171,23 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, position.position)
                 return analyzer.thenCompose { analyzingResult ->
                     val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenCompose emptyCompletionsDefault
-                    provider.dataProvider(cursor).thenApply { Either.forLeft(it) }
+                    provider.dataProvider(cursor).thenApply {
+                        Either.forLeft(
+                            if(clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) it
+                            else it.map { completionItem ->
+                                completionItem.textEdit = Either.forLeft(completionItem.textEdit.map(
+                                    { textEdit -> textEdit },
+                                    { insertReplaceEdit ->
+                                        TextEdit(
+                                            insertReplaceEdit.insert,
+                                            insertReplaceEdit.newText
+                                        )
+                                    }
+                                ))
+                                completionItem
+                            }
+                        )
+                    }
                 }
             }
 

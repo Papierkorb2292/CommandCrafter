@@ -38,6 +38,8 @@ class DirectiveStringReader<out ResourceCreator>(
 
     val remainingLengthWithoutNewline get() = remainingLength - if(string.endsWith('\n')) 1 else 0
 
+    var lastLanguageDirective: String? = null
+
     var readCharacters = 0
     var skippedChars = 0
     val readSkippingChars
@@ -61,6 +63,7 @@ class DirectiveStringReader<out ResourceCreator>(
                 setString(string + '\n')
             }
         }
+
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
         if(onlyReadEscapedMultiline) {

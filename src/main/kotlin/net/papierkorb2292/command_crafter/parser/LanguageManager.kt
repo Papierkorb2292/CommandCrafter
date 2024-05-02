@@ -31,6 +31,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -39,6 +40,7 @@ import java.util.concurrent.CompletableFuture
 
 object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(RegistryKey.ofRegistry(Identifier("command_crafter", "languages"))).buildAndRegister()!!
+    val DEFAULT_CLOSURE = Language.TopLevelClosure(VanillaLanguage())
 
     private val SKIP_DEBUG_INFORMATION = object : FunctionDebugInformation {
         override fun parseBreakpoints(
@@ -200,40 +202,42 @@ object LanguageManager {
                         val idRange = StringRange(idStart, idEnd)
                         result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
                         val languageServer = reader.resourceCreator.languageServer
-                        result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                            val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                            languageServer.findFileAndAnalyze(
-                                Identifier(string.substring(idStart, idEnd)),
-                                keywords
-                            ).thenCompose { analyzingResult ->
-                                if(analyzingResult == null) {
-                                    CompletableFuture.completedFuture(Hover(emptyList()))
-                                } else {
-                                    languageServer.hoverDocumentation(
-                                        analyzingResult,
-                                        analyzingResult.toFileRange(idRange)
+                        if(languageServer != null) {
+                            result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
+                                val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                                languageServer.findFileAndAnalyze(
+                                    Identifier(string.substring(idStart, idEnd)),
+                                    keywords
+                                ).thenCompose { analyzingResult ->
+                                    if(analyzingResult == null) {
+                                        CompletableFuture.completedFuture(Hover(emptyList()))
+                                    } else {
+                                        languageServer.hoverDocumentation(
+                                            analyzingResult,
+                                            analyzingResult.toFileRange(idRange)
+                                        )
+                                    }
+                                }
+                            }, true)
+                            result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
+                                val client = languageServer.client
+                                    ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
+                                val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                                PackContentFileType.findWorkspaceResourceFromId(
+                                    Identifier(string.substring(idStart, idEnd)),
+                                    client,
+                                    keywords
+                                ).thenApply {
+                                    Either.forLeft(
+                                        if(it == null) {
+                                            emptyList()
+                                        } else {
+                                            listOf(Location(it.second, Range(Position(), Position())))
+                                        }
                                     )
                                 }
-                            }
-                        }, true)
-                        result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                            val client = languageServer.client
-                                ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
-                            val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                            PackContentFileType.findWorkspaceResourceFromId(
-                                Identifier(string.substring(idStart, idEnd)),
-                                client,
-                                keywords
-                            ).thenApply {
-                                Either.forLeft(
-                                    if(it == null) {
-                                        emptyList()
-                                    } else {
-                                        listOf(Location(it.second, Range(Position(), Position())))
-                                    }
-                                )
-                            }
-                        }, true)
+                            }, true)
+                        }
                         highlightStart = idEnd
                     }
                 }
@@ -280,6 +284,7 @@ object LanguageManager {
     init {
         Registry.register(DirectiveManager.DIRECTIVES, Identifier("language"), object : DirectiveManager.DirectiveType {
             override fun read(reader: DirectiveStringReader<*>) {
+                val start = reader.cursor
                 val language = reader.readUnquotedString()
                 reader.switchLanguage(
                     requireNotNull(LANGUAGES.get(Identifier(language))) { "Error while parsing function: Encountered unknown language '$language' on line ${reader.currentLine}" }
@@ -322,9 +327,11 @@ object LanguageManager {
                             throw IllegalArgumentException("Error while parsing language: Found no closing parentheses for language parameters on line ${reader.currentLine}")
                         }
                 )
+                reader.lastLanguageDirective = reader.string.substring(start, reader.cursor)
             }
 
             override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
+                val start = reader.cursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                 val language = reader.readUnquotedString()
                 val languageType = LANGUAGES.get(Identifier(language))
@@ -431,8 +438,10 @@ object LanguageManager {
                     "Error while parsing language: Found no closing parentheses for language parameters on line ${reader.currentLine}"
                 )
                 val parsedLanguage = languageType.createFromArgumentsAndAnalyze(args, reader.currentLine, analyzingResult, reader.lines)
-                if(parsedLanguage != null)
+                if(parsedLanguage != null) {
                     reader.switchLanguage(parsedLanguage)
+                    reader.lastLanguageDirective = reader.string.substring(start, reader.cursor)
+                }
             }
         })
     }

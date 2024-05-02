@@ -37,3 +37,6 @@ inline fun <T> Semaphore.withAcquired(block: () -> T): T {
         release()
     }
 }
+
+fun <T> ThreadLocal<T>.getOrNull(): T? =
+    get().also { if(it == null) remove() }

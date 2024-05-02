@@ -20,12 +20,10 @@ import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
-import net.papierkorb2292.command_crafter.parser.Language;
 import net.papierkorb2292.command_crafter.parser.LanguageManager;
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
-import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -73,7 +71,8 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
         var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,
                 serverSource,
-                new Language.TopLevelClosure(new VanillaLanguage()));
+                LanguageManager.INSTANCE.getDEFAULT_CLOSURE()
+        );
 
         var functionStackInfo = new ParsedResourceCreator.ResourceStackInfo(id, new StringRange(startCursor, reader.getAbsoluteCursor()));
         for(var callback : infoSetCallbacks) {

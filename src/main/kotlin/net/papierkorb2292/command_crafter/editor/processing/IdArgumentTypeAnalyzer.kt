@@ -26,7 +26,7 @@ object IdArgumentTypeAnalyzer {
 
     fun analyzeForId(id: Identifier, packContentFileType: PackContentFileType, range: StringRange, result: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         result.semanticTokens.addMultiline(range, PARAMETER, 0)
-        val languageServer = reader.resourceCreator.languageServer
+        val languageServer = reader.resourceCreator.languageServer ?: return
         val fileRange = result.toFileRange(range)
         result.addHoverProvider(RangedDataProvider(range) label@{
             languageServer.findFileAndGetDocs(id, packContentFileType).thenCompose { documentation ->

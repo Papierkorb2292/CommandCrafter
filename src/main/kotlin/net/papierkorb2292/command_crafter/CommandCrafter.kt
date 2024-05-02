@@ -4,7 +4,6 @@ import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry
 import net.minecraft.client.MinecraftClient
-import net.minecraft.client.network.ClientCommandSource
 import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer
 import net.minecraft.registry.Registry
@@ -17,6 +16,7 @@ import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
@@ -54,8 +54,7 @@ object CommandCrafter: ModInitializer {
                 val reader = DirectiveStringReader(lines, languageServer.minecraftServer.commandDispatcher, AnalyzingResourceCreator(languageServer, file.uri))
                 val result = AnalyzingResult(reader, Position())
                 reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-                val minecraftClient = MinecraftClient.getInstance()
-                val source = ClientCommandSource(minecraftClient.networkHandler!!, minecraftClient)
+                val source = AnalyzingClientCommandSource(MinecraftClient.getInstance())
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                 return result
             }

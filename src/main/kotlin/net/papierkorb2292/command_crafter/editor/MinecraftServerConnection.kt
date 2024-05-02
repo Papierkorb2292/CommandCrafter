@@ -5,6 +5,7 @@ import net.minecraft.command.CommandSource
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
+import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 
 interface MinecraftServerConnection {
     val commandDispatcher: CommandDispatcher<CommandSource>
@@ -12,4 +13,5 @@ interface MinecraftServerConnection {
     val serverLog: Log?
     val commandExecutor: CommandExecutor?
     val debugService: ServerDebugConnectionService?
+    val contextCompletionProvider: ContextCompletionProvider?
 }

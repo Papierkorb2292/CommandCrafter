@@ -31,6 +31,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
@@ -431,6 +432,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         if (node is AnalyzingCommandNode) {
             reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
             reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
+            val completionReader = reader.copy()
             val readSkippingChars = reader.readSkippingChars
             try {
                 node.`command_crafter$analyze`(
@@ -445,13 +447,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.readCharacters = initialReadCharacters
                 reader.skippedChars = initialSkippedChars
             }
-            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`()) {
+            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(context, node.name)) {
                 val completionParentNode = parentNode.resolveRedirects()
                 analyzingResult.addCompletionProvider(
                     AnalyzingResult.RangedDataProvider(StringRange(parsedNode.range.start, parsedNode.range.end)) { cursor ->
                         val endCursor = cursor - readSkippingChars
                         val truncatedInput = commandInput.substring(0, endCursor)
                         val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
+                        AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
+                            this.cursor = endCursor
+                        })
                         val suggestionFutures = completionParentNode.children.map { child ->
                             child.listSuggestions(
                                 contextBuilder.build(truncatedInput),
@@ -459,19 +464,17 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                     truncatedInput, truncatedInputLowerCase,
                                     parsedNode.range.start
                                 )
-                            ).thenApply { it.list }
+                            )
                         }.toTypedArray()
-                        CompletableFuture.allOf(*suggestionFutures).thenApply {
-                            try {
-                                reader.readCharacters =
-                                    (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
-                                reader.skippedChars =
-                                    (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
-                                suggestionFutures.flatMap { it.get() }
-                                    .map { it.toTextEditCompletionItem(reader) }
-                            } finally {
-                                reader.readCharacters = initialReadCharacters
-                                reader.skippedChars = initialSkippedChars
+                        CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
+                            AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                            CompletableFuture.failedFuture(it)
+                        }.thenApply {
+                            AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                            suggestionFutures.flatMap { it.get().list }.toSet().map {
+                                it.toCompletionItem(completionReader)
+                            } + suggestionFutures.flatMap {
+                                (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`() ?: emptyList()
                             }
                         }
                     },
@@ -846,10 +849,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         )
                     )
                 }, true)
-                val fileRange = functionAnalyzingResult.toFileRange(argRange)
-                analyzingResult.addHoverProvider(AnalyzingResult.RangedDataProvider(argRange) {
-                    return@RangedDataProvider languageServer.hoverDocumentation(functionAnalyzingResult, fileRange)
-                }, true)
+                if(languageServer != null) {
+                    val fileRange = functionAnalyzingResult.toFileRange(argRange)
+                    analyzingResult.addHoverProvider(AnalyzingResult.RangedDataProvider(argRange) {
+                        return@RangedDataProvider languageServer.hoverDocumentation(functionAnalyzingResult, fileRange)
+                    }, true)
+                }
                 reader.cursor += 4
             } else if(reader.peek() == '{') {
                 analyzeInlineFunction(reader, source, analyzingResult)

@@ -44,6 +44,7 @@
     "editor.processing.BoolArgumentTypeMixin",
     "editor.processing.CommandFunctionArgumentTypeMixin",
     "editor.processing.CommandNodeMixin",
+    "editor.processing.CommandSuggestionsS2CPacketMixin",
     "editor.processing.DimensionArgumentTypeMixin",
     "editor.processing.EntityArgumentTypeMixin",
     "editor.processing.EntitySelectorOptionsMixin",
@@ -73,6 +74,8 @@
     "editor.processing.ScoreHolderArgumentTypeMixin",
     "editor.processing.StringArgumentTypeMixin",
     "editor.processing.StringNbtReaderMixin",
+    "editor.processing.SuggestionMixin",
+    "editor.processing.SuggestionsMixin",
     "editor.processing.TextArgumentTypeMixin",
     "parser.ArgumentCommandNodeMixin",
     "parser.CommandDispatcherMixin",
@@ -121,6 +124,7 @@
     "parser.vanilla_improved.TextArgumentTypeMixin"
   ],
   "client": [
-    "editor.MinecraftClientAccessor"
+    "editor.MinecraftClientAccessor",
+    "editor.processing.ClientCommandSourceAccessor"
   ]
 }
