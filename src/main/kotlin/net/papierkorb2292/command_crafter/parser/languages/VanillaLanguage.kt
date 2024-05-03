@@ -150,21 +150,24 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
 
                 reader.onlyReadEscapedMultiline = !easyNewLine
-                    val parseResults = reader.dispatcher.parse(reader, source)
+                val parseResults = reader.dispatcher.parse(reader, source)
                 advanceToParseResults(parseResults, reader)
                 analyzeParsedCommand(parseResults, result, reader)
 
+                val exception = parseResults.exceptions.entries.maxByOrNull { it.value.cursor }
+                if(exception != null)
+                    throw exception.value
                 if(easyNewLine) {
-                    val exceptions = parseResults.exceptions
-                    if (exceptions.isNotEmpty()) {
-                        throw exceptions.values.first()
-                    }
                     if (parseResults.context.range.isEmpty) {
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
                     }
                 } else if (parseResults.reader.canRead()) {
-                    throw CommandManager.getException(parseResults)!!
+                    if(parseResults.context.range.isEmpty)
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
+                            .createWithContext(parseResults.reader)
+                    throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument()
+                        .createWithContext(parseResults.reader)
                 }
                 val string = parseResults.reader.string
                 val contextChain = ContextChain.tryFlatten(parseResults.context.build(string))
