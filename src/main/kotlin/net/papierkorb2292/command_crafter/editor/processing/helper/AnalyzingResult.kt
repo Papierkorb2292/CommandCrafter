@@ -88,7 +88,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
         }
 
         var remainingLength = unmappedProvider.cursorRange.length
-        while((remainingLength > 0 || mappingIndex <= 0) && mappingIndex < cursorMapper.targetCursors.size()) {
+        while(mappingIndex < cursorMapper.targetCursors.size()) {
             val remainingLengthCoveredByMapping =
                 if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
                     min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
@@ -102,6 +102,10 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
                 val mappingRelative = it - mappingAbsoluteStart
                 unmappedProvider.dataProvider(mappingRelative + mappedStartPosition)
             })
+
+            if(remainingLengthCoveredByMapping >= remainingLength)
+                break
+
             remainingLength -= remainingLengthCoveredByMapping
             mappingRelativeCursor = 0
             mappingIndex++
