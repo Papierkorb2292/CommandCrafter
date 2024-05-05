@@ -56,7 +56,7 @@ public class JsonReaderMixin implements AnalyzingResultCreator {
     @Inject(
             method = "doPeek",
             at = @At(
-                    value = "INVOKE:LAST",
+                    value = "INVOKE",
                     target = "Lcom/google/gson/stream/JsonReader;nextNonWhitespace(Z)I"
             )
     )
