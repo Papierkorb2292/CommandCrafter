@@ -65,6 +65,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             reader.saveIndentation()
             if(!reader.canRead()) {
+                reader.endStatement()
                 break
             }
             if (reader.peek() == '\n') {
@@ -119,6 +120,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             reader.saveIndentation()
             if(!reader.canRead()) {
+                reader.endStatementAndAnalyze(result)
                 break
             }
             if(reader.peek() == '\n') {
@@ -242,6 +244,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             reader.saveIndentation()
             if(!reader.canRead()) {
+                reader.endStatement()
                 break
             }
             if(reader.peek() == '\n') {
