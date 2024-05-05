@@ -27,16 +27,16 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
         var jsonReader = new JsonReader(readerCopy.asReader());
-        var prevReadCharacters = reader.getReadCharacters();
+        var prevReadCharacters = result.getReader().getReadCharacters();
         try {
-            reader.setReadCharacters(prevReadCharacters + range.getStart());
+            result.getReader().setReadCharacters(prevReadCharacters + range.getStart());
             //noinspection DataFlowIssue
             ((AnalyzingResultCreator)jsonReader).command_crafter$setAnalyzingResult(result);
             jsonReader.setLenient(false);
             new Gson().getAdapter(JsonElement.class).read(jsonReader);
         } catch (JsonParseException | IOException ignored) {
         } finally {
-            reader.setReadCharacters(prevReadCharacters);
+            result.getReader().setReadCharacters(prevReadCharacters);
         }
     }
 }
