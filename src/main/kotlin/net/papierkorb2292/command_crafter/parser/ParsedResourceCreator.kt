@@ -4,11 +4,6 @@ import com.google.common.collect.ImmutableMap
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
-import com.mojang.datafixers.util.Pair
-import net.minecraft.loot.LootDataType
-import net.minecraft.loot.LootTable
-import net.minecraft.loot.condition.LootCondition
-import net.minecraft.loot.function.LootFunction
 import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
@@ -88,27 +83,6 @@ class ParsedResourceCreator(
                     }
                 }
             }
-            val newLootResources: MutableMap<Identifier, Pair<LootDataType<*>, *>> = HashMap() //This isn't nice, but Mojang started it!
-            resourceId = 0
-            for(lootCondition in resourceCreator.lootConditions) {
-                val conditionId = resourceCreator.getPath(resourceId++)
-                newLootResources[conditionId] = Pair.of(LootDataType.PREDICATES, lootCondition.resource)
-                lootCondition.idSetter(conditionId)
-            }
-            resourceId = 0
-            for(lootFunction in resourceCreator.lootFunctions) {
-                val functionId = resourceCreator.getPath(resourceId++)
-                newLootResources[functionId] = Pair.of(LootDataType.ITEM_MODIFIERS, lootFunction.resource)
-                lootFunction.idSetter(functionId)
-            }
-            resourceId = 0
-            for(lootTable in resourceCreator.lootTables) {
-                val tableId = resourceCreator.getPath(resourceId++)
-                newLootResources[tableId] = Pair.of(LootDataType.LOOT_TABLES, lootTable.resource())
-                lootTable.idSetter(tableId)
-            }
-            @Suppress("UNCHECKED_CAST")
-            (resourceCreator.dataPackContents.lootManager as VanillaResourceContainer<Pair<LootDataType<*>, *>>).`command_crafter$addAllResources`(newLootResources)
         }
 
         private val missingReferencesException = Dynamic2CommandExceptionType { sourceFunction: Any, missing: Any ->
@@ -152,9 +126,6 @@ class ParsedResourceCreator(
     }
 
     val functions: MutableList<AutomaticResource<FunctionBuilder<ServerCommandSource>>> = LinkedList()
-    val lootTables: MutableList<AutomaticResource<() -> LootTable>> = LinkedList()
-    val lootFunctions: MutableList<AutomaticResource<LootFunction>> = LinkedList()
-    val lootConditions: MutableList<AutomaticResource<LootCondition>> = LinkedList()
     val registryTags: MutableList<AutomaticResource<ParsedTag<*>>> = LinkedList()
     val functionTags: MutableList<AutomaticResource<Collection<TagEntry>>> = LinkedList()
 
@@ -195,10 +166,6 @@ class ParsedResourceCreator(
     interface ParseResourceContextContainer {
         fun `command_crafter$setResourceCreatorContext`(dataPackContents: DataPackContents?)
         fun `command_crafter$getResourceCreatorContext`(): DataPackContents?
-    }
-
-    interface VanillaResourceContainer<Resource> {
-        fun `command_crafter$addAllResources`(newResources: Map<Identifier, Resource>)
     }
 
     interface DataPackRefresher {

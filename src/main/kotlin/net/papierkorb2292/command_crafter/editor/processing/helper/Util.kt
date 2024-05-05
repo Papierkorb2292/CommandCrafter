@@ -4,8 +4,6 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import net.minecraft.network.PacketByteBuf
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.networking.readRange
-import net.papierkorb2292.command_crafter.networking.writeRange
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -67,64 +65,3 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
         )
     }
 }
-
-fun PacketByteBuf.writeNullableCompletionItems(items: List<CompletionItem>?) {
-    writeNullable(items, PacketByteBuf::writeCompletionItems)
-}
-
-fun PacketByteBuf.readNullableCompletionItems(): List<CompletionItem>? {
-    return readNullable(PacketByteBuf::readCompletionItems)
-}
-
-fun PacketByteBuf.writeCompletionItems(items: List<CompletionItem>) {
-    writeCollection(items, PacketByteBuf::writeCompletionItem)
-}
-
-fun PacketByteBuf.readCompletionItems(): List<CompletionItem> {
-    return readCollection(::ArrayList, PacketByteBuf::readCompletionItem)
-}
-
-fun PacketByteBuf.writeCompletionItem(item: CompletionItem) {
-    //TODO: Encode more fields
-    writeString(item.label)
-    writeNullable(item.detail, PacketByteBuf::writeString)
-    writeNullable(item.textEdit, PacketByteBuf::writeEitherTextEdit)
-}
-
-fun PacketByteBuf.readCompletionItem() = CompletionItem().apply {
-    label = readString()
-    detail = readNullable(PacketByteBuf::readString)
-    textEdit = readNullable(PacketByteBuf::readEitherTextEdit)
-}
-
-fun PacketByteBuf.writeEitherTextEdit(textEdit: Either<TextEdit, InsertReplaceEdit>) {
-    textEdit.map(
-        {
-            writeBoolean(false)
-            writeTextEdit(it)
-        },
-        {
-            writeBoolean(true);
-            writeInsertReplaceEdit(it)
-        }
-    )
-}
-
-fun PacketByteBuf.readEitherTextEdit(): Either<TextEdit, InsertReplaceEdit> =
-    if(readBoolean()) Either.forRight(readInsertReplaceEdit())
-    else Either.forLeft(readTextEdit())
-
-fun PacketByteBuf.writeTextEdit(textEdit: TextEdit) {
-    writeRange(textEdit.range)
-    writeString(textEdit.newText)
-}
-
-fun PacketByteBuf.readTextEdit() = TextEdit(readRange(), readString())
-
-fun PacketByteBuf.writeInsertReplaceEdit(edit: InsertReplaceEdit) {
-    writeString(edit.newText)
-    writeRange(edit.insert)
-    writeRange(edit.replace)
-}
-
-fun PacketByteBuf.readInsertReplaceEdit() = InsertReplaceEdit(readString(), readRange(), readRange())

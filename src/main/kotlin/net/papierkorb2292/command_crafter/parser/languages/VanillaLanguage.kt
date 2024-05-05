@@ -19,13 +19,17 @@ import net.minecraft.registry.Registry
 import net.minecraft.registry.entry.RegistryEntryList
 import net.minecraft.registry.tag.TagEntry
 import net.minecraft.registry.tag.TagManagerLoader
+import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
+import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.server.function.Macro
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.MathHelper
+import net.minecraft.util.math.Vec2f
+import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
@@ -73,7 +77,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val macro = readMacro(reader)
                 //For validation
                 FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
-                    macro, reader.currentLine
+                    macro, reader.currentLine, source
                 )
 
                 resource.content += Either.left("$${macro}\n")
@@ -140,7 +144,18 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     try {
                         FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
                             readMacro(reader),
-                            reader.currentLine
+                            reader.currentLine,
+                            ServerCommandSource(
+                                CommandOutput.DUMMY,
+                                Vec3d.ZERO,
+                                Vec2f.ZERO,
+                                null,
+                                4,
+                                "",
+                                ScreenTexts.EMPTY,
+                                null,
+                                null
+                            )
                         )
                     } catch(e: IllegalArgumentException) {
                         throw CursorAwareExceptionWrapper(e, startCursor)
@@ -240,7 +255,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val startSkippedCharacters = reader.skippedChars
                 builder.addMacroCommand(
                     readMacro(reader),
-                    reader.currentLine
+                    reader.currentLine,
+                    source
                 )
                 val endCursorWithoutNewLine = reader.absoluteCursor - if(reader.canRead()) 1 else 0
                 val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
@@ -255,7 +271,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.endStatement()
                 continue
             }
-            val startCursor = reader.readCharacters
             reader.onlyReadEscapedMultiline = !easyNewLine
             val parsed = parseCommand(reader, source)
             reader.onlyReadEscapedMultiline = false
@@ -336,7 +351,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.onlyReadEscapedMultiline = false
             return if(macro.startsWith('$')) macro.substring(1) else macro
         }
-        reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.remainingLengthWithoutNewline)
+        reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.nextLineEnd - reader.cursor)
         if(reader.peek() == '$')
             reader.skip()
         val macroBuilder = StringBuilder(reader.readLine())
@@ -349,7 +364,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.skippedChars += skippedChars
             reader.readCharacters += skippedChars
             macroBuilder.append(' ')
-            reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.remainingLengthWithoutNewline)
+            reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.nextLineEnd - reader.cursor)
             macroBuilder.append(reader.readLine())
             indentStartCursor = reader.cursor
         }
@@ -438,51 +453,65 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val completionReader = reader.copy()
             val readSkippingChars = reader.readSkippingChars
             try {
-                node.`command_crafter$analyze`(
-                    context,
-                    StringRange(parsedNode.range.start, MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)),
-                    reader,
-                    analyzingResult,
-                    node.name
-                )
-            } catch(_: CommandSyntaxException) {
+                try {
+                    node.`command_crafter$analyze`(
+                        context,
+                        StringRange(
+                            parsedNode.range.start,
+                            MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                        ),
+                        reader,
+                        analyzingResult,
+                        node.name
+                    )
+                } catch(_: CommandSyntaxException) { }
+                if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
+                        context,
+                        node.name
+                    )
+                ) {
+                    val completionParentNode = parentNode.resolveRedirects()
+                    analyzingResult.addCompletionProvider(
+                        AnalyzingResult.RangedDataProvider(
+                            StringRange(
+                                parsedNode.range.start,
+                                parsedNode.range.end
+                            )
+                        ) { cursor ->
+                            val endCursor = cursor - readSkippingChars
+                            val truncatedInput = commandInput.substring(0, endCursor)
+                            val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
+                            AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
+                                this.cursor = endCursor
+                            })
+                            val suggestionFutures = completionParentNode.children.map { child ->
+                                child.listSuggestions(
+                                    contextBuilder.build(truncatedInput),
+                                    SuggestionsBuilder(
+                                        truncatedInput, truncatedInputLowerCase,
+                                        parsedNode.range.start
+                                    )
+                                )
+                            }.toTypedArray()
+                            CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
+                                AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                                CompletableFuture.failedFuture(it)
+                            }.thenApply {
+                                AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                                suggestionFutures.flatMap { it.get().list }.toSet().map {
+                                    it.toCompletionItem(completionReader)
+                                } + suggestionFutures.flatMap {
+                                    (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
+                                        ?: emptyList()
+                                }
+                            }
+                        },
+                        true
+                    )
+                }
             } finally {
                 reader.readCharacters = initialReadCharacters
                 reader.skippedChars = initialSkippedChars
-            }
-            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(context, node.name)) {
-                val completionParentNode = parentNode.resolveRedirects()
-                analyzingResult.addCompletionProvider(
-                    AnalyzingResult.RangedDataProvider(StringRange(parsedNode.range.start, parsedNode.range.end)) { cursor ->
-                        val endCursor = cursor - readSkippingChars
-                        val truncatedInput = commandInput.substring(0, endCursor)
-                        val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
-                        AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
-                            this.cursor = endCursor
-                        })
-                        val suggestionFutures = completionParentNode.children.map { child ->
-                            child.listSuggestions(
-                                contextBuilder.build(truncatedInput),
-                                SuggestionsBuilder(
-                                    truncatedInput, truncatedInputLowerCase,
-                                    parsedNode.range.start
-                                )
-                            )
-                        }.toTypedArray()
-                        CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
-                            AnalyzingClientCommandSource.suggestionsFullInput.remove()
-                            CompletableFuture.failedFuture(it)
-                        }.thenApply {
-                            AnalyzingClientCommandSource.suggestionsFullInput.remove()
-                            suggestionFutures.flatMap { it.get().list }.toSet().map {
-                                it.toCompletionItem(completionReader)
-                            } + suggestionFutures.flatMap {
-                                (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`() ?: emptyList()
-                            }
-                        }
-                    },
-                    true
-                )
             }
         }
     }
@@ -515,7 +544,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 else -> continue
             }
-            newContext.withNode(nextNode, StringRange(start, newReader.string.length))
+            newContext.withNode(nextNode, StringRange(start, reader.nextLineEnd))
             if(furthestParsedReader == null || newReader.cursor > furthestParsedReader.cursor) {
                 furthestParsedReader = newReader
                 furthestParsedContext = newContext
@@ -529,16 +558,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             analyzingResult,
             furthestParsedReader
         )
-
-        /*try {
-            (nextNode as AnalyzingCommandNode).`command_crafter$analyze`(
-                context.build(result.reader.string),
-                StringRange(start, max(min(newReader.cursor, result.reader.string.length), start)),
-                reader,
-                analyzingResult,
-                nextNode.name
-            )
-        } catch(_: CommandSyntaxException) { }*/
     }
 
     object VanillaLanguageType : LanguageManager.LanguageType {
@@ -824,7 +843,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun analyzeInlineFunction(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            source: ServerCommandSource,
+            source: CommandSource,
             analyzingResult: AnalyzingResult,
         ) {
             reader.expect('{')
@@ -833,7 +852,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun analyzeImprovedFunctionReference(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            source: ServerCommandSource,
+            source: CommandSource,
         ): AnalyzedFunctionArgument? {
             if(!reader.canRead()) {
                 return null
@@ -875,14 +894,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return AnalyzedFunctionArgument(analyzingResult)
         }
 
-        fun parseImprovedFunctionReference(reader: DirectiveStringReader<*>, source: ServerCommandSource): CommandFunctionArgumentType.FunctionArgument? {
+        fun parseImprovedFunctionReference(reader: DirectiveStringReader<*>, source: CommandSource): CommandFunctionArgumentType.FunctionArgument? {
             reader.withNoMultilineRestriction<Nothing> {
                 it.resourceCreator.run {
-                    if(this is RawZipResourceCreator) {
+                    if(this is RawZipResourceCreator && source is ServerCommandSource) {
                         @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
                         return parseRawImprovedFunctionReference(it as DirectiveStringReader<RawZipResourceCreator>, source)
                     }
-                    if(this is ParsedResourceCreator) {
+                    if(this is ParsedResourceCreator && source is ServerCommandSource) {
                         @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
                         return parseParsedImprovedFunctionReference(it as DirectiveStringReader<ParsedResourceCreator>, source)
                     }

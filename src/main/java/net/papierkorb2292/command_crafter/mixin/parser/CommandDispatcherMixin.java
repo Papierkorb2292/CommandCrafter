@@ -10,10 +10,10 @@ import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.tree.CommandNode;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.command.CommandSource;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.helper.DirectiveStringReaderConsumer;
-import net.papierkorb2292.command_crafter.parser.helper.ServerSourceAware;
+import net.papierkorb2292.command_crafter.parser.helper.SourceAware;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -124,8 +124,8 @@ public class CommandDispatcherMixin {
             remap = false
     )
     private CommandNode<Object> command_crafter$makeChildMultilineAware(CommandNode<Object> node, StringReader reader, CommandContextBuilder<Object> context) {
-        if(node instanceof ServerSourceAware serverSourceAware && context.getSource() instanceof ServerCommandSource source) {
-            serverSourceAware.command_crafter$setServerCommandSource(source);
+        if(node instanceof SourceAware sourceAware && context.getSource() instanceof CommandSource source) {
+            sourceAware.command_crafter$setCommandSource(source);
         }
         return node;
     }

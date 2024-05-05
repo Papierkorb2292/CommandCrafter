@@ -14,6 +14,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult.RangedDataProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Location
 import org.eclipse.lsp4j.Position
@@ -57,7 +58,7 @@ object IdArgumentTypeAnalyzer {
                 return
             }
             delegate.writePacket(properties.delegate, buf)
-            if(properties.packContentFileType != null && shouldAddPackContentFileType.get()) {
+            if(properties.packContentFileType != null && shouldAddPackContentFileType.getOrNull() == true) {
                 buf.writeString(COMMAND_CRAFTER_FILE_TYPE)
                 buf.writeEnumConstant(properties.packContentFileType)
             }

@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import net.minecraft.network.PacketByteBuf
-import net.papierkorb2292.command_crafter.networking.*
+import io.netty.buffer.ByteBuf
+import net.minecraft.network.codec.PacketCodec
+import net.minecraft.network.codec.PacketCodecs
+import net.papierkorb2292.command_crafter.networking.SET_VARIABLE_RESPONSE_PACKET_CODEC
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.SetVariableResponse
 import org.eclipse.lsp4j.debug.Variable
@@ -15,25 +17,15 @@ interface VariablesReferencer {
     data class SetVariableResult(
         val response: SetVariableResponse,
         val invalidateVariables: Boolean = false,
-    ): ByteBufWritable {
-        constructor(buf: PacketByteBuf) : this(
-            SetVariableResponse().apply {
-                value = buf.readString()
-                type = buf.readNullableString()
-                variablesReference = buf.readNullableInt()
-                namedVariables = buf.readNullableInt()
-                indexedVariables = buf.readNullableInt()
-            },
-            buf.readBoolean()
-        )
-
-        override fun write(buf: PacketByteBuf) {
-            buf.writeString(response.value)
-            buf.writeNullableString(response.type)
-            buf.writeNullableInt(response.variablesReference)
-            buf.writeNullableInt(response.namedVariables)
-            buf.writeNullableInt(response.indexedVariables)
-            buf.writeBoolean(invalidateVariables)
+    ) {
+        companion object {
+            val PACKET_CODEC: PacketCodec<ByteBuf, SetVariableResult> = PacketCodec.tuple(
+                SET_VARIABLE_RESPONSE_PACKET_CODEC,
+                SetVariableResult::response,
+                PacketCodecs.BOOL,
+                SetVariableResult::invalidateVariables,
+                ::SetVariableResult
+            )
         }
     }
 }

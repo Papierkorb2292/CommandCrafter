@@ -5,7 +5,7 @@ pluginManagement {
         gradlePluginPortal()
     }
     plugins {
-        id("fabric-loom").version(settings.extra["loom_version"] as String)
+        id("fabric-loom").version(System.getProperty("loom_version"))
         kotlin("jvm").version(System.getProperty("kotlin_version"))
     }
 }

@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,7 +41,7 @@ public class JsonReaderMixin implements AnalyzingResultCreator {
     private int command_crafter$consumedChars = 0;
 
     @Override
-    public void command_crafter$setAnalyzingResult(@NotNull AnalyzingResult result) {
+    public void command_crafter$setAnalyzingResult(@Nullable AnalyzingResult result) {
         command_crafter$analyzingResult = result;
     }
 

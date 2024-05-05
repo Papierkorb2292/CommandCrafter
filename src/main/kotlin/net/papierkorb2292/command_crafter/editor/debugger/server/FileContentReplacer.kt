@@ -50,7 +50,7 @@ interface FileContentReplacer {
             val positionablesSorted = positionables.sortedWith { a, b ->
                 val lineCmp = a.line.compareTo(b.line)
                 if(lineCmp != 0) lineCmp
-                else a.char?.compareTo(b.char ?: 0) ?: 0
+                else a.char.compareTo(b.char)
             }.toList()
             var positionablesIndex = 0
 

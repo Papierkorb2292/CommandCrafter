@@ -13,7 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -28,7 +28,7 @@ public class BlockArgumentParserMixin implements AnalyzingResultCreator {
     private AnalyzingResult command_crafter$analyzingResult;
 
     @Override
-    public void command_crafter$setAnalyzingResult(@NotNull AnalyzingResult result) {
+    public void command_crafter$setAnalyzingResult(@Nullable AnalyzingResult result) {
         command_crafter$analyzingResult = result;
     }
 

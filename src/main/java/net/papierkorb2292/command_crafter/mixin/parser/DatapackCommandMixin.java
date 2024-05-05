@@ -56,7 +56,6 @@ public class DatapackCommandMixin {
                                         FileResourcePackProvider.forEachProfile(
                                                 context.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS),
                                                 ((MinecraftServerAccessor)context.getSource().getServer()).getSession().getLevelStorage().getSymlinkFinder(),
-                                                false,
                                                 (path, pack) -> candidates.add(StringArgumentType.escapeIfRequired("file/" + path.getFileName().toString())));
                                     } catch (IOException e) {
                                         CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while searching for buildable datapacks", e);

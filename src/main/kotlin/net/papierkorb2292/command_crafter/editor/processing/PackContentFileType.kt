@@ -5,6 +5,7 @@ import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
 import net.papierkorb2292.command_crafter.editor.processing.helper.getKeywordsFromPath
 import net.papierkorb2292.command_crafter.editor.processing.helper.standardizeKeyword
+import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.io.path.name
@@ -70,10 +71,11 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     constructor(contentTypePath: String, packType: PackType) : this(contentTypePath, packType, getKeywordsFromPath(contentTypePath))
 
     companion object {
-        val types = values().associateBy { it.contentTypePath }
+        val types = entries.associateBy { it.contentTypePath }
         val keywords = types.values.flatMap { it.keywords }.toSet()
 
-        val packTypeFolders = PackType.values().associateBy { it.folderName }
+        val packTypeFolders = PackType.entries.associateBy { it.folderName }
+        val PACKET_CODEC = enumConstantCodec(PackContentFileType::class.java)
 
         fun parsePath(path: Path): ParsedPath? {
             for(i in 0 until path.nameCount - 2) {

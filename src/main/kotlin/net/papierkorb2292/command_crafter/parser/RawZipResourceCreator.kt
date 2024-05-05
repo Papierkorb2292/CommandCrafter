@@ -8,7 +8,6 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Either
 import net.minecraft.command.CommandSource
 import net.minecraft.resource.*
-import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.DirectoryResourcePackAccessor
@@ -65,7 +64,7 @@ class RawZipResourceCreator {
                         )
                     }
                 }
-                else -> throw UNKNOWN_DATAPACK_EXCEPTION.create(pack.name)
+                else -> throw UNKNOWN_DATAPACK_EXCEPTION.create(pack.id)
             }
 
             val packMeta = (pack.openRoot(ResourcePack.PACK_METADATA_NAME)

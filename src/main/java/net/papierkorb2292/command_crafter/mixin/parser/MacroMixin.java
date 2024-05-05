@@ -18,7 +18,7 @@ public abstract class MacroMixin<T> {
     @Shadow public abstract Identifier id();
 
     @ModifyReturnValue(
-            method = "withMacroReplaced(Lnet/minecraft/nbt/NbtCompound;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/AbstractServerCommandSource;)Lnet/minecraft/server/function/Procedure;",
+            method = "withMacroReplaced(Lnet/minecraft/nbt/NbtCompound;Lcom/mojang/brigadier/CommandDispatcher;)Lnet/minecraft/server/function/Procedure;",
             at = @At("RETURN")
     )
     private Procedure<T> command_crafter$addDebugInformationToMacroReplaced(Procedure<T> procedure) {

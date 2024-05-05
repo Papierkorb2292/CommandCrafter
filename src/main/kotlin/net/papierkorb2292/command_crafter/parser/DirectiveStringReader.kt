@@ -37,6 +37,10 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     val remainingLengthWithoutNewline get() = remainingLength - if(string.endsWith('\n')) 1 else 0
+    val nextLineEnd: Int get() {
+        val index = string.indexOf('\n', cursor)
+        return if(index != -1) index else string.length
+    }
 
     var lastLanguageDirective: String? = null
 

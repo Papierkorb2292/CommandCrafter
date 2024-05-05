@@ -22,7 +22,7 @@ public class VariableLineMixin<T> implements DebugPauseHandlerCreatorIndexConsum
     }
 
     @ModifyReturnValue(
-            method = "instantiate(Ljava/util/List;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/util/Identifier;)Lnet/minecraft/command/SourcedCommandAction;",
+            method = "instantiate",
             at = @At("RETURN")
     )
     private SourcedCommandAction<T> command_crafter$addPauseHandlerCreatorIndexToAction(SourcedCommandAction<T> action) {
@@ -34,7 +34,7 @@ public class VariableLineMixin<T> implements DebugPauseHandlerCreatorIndexConsum
     }
 
     @ModifyReturnValue(
-            method = "instantiate(Ljava/util/List;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/util/Identifier;)Lnet/minecraft/command/SourcedCommandAction;",
+            method = "instantiate",
             at = @At("RETURN")
     )
     private SourcedCommandAction<T> command_crafter$addCursorOffsetToAction(SourcedCommandAction<T> action) {
@@ -51,7 +51,7 @@ public class VariableLineMixin<T> implements DebugPauseHandlerCreatorIndexConsum
     }
 
     @ModifyReturnValue(
-            method = "instantiate(Ljava/util/List;Lcom/mojang/brigadier/CommandDispatcher;Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/util/Identifier;)Lnet/minecraft/command/SourcedCommandAction;",
+            method = "instantiate",
             at = @At("RETURN")
     )
     private SourcedCommandAction<T> command_crafter$setIsMacro(SourcedCommandAction<T> action) {
