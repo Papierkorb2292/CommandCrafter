@@ -7,13 +7,15 @@ import net.minecraft.network.codec.PacketCodec
 import net.minecraft.network.codec.PacketCodecs
 import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
+import net.minecraft.util.Uuids
+import java.util.*
 
-class ContextCompletionRequestC2SPacket(val completionId: Int, val inputLines: List<String>, val cursor: Int): CustomPayload {
+class ContextCompletionRequestC2SPacket(val requestId: UUID, val inputLines: List<String>, val cursor: Int): CustomPayload {
     companion object {
         val ID = CustomPayload.Id<ContextCompletionRequestC2SPacket>(Identifier("command_crafter", "context_completion_request"))
         val CODEC: PacketCodec<ByteBuf, ContextCompletionRequestC2SPacket> = PacketCodec.tuple(
-            PacketCodecs.VAR_INT,
-            ContextCompletionRequestC2SPacket::completionId,
+            Uuids.PACKET_CODEC,
+            ContextCompletionRequestC2SPacket::requestId,
             PacketCodecs.collection(::ArrayList, PacketCodecs.STRING),
             ContextCompletionRequestC2SPacket::inputLines,
             PacketCodecs.VAR_INT,

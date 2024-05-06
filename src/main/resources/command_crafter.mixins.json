@@ -44,8 +44,6 @@
     "editor.processing.BoolArgumentTypeMixin",
     "editor.processing.CommandFunctionArgumentTypeMixin",
     "editor.processing.CommandNodeMixin",
-    "editor.processing.CommandSuggestionsS2CPacketMixin",
-    "editor.processing.CommandSuggestionsS2CPacketSuggestionMixin",
     "editor.processing.DimensionArgumentTypeMixin",
     "editor.processing.EntityArgumentTypeMixin",
     "editor.processing.EntitySelectorOptionsMixin",

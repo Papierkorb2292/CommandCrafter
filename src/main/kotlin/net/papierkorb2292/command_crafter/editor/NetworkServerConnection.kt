@@ -5,7 +5,6 @@ import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestions
 import io.netty.channel.local.LocalChannel
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
@@ -16,7 +15,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.client.MinecraftClient
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.CommandSource
-import net.minecraft.network.packet.s2c.play.CommandSuggestionsS2CPacket
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.MinecraftServer
@@ -45,10 +43,8 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ClientCommandSourceAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.LanguageManager
@@ -68,6 +64,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val currentStepInTargetsRequests: MutableMap<UUID, CompletableFuture<StepInTargetsResponse>> = mutableMapOf()
         val currentSourceReferenceRequests: MutableMap<UUID, CompletableFuture<SourceResponse?>> = mutableMapOf()
         val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
+        val currentContextCompletionRequests: MutableMap<UUID, CompletableFuture<Suggestions>> = mutableMapOf()
 
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
@@ -151,6 +148,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             ClientPlayNetworking.registerGlobalReceiver(SourceReferenceAddedS2CPacket.ID) { payload, _ ->
                 clientEditorDebugConnections.inverse()[payload.editorDebugConnection]?.onSourceReferenceAdded()
+            }
+            ClientPlayNetworking.registerGlobalReceiver(ContextCompletionResponseS2CPacket.ID) { payload, _ ->
+                currentContextCompletionRequests.remove(payload.requestId)?.complete(payload.asSuggestions())
             }
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 clientEditorDebugConnections.clear()
@@ -261,10 +261,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                         ?.dataProvider?.invoke(payload.cursor)
                         ?: CompletableFuture.completedFuture(listOf())
                     completionFuture.thenAccept {
-                        val suggestions = Suggestions(StringRange.at(0), emptyList())
-                        @Suppress("KotlinConstantConditions")
-                        (suggestions as CompletionItemsContainer).`command_crafter$setCompletionItem`(it)
-                        context.responseSender().sendPacket(CommandSuggestionsS2CPacket(payload.completionId, suggestions))
+                        context.responseSender().sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
                     }
                 }
             }
@@ -406,14 +403,13 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }
     override val contextCompletionProvider = object : ContextCompletionProvider {
         override fun getCompletions(context: CommandContext<*>, fullInput: DirectiveStringReader<AnalyzingResourceCreator>): CompletableFuture<Suggestions> {
-            val source = client.networkHandler!!.commandSource as ClientCommandSourceAccessor
-            val completionId = ++source.completionId
-            val result = CompletableFuture<Suggestions>()
-            source.setPendingCommandCompletion(result)
+            val future = CompletableFuture<Suggestions>()
+            val requestId = UUID.randomUUID()
+            currentContextCompletionRequests[requestId] = future
             ClientPlayNetworking.send(
-                ContextCompletionRequestC2SPacket(completionId, fullInput.lines, fullInput.absoluteCursor)
+                ContextCompletionRequestC2SPacket(requestId, fullInput.lines, fullInput.absoluteCursor)
             )
-            return result
+            return future
         }
     }
 
