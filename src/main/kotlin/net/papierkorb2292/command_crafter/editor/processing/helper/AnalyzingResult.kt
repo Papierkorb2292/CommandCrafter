@@ -57,6 +57,10 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
     fun getDefinitionProviderForCursor(cursor: Int) =
         getRangedDataProviderForCursor(definitionProviders, cursor) ?: getRangedDataProviderForCursor(definitionProviders, cursor - 1)
 
+    fun copyInput() = AnalyzingResult(reader, SemanticTokensBuilder(reader), mutableListOf(), filePosition, documentation)
+    fun copy() = copyInput().also {
+        it.combineWith(this)
+    }
 
     private fun <TData> addRangedDataProviders(dest: MutableList<RangedDataProvider<TData>>, source: List<RangedDataProvider<TData>>) {
         for(provider in source) {
