@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import net.minecraft.command.argument.packrat.NbtParsingRule;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -21,7 +21,7 @@ public class NbtParsingRuleMixin {
             )
     )
     private StringNbtReader command_crafter$analyzeNbt(StringNbtReader stringNbtReader) {
-        var analyzingResult = getOrNull(PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult());
+        var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
         if(analyzingResult != null)
             ((AnalyzingResultCreator) stringNbtReader).command_crafter$setAnalyzingResult(analyzingResult);
         return stringNbtReader;

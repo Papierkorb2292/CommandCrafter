@@ -13,7 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
@@ -34,7 +34,7 @@ public abstract class ItemPredicateArgumentTypeMixin implements AnalyzingCommand
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
-        PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult().set(result.copyInput());
+        PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(result.copyInput());
         var parsingState = new ParsingStateImpl(parser.rules(), new ParseErrorList.Impl<>(), readerCopy);
         parser.startParsing(parsingState);
         result.combineWith(
@@ -43,8 +43,8 @@ public abstract class ItemPredicateArgumentTypeMixin implements AnalyzingCommand
                     .map(cache -> ((AnalyzingResultDataContainer) (Object) cache).command_crafter$getAnalyzingResult())
                     .filter(Objects::nonNull)
                     .findFirst()
-                    .orElse(PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult().get())
+                    .orElse(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get())
         );
-        PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult().remove();
+        PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
     }
 }

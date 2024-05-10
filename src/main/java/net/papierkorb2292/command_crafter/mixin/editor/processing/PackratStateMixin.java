@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import net.minecraft.command.argument.packrat.ParsingState;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -21,7 +21,7 @@ public class PackratStateMixin<T> {
             )
     )
     private ParsingState.PackratCache<T> command_crafter$cacheAnalyzingResult(ParsingState.PackratCache<T> cache) {
-        ((AnalyzingResultDataContainer)(Object)cache).command_crafter$setAnalyzingResult(getOrNull(PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult()));
+        ((AnalyzingResultDataContainer)(Object)cache).command_crafter$setAnalyzingResult(getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult()));
         return cache;
     }
 
@@ -35,7 +35,7 @@ public class PackratStateMixin<T> {
     private ParsingState.PackratCache<T> command_crafter$applyCachedAnalyzingResult(ParsingState.PackratCache<T> cache) {
         var cachedAnalyzingResult = ((AnalyzingResultDataContainer)(Object)cache).command_crafter$getAnalyzingResult();
         if(cachedAnalyzingResult != null) {
-            PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult().set(cachedAnalyzingResult);
+            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(cachedAnalyzingResult);
         }
         return cache;
     }

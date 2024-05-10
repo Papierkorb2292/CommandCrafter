@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin.editor.processing;
+package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -9,6 +9,8 @@ import net.minecraft.command.argument.packrat.Term;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+
+import java.util.ArrayList;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
@@ -23,19 +25,19 @@ public class AnyOfTermMixin<S> {
             )
     )
     private boolean command_crafter$branchAnalyzingResult(Term<S> term, ParsingState<S> parsingState, ParseResults parseResults, Cut cut, Operation<Boolean> op) {
-        var originalAnalyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
-        if(originalAnalyzingResult == null)
+        var originalUnparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument());
+        if(originalUnparsingList == null)
             return op.call(term, parsingState, parseResults, cut);
 
-        var newAnalyzingResult = originalAnalyzingResult.copy();
-        PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(newAnalyzingResult);
+        var newUnparsingList = new ArrayList<>(originalUnparsingList);
+        PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(newUnparsingList);
         try {
             var result = op.call(term, parsingState, parseResults, cut);
             if(!result)
-                PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(originalAnalyzingResult);
+                PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(originalUnparsingList);
             return result;
         } catch(Exception e) {
-            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(originalAnalyzingResult);
+            PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(originalUnparsingList);
             throw e;
         }
     }

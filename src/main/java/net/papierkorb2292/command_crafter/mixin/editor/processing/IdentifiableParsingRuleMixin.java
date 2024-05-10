@@ -11,7 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,7 +38,7 @@ public class IdentifiableParsingRuleMixin<C, V> implements PackContentFileTypeCo
             )
     )
     private void command_crafter$analyzeId(ParsingState<StringReader> state, CallbackInfoReturnable<Optional<V>> cir, @Local int start, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") @Local Optional<Identifier> id) {
-        var analyzingResult = getOrNull(PackratParserAnalyzingResult.INSTANCE.getAnalyzingResult());
+        var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
         var offsetStart = start + startOffset;
         var stringReader = state.getReader();
         if(analyzingResult != null && stringReader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
