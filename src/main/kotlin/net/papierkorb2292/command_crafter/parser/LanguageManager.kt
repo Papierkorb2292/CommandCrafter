@@ -144,9 +144,11 @@ object LanguageManager {
             if(!reader.canRead() || reader.peek() != '#')
                 return@trySkipWhitespace false
             while(reader.canRead() && reader.peek() == '#') {
-                reader.skip()
+                var highlightStart = reader.cursor
+                //Skip all leading '#' characters
+                while(reader.canRead() && reader.peek() == '#')
+                    reader.skip()
                 var lineStart = reader.cursor
-                var highlightStart = lineStart - 1
                 while(reader.canRead()) {
                     val c = reader.read()
                     if(c == '\n') {
