@@ -97,7 +97,7 @@ body {
     color: var(--vscode-editorWarning-foreground);
 }
 .logLevelError {
-    color: var(--vscode-editorError-foreground);
+    color: var(--vscode-debugIcon-stopForeground);
 }
 
 .source {
@@ -105,7 +105,7 @@ body {
 }
 
 .errorMessageContent {
-    color: var(--vscode-editorError-foreground);
+    color: var(--vscode-debugIcon-stopForeground);
 }
 
 .warnMessageContent {
