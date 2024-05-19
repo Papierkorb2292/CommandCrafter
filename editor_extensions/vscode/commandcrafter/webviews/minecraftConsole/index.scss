@@ -74,9 +74,12 @@ body {
 
     //From vscode body
     color: var(--vscode-editor-foreground);
-    font-family: var(--vscode-font-family);
-    font-weight: var(--vscode-font-weight);
-    font-size: var(--vscode-font-size);
+}
+
+.log, .commandInput {
+    font-family: Consolas, "Courier New", monospace;
+    font-weight: normal;
+    font-size: 14px;
 }
 
 .commandInput:focus {
