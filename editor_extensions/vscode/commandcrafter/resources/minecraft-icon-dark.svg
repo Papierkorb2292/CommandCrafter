@@ -6,7 +6,7 @@
      width="0.2in" height="0.2in"
      viewBox="0 0 24 24">
   <path id="Path"
-        fill="none" stroke="black" stroke-width="1.5"
+        fill="none" stroke='white' stroke-width="1.5"
         d="M 4.03,16.97
            C 4.03,16.97 4.00,7.00 4.00,7.00
              4.00,7.00 12.00,3.00 12.00,3.00

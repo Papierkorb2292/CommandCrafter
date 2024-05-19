@@ -37,7 +37,11 @@
         "id": "mcfunction",
         "extensions": [
           ".mcfunction"
-        ]
+        ],
+        "icon": {
+          "light": "resources/minecraft-icon-light.svg",
+          "dark": "resources/minecraft-icon-dark.svg"
+        }
       }
     ],
     "viewsContainers": {
@@ -45,7 +49,7 @@
         {
           "id": "commandcrafter-console",
           "title": "Minecraft Console",
-          "icon": "resources/minecraft-console-icon.svg"
+          "icon": "resources/minecraft-icon.svg"
         }
       ]
     },
