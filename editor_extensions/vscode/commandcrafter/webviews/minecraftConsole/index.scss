@@ -91,13 +91,13 @@ body {
 }
 
 .logLevelInfo {
-    color: rgb(13, 143, 13);
+    color: var(--vscode-editorInfo-foreground);
 }
 .logLevelWarn {
-    color: rgb(255, 255, 0);
+    color: var(--vscode-editorWarning-foreground);
 }
 .logLevelError {
-    color: rgb(255, 0, 0);
+    color: var(--vscode-editorError-foreground);
 }
 
 .source {
@@ -105,9 +105,9 @@ body {
 }
 
 .errorMessageContent {
-    color: rgb(255, 0, 0);
+    color: var(--vscode-editorError-foreground);
 }
 
 .warnMessageContent {
-    color: rgb(255, 255, 0);
+    color: var(--vscode-editorWarning-foreground);
 }
