@@ -126,7 +126,7 @@ addEventListener("load", () => {
     function addConsoleMessage(targetChannel: HTMLElement, content: String) {
         const scrolledToBottom = log.scrollTop + log.clientHeight + 1 >= log.scrollHeight;
         
-        const prefixEnd = content.indexOf("]") + 1
+        const prefixEnd = content.indexOf("]") + 2
         const prefixElement = document.createElement("span");
         const logLevelEndChar = content.charAt(prefixEnd - 2);
         prefixElement.classList.add(logLevelEndChar === "R" ? "logLevelError" : logLevelEndChar === "N" ? "logLevelWarn" : "logLevelInfo");
@@ -135,7 +135,7 @@ addEventListener("load", () => {
 
         let messageStart = prefixEnd;
 
-        if(content.charAt(prefixEnd + 1) === "(") {
+        if(content.charAt(prefixEnd) === "(") {
             const sourceEnd = content.indexOf(")", prefixEnd) + 1;
             const sourceElement = document.createElement("span");
             sourceElement.classList.add("source");
