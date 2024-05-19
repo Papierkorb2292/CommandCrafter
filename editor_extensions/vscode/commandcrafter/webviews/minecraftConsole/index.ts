@@ -126,9 +126,9 @@ addEventListener("load", () => {
     function addConsoleMessage(targetChannel: HTMLElement, content: String) {
         const scrolledToBottom = log.scrollTop + log.clientHeight + 1 >= log.scrollHeight;
         
-        const prefixEnd = content.indexOf("]") + 2
+        const prefixEnd = content.indexOf("]") + 2 // Adds 2 to include the char after ']' (probably the colon)
         const prefixElement = document.createElement("span");
-        const logLevelEndChar = content.charAt(prefixEnd - 2);
+        const logLevelEndChar = content.charAt(prefixEnd - 3); // Subtracts -3 to select the char before ']'
         prefixElement.classList.add(logLevelEndChar === "R" ? "logLevelError" : logLevelEndChar === "N" ? "logLevelWarn" : "logLevelInfo");
         prefixElement.textContent = content.substring(0, prefixEnd);
         targetChannel.append(prefixElement);
