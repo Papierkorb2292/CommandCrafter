@@ -27,7 +27,7 @@ public class IdentifiableParsingRuleMixin<C, V> {
             )
     )
     private void command_crafter$unparseId(ParsingState<StringReader> state, CallbackInfoReturnable<Optional<V>> cir, @Local int start, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") @Local Optional<Identifier> id) {
-        var unparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument());
+        var unparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument());
         if(unparsingList != null) {
             //noinspection OptionalGetWithoutIsPresent
             unparsingList.add(Either.left(id.get().toString()));

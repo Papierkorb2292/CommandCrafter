@@ -11,7 +11,7 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.NbtPathFilteredRootNodeFilterProvider;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -21,7 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Mixin(NbtPathArgumentType.class)
-public class NbtPathArgumentTypeMixin implements UnparsableArgumentType {
+public class NbtPathArgumentTypeMixin implements StringifiableArgumentType {
 
     @ModifyExpressionValue(
             method = "readName",
@@ -49,7 +49,7 @@ public class NbtPathArgumentTypeMixin implements UnparsableArgumentType {
     }
 
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
         var argument = context.getArgument(name, NbtPathArgumentType.NbtPath.class);
         var sourceString = argument.getString();
         var nodes = ((NbtPathArgumentTypeNbtPathAccessor) argument).getNodes();

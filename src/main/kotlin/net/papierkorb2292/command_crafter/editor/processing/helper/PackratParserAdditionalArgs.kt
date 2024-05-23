@@ -5,5 +5,5 @@ import net.papierkorb2292.command_crafter.parser.helper.RawResource
 
 object PackratParserAdditionalArgs {
     val analyzingResult = ThreadLocal<AnalyzingResult>()
-    val unparsedArgument = ThreadLocal<MutableList<Either<String, RawResource>>>()
+    val stringifiedArgument = ThreadLocal<MutableList<Either<String, RawResource>>>()
 }

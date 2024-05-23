@@ -10,7 +10,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParser
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,16 +20,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(ItemPredicateArgumentType.class)
-public abstract class ItemPredicateArgumentTypeMixin implements UnparsableArgumentType {
+public abstract class ItemPredicateArgumentTypeMixin implements StringifiableArgumentType {
     @Shadow public abstract ItemPredicateArgumentType.ItemStackPredicateArgument parse(StringReader stringReader) throws CommandSyntaxException;
 
     @Nullable
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(new ArrayList<>());
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
+        PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(new ArrayList<>());
         parse(reader);
-        var result = PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().get();
-        PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().remove();
+        var result = PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().get();
+        PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().remove();
         return result;
     }
 }

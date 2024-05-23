@@ -7,9 +7,9 @@ import net.minecraft.server.command.ServerCommandSource
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator
 
-interface UnparsableArgumentType {
+interface StringifiableArgumentType {
     @Throws(CommandSyntaxException::class)
-    fun `command_crafter$unparseArgument`(
+    fun `command_crafter$stringifyArgument`(
         context: CommandContext<ServerCommandSource>,
         name: String,
         reader: DirectiveStringReader<RawZipResourceCreator>

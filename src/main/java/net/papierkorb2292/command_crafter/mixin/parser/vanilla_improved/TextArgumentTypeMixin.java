@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.util.List;
 
 @Mixin(TextArgumentType.class)
-public abstract class TextArgumentTypeMixin implements UnparsableArgumentType {
+public abstract class TextArgumentTypeMixin implements StringifiableArgumentType {
 
 
     @Shadow
@@ -31,7 +31,7 @@ public abstract class TextArgumentTypeMixin implements UnparsableArgumentType {
 
     @Nullable
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
         return List.of(Either.left(Text.Serialization.toJsonString(getTextArgument(context, name), registryLookup)));
     }
 }

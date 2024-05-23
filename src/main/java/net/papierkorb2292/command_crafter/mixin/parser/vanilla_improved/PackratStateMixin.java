@@ -21,7 +21,7 @@ public class PackratStateMixin<T> {
             )
     )
     private ParsingState.PackratCache<T> command_crafter$cacheUnparsedArgument(ParsingState.PackratCache<T> cache) {
-        ((UnparsedArgumentContainer)(Object)cache).command_crafter$setUnparsedArgument(getOrNull(PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument()));
+        ((UnparsedArgumentContainer)(Object)cache).command_crafter$setUnparsedArgument(getOrNull(PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument()));
         return cache;
     }
 
@@ -35,7 +35,7 @@ public class PackratStateMixin<T> {
     private ParsingState.PackratCache<T> command_crafter$applyCachedUnparsedArgument(ParsingState.PackratCache<T> cache) {
         var cachedUnparsedArgument = ((UnparsedArgumentContainer)(Object)cache).command_crafter$getUnparsedArgument();
         if(cachedUnparsedArgument != null) {
-            PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(cachedUnparsedArgument);
+            PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(cachedUnparsedArgument);
         }
         return cache;
     }

@@ -9,16 +9,16 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator
 import kotlin.math.min
 
-interface UnparsableCommandNode {
+interface StringifiableCommandNode {
     @Throws(CommandSyntaxException::class)
-    fun `command_crafter$unparseNode`(
+    fun `command_crafter$stringifyNode`(
         context: CommandContext<ServerCommandSource>,
         range: StringRange,
         reader: DirectiveStringReader<RawZipResourceCreator>
     ): List<Either<String, RawResource>>
 
     companion object {
-        fun unparseNodeFromStringRange(context: CommandContext<ServerCommandSource>, range: StringRange) =
+        fun stringifyNodeFromStringRange(context: CommandContext<ServerCommandSource>, range: StringRange) =
             sanitizeMultiline(context.input.substring(range.start, min(range.end, context.input.length)))
 
         fun sanitizeMultiline(string: String) = string.trimIndent().replace('\n', ' ')

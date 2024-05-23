@@ -393,12 +393,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     addLeadingSpace = true
                 }
                 val node = parsedNode.node
-                if (node is UnparsableCommandNode) {
-                    for(part in node.`command_crafter$unparseNode`(
+                if (node is StringifiableCommandNode) {
+                    for(part in node.`command_crafter$stringifyNode`(
                         context,
                         parsedNode.range,
                         DirectiveStringReader(
-                            listOf(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range)),
+                            listOf(StringifiableCommandNode.stringifyNodeFromStringRange(context, parsedNode.range)),
                             reader.dispatcher,
                             reader.resourceCreator
                         ).apply {
@@ -416,7 +416,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         }
                     }
                 } else {
-                    stringBuilder.append(UnparsableCommandNode.unparseNodeFromStringRange(context, parsedNode.range))
+                    stringBuilder.append(StringifiableCommandNode.stringifyNodeFromStringRange(context, parsedNode.range))
                 }
             }
             contextBuilder = contextBuilder.child
@@ -1131,7 +1131,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         })
                     }
                     is RawResourceRegistryEntryList<*> -> {
-                        PackratParserAdditionalArgs.unparsedArgument.getOrNull()?.run {
+                        PackratParserAdditionalArgs.stringifiedArgument.getOrNull()?.run {
                             add(Either.left("#"))
                             add(Either.right(parsed.resource))
                         }

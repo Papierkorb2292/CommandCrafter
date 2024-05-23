@@ -11,7 +11,7 @@ import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
 import net.papierkorb2292.command_crafter.parser.helper.RawResourceFunctionArgument;
 import net.papierkorb2292.command_crafter.parser.helper.SourceAware;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Mixin(CommandFunctionArgumentType.class)
-public class CommandFunctionArgumentTypeMixin implements SourceAware, UnparsableArgumentType {
+public class CommandFunctionArgumentTypeMixin implements SourceAware, StringifiableArgumentType {
 
     private CommandSource command_crafter$commandSource;
 
@@ -51,7 +51,7 @@ public class CommandFunctionArgumentTypeMixin implements SourceAware, Unparsable
     }
 
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
         var argument = context.getArgument(name, CommandFunctionArgumentType.FunctionArgument.class);
         if (!(argument instanceof RawResourceFunctionArgument resourceArgument)) {
             return null;

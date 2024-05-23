@@ -12,7 +12,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,11 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(EntityArgumentType.class)
-public class EntityArgumentTypeMixin implements UnparsableArgumentType {
+public class EntityArgumentTypeMixin implements StringifiableArgumentType {
     
     @Nullable
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
         int sectionStartCursor = reader.getCursor();
         if(!(VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.read() == '@')) {
             return null;

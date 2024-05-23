@@ -25,19 +25,19 @@ public class AnyOfTermMixin<S> {
             )
     )
     private boolean command_crafter$branchAnalyzingResult(Term<S> term, ParsingState<S> parsingState, ParseResults parseResults, Cut cut, Operation<Boolean> op) {
-        var originalUnparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument());
+        var originalUnparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument());
         if(originalUnparsingList == null)
             return op.call(term, parsingState, parseResults, cut);
 
         var newUnparsingList = new ArrayList<>(originalUnparsingList);
-        PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(newUnparsingList);
+        PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(newUnparsingList);
         try {
             var result = op.call(term, parsingState, parseResults, cut);
             if(!result)
-                PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(originalUnparsingList);
+                PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(originalUnparsingList);
             return result;
         } catch(Exception e) {
-            PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(originalUnparsingList);
+            PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(originalUnparsingList);
             throw e;
         }
     }

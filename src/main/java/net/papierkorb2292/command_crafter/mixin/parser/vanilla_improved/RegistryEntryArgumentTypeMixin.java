@@ -14,7 +14,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
@@ -25,14 +25,14 @@ import java.util.Collections;
 import java.util.List;
 
 @Mixin(RegistryEntryArgumentType.class)
-public class RegistryEntryArgumentTypeMixin<T> implements UnparsableArgumentType {
+public class RegistryEntryArgumentTypeMixin<T> implements StringifiableArgumentType {
     @Shadow @Final private Codec<RegistryEntry<T>> entryCodec;
 
     @Shadow @Final private RegistryWrapper.WrapperLookup registryLookup;
 
     @Nullable
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
         //noinspection unchecked
         var argument = (RegistryEntry<T>)context.getArgument(name, RegistryEntry.class);
         RegistryOps<NbtElement> registryOps = registryLookup.getOps(NbtOps.INSTANCE);

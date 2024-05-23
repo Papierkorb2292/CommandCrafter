@@ -26,7 +26,7 @@ public class CharLiteralMixin {
     )
     private char command_crafter$unparseCharLiteral(char c) {
         if(c == value) {
-            var unparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument());
+            var unparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument());
             if (unparsingList != null) {
                 unparsingList.add(Either.left(String.valueOf(c)));
             }

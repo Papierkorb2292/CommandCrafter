@@ -10,7 +10,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Mixin(ItemStackArgumentType.class)
-public class ItemStackArgumentTypeMixin implements UnparsableArgumentType {
+public class ItemStackArgumentTypeMixin implements StringifiableArgumentType {
 
     private RegistryWrapper.WrapperLookup command_crafter$registries;
 
@@ -37,7 +37,7 @@ public class ItemStackArgumentTypeMixin implements UnparsableArgumentType {
 
     @Nullable
     @Override
-    public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
+    public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
         return Collections.singletonList(Either.left(context.getArgument(name, ItemStackArgument.class).asString(command_crafter$registries)));
     }
 }

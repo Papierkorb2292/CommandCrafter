@@ -21,7 +21,7 @@ public class NbtParsingRuleMixin {
             )
     )
     private NbtElement command_crafter$unparseNbt(NbtElement original) {
-        var unparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument());
+        var unparsingList = getOrNull(PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument());
         if(unparsingList != null) {
             unparsingList.add(Either.left(original.asString()));
         }
