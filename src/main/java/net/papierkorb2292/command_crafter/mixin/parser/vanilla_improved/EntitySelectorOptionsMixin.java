@@ -26,8 +26,8 @@ public class EntitySelectorOptionsMixin {
             remap = false
     )
     private static void command_crafter$allowInlineEntityTag(EntitySelectorReader reader, CallbackInfo ci, @Local boolean bl) {
-        if(VanillaLanguage.Companion.isReaderImproved(reader.getReader()) && reader.getReader().canRead() && reader.getReader().peek() == '(') {
-            var tag = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>) reader.getReader(), Registries.ENTITY_TYPE);
+        if(VanillaLanguage.Companion.isReaderInlineResources(reader.getReader()) && reader.getReader().canRead() && reader.getReader().peek() == '(') {
+            var tag = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>) reader.getReader(), Registries.ENTITY_TYPE.getReadOnlyWrapper());
             reader.setPredicate(entity -> tag.contains(entity.getType().getRegistryEntry()) != bl);
             ci.cancel();
         }

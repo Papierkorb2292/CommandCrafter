@@ -1,22 +1,42 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.papierkorb2292.command_crafter.CommandCrafter
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.ServerSocket
 
 class SocketEditorConnectionType(val port: Int) : EditorConnectionAcceptor {
 
-    private var serverSocket: ServerSocket = ServerSocket(port)
+    private var serverSocket: ServerSocket? = null
+    init { start() }
 
     override fun accept(): EditorConnection {
-        val socket = serverSocket.accept()
-        return EditorConnection(socket.getInputStream(), socket.getOutputStream())
+        val socket = serverSocket?.accept() ?: throw IllegalStateException("Server socket is not running")
+        return object : EditorConnection {
+            override val inputStream: InputStream
+                get() = socket.getInputStream()
+            override val outputStream: OutputStream
+                get() = socket.getOutputStream()
+
+            override fun close() {
+                socket.close()
+            }
+        }
     }
 
-    override fun isRunning() = !serverSocket.isClosed
+    override fun isRunning(): Boolean {
+        return !(serverSocket ?: return false).isClosed
+    }
     override fun start() {
-        serverSocket = ServerSocket(port)
+        try {
+            serverSocket = ServerSocket(port)
+        } catch(e: Exception) {
+            CommandCrafter.LOGGER.error("Failed to start server socket for editor connections on port $port", e)
+        }
     }
 
     override fun stop() {
-        serverSocket.close()
+        serverSocket?.close()
+        serverSocket = null
     }
 }

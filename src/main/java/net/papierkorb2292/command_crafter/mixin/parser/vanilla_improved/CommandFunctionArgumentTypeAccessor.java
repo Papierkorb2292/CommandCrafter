@@ -16,13 +16,13 @@ public interface CommandFunctionArgumentTypeAccessor {
 
     @SuppressWarnings({"RedundantThrows", "unused"})
     @Invoker
-    static Collection<CommandFunction> callGetFunctionTag(@SuppressWarnings("unused") CommandContext<ServerCommandSource> context, Identifier id) throws CommandSyntaxException {
+    static Collection<CommandFunction<ServerCommandSource>> callGetFunctionTag(@SuppressWarnings("unused") CommandContext<ServerCommandSource> context, Identifier id) throws CommandSyntaxException {
         throw new AssertionError();
     }
 
     @SuppressWarnings({"unused", "RedundantThrows"})
     @Invoker
-    static CommandFunction callGetFunction(@SuppressWarnings("unused") CommandContext<ServerCommandSource> context, Identifier id) throws CommandSyntaxException {
+    static CommandFunction<ServerCommandSource> callGetFunction(@SuppressWarnings("unused") CommandContext<ServerCommandSource> context, Identifier id) throws CommandSyntaxException {
         throw new AssertionError();
     }
 }

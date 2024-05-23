@@ -10,8 +10,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableArgumentType;
-import net.papierkorb2292.command_crafter.parser.helper.UnparsableCommandNode;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableCommandNode;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,7 +22,7 @@ import java.util.List;
 
 @SuppressWarnings("unused")
 @Mixin(ArgumentCommandNode.class)
-public class ArgumentCommandNodeMixin<S, T> implements UnparsableCommandNode {
+public class ArgumentCommandNodeMixin<S, T> implements StringifiableCommandNode {
 
 
     @Shadow(remap = false) @Final private ArgumentType<T> type;
@@ -30,13 +30,13 @@ public class ArgumentCommandNodeMixin<S, T> implements UnparsableCommandNode {
     @Shadow(remap = false) @Final private String name;
 
     @Override
-    public @NotNull List<Either<String, RawResource>> command_crafter$unparseNode(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        if(type instanceof UnparsableArgumentType unparsable) {
-            var result = unparsable.command_crafter$unparseArgument(context, name, reader);
+    public @NotNull List<Either<String, RawResource>> command_crafter$stringifyNode(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
+        if(type instanceof StringifiableArgumentType stringifiable) {
+            var result = stringifiable.command_crafter$stringifyArgument(context, name, reader);
             if(result != null) {
                 return result;
             }
         }
-        return Collections.singletonList(Either.left(UnparsableCommandNode.Companion.unparseNodeFromStringRange(context, range)));
+        return Collections.singletonList(Either.left(StringifiableCommandNode.Companion.stringifyNodeFromStringRange(context, range)));
     }
 }

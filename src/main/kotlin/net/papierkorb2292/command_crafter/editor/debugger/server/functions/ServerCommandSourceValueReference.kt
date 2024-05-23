@@ -1,0 +1,113 @@
+package net.papierkorb2292.command_crafter.editor.debugger.server.functions
+
+import net.minecraft.server.command.ServerCommandSource
+import net.papierkorb2292.command_crafter.editor.debugger.variables.*
+import org.eclipse.lsp4j.debug.*
+import java.util.concurrent.CompletableFuture
+
+class ServerCommandSourceValueReference(
+    private val mapper: VariablesReferenceMapper,
+    private var source: ServerCommandSource,
+    private val setter: ((ServerCommandSource) -> Unit)? = null
+) : VariableValueReference, CountedVariablesReferencer {
+    companion object {
+        const val ENTITY_VARIABLE_NAME = "@s"
+        const val DIMENSION_VARIABLE_NAME = "dimension"
+        const val POS_VARIABLE_NAME = "pos"
+    }
+
+    private var variablesReferencerId: Int? = null
+
+    private val content = HashMap<String, VariableValueReference>()
+
+    init { updateVariableValueReferences() }
+    private fun updateVariableValueReferences() {
+        //TODO
+        content.clear()
+        content[ENTITY_VARIABLE_NAME] = EntityValueReference(mapper, source.entity, this.source) { newEntity ->
+            this.setter?.let {
+                updateSource(
+                    if (newEntity == null) {
+                        this.source
+                    } else this.source.withEntity(newEntity),
+                    it
+                )
+            }
+            source.entity
+        }
+        content[DIMENSION_VARIABLE_NAME] = IdValueReference(source.world.registryKey.value) { newDimensionId ->
+            this.setter?.let { setter ->
+                val newRegistryKey = source.worldKeys.firstOrNull { it.value == newDimensionId }
+                if(newRegistryKey != null) {
+                    updateSource(
+                        this.source.withWorld(source.server.getWorld(newRegistryKey)),
+                        setter
+                    )
+                }
+            }
+            return@IdValueReference source.world.registryKey.value
+        }
+        content[POS_VARIABLE_NAME] = Vec3dValueReference(mapper, source.position) { newPosition ->
+            this.setter?.let { setter ->
+                if(newPosition != null) {
+                    updateSource(
+                        this.source.withPosition(newPosition),
+                        setter
+                    )
+                }
+            }
+            return@Vec3dValueReference source.position
+        }
+    }
+
+    private fun updateSource(source: ServerCommandSource, setter: (ServerCommandSource) -> Unit) {
+        if(this.source != source) {
+            this.source = source
+            setter.invoke(source)
+            updateVariableValueReferences()
+        }
+    }
+
+    override fun getVariable(name: String) = Variable().also {
+        it.name = name
+        it.value = source.name
+        it.type = "ServerCommandSource"
+        it.variablesReference = getVariablesReferencerId()
+        it.namedVariables = content.size
+        it.indexedVariables = 0
+    }
+
+    override fun getSetVariableResponse() = SetVariableResponse().also {
+        it.value = source.name
+        it.type = "ServerCommandSource"
+        it.variablesReference = getVariablesReferencerId()
+        it.namedVariables = content.size
+        it.indexedVariables = 0
+    }
+
+    fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+        variablesReferencerId = it
+    }
+
+    override fun setValue(value: String) { }
+    override val namedVariableCount: Int
+        get() = content.size
+    override val indexedVariableCount: Int
+        get() = 0
+
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
+        if(args.filter == VariablesArgumentsFilter.INDEXED) return CompletableFuture.completedFuture(emptyArray())
+        val start = args.start ?: 0
+        val count = args.count ?: (content.size - start)
+        return CompletableFuture.completedFuture(content.entries.drop(start).take(count).map {
+            (name, value) -> value.getVariable(name)
+        }.toTypedArray())
+    }
+
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
+        val valueReference = content[args.name]
+            ?: return CompletableFuture.completedFuture(null)
+        valueReference.setValue(args.value)
+        return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(valueReference.getSetVariableResponse(), true))
+    }
+}

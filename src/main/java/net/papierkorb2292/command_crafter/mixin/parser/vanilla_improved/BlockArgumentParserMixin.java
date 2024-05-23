@@ -40,14 +40,15 @@ public abstract class BlockArgumentParserMixin {
             method = "parse",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;canRead()Z"
+                    target = "Lcom/mojang/brigadier/StringReader;canRead()Z",
+                    remap = false,
+                    ordinal = 0
             ),
-            cancellable = true,
-            remap = false
+            cancellable = true
     )
     private void command_crafter$parseInlineTag(CallbackInfo ci) throws CommandSyntaxException {
-        if(allowTag && VanillaLanguage.Companion.isReaderImproved(reader) && reader.canRead() && reader.peek() == '(') {
-            tagId = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>)reader, Registries.BLOCK);
+        if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
+            tagId = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>)reader, Registries.BLOCK.getReadOnlyWrapper());
             if (this.reader.canRead() && this.reader.peek() == '[') {
                 parseTagProperties();
                 suggestions = this::suggestSnbt;

@@ -38,7 +38,7 @@ public class DataPackContentsMixin implements ParsedResourceCreator.DataPackRefr
             method = "refresh",
             at = @At("TAIL")
     )
-    private void command_crafter$callRefreshCallbacks(DynamicRegistryManager dynamicRegistryManager, CallbackInfo ci) {
+    private void command_crafter$callRefreshCallbacks(CallbackInfo ci) {
         for(var callback : command_crafter$refresh_callbacks) {
             callback.invoke();
         }

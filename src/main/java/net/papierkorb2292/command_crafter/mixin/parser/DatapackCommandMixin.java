@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.parser;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -16,6 +17,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.WorldSavePath;
 import net.papierkorb2292.command_crafter.CommandCrafter;
+import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor;
 import net.papierkorb2292.command_crafter.mixin.WorldSavePathAccessor;
 import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
@@ -53,10 +55,10 @@ public class DatapackCommandMixin {
                                     try {
                                         FileResourcePackProvider.forEachProfile(
                                                 context.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS),
-                                                false,
+                                                ((MinecraftServerAccessor)context.getSource().getServer()).getSession().getLevelStorage().getSymlinkFinder(),
                                                 (path, pack) -> candidates.add(StringArgumentType.escapeIfRequired("file/" + path.getFileName().toString())));
                                     } catch (IOException e) {
-                                        CommandCrafter.Companion.getLOGGER().error("Encountered IOException while searching for buildable datapacks", e);
+                                        CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while searching for buildable datapacks", e);
                                     }
                                     return CommandSource.suggestMatching(
                                             candidates.stream(),
@@ -102,17 +104,18 @@ public class DatapackCommandMixin {
             output.getParentFile().mkdirs();
             try(var outputStream = new FileOutputStream(output)) {
                 var zipOutput = new ZipOutputStream(outputStream);
+                //noinspection unchecked
                 RawZipResourceCreator.Companion.buildDatapack(
                         pack,
                         argsBuilder.build(),
-                        context.getSource().getServer().getCommandManager().getDispatcher(),
+                        (CommandDispatcher<CommandSource>)(Object)context.getSource().getServer().getCommandManager().getDispatcher(),
                         zipOutput
                 );
                 zipOutput.close();
-                context.getSource().sendFeedback(Text.of("Successfully built datapack"), true);
+                context.getSource().sendFeedback(() -> Text.of("Successfully built datapack"), true);
             } catch (IOException e) {
                 context.getSource().sendError(Text.of("Encountered IOException while building datapack. The exception is written to the game output."));
-                CommandCrafter.Companion.getLOGGER().error("Encountered IOException while building datapack", e);
+                CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while building datapack", e);
             }
         }
     }

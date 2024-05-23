@@ -24,12 +24,13 @@ public class LiteralCommandNodeMixin {
         if(!(reader instanceof DirectiveStringReader<?> directiveStringReader)) {
             return c;
         }
-        if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(reader)) {
+        if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
             return ' ';
         }
-        if(!VanillaLanguage.Companion.isReaderImproved(reader)) {
+        if(!VanillaLanguage.Companion.isReaderEasyNextLine(reader)) {
             return c;
         }
+
         if(reader.canRead() && reader.peek() == '\n') {
             return ' ';
         }

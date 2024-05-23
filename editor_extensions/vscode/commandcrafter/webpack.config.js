@@ -45,4 +45,44 @@ const extensionConfig = {
     level: "log", // enables logging required for problem matchers
   },
 };
-module.exports = [ extensionConfig ];
+
+function getWebviewConfig(entry) {
+	return {
+		name: 'webviews',
+		entry: entry,
+		mode: "none",
+		target: 'web',
+		devtool: "nosources-source-map",
+		output: {
+			filename: '[name].js',
+			path: path.resolve(__dirname, 'dist'),
+		},
+		module: {
+			rules: [
+        {
+          test: /\.ts$/,
+          exclude: /node_modules/,
+          use: [
+            {
+              loader: 'ts-loader'
+            }
+          ]
+        },
+        {
+					test: /\.((s[ac]?)|c)ss$/,
+					use: ['style-loader', 'css-loader', "sass-loader"]
+				}
+      ],
+		},
+		resolve: {
+			extensions: ['.ts', '.js'],
+		}
+	};
+}
+
+module.exports = [
+  extensionConfig,
+  getWebviewConfig({
+    "minecraftConsole": "./webviews/minecraftConsole/index.ts"
+  })
+];
