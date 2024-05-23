@@ -342,7 +342,7 @@ public class EntitySelectorOptionsMixin {
             }
             var reader = selectorReader.getReader();
             if(VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
-                var parsed = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>) reader, Registries.ENTITY_TYPE);
+                var parsed = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>) reader, Registries.ENTITY_TYPE.getReadOnlyWrapper());
                 if(parsed instanceof AnalyzedRegistryEntryList<EntityType<?>> analyzed) {
                     analyzingResult.combineWith(analyzed.getAnalyzingResult());
                 }

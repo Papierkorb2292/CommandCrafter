@@ -4,7 +4,6 @@ import com.google.common.collect.ImmutableMap
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
-import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
@@ -71,7 +70,7 @@ class ParsedResourceCreator(
             val dataPackRefresher = resourceCreator.dataPackContents as DataPackRefresher
             for(registryTag in resourceCreator.registryTags) {
                 for(registryTags in registryTagsList) {
-                    if(registryTags.key == registryTag.resource.registry.key) {
+                    if(registryTags.key == registryTag.resource.registry) {
                         val tagId = resolveRegistryTag(
                             registryTag.resource.entries,
                             registryTags,
@@ -154,7 +153,7 @@ class ParsedResourceCreator(
     }
 
     class AutomaticResource<T>(val idSetter: (Identifier) -> Unit, val resource: T)
-    class ParsedTag<T>(val registry: DynamicRegistryManager.Entry<T>, val entries: Collection<TagEntry>)
+    class ParsedTag<T>(val registry: RegistryKey<out Registry<out T>>, val entries: Collection<TagEntry>)
 
     private fun getPath(id: Int) = Identifier(functionId.namespace, "${functionId.path}--$id--craftergen")
 

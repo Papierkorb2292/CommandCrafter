@@ -14,8 +14,12 @@ import com.mojang.datafixers.util.Either
 import net.minecraft.command.CommandSource
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.registry.DynamicRegistryManager
+import net.minecraft.command.argument.packrat.ParsingRule
+import net.minecraft.command.argument.packrat.ParsingState
 import net.minecraft.registry.Registry
+import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryWrapper
+import net.minecraft.registry.entry.RegistryEntry
 import net.minecraft.registry.entry.RegistryEntryList
 import net.minecraft.registry.tag.TagEntry
 import net.minecraft.registry.tag.TagManagerLoader
@@ -39,6 +43,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientComma
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
@@ -46,6 +51,7 @@ import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Predicate
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor as FunctionBuilderAccessor_Debug
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor as FunctionBuilderAccessor_Parser
 import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
@@ -689,28 +695,28 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun <T> parseRawRegistryTagTuple(
             reader: DirectiveStringReader<RawZipResourceCreator>,
-            registry: Registry<T>,
+            registry: RegistryWrapper.Impl<T>,
         ): RawResourceRegistryEntryList<T>
-                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(TagManagerLoader.getPath(registry.key), "json")) {
+                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(TagManagerLoader.getPath(registry.registryKey), "json")) {
                 entryReader -> Either.left(parseRawTagEntry(entryReader))
         })
 
         fun <T> parseParsedRegistryTagTuple(
             reader: DirectiveStringReader<ParsedResourceCreator>,
-            registry: Registry<T>,
+            registry: RegistryWrapper.Impl<T>,
         ): GeneratedRegistryEntryList<T> {
             val entries = parseTagTupleEntries(reader, ::parseTagEntry)
             return GeneratedRegistryEntryList(registry).apply {
                 reader.resourceCreator.registryTags += ParsedResourceCreator.AutomaticResource(
                     idSetter,
-                    ParsedResourceCreator.ParsedTag(DynamicRegistryManager.Entry(registry.key, registry), entries)
+                    ParsedResourceCreator.ParsedTag(registry.registryKey, entries)
                 )
             }
         }
 
         fun <T> analyzeRegistryTagTuple(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            registry: Registry<T>,
+            registry: RegistryWrapper.Impl<T>,
         ): AnalyzedRegistryEntryList<T> {
             val analyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             analyzeTagTupleEntries(reader, analyzingResult) { entryReader, entryAnalyzingResult ->
@@ -720,7 +726,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     val entry = parseTagEntry(entryReader)
                     if(!entry.resolve(object: TagEntry.ValueGetter<Unit> {
                             override fun direct(id: Identifier): Unit? {
-                                if(registry.containsId(id)) return Unit
+                                @Suppress("UNCHECKED_CAST")
+                                if(registry.getOptional(RegistryKey.of(registry.registryKey as RegistryKey<out Registry<T>>, id)).isPresent) return Unit
                                 entryAnalyzingResult.diagnostics += Diagnostic(
                                     Range(pos, pos.advance(reader.cursor - startCursor)),
                                     "Unknown id '$id'"
@@ -747,7 +754,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun <T> parseRegistryTagTuple(
             reader: DirectiveStringReader<*>,
-            registry: Registry<T>,
+            registry: RegistryWrapper.Impl<T>,
         ): RegistryEntryList<T> {
             reader.withNoMultilineRestriction<Nothing> {
                 it.resourceCreator.run {
@@ -1102,6 +1109,39 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
             reader.skip()
+        }
+    }
+
+    class InlineTagRule<Testee, TagEntry>(val registry: RegistryWrapper.Impl<TagEntry>, val testeeProjection: (Testee) -> RegistryEntry<TagEntry>) : ParsingRule<StringReader, Predicate<Testee>> {
+        override fun parse(state: ParsingState<StringReader>): Optional<Predicate<Testee>> {
+            val reader = state.reader
+            val cursor = state.cursor
+            if(!isReaderInlineResources(reader) || !reader.canRead() || reader.peek() != '(')
+                return Optional.empty()
+
+            try {
+                when(val parsed = parseRegistryTagTuple(reader as DirectiveStringReader<*>, registry)) {
+                    is AnalyzedRegistryEntryList<*> -> {
+                        PackratParserAdditionalArgs.analyzingResult.getOrNull()?.combineWith(parsed.analyzingResult)
+                        return Optional.of(Predicate { false })
+                    }
+                    is GeneratedRegistryEntryList<*> -> {
+                        return Optional.of(Predicate {
+                            parsed.contains(testeeProjection(it))
+                        })
+                    }
+                    is RawResourceRegistryEntryList<*> -> {
+                        PackratParserAdditionalArgs.unparsedArgument.getOrNull()?.run {
+                            add(Either.left("#"))
+                            add(Either.right(parsed.resource))
+                        }
+                        return Optional.of(Predicate { false })
+                    }
+                }
+            } catch(e: Exception) {
+                state.errors.add(cursor, null /*TODO InlineTagRule Suggestions*/, e)
+            }
+            return Optional.empty()
         }
     }
 

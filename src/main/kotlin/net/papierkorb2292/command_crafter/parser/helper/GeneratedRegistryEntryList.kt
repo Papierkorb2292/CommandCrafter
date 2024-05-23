@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.datafixers.util.Either
 import net.minecraft.registry.Registry
+import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryWrapper
 import net.minecraft.registry.entry.RegistryEntry
 import net.minecraft.registry.entry.RegistryEntryList
 import net.minecraft.registry.entry.RegistryEntryOwner
@@ -11,9 +13,10 @@ import net.minecraft.util.math.random.Random
 import java.util.*
 import java.util.stream.Stream
 
-class GeneratedRegistryEntryList<T>(val registry: Registry<T>): RegistryEntryList<T> {
+class GeneratedRegistryEntryList<T>(val registry: RegistryWrapper.Impl<T>): RegistryEntryList<T> {
+    @Suppress("UNCHECKED_CAST")
     val idSetter: (Identifier) -> Unit = {
-        delegate = registry.getEntryList(TagKey.of(registry.key, it)).orElseThrow()
+        delegate = registry.getOrThrow(TagKey.of(registry.registryKey as RegistryKey<out Registry<T>>, it))
     }
     private var delegate: RegistryEntryList<T>? = null
     private fun getNonNullDelegate(): RegistryEntryList<T> = delegate ?: throw IllegalStateException("Generated registry entry list was used before the id was set")

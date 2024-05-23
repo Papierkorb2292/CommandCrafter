@@ -56,7 +56,7 @@ public class EntityArgumentTypeMixin implements UnparsableArgumentType {
                 if(reader.peek() == '!') reader.skip();
                 result.add(Either.left(reader.getString().substring(sectionStartCursor, reader.getCursor()) + '#'));
                 reader.skipWhitespace();
-                var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.ENTITY_TYPE);
+                var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.ENTITY_TYPE.getReadOnlyWrapper());
                 result.add(Either.right(entryList.getResource()));
                 sectionStartCursor = reader.getCursor();
             } else if(argumentName.equals("nbt") && reader.canRead()) {

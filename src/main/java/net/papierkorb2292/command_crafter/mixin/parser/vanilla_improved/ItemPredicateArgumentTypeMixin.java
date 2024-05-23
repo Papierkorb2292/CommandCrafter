@@ -7,7 +7,6 @@ import com.mojang.datafixers.util.Either;
 import net.minecraft.command.argument.ItemPredicateArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
-import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
@@ -27,10 +26,8 @@ public abstract class ItemPredicateArgumentTypeMixin implements UnparsableArgume
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$unparseArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(((CommandContextAccessor)context).getArguments().get(name).getRange().getStart());
         PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().set(new ArrayList<>());
-        parse(readerCopy);
+        parse(reader);
         var result = PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().get();
         PackratParserAdditionalArgs.INSTANCE.getUnparsedArgument().remove();
         return result;
