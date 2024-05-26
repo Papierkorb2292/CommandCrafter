@@ -1,0 +1,155 @@
+package net.papierkorb2292.command_crafter.editor.processing
+
+import com.mojang.brigadier.context.StringRange
+import com.mojang.datafixers.util.Pair
+import com.mojang.serialization.*
+import java.nio.ByteBuffer
+import java.util.*
+import java.util.function.BiConsumer
+import java.util.function.Consumer
+import java.util.stream.IntStream
+import java.util.stream.LongStream
+import java.util.stream.Stream
+
+/**
+ * Used for storing the [StringRange]s of the nodes in a tree alongside the nodes themselves,
+ * so semantic tokens and other editor language features can use them.
+ *
+ * Uses [SequencedMap]s to preserve the order of the nodes in which they appeared in the input string.
+ */
+class StringRangeTree<TNode>(
+    val root: TNode,
+    /**
+     * The ranges of the nodes in the tree.
+     */
+    val ranges: SequencedMap<TNode, StringRange> = LinkedHashMap(),
+    /**
+     * The ranges of the keys of the nodes in the tree. Can be used for suggesting key names.
+     */
+    val mapRangesBetweenEntries: SequencedMap<TNode, MutableCollection<StringRange>> = LinkedHashMap(),
+) {
+    fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
+        for((node, range) in ranges) {
+            val type = tokenProvider.getTokenType(node)
+            val modifiers = tokenProvider.getModifiers(node)
+            builder.addMultiline(range, type, modifiers)
+        }
+    }
+
+    fun createAnalyzingDynamicOps(delegate: DynamicOps<TNode>) = AnalyzingDynamicOps(this, delegate)
+
+    class AnalyzingDynamicOps<TNode>(val tree: StringRangeTree<TNode>, private val delegate: DynamicOps<TNode>) : DynamicOps<TNode> {
+        private val nodeStartSuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
+        private val mapKeySuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
+
+        fun getNodeStartSuggestions(node: TNode) =
+            nodeStartSuggestions.computeIfAbsent(node) { mutableListOf() }
+        fun getMapKeySuggestions(node: TNode) =
+            mapKeySuggestions.computeIfAbsent(node) { mutableListOf() }
+
+        override fun getBooleanValue(input: TNode): DataResult<Boolean> {
+            getNodeStartSuggestions(input).run {
+                add(Suggestion(delegate.createBoolean(true)))
+                add(Suggestion(delegate.createBoolean(false)))
+            }
+            return delegate.getBooleanValue(input)
+        }
+
+        override fun getStream(input: TNode): DataResult<Stream<TNode>> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createList(Stream.empty())))
+            return delegate.getStream(input)
+        }
+        override fun getByteBuffer(input: TNode): DataResult<ByteBuffer> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createByteList(ByteBuffer.allocate(0))))
+            return delegate.getByteBuffer(input)
+        }
+        override fun getIntStream(input: TNode): DataResult<IntStream> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createIntList(IntStream.empty())))
+            return delegate.getIntStream(input)
+        }
+        override fun getLongStream(input: TNode): DataResult<LongStream> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createLongList(LongStream.empty())))
+            return delegate.getLongStream(input)
+        }
+        override fun getMap(input: TNode): DataResult<MapLike<TNode>> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createMap(Collections.emptyMap())))
+            return delegate.getMap(input).map { delegateMap ->
+                object : MapLike<TNode> {
+                    override fun get(key: TNode): TNode? {
+                        val value = delegateMap.get(key)
+                        if(value == null) {
+                            getMapKeySuggestions(input).add(Suggestion(key))
+                        }
+                        return value
+                    }
+
+                    override fun get(key: String): TNode? {
+                        val value = delegateMap.get(key)
+                        if(value == null) {
+                            getMapKeySuggestions(input).add(Suggestion(delegate.createString(key)))
+                        }
+                        return value
+                    }
+
+                    override fun entries(): Stream<Pair<TNode, TNode>> {
+                        return delegateMap.entries()
+                    }
+                }
+            }
+        }
+        override fun getList(input: TNode): DataResult<Consumer<Consumer<TNode>>> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createList(Stream.empty())))
+            return delegate.getList(input)
+        }
+
+        //For later: Saving the path for each node to request suggestion descriptions for keys
+        override fun getMapValues(input: TNode): DataResult<Stream<Pair<TNode, TNode>>> = delegate.getMapValues(input)
+        override fun getMapEntries(input: TNode): DataResult<Consumer<BiConsumer<TNode, TNode>>> =
+            delegate.getMapEntries(input)
+
+        //Just delegates
+        override fun empty(): TNode = delegate.empty()
+        override fun emptyMap(): TNode = delegate.emptyMap()
+        override fun emptyList(): TNode = delegate.emptyList()
+        override fun <U> convertTo(outputOps: DynamicOps<U>, input: TNode): U = delegate.convertTo(outputOps, input)
+        override fun getNumberValue(input: TNode): DataResult<Number> = delegate.getNumberValue(input)
+        override fun createNumeric(number: Number): TNode = delegate.createNumeric(number)
+        override fun createByte(b: Byte): TNode = delegate.createByte(b)
+        override fun createShort(s: Short): TNode = delegate.createShort(s)
+        override fun createInt(i: Int): TNode = delegate.createInt(i)
+        override fun createLong(l: Long): TNode = delegate.createLong(l)
+        override fun createFloat(f: Float): TNode = delegate.createFloat(f)
+        override fun createDouble(d: Double): TNode = delegate.createDouble(d)
+        override fun createBoolean(bl: Boolean): TNode = delegate.createBoolean(bl)
+        override fun createString(string: String): TNode = delegate.createString(string)
+        override fun mergeToList(list: TNode, value: TNode): DataResult<TNode> = delegate.mergeToList(list, value)
+        override fun mergeToList(list: TNode, values: List<TNode>): DataResult<TNode> =
+            delegate.mergeToList(list, values)
+        override fun mergeToMap(map: TNode, key: TNode, value: TNode): DataResult<TNode> =
+            delegate.mergeToMap(map, key, value)
+        override fun mergeToMap(map: TNode, values: MapLike<TNode>): DataResult<TNode> =
+            delegate.mergeToMap(map, values)
+        override fun mergeToMap(`object`: TNode, map: Map<TNode, TNode>): DataResult<TNode> =
+            delegate.mergeToMap(`object`, map)
+        override fun mergeToPrimitive(`object`: TNode, object2: TNode): DataResult<TNode> =
+            delegate.mergeToPrimitive(`object`, object2)
+        override fun createMap(map: Map<TNode, TNode>): TNode = delegate.createMap(map)
+        override fun createMap(map: Stream<Pair<TNode, TNode>>): TNode = delegate.createMap(map)
+        override fun createList(stream: Stream<TNode>): TNode = delegate.createList(stream)
+        override fun createByteList(buf: ByteBuffer): TNode = delegate.createByteList(buf)
+        override fun createIntList(stream: IntStream): TNode = delegate.createIntList(stream)
+        override fun createLongList(stream: LongStream): TNode = delegate.createLongList(stream)
+        override fun remove(input: TNode, key: String): TNode = delegate.remove(input, key)
+        override fun compressMaps(): Boolean = delegate.compressMaps()
+        override fun listBuilder(): ListBuilder<TNode> = ListBuilder.Builder(this)
+        override fun mapBuilder(): RecordBuilder<TNode> = RecordBuilder.MapBuilder(this)
+        override fun getStringValue(input: TNode): DataResult<String> = delegate.getStringValue(input)
+    }
+
+    data class Suggestion<TNode>(val text: TNode)
+
+    interface SemanticTokenProvider<TNode> {
+        fun getTokenType(node: TNode): TokenType
+        fun getModifiers(node: TNode): Int
+    }
+}
