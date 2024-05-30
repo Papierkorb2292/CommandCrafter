@@ -10,6 +10,7 @@ import java.util.function.Consumer
 import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
+import kotlin.collections.LinkedHashMap
 
 /**
  * Used for storing the [StringRange]s of the nodes in a tree alongside the nodes themselves,
@@ -22,11 +23,11 @@ class StringRangeTree<TNode>(
     /**
      * The ranges of the nodes in the tree.
      */
-    val ranges: SequencedMap<TNode, StringRange> = LinkedHashMap(),
+    val ranges: SequencedMap<TNode, out StringRange>,
     /**
      * The ranges of the keys of the nodes in the tree. Can be used for suggesting key names.
      */
-    val mapRangesBetweenEntries: SequencedMap<TNode, MutableCollection<StringRange>> = LinkedHashMap(),
+    val mapRangesBetweenEntries: SequencedMap<TNode, out Collection<StringRange>>,
 ) {
     fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
         for((node, range) in ranges) {
@@ -151,5 +152,20 @@ class StringRangeTree<TNode>(
     interface SemanticTokenProvider<TNode> {
         fun getTokenType(node: TNode): TokenType
         fun getModifiers(node: TNode): Int
+    }
+
+    class Builder<TNode> {
+        val nodeRanges = LinkedHashMap<TNode, StringRange>()
+        val mapRangesBetweenEntries = LinkedHashMap<TNode, MutableCollection<StringRange>>()
+
+        fun addNode(node: TNode, range: StringRange) {
+            nodeRanges[node] = range
+        }
+
+        fun addRangeBetweenMapEntries(node: TNode, range: StringRange) {
+            mapRangesBetweenEntries.computeIfAbsent(node) { mutableListOf() }.add(range)
+        }
+
+        fun build(root: TNode) = StringRangeTree(root, nodeRanges, mapRangesBetweenEntries)
     }
 }
