@@ -25,15 +25,26 @@ class StringRangeTree<TNode>(
      */
     val ranges: SequencedMap<TNode, out StringRange>,
     /**
-     * The ranges of the keys of the nodes in the tree. Can be used for suggesting key names.
+     * The ranges of keys of maps/objects/compounds in the tree
      */
-    val mapRangesBetweenEntries: SequencedMap<TNode, out Collection<StringRange>>,
+    val mapKeyRanges: SequencedMap<TNode, out Collection<StringRange>>,
+    /**
+     * The ranges between entries of a node with children. Can be used for suggesting key names or list entries.
+     */
+    val internalNodeRangesBetweenEntries: SequencedMap<TNode, out Collection<StringRange>>,
 ) {
     fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
         for((node, range) in ranges) {
             val type = tokenProvider.getTokenType(node)
-            val modifiers = tokenProvider.getModifiers(node)
-            builder.addMultiline(range, type, modifiers)
+            if(type != null) {
+                val modifiers = tokenProvider.getModifiers(node)
+                builder.addMultiline(range, type, modifiers)
+                continue
+            }
+            val keyRanges = mapKeyRanges[node] ?: continue
+            val mapNameType = tokenProvider.mapNameTokenType ?: continue
+            for(mapKeyRange in keyRanges)
+                builder.addMultiline(mapKeyRange, mapNameType, tokenProvider.getModifiers(node))
         }
     }
 
@@ -150,22 +161,28 @@ class StringRangeTree<TNode>(
     data class Suggestion<TNode>(val text: TNode)
 
     interface SemanticTokenProvider<TNode> {
-        fun getTokenType(node: TNode): TokenType
+        val mapNameTokenType: TokenType?
+        fun getTokenType(node: TNode): TokenType?
         fun getModifiers(node: TNode): Int
     }
 
     class Builder<TNode> {
-        val nodeRanges = LinkedHashMap<TNode, StringRange>()
-        val mapRangesBetweenEntries = LinkedHashMap<TNode, MutableCollection<StringRange>>()
+        private val nodeRanges = LinkedHashMap<TNode, StringRange>()
+        private val mapKeyRanges = LinkedHashMap<TNode, MutableCollection<StringRange>>()
+        private val internalNodeRangesBetweenEntries = LinkedHashMap<TNode, MutableCollection<StringRange>>()
 
         fun addNode(node: TNode, range: StringRange) {
             nodeRanges[node] = range
         }
 
-        fun addRangeBetweenMapEntries(node: TNode, range: StringRange) {
-            mapRangesBetweenEntries.computeIfAbsent(node) { mutableListOf() }.add(range)
+        fun addRangeBetweenInternalNodeEntries(node: TNode, range: StringRange) {
+            internalNodeRangesBetweenEntries.computeIfAbsent(node) { mutableListOf() }.add(range)
         }
 
-        fun build(root: TNode) = StringRangeTree(root, nodeRanges, mapRangesBetweenEntries)
+        fun addMapKeyRange(node: TNode, range: StringRange) {
+            mapKeyRanges.computeIfAbsent(node) { mutableListOf() }.add(range)
+        }
+
+        fun build(root: TNode) = StringRangeTree(root, nodeRanges, mapKeyRanges, internalNodeRangesBetweenEntries)
     }
 }
