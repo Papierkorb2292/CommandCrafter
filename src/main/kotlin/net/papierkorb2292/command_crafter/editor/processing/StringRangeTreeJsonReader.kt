@@ -76,9 +76,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         current = tryBeginNesting(`in`, peeked)
             ?: return readOnlyTerminal(`in`, peeked, startAbsolutePos, builder)
 
-        // Range isn't accurate for nested elements, but it's replaced later.
-        // It is important to add it here to keep the correct order.
-        builder.addNode(current, StringRange.at(0))
+        builder.addNodeOrder(current)
 
         val stack: Deque<ReaderStackEntry> = ArrayDeque()
 
@@ -114,12 +112,14 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
 
                     // Range isn't accurate for nested elements, but it's replaced later.
                     // It is important to add it here to keep the correct order.
-                    builder.addNode(value, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos))
 
                     if(isNesting) {
                         stack.addLast(ReaderStackEntry(current, nestedStartPos))
                         nestedStartPos = `in`.absoluteValueStartPos
                         current = value
+                        builder.addNodeOrder(current)
+                    } else {
+                        builder.addNode(value, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos))
                     }
                 }
 

@@ -185,6 +185,14 @@ class StringRangeTree<TNode>(
         private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<StringRange>>()
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
 
+        /**
+         * Only adds a node into the node ordering, but doesn't add a string range for it.
+         * If [build] is called before [addNode] is called for the given node, a [NodeWithoutRangeError] is thrown.
+         */
+        fun addNodeOrder(node: TNode) {
+            orderedNodes.add(node)
+        }
+
         fun addNode(node: TNode, range: StringRange) {
             orderedNodes.add(node)
             nodeRanges[node] = range
@@ -198,6 +206,15 @@ class StringRangeTree<TNode>(
             mapKeyRanges.computeIfAbsent(node) { mutableListOf() }.add(range)
         }
 
-        fun build(root: TNode) = StringRangeTree(root, orderedNodes.toList(), nodeRanges, mapKeyRanges, internalNodeRangesBetweenEntries)
+        fun build(root: TNode): StringRangeTree<TNode> {
+            for(node in orderedNodes) {
+                if(node !in nodeRanges) {
+                    throw NodeWithoutRangeError("No range specified for node $node")
+                }
+            }
+            return StringRangeTree(root, orderedNodes.toList(), nodeRanges, mapKeyRanges, internalNodeRangesBetweenEntries)
+        }
+
+        class NodeWithoutRangeError(message: String) : Error(message)
     }
 }
