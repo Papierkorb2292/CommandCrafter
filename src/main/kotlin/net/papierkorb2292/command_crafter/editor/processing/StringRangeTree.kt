@@ -34,17 +34,26 @@ class StringRangeTree<TNode>(
     val internalNodeRangesBetweenEntries: SequencedMap<TNode, out Collection<StringRange>>,
 ) {
     fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
+        val upcomingKeyRanges = mutableListOf<StringRange>()
+        val mapNameTokenInfo = tokenProvider.mapNameTokenInfo
         for((node, range) in ranges) {
+            if(mapNameTokenInfo != null) {
+                internalNodeRangesBetweenEntries[node]?.run {
+                    upcomingKeyRanges.addAll(this)
+                }
+
+                while(upcomingKeyRanges.isNotEmpty() && upcomingKeyRanges.first().start <= range.start) {
+                    val keyRange = upcomingKeyRanges.removeFirst()
+                    builder.addMultiline(keyRange, mapNameTokenInfo.first, mapNameTokenInfo.second)
+                }
+            }
+
             val type = tokenProvider.getTokenType(node)
             if(type != null) {
                 val modifiers = tokenProvider.getModifiers(node)
                 builder.addMultiline(range, type, modifiers)
                 continue
             }
-            val keyRanges = mapKeyRanges[node] ?: continue
-            val mapNameType = tokenProvider.mapNameTokenType ?: continue
-            for(mapKeyRange in keyRanges)
-                builder.addMultiline(mapKeyRange, mapNameType, tokenProvider.getModifiers(node))
         }
     }
 
@@ -161,7 +170,7 @@ class StringRangeTree<TNode>(
     data class Suggestion<TNode>(val text: TNode)
 
     interface SemanticTokenProvider<TNode> {
-        val mapNameTokenType: TokenType?
+        val mapNameTokenInfo: kotlin.Pair<TokenType, Int>?
         fun getTokenType(node: TNode): TokenType?
         fun getModifiers(node: TNode): Int
     }
