@@ -15,7 +15,8 @@
  * limitations under the License.
  *
  * This file has been modified by the CommandCrafter contributors
- * (repackaged, removed unnecessary dependencies for this application)
+ * (repackaged, removed unnecessary dependencies for this application,
+ * added public fields and methods keeping track of reader position for generating StringRangeTrees)
  * Changes are licensed under the license used by CommandCrafter (Mit License).
  */
 
@@ -257,8 +258,11 @@ public class JsonReader implements Closeable {
    */
   private final char[] buffer = new char[BUFFER_SIZE];
 
-  private int pos = 0;
-  private int limit = 0;
+  public int consumedChars = 0;
+  public int pos = 0;
+  public int limit = 0;
+  public int absoluteValueStartPos = -1;
+  public int absoluteEntryEndPos = -1;
 
   private int lineNumber = 0;
   private int lineStart = 0;
@@ -307,6 +311,13 @@ public class JsonReader implements Closeable {
   /** Creates a new instance that reads a JSON-encoded stream from {@code in}. */
   public JsonReader(Reader in) {
     this.in = Objects.requireNonNull(in, "in == null");
+  }
+
+  /**
+   * Returns the total amount of characters consumed by the JsonReader up until this point
+   */
+  public int getAbsolutePos() {
+    return consumedChars + pos;
   }
 
   /**
@@ -542,6 +553,7 @@ public class JsonReader implements Closeable {
     int peekStack = stack[stackSize - 1];
     if (peekStack == JsonScope.EMPTY_ARRAY) {
       stack[stackSize - 1] = JsonScope.NONEMPTY_ARRAY;
+      absoluteEntryEndPos = getAbsolutePos();
     } else if (peekStack == JsonScope.NONEMPTY_ARRAY) {
       // Look for a comma before the next element.
       int c = nextNonWhitespace(true);
@@ -555,6 +567,7 @@ public class JsonReader implements Closeable {
         default:
           throw syntaxError("Unterminated array");
       }
+      absoluteEntryEndPos = getAbsolutePos();
     } else if (peekStack == JsonScope.EMPTY_OBJECT || peekStack == JsonScope.NONEMPTY_OBJECT) {
       stack[stackSize - 1] = JsonScope.DANGLING_NAME;
       // Look for a comma before the next element.
@@ -571,7 +584,9 @@ public class JsonReader implements Closeable {
             throw syntaxError("Unterminated object");
         }
       }
+      absoluteEntryEndPos = getAbsolutePos();
       int c = nextNonWhitespace(true);
+      absoluteValueStartPos = getAbsolutePos() - 1;
       switch (c) {
         case '"':
           return peeked = PEEKED_DOUBLE_QUOTED_NAME;
@@ -627,6 +642,7 @@ public class JsonReader implements Closeable {
     }
 
     int c = nextNonWhitespace(true);
+    absoluteValueStartPos = getAbsolutePos() - 1;
     switch (c) {
       case ']':
         if (peekStack == JsonScope.EMPTY_ARRAY) {
@@ -1428,6 +1444,8 @@ public class JsonReader implements Closeable {
     } else {
       limit = 0;
     }
+
+    consumedChars += pos;
 
     pos = 0;
     int total;

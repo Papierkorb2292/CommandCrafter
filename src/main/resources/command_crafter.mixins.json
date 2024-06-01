@@ -59,7 +59,6 @@
     "editor.processing.ItemStringReaderAccessor",
     "editor.processing.ItemStringReaderMixin",
     "editor.processing.ItemStringReaderReaderMixin",
-    "editor.processing.JsonReaderMixin",
     "editor.processing.LiteralCommandNodeMixin",
     "editor.processing.MacroAndExpandedMacroMixin",
     "editor.processing.MessageArgumentTypeMixin",
