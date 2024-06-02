@@ -149,20 +149,20 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
     private data class ReaderStackEntry(val element: JsonElement, val startPos: Int)
 
     object StringRangeTreeSemanticTokenProvider : StringRangeTree.SemanticTokenProvider<JsonElement> {
-        override val mapNameTokenInfo = TokenType.PARAMETER to 0
+        override fun getMapNameTokenInfo(map: JsonElement) =
+            StringRangeTree.TokenInfo(TokenType.PARAMETER, 1)
 
-        override fun getTokenType(node: JsonElement): TokenType? {
-            return when(node) {
-                is JsonPrimitive -> {
-                    if(node.isBoolean) TokenType.ENUM_MEMBER
-                    else if(node.isNumber) TokenType.NUMBER
-                    else if(node.isString) TokenType.STRING
-                    else throw IllegalArgumentException("Unexpected JsonPrimitive type: $node")
-                }
-                is JsonNull -> TokenType.KEYWORD
-                else -> null
+        override fun getNodeTokenInfo(node: JsonElement) = when(node) {
+            is JsonPrimitive -> {
+                if(node.isBoolean) StringRangeTree.TokenInfo(TokenType.ENUM_MEMBER, 0)
+                else if(node.isNumber) StringRangeTree.TokenInfo(TokenType.NUMBER, 0)
+                else if(node.isString) StringRangeTree.TokenInfo(TokenType.STRING, 0)
+                else throw IllegalArgumentException("Unexpected JsonPrimitive type: $node")
             }
+            is JsonNull -> StringRangeTree.TokenInfo(TokenType.KEYWORD, 0)
+            else -> null
         }
-        override fun getModifiers(node: JsonElement) = 0
+
+        override fun getAdditionalTokens(node: JsonElement) = emptyList<StringRangeTree.AdditionalToken>()
     }
 }

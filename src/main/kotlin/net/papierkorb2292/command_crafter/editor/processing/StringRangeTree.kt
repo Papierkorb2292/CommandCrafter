@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
+import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.function.BiConsumer
@@ -10,7 +11,6 @@ import java.util.function.Consumer
 import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
-import kotlin.collections.LinkedHashMap
 import kotlin.collections.LinkedHashSet
 
 /**
@@ -37,27 +37,25 @@ class StringRangeTree<TNode>(
     val internalNodeRangesBetweenEntries: Map<TNode, Collection<StringRange>>,
 ) {
     fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
-        val upcomingKeyRanges = mutableListOf<StringRange>()
-        val mapNameTokenInfo = tokenProvider.mapNameTokenInfo
+        val collectedTokens = mutableListOf<AdditionalToken>()
         for(node in orderedNodes) {
             val range = ranges[node] ?: throw IllegalStateException("Node $node not found in ranges")
-            if(mapNameTokenInfo != null) {
-                mapKeyRanges[node]?.run {
-                    upcomingKeyRanges.addAll(this)
-                }
-
-                while(upcomingKeyRanges.isNotEmpty() && upcomingKeyRanges.first().start <= range.start) {
-                    val keyRange = upcomingKeyRanges.removeFirst()
-                    builder.addMultiline(keyRange, mapNameTokenInfo.first, mapNameTokenInfo.second)
-                }
+            val nodeTokens = mutableListOf<AdditionalToken>()
+            tokenProvider.getNodeTokenInfo(node)?.let { nodeTokenInfo ->
+                nodeTokens += AdditionalToken(range, nodeTokenInfo)
             }
-
-            val type = tokenProvider.getTokenType(node)
-            if(type != null) {
-                val modifiers = tokenProvider.getModifiers(node)
-                builder.addMultiline(range, type, modifiers)
-                continue
+            tokenProvider.getMapNameTokenInfo(node)?.let { mapNameTokenInfo ->
+                mapKeyRanges[node]?.forEach { nodeTokens += AdditionalToken(it, mapNameTokenInfo) }
             }
+            nodeTokens += tokenProvider.getAdditionalTokens(node)
+            for(token in nodeTokens) {
+                val index = collectedTokens.binarySearch { it.range.compareTo(token.range) }
+                if(index >= 0) continue //Would overlap with a different token
+                collectedTokens.add(-index - 1, token)
+            }
+        }
+        collectedTokens.forEach {
+            builder.addMultiline(it.range, it.tokenInfo.type, it.tokenInfo.modifiers)
         }
     }
 
@@ -172,11 +170,13 @@ class StringRangeTree<TNode>(
     }
 
     data class Suggestion<TNode>(val text: TNode)
+    data class TokenInfo(val type: TokenType, val modifiers: Int)
+    data class AdditionalToken(val range: StringRange, val tokenInfo: TokenInfo)
 
     interface SemanticTokenProvider<TNode> {
-        val mapNameTokenInfo: kotlin.Pair<TokenType, Int>?
-        fun getTokenType(node: TNode): TokenType?
-        fun getModifiers(node: TNode): Int
+        fun getMapNameTokenInfo(map: TNode): TokenInfo?
+        fun getNodeTokenInfo(node: TNode): TokenInfo?
+        fun getAdditionalTokens(node: TNode): Collection<AdditionalToken>
     }
 
     class Builder<TNode> {
