@@ -1,30 +1,42 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtString;
-import net.minecraft.nbt.StringNbtReader;
+import com.mojang.brigadier.context.StringRange;
+import net.minecraft.nbt.*;
+import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Slice;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.List;
 
 @Mixin(StringNbtReader.class)
-public class StringNbtReaderMixin implements AnalyzingResultCreator {
-
+public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> {
     @Shadow @Final private StringReader reader;
-    private AnalyzingResult command_crafter$analyzingResult = null;
+
+    private @Nullable StringRangeTree.Builder<NbtElement> command_crafter$stringRangeTreeBuilder;
+    private ThreadLocal<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray = new ThreadLocal<>();
 
     @Override
-    public void command_crafter$setAnalyzingResult(@Nullable AnalyzingResult result) {
-        command_crafter$analyzingResult = result;
+    public void command_crafter$setStringRangeTreeBuilder(@NotNull StringRangeTree.Builder<NbtElement> builder) {
+        command_crafter$stringRangeTreeBuilder = builder;
     }
 
     @ModifyReturnValue(
@@ -33,19 +45,61 @@ public class StringNbtReaderMixin implements AnalyzingResultCreator {
                     value = "RETURN"
             )
     )
-    public NbtElement command_crafter$addSemanticsToPrimitive(NbtElement element, @Local int startCursor) {
-        if(command_crafter$analyzingResult == null)
+    public NbtElement command_crafter$addPrimitiveToStringRangeTree(NbtElement element, @Local int startCursor) {
+        if(command_crafter$stringRangeTreeBuilder == null)
             return element;
 
-        TokenType type;
-        if(element instanceof NbtString) {
-            type = TokenType.Companion.getSTRING();
-        } else {
+        if(element instanceof NbtByte nbtByte) {
             var startChar = reader.getString().charAt(startCursor);
-            type = startChar == 't' || startChar == 'f' ? TokenType.Companion.getENUM_MEMBER() : TokenType.Companion.getNUMBER();
+            if(startChar == 't' || startChar == 'f') {
+                element = new NbtSemanticTokenProvider.NbtBoolean(nbtByte.byteValue() != 0);
+            }
         }
-        command_crafter$analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, type, 0);
+
+        command_crafter$stringRangeTreeBuilder.addNode(element, new StringRange(startCursor, reader.getCursor()));
         return element;
+    }
+
+    @ModifyExpressionValue(
+            method = "parseCompound",
+            at = @At(
+                    value = "NEW",
+                    target = "()Lnet/minecraft/nbt/NbtCompound;"
+            )
+    )
+    private NbtCompound command_crafter$addCompoundOrderToStringRangeTree(NbtCompound compound, @Share("compoundStartCursor") LocalIntRef compoundStartCursor) {
+        if(command_crafter$stringRangeTreeBuilder != null) {
+            compoundStartCursor.set(reader.getCursor() - 1);
+            command_crafter$stringRangeTreeBuilder.addNodeOrder(compound);
+        }
+        return compound;
+    }
+
+    @ModifyReturnValue(
+            method = "parseCompound",
+            at = @At("RETURN")
+    )
+    private NbtCompound command_crafter$addCompoundToStringRangeTree(NbtCompound compound, @Share("compoundStartCursor") LocalIntRef compoundStartCursor) {
+        if(command_crafter$stringRangeTreeBuilder != null) {
+            command_crafter$stringRangeTreeBuilder.addNode(compound, new StringRange(compoundStartCursor.get(), reader.getCursor()));
+        }
+        return compound;
+    }
+
+    @ModifyVariable(
+            method = "parseCompound",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+            )
+    )
+    private NbtCompound command_crafter$addCompoundRangeBetweenEntriesToStringRangeTree(NbtCompound compound) {
+        if (command_crafter$stringRangeTreeBuilder != null) {
+            var entryEnd = reader.getCursor();
+            reader.skipWhitespace();
+            command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(compound, new StringRange(entryEnd, reader.getCursor()));
+        }
+        return compound;
     }
 
     @ModifyVariable(
@@ -55,23 +109,174 @@ public class StringNbtReaderMixin implements AnalyzingResultCreator {
                     target = "Ljava/lang/String;isEmpty()Z"
             )
     )
-    private int command_crafter$addSemanticsToCompoundTag(int startCursor) {
-        if(command_crafter$analyzingResult != null)
-            command_crafter$analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
-        return startCursor;
+    private NbtCompound command_crafter$addCompoundTagToStringRangeTree(NbtCompound compound, @Local int startCursor) {
+        if (command_crafter$stringRangeTreeBuilder != null) {
+            // startCursor has skipped whitespaces before the name because of addCompoundRangeBetweenRangeToStringRangeTree
+            command_crafter$stringRangeTreeBuilder.addMapKeyRange(compound, new StringRange(startCursor, reader.getCursor()));
+        }
+        return compound;
+    }
+
+    @ModifyExpressionValue(
+            method = "parseList",
+            at = @At(
+                    value = "NEW",
+                    target = "()Lnet/minecraft/nbt/NbtList;"
+            )
+    )
+    private NbtList command_crafter$addListOrderToStringRangeTree(NbtList list, @Share("listStartCursor") LocalIntRef listStartCursor) {
+        if(command_crafter$stringRangeTreeBuilder != null) {
+            listStartCursor.set(reader.getCursor() - 1);
+            command_crafter$stringRangeTreeBuilder.addNodeOrder(list);
+        }
+        return list;
+    }
+
+    @ModifyReturnValue(
+            method = "parseList",
+            at = @At("RETURN")
+    )
+    private NbtElement command_crafter$addListToStringRangeTree(NbtElement list, @Share("listStartCursor") LocalIntRef listStartCursor) {
+        if(command_crafter$stringRangeTreeBuilder != null) {
+            command_crafter$stringRangeTreeBuilder.addNode(list, new StringRange(listStartCursor.get(), reader.getCursor()));
+        }
+        return list;
     }
 
     @ModifyVariable(
+            method = "parseList",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+            )
+    )
+    private NbtList command_crafter$addListRangeBetweenEntriesToStringRangeTree(NbtList list) {
+        if (command_crafter$stringRangeTreeBuilder != null) {
+            var entryEnd = reader.getCursor();
+            reader.skipWhitespace();
+            command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(list, new StringRange(entryEnd, reader.getCursor()));
+        }
+        return list;
+    }
+
+    @Inject(
             method = "parseElementPrimitiveArray",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;skipWhitespace()V",
-                    remap = false
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;",
+                    ordinal = 0
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "intValue=66" //char = 'B'
+                    )
             )
     )
-    private int command_crafter$addSemanticsToArrayType(int startCursor) {
-        if(command_crafter$analyzingResult != null)
-            command_crafter$analyzingResult.getSemanticTokens().addMultiline(startCursor, 1, TokenType.Companion.getTYPE(), 0);
-        return startCursor;
+    private void command_crafter$preInstantiateByteArray(CallbackInfoReturnable<NbtElement> cir) {
+        if(command_crafter$stringRangeTreeBuilder == null) return;
+        var array = new NbtByteArray(new byte[0]);
+        command_crafter$stringRangeTreeBuilder.addNodeOrder(array);
+        command_crafter$preInstantiatedNbtArray.set(array);
+    }
+
+    @Inject(
+            method = "parseElementPrimitiveArray",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;",
+                    ordinal = 0
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "intValue=76" //char = 'L'
+                    )
+            )
+    )
+    private void command_crafter$preInstantiateLongArray(CallbackInfoReturnable<NbtElement> cir) {
+        if(command_crafter$stringRangeTreeBuilder == null) return;
+        var array = new NbtLongArray(new long[0]);
+        command_crafter$stringRangeTreeBuilder.addNodeOrder(array);
+        command_crafter$preInstantiatedNbtArray.set(array);
+    }
+
+    @Inject(
+            method = "parseElementPrimitiveArray",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;",
+                    ordinal = 0
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "intValue=73" //char = 'I'
+                    )
+            )
+    )
+    private void command_crafter$preInstantiateIntArray(CallbackInfoReturnable<NbtElement> cir) {
+        if(command_crafter$stringRangeTreeBuilder == null) return;
+        var array = new NbtIntArray(new int[0]);
+        command_crafter$stringRangeTreeBuilder.addNodeOrder(array);
+        command_crafter$preInstantiatedNbtArray.set(array);
+    }
+
+    @WrapOperation(
+            method = "parseElementPrimitiveArray",
+            at = @At(
+                    value = "NEW",
+                    target = "(Ljava/util/List;)Lnet/minecraft/nbt/NbtByteArray;"
+            )
+    )
+    private NbtByteArray command_crafter$fillPreInstantiatedByteArray(List<Byte> content, Operation<NbtByteArray> op) {
+        var nbtArray = (NbtByteArray) command_crafter$preInstantiatedNbtArray.get();
+        if(nbtArray == null) return op.call(content);
+        for(var b : content) nbtArray.add(NbtByte.of(b));
+        return nbtArray;
+    }
+
+    @WrapOperation(
+            method = "parseElementPrimitiveArray",
+            at = @At(
+                    value = "NEW",
+                    target = "(Ljava/util/List;)Lnet/minecraft/nbt/NbtIntArray;"
+            )
+    )
+    private NbtIntArray command_crafter$fillPreInstantiatedIntArray(List<Integer> content, Operation<NbtIntArray> op) {
+        var nbtArray = (NbtIntArray) command_crafter$preInstantiatedNbtArray.get();
+        if(nbtArray == null) return op.call(content);
+        for(var b : content) nbtArray.add(NbtInt.of(b));
+        return nbtArray;
+    }
+
+    @WrapOperation(
+            method = "parseElementPrimitiveArray",
+            at = @At(
+                    value = "NEW",
+                    target = "(Ljava/util/List;)Lnet/minecraft/nbt/NbtLongArray;"
+            )
+    )
+    private NbtLongArray command_crafter$fillPreInstantiatedLongArray(List<Long> content, Operation<NbtLongArray> op) {
+        var nbtArray = (NbtLongArray) command_crafter$preInstantiatedNbtArray.get();
+        if(nbtArray == null) return op.call(content);
+        for(var b : content) nbtArray.add(NbtLong.of(b));
+        return nbtArray;
+    }
+
+    @ModifyVariable(
+            method = "parseList",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+            )
+    )
+    private NbtList command_crafter$addArrayRangeBetweenEntriesToStringRangeTree(NbtList list) {
+        if (command_crafter$stringRangeTreeBuilder != null) {
+            var entryEnd = reader.getCursor();
+            reader.skipWhitespace();
+            command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(command_crafter$preInstantiatedNbtArray.get(), new StringRange(entryEnd, reader.getCursor()));
+        }
+        return list;
     }
 }

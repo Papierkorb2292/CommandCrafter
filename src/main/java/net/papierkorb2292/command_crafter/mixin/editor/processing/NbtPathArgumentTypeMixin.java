@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
@@ -9,12 +11,17 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.NbtPathArgumentType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -57,19 +64,24 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
     }
 
     @SuppressWarnings("unused")
-    @ModifyReceiver(
+    @WrapOperation(
             method = { "parseNode", "readCompoundChildNode" },
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/nbt/StringNbtReader;parseCompound()Lnet/minecraft/nbt/NbtCompound;"
             )
     )
-    private static StringNbtReader command_crafter$highlightCompounds(StringNbtReader reader) {
+    private static NbtCompound command_crafter$highlightCompounds(StringNbtReader reader, Operation<NbtCompound> op) {
         var analyzingResult = command_crafter$analyzingResult.get();
-        if(analyzingResult == null) return reader;
+        if(analyzingResult == null) return op.call(reader);
 
-        ((AnalyzingResultCreator)reader).command_crafter$setAnalyzingResult(analyzingResult);
-        return reader;
+        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        //noinspection unchecked
+        ((StringRangeTreeCreator<NbtElement>)reader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        var nbt = op.call(reader);
+        var tree = treeBuilder.build(nbt);
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), analyzingResult.getSemanticTokens());
+        return nbt;
     }
 
     @Inject(

@@ -7,17 +7,16 @@ import com.mojang.serialization.Codec;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.RegistryEntryArgumentType;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer;
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
-import net.papierkorb2292.command_crafter.editor.processing.TokenType;
+import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -58,7 +57,11 @@ public class RegistryEntryArgumentTypeMixin implements AnalyzingCommandNode {
         } catch(CommandSyntaxException ignored) { }
         readerCopy.setCursor(range.getStart());
         var nbtReader = new StringNbtReader(readerCopy);
-        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(result);
-        nbtReader.parseElement();
+        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        //noinspection unchecked
+        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        var nbt = nbtReader.parseElement();
+        var tree = treeBuilder.build(nbt);
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), result.getSemanticTokens());
     }
 }
