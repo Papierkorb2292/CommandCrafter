@@ -49,11 +49,21 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
         if(command_crafter$stringRangeTreeBuilder == null)
             return element;
 
+        // Circumvent instance caching so StringRangeTree maps work correctly and
+        // keep track of which NbtBytes came from a 'true' or 'false' keyword.
         if(element instanceof NbtByte nbtByte) {
             var startChar = reader.getString().charAt(startCursor);
             if(startChar == 't' || startChar == 'f') {
                 element = new NbtSemanticTokenProvider.NbtBoolean(nbtByte.byteValue() != 0);
+            } else {
+                element = NbtByteAccessor.callInit(nbtByte.byteValue());
             }
+        } else if(element instanceof NbtLong nbtLong) {
+            element = NbtLongAccessor.callInit(nbtLong.longValue());
+        } else if(element instanceof NbtInt nbtInt) {
+            element = NbtIntAccessor.callInit(nbtInt.intValue());
+        } else if(element instanceof NbtShort nbtShort) {
+            element = NbtShortAccessor.callInit(nbtShort.shortValue());
         }
 
         command_crafter$stringRangeTreeBuilder.addNode(element, new StringRange(startCursor, reader.getCursor()));
