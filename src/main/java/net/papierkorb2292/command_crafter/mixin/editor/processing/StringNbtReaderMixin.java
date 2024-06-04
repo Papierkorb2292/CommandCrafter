@@ -100,7 +100,8 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             method = "parseCompound",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
+                    remap = false
             )
     )
     private NbtCompound command_crafter$addCompoundRangeBetweenEntriesToStringRangeTree(NbtCompound compound) {
@@ -157,7 +158,8 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             method = "parseList",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
+                    remap = false
             )
     )
     private NbtList command_crafter$addListRangeBetweenEntriesToStringRangeTree(NbtList list) {
@@ -278,7 +280,8 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             method = "parseList",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
+                    remap = false
             )
     )
     private NbtList command_crafter$addArrayRangeBetweenEntriesToStringRangeTree(NbtList list) {
