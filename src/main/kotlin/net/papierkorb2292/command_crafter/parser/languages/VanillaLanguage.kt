@@ -398,7 +398,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         context,
                         parsedNode.range,
                         DirectiveStringReader(
-                            listOf(StringifiableCommandNode.stringifyNodeFromStringRange(context, parsedNode.range)),
+                            FileMappingInfo(listOf(StringifiableCommandNode.stringifyNodeFromStringRange(context, parsedNode.range))),
                             reader.dispatcher,
                             reader.resourceCreator
                         ).apply {
@@ -718,7 +718,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             registry: RegistryWrapper.Impl<T>,
         ): AnalyzedRegistryEntryList<T> {
-            val analyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+            val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             analyzeTagTupleEntries(reader, analyzingResult) { entryReader, entryAnalyzingResult ->
                 val startCursor = reader.cursor
                 val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
@@ -867,7 +867,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(!reader.canRead()) {
                 return null
             }
-            val analyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+            val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             if(reader.canRead(4) && reader.string.startsWith("this", reader.cursor)) {
                 analyzingResult.semanticTokens.addMultiline(reader.cursor, 4, TokenType.KEYWORD, 0)
                 val resourceCreator = reader.resourceCreator
@@ -1000,7 +1000,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
 
             while(reader.canRead()) {
-                val entryAnalyzingResult = AnalyzingResult(reader, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+                val entryAnalyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
                 entryAnalyzer(reader, entryAnalyzingResult)
                 analyzingResult.combineWith(entryAnalyzingResult)
                 reader.skipWhitespace()

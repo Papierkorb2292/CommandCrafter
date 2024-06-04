@@ -20,6 +20,7 @@ import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
 import net.papierkorb2292.command_crafter.parser.LanguageManager;
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
@@ -66,7 +67,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             });
         }
         @SuppressWarnings("unchecked")
-        var reader = new DirectiveStringReader<>(lines, (CommandDispatcher<CommandSource>)(Object)dispatcher, resourceCreator, new SplitProcessedInputCursorMapper());
+        var reader = new DirectiveStringReader<>(new FileMappingInfo(lines, new SplitProcessedInputCursorMapper(), 0, 0), (CommandDispatcher<CommandSource>)(Object)dispatcher, resourceCreator);
         var startCursor = reader.getAbsoluteCursor();
         var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,

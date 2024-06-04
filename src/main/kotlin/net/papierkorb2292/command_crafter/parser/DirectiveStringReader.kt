@@ -15,28 +15,23 @@ import java.util.*
 import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
-    var lines: List<String>,
+    val fileMappingInfo: FileMappingInfo,
     val dispatcher: CommandDispatcher<CommandSource>,
     val resourceCreator: ResourceCreator,
-    val cursorMapper: SplitProcessedInputCursorMapper = SplitProcessedInputCursorMapper(),
 ) : StringReader(""),
     LineAwareStringReader {
+
+    val lines by fileMappingInfo::lines
+    val cursorMapper by fileMappingInfo::cursorMapper
+    var readCharacters by fileMappingInfo::readCharacters
+    var skippedChars by fileMappingInfo::skippedChars
+    val readSkippingChars by fileMappingInfo::readSkippingChars
 
     private val directiveManager = DirectiveManager()
 
     private var nextLine: Int = 0
-
-    val accumulatedLineLengths = IntList(lines.size)
-    init {
-        for(line in lines) {
-            accumulatedLineLengths.add(line.length + 1 +
-                if(accumulatedLineLengths.isEmpty) 0
-                else accumulatedLineLengths.get(accumulatedLineLengths.size() - 1)
-            )
-        }
-    }
-
     val remainingLengthWithoutNewline get() = remainingLength - if(string.endsWith('\n')) 1 else 0
+
     val nextLineEnd: Int get() {
         val index = string.indexOf('\n', cursor)
         return if(index != -1) index else string.length
@@ -44,10 +39,6 @@ class DirectiveStringReader<out ResourceCreator>(
 
     var lastLanguageDirective: String? = null
 
-    var readCharacters = 0
-    var skippedChars = 0
-    val readSkippingChars
-        get() = readCharacters - skippedChars
     var absoluteCursor
         get() = cursor + readCharacters
         set(value) { cursor = value - readCharacters }
@@ -280,7 +271,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun copy() : DirectiveStringReader<ResourceCreator> {
-        return DirectiveStringReader(lines, dispatcher, resourceCreator, cursorMapper).also {
+        return DirectiveStringReader(fileMappingInfo, dispatcher, resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
@@ -307,7 +298,7 @@ class DirectiveStringReader<out ResourceCreator>(
         val line = string.substring(0, cursor)
         if(canRead())
             skip() // Skip new line
-        return DirectiveStringReader(listOf(line), dispatcher, resourceCreator).also {
+        return DirectiveStringReader(FileMappingInfo(listOf(line)), dispatcher, resourceCreator).also {
             it.scopeStack.addAll(scopeStack)
             it.cursor = cursor
             it.readCharacters = readCharacters

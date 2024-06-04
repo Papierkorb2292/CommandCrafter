@@ -51,8 +51,8 @@ object CommandCrafter: ModInitializer {
             ): AnalyzingResult {
                 val lines = ArrayList<String>()
                 file.lines.mapTo(lines) { it.toString() }
-                val reader = DirectiveStringReader(lines, languageServer.minecraftServer.commandDispatcher, AnalyzingResourceCreator(languageServer, file.uri))
-                val result = AnalyzingResult(reader, Position())
+                val reader = DirectiveStringReader(FileMappingInfo(lines), languageServer.minecraftServer.commandDispatcher, AnalyzingResourceCreator(languageServer, file.uri))
+                val result = AnalyzingResult(reader.fileMappingInfo, Position())
                 reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                 val source = AnalyzingClientCommandSource(MinecraftClient.getInstance())
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
@@ -76,7 +76,7 @@ object CommandCrafter: ModInitializer {
                 resourceCreator: RawZipResourceCreator,
                 dispatcher: CommandDispatcher<CommandSource>,
             ) {
-                val reader = DirectiveStringReader(content.lines().toList(), dispatcher, resourceCreator)
+                val reader = DirectiveStringReader(FileMappingInfo(content.lines().toList()), dispatcher, resourceCreator)
                 val resource = RawResource(RawResource.FUNCTION_TYPE)
                 val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, args.permissionLevel ?: 2, "", ScreenTexts.EMPTY, null, null)
                 LanguageManager.parseToVanilla(

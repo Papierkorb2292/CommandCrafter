@@ -21,13 +21,13 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
         var stringRangeTreeReader = new StringRangeTreeJsonReader(readerCopy.asReader());
-        var prevReadCharacters = result.getReader().getReadCharacters();
+        var prevReadCharacters = result.getMappingInfo().getReadCharacters();
         try {
-            result.getReader().setReadCharacters(prevReadCharacters + range.getStart());
+            result.getMappingInfo().setReadCharacters(prevReadCharacters + range.getStart());
             var stringRangeTree = stringRangeTreeReader.read();
             stringRangeTree.generateSemanticTokens(StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider.INSTANCE, result.getSemanticTokens());
         } finally {
-            result.getReader().setReadCharacters(prevReadCharacters);
+            result.getMappingInfo().setReadCharacters(prevReadCharacters);
         }
     }
 }
