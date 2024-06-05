@@ -29,6 +29,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(NbtPathArgumentType.class)
@@ -53,13 +54,40 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readName(Lcom/mojang/brigadier/StringReader;)Ljava/lang/String;"
+                    )
             )
     )
-    private static String command_crafter$highlightTag(StringReader reader, String tag) {
+    private static String command_crafter$highlightUnquotedTag(StringReader reader, String tag) {
         var analyzingResult = command_crafter$analyzingResult.get();
         if(analyzingResult == null) return tag;
 
         analyzingResult.getSemanticTokens().addMultiline(reader.getCursor() - tag.length(), tag.length(), TokenType.Companion.getPROPERTY(), 0);
+        return tag;
+    }
+
+    @ModifyArg(
+            method = "parseNode",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;"
+                    )
+            )
+    )
+    private static String command_crafter$highlightQuotedTag(StringReader reader, String tag) {
+        var analyzingResult = command_crafter$analyzingResult.get();
+        if(analyzingResult == null) return tag;
+
+        analyzingResult.getSemanticTokens().addMultiline(reader.getCursor() - tag.length() - 2, tag.length() + 2, TokenType.Companion.getPROPERTY(), 0);
         return tag;
     }
 
