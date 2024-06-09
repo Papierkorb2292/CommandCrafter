@@ -20,4 +20,6 @@ class FileMappingInfo(
 
     val readSkippingChars
         get() = readCharacters - skippedChars
+
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars)
 }

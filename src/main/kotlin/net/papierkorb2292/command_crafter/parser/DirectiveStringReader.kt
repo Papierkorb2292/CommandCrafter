@@ -271,7 +271,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun copy() : DirectiveStringReader<ResourceCreator> {
-        return DirectiveStringReader(fileMappingInfo, dispatcher, resourceCreator).also {
+        return DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
