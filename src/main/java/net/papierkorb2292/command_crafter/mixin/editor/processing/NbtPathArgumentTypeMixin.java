@@ -79,7 +79,8 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             slice = @Slice(
                     from = @At(
                             value = "INVOKE",
-                            target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;"
+                            target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
+                            remap = false
                     )
             )
     )
