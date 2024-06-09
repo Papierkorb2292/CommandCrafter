@@ -6,6 +6,7 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.*
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
+import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
@@ -34,6 +35,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
@@ -494,13 +496,18 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 this.cursor = endCursor
                             })
                             val suggestionFutures = completionParentNode.children.map { child ->
-                                child.listSuggestions(
-                                    contextBuilder.build(truncatedInput),
-                                    SuggestionsBuilder(
-                                        truncatedInput, truncatedInputLowerCase,
-                                        parsedNode.range.start
+                                try {
+                                    child.listSuggestions(
+                                        contextBuilder.build(truncatedInput),
+                                        SuggestionsBuilder(
+                                            truncatedInput, truncatedInputLowerCase,
+                                            parsedNode.range.start
+                                        )
                                     )
-                                )
+                                } catch(e: Exception) {
+                                    CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
+                                    Suggestions.empty()
+                                }
                             }.toTypedArray()
                             CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                                 AnalyzingClientCommandSource.suggestionsFullInput.remove()
