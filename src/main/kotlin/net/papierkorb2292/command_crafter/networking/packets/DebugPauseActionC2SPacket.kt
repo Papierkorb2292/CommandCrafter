@@ -16,7 +16,7 @@ import java.util.*
 
 class DebugPauseActionC2SPacket(val action: NetworkDebugPauseActions.DebugPauseAction, val granularity: SteppingGranularity?, val additionalInfo: Int? = null, val pauseId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<DebugPauseActionC2SPacket>(Identifier("command_crafter", "debug_pause_action"))
+        val ID = CustomPayload.Id<DebugPauseActionC2SPacket>(Identifier.of("command_crafter", "debug_pause_action"))
         val CODEC: PacketCodec<ByteBuf, DebugPauseActionC2SPacket> = PacketCodec.tuple(
             enumConstantCodec(NetworkDebugPauseActions.DebugPauseAction::class.java),
             DebugPauseActionC2SPacket::action,

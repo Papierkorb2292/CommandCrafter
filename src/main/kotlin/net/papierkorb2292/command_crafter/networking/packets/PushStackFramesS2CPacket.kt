@@ -13,7 +13,7 @@ import java.util.*
 
 class PushStackFramesS2CPacket(val stackFrames: List<MinecraftStackFrame>, val editorDebugConnection: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<PushStackFramesS2CPacket>(Identifier("command_crafter", "debugger_push_stack_frames"))
+        val ID = CustomPayload.Id<PushStackFramesS2CPacket>(Identifier.of("command_crafter", "debugger_push_stack_frames"))
         val CODEC: PacketCodec<ByteBuf, PushStackFramesS2CPacket> = PacketCodec.tuple(
             PacketCodecs.collection(::ArrayList, MinecraftStackFrame.PACKET_CODEC),
             PushStackFramesS2CPacket::stackFrames,

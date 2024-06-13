@@ -27,7 +27,7 @@ class ParsedResourceCreator(
     val dataPackContents: DataPackContents,
 ) {
     companion object {
-        val PLACEHOLDER_ID = Identifier("command_crafter", "placeholder")
+        val PLACEHOLDER_ID = Identifier.of("command_crafter", "placeholder")
         val RESOURCE_CREATOR_UNAVAILABLE_EXCEPTION = SimpleCommandExceptionType(Text.of("Attempted to use a feature requiring a ParsedResourceCreator, but it isn't available in that context."))
 
         fun <T> addResourceCreatorToFunction(
@@ -155,7 +155,7 @@ class ParsedResourceCreator(
     class AutomaticResource<T>(val idSetter: (Identifier) -> Unit, val resource: T)
     class ParsedTag<T>(val registry: RegistryKey<out Registry<out T>>, val entries: Collection<TagEntry>)
 
-    private fun getPath(id: Int) = Identifier(functionId.namespace, "${functionId.path}--$id--craftergen")
+    private fun getPath(id: Int) = Identifier.of(functionId.namespace, "${functionId.path}--$id--craftergen")
 
     interface ParseResourceContainer {
         fun `command_crafter$setResourceCreator`(resourceCreator: ParsedResourceCreator?)

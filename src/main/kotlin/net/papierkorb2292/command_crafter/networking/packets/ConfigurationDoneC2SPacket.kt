@@ -11,7 +11,7 @@ import java.util.*
 
 class ConfigurationDoneC2SPacket(val debugConnectionId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<ConfigurationDoneC2SPacket>(Identifier("command_crafter", "debugger_configuration_done"))
+        val ID = CustomPayload.Id<ConfigurationDoneC2SPacket>(Identifier.of("command_crafter", "debugger_configuration_done"))
         val CODEC: PacketCodec<ByteBuf, ConfigurationDoneC2SPacket> = Uuids.PACKET_CODEC.xmap(
             ::ConfigurationDoneC2SPacket,
             ConfigurationDoneC2SPacket::debugConnectionId

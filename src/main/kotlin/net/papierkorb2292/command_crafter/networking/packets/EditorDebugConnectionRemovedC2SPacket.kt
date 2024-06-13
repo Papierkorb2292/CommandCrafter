@@ -11,7 +11,7 @@ import java.util.*
 
 class EditorDebugConnectionRemovedC2SPacket(val debugConnectionId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<EditorDebugConnectionRemovedC2SPacket>(Identifier("command_crafter", "editor_debug_connection_removed"))
+        val ID = CustomPayload.Id<EditorDebugConnectionRemovedC2SPacket>(Identifier.of("command_crafter", "editor_debug_connection_removed"))
         val CODEC: PacketCodec<ByteBuf, EditorDebugConnectionRemovedC2SPacket> = Uuids.PACKET_CODEC.xmap(
             ::EditorDebugConnectionRemovedC2SPacket,
             EditorDebugConnectionRemovedC2SPacket::debugConnectionId

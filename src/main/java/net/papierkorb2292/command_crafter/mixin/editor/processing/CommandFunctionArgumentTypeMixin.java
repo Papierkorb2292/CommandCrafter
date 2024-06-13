@@ -29,7 +29,7 @@ public class CommandFunctionArgumentTypeMixin implements AnalyzingCommandNode, C
         }
         var stringArgument = range.get(reader.getString());
         var isTag = stringArgument.startsWith("#");
-        var id = new Identifier(isTag ? stringArgument.substring(1) : stringArgument);
+        var id = Identifier.of(isTag ? stringArgument.substring(1) : stringArgument);
         var fileType = isTag ? PackContentFileType.FUNCTION_TAGS_FILE_TYPE : PackContentFileType.FUNCTIONS_FILE_TYPE;
         IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(id, fileType, range, result, reader);
     }

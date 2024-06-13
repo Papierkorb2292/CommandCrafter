@@ -11,7 +11,7 @@ import java.util.*
 
 class SourceReferenceAddedS2CPacket(val editorDebugConnection: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<SourceReferenceAddedS2CPacket>(Identifier("command_crafter", "source_reference_added"))
+        val ID = CustomPayload.Id<SourceReferenceAddedS2CPacket>(Identifier.of("command_crafter", "source_reference_added"))
         val CODEC: PacketCodec<ByteBuf, SourceReferenceAddedS2CPacket> = Uuids.PACKET_CODEC.xmap(
             ::SourceReferenceAddedS2CPacket,
             SourceReferenceAddedS2CPacket::editorDebugConnection

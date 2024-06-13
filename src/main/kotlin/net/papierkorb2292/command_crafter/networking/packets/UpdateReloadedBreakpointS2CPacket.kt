@@ -13,7 +13,7 @@ import java.util.*
 
 class UpdateReloadedBreakpointS2CPacket(val update: BreakpointEventArguments, val editorDebugConnection: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<UpdateReloadedBreakpointS2CPacket>(Identifier("command_crafter", "update_reloaded_breakpoint"))
+        val ID = CustomPayload.Id<UpdateReloadedBreakpointS2CPacket>(Identifier.of("command_crafter", "update_reloaded_breakpoint"))
         val CODEC: PacketCodec<ByteBuf, UpdateReloadedBreakpointS2CPacket> = PacketCodec.tuple(
             BREAKPOINT_EVENT_ARGUMENTS_PACKET_CODEC,
             UpdateReloadedBreakpointS2CPacket::update,

@@ -12,7 +12,7 @@ import java.util.*
 
 class ContextCompletionRequestC2SPacket(val requestId: UUID, val inputLines: List<String>, val cursor: Int): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<ContextCompletionRequestC2SPacket>(Identifier("command_crafter", "context_completion_request"))
+        val ID = CustomPayload.Id<ContextCompletionRequestC2SPacket>(Identifier.of("command_crafter", "context_completion_request"))
         val CODEC: PacketCodec<ByteBuf, ContextCompletionRequestC2SPacket> = PacketCodec.tuple(
             Uuids.PACKET_CODEC,
             ContextCompletionRequestC2SPacket::requestId,

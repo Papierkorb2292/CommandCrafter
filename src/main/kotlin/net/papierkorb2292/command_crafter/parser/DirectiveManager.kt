@@ -11,13 +11,13 @@ import org.eclipse.lsp4j.Range
 
 class DirectiveManager {
     companion object {
-        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(RegistryKey.ofRegistry(Identifier("command_crafter", "directives"))).buildAndRegister()!!
+        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(RegistryKey.ofRegistry(Identifier.of("command_crafter", "directives"))).buildAndRegister()!!
     }
 
     fun readDirective(reader: DirectiveStringReader<*>) {
         val directive = reader.readUnquotedString()
         reader.expect(' ')
-        (DIRECTIVES.get(Identifier(directive))
+        (DIRECTIVES.get(Identifier.of(directive))
             ?: throw IllegalArgumentException("Error while parsing function: Encountered unknown directive '$directive' on line ${reader.currentLine}"))
             .read(reader)
     }
@@ -34,7 +34,7 @@ class DirectiveManager {
         }
         val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
         reader.skip()
-        val directiveType = DIRECTIVES.get(Identifier(directive))
+        val directiveType = DIRECTIVES.get(Identifier.of(directive))
         if(directiveType == null) {
             analyzingResult.diagnostics += Diagnostic(
                 Range(pos.advance(-directive.length-1), pos),

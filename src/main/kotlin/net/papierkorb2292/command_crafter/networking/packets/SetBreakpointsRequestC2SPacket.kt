@@ -16,7 +16,7 @@ import java.util.*
 
 class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakpoint>, val fileType: PackContentFileType, val id: Identifier, val sourceReference: Int?, val requestId: UUID, val debugConnectionId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<SetBreakpointsRequestC2SPacket>(Identifier("command_crafter", "set_breakpoints_request"))
+        val ID = CustomPayload.Id<SetBreakpointsRequestC2SPacket>(Identifier.of("command_crafter", "set_breakpoints_request"))
         val CODEC: PacketCodec<ByteBuf, SetBreakpointsRequestC2SPacket> = PacketCodec.tuple(
             UNPARSED_BREAKPOINT_PACKET_CODEC.array(),
             SetBreakpointsRequestC2SPacket::breakpoints,

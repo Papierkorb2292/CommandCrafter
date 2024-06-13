@@ -12,7 +12,7 @@ import java.util.*
 
 class PopStackFramesS2CPacket(val amount: Int, val editorDebugConnection: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<PopStackFramesS2CPacket>(Identifier("command_crafter", "debugger_pop_stack_frames"))
+        val ID = CustomPayload.Id<PopStackFramesS2CPacket>(Identifier.of("command_crafter", "debugger_pop_stack_frames"))
         val CODEC: PacketCodec<ByteBuf, PopStackFramesS2CPacket> = PacketCodec.tuple(
             PacketCodecs.VAR_INT,
             PopStackFramesS2CPacket::amount,

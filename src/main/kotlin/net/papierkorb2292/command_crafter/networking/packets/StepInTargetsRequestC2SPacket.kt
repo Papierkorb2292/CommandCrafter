@@ -12,7 +12,7 @@ import java.util.*
 
 class StepInTargetsRequestC2SPacket(val frameId: Int, val pauseId: UUID, val requestId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<StepInTargetsRequestC2SPacket>(Identifier("command_crafter", "step_in_targets_request"))
+        val ID = CustomPayload.Id<StepInTargetsRequestC2SPacket>(Identifier.of("command_crafter", "step_in_targets_request"))
         val CODEC: PacketCodec<ByteBuf, StepInTargetsRequestC2SPacket> = PacketCodec.tuple(
             PacketCodecs.VAR_INT,
             StepInTargetsRequestC2SPacket::frameId,

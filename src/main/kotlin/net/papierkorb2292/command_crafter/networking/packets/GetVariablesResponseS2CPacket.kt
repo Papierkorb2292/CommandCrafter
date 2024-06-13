@@ -14,7 +14,7 @@ import java.util.*
 
 class GetVariablesResponseS2CPacket(val requestId: UUID, val variables: Array<Variable>): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<GetVariablesResponseS2CPacket>(Identifier("command_crafter", "get_variables_response"))
+        val ID = CustomPayload.Id<GetVariablesResponseS2CPacket>(Identifier.of("command_crafter", "get_variables_response"))
         val CODEC: PacketCodec<ByteBuf, GetVariablesResponseS2CPacket> = PacketCodec.tuple(
             Uuids.PACKET_CODEC,
             GetVariablesResponseS2CPacket::requestId,

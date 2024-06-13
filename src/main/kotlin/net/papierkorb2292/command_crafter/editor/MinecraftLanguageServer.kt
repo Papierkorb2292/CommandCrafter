@@ -294,7 +294,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 val resourceSearchKeywords = PackContentFileType.parseKeywords(reader.string, idStart, idEnd).toSet()
                 val range = StringRange(idStart, idEnd)
                 replacements += PackContentFileType.findWorkspaceResourceFromId(
-                    Identifier(documentation.substring(idStart, idEnd)),
+                    Identifier.of(documentation.substring(idStart, idEnd)),
                     client,
                     resourceSearchKeywords
                 ).thenApply { resource ->

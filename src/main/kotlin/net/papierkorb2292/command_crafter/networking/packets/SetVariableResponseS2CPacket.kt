@@ -13,7 +13,7 @@ import java.util.*
 
 class SetVariableResponseS2CPacket(val requestId: UUID, val response: VariablesReferencer.SetVariableResult?): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<SetVariableResponseS2CPacket>(Identifier("command_crafter", "set_variable_response"))
+        val ID = CustomPayload.Id<SetVariableResponseS2CPacket>(Identifier.of("command_crafter", "set_variable_response"))
         val CODEC: PacketCodec<ByteBuf, SetVariableResponseS2CPacket> = PacketCodec.tuple(
             Uuids.PACKET_CODEC,
             SetVariableResponseS2CPacket::requestId,

@@ -13,7 +13,7 @@ import java.util.*
 
 class ReserveBreakpointIdsResponseC2SPacket(val start: ReservedBreakpointIdStart, val requestId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<ReserveBreakpointIdsResponseC2SPacket>(Identifier("command_crafter", "reserve_breakpoint_ids_response"))
+        val ID = CustomPayload.Id<ReserveBreakpointIdsResponseC2SPacket>(Identifier.of("command_crafter", "reserve_breakpoint_ids_response"))
         val CODEC: PacketCodec<ByteBuf, ReserveBreakpointIdsResponseC2SPacket> = PacketCodec.tuple(
             PacketCodecs.VAR_INT,
             ReserveBreakpointIdsResponseC2SPacket::start,

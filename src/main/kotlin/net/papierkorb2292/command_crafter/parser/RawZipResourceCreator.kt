@@ -56,7 +56,7 @@ class RawZipResourceCreator {
                         val namespace = entryPath.getName(0)
                         val path = namespace.relativize(entryPath)
                         processFile(
-                            Identifier(namespace.toString(), path.toString().replace('\\', '/')),
+                            Identifier.of(namespace.toString(), path.toString().replace('\\', '/')),
                             InputSupplier.create(zipFile, entry),
                             resourceCreator,
                             args,
@@ -85,13 +85,13 @@ class RawZipResourceCreator {
             dispatcher: CommandDispatcher<CommandSource>,
         ) {
             val resourceExtension = Files.getFileExtension(fileId.path)
-            val resourceId = Identifier(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
+            val resourceId = Identifier.of(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
             for(processor in DATA_TYPE_PROCESSORS) {
                 if (resourceId.path.startsWith(processor.type)) {
                     val input = content.get()
                     val reader = input.bufferedReader()
                     val path = Path.of(resourceId.path)
-                    val id = Identifier(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
+                    val id = Identifier.of(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
                     try {
                         if (processor.shouldProcess(args)) {
                             processor.process(args, id, reader, resourceCreator, dispatcher)
@@ -134,12 +134,12 @@ class RawZipResourceCreator {
     }
 
     private fun createResource(currentId: Identifier, parentFunctionId: Identifier, resource: RawResource, zipOutput: ZipOutputStream, subResourceNumbering: MutableMap<String, Int>) {
-        val resourceId = Identifier(currentId.namespace, Path.of(resource.type.prefix).resolve(currentId.path).toString().replace('\\', '/'))
+        val resourceId = Identifier.of(currentId.namespace, Path.of(resource.type.prefix).resolve(currentId.path).toString().replace('\\', '/'))
         resource.id = resourceId
         resource.content.map { either ->
             either.map({ it }, content@{
                 it.id?.run { return@content toString() }
-                val childId = Identifier(parentFunctionId.namespace, "${parentFunctionId.path}--${numberSubResource(subResourceNumbering, it.type.prefix)}--craftergen")
+                val childId = Identifier.of(parentFunctionId.namespace, "${parentFunctionId.path}--${numberSubResource(subResourceNumbering, it.type.prefix)}--craftergen")
                 createResource(childId, parentFunctionId, it, zipOutput, subResourceNumbering)
                 childId.toString()
             })

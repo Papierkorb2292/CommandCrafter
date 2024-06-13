@@ -14,7 +14,7 @@ import java.util.*
 
 class PausedUpdateS2CPacket(val editorDebugConnection: UUID, val pause: Pair<UUID, StoppedEventArguments>?): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<PausedUpdateS2CPacket>(Identifier("command_crafter", "debugger_paused_update"))
+        val ID = CustomPayload.Id<PausedUpdateS2CPacket>(Identifier.of("command_crafter", "debugger_paused_update"))
         val PAUSE_PAIR_PACKET_CODEC: PacketCodec<ByteBuf, Pair<UUID, StoppedEventArguments>> = PacketCodec.tuple(
             Uuids.PACKET_CODEC,
             { it.first },
