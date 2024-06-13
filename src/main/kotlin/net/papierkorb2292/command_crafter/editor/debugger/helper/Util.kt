@@ -48,7 +48,7 @@ fun Identifier.removeExtension(extension: String)
         else Identifier.of(namespace, path.substring(0, path.length - extension.length))
 
 fun Identifier.withExtension(extension: String)
-    = Identifier(namespace, "$path$extension")
+    = Identifier.of(namespace, "$path$extension")
 
 operator fun StringRange.plus(value: Int) = StringRange(start + value, end + value)
 operator fun StringRange.minus(value: Int) = StringRange(start - value, end - value)

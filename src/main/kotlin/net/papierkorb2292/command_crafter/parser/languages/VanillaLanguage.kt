@@ -19,6 +19,7 @@ import net.minecraft.command.argument.packrat.ParsingRule
 import net.minecraft.command.argument.packrat.ParsingState
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.RegistryWrapper
 import net.minecraft.registry.entry.RegistryEntry
 import net.minecraft.registry.entry.RegistryEntryList
@@ -704,7 +705,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader: DirectiveStringReader<RawZipResourceCreator>,
             registry: RegistryWrapper.Impl<T>,
         ): RawResourceRegistryEntryList<T>
-                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(TagManagerLoader.getPath(registry.registryKey), "json")) {
+                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(RegistryKeys.getTagPath(registry.registryKey), "json")) {
                 entryReader -> Either.left(parseRawTagEntry(entryReader))
         })
 

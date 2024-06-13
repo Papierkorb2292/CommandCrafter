@@ -39,7 +39,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 
 object LanguageManager {
-    val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(RegistryKey.ofRegistry(Identifier("command_crafter", "languages"))).buildAndRegister()!!
+    val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(RegistryKey.ofRegistry(Identifier.of("command_crafter", "languages"))).buildAndRegister()!!
     val DEFAULT_CLOSURE = Language.TopLevelClosure(VanillaLanguage())
 
     private val SKIP_DEBUG_INFORMATION = object : FunctionDebugInformation {
@@ -208,7 +208,7 @@ object LanguageManager {
                             result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
                                 val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
                                 languageServer.findFileAndAnalyze(
-                                    Identifier(string.substring(idStart, idEnd)),
+                                    Identifier.of(string.substring(idStart, idEnd)),
                                     keywords
                                 ).thenCompose { analyzingResult ->
                                     if(analyzingResult == null) {
@@ -226,7 +226,7 @@ object LanguageManager {
                                     ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
                                 val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
                                 PackContentFileType.findWorkspaceResourceFromId(
-                                    Identifier(string.substring(idStart, idEnd)),
+                                    Identifier.of(string.substring(idStart, idEnd)),
                                     client,
                                     keywords
                                 ).thenApply {
@@ -284,12 +284,12 @@ object LanguageManager {
     }
 
     init {
-        Registry.register(DirectiveManager.DIRECTIVES, Identifier("language"), object : DirectiveManager.DirectiveType {
+        Registry.register(DirectiveManager.DIRECTIVES, Identifier.of("language"), object : DirectiveManager.DirectiveType {
             override fun read(reader: DirectiveStringReader<*>) {
                 val start = reader.cursor
                 val language = reader.readUnquotedString()
                 reader.switchLanguage(
-                    requireNotNull(LANGUAGES.get(Identifier(language))) { "Error while parsing function: Encountered unknown language '$language' on line ${reader.currentLine}" }
+                    requireNotNull(LANGUAGES.get(Identifier.of(language))) { "Error while parsing function: Encountered unknown language '$language' on line ${reader.currentLine}" }
                         .run {
                             reader.skipSpaces()
                             if(!reader.canRead() || reader.peek() != '(') {
@@ -336,7 +336,7 @@ object LanguageManager {
                 val start = reader.cursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                 val language = reader.readUnquotedString()
-                val languageType = LANGUAGES.get(Identifier(language))
+                val languageType = LANGUAGES.get(Identifier.of(language))
                 if(languageType == null) {
                     analyzingResult.diagnostics += Diagnostic(
                         Range(startPos, startPos.advance(language.length)),

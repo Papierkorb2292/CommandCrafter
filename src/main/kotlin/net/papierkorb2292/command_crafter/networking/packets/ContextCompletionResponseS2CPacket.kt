@@ -17,7 +17,7 @@ import java.util.*
 
 class ContextCompletionResponseS2CPacket(val requestId: UUID, val completions: List<CompletionItem>) : CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<ContextCompletionResponseS2CPacket>(Identifier("command_crafter", "completion_items"))
+        val ID = CustomPayload.Id<ContextCompletionResponseS2CPacket>(Identifier.of("command_crafter", "completion_items"))
         val CODEC: PacketCodec<ByteBuf, ContextCompletionResponseS2CPacket> = PacketCodec.tuple(
             Uuids.PACKET_CODEC,
             ContextCompletionResponseS2CPacket::requestId,

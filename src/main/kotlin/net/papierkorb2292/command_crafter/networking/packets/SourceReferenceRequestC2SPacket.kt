@@ -12,7 +12,7 @@ import java.util.*
 
 class SourceReferenceRequestC2SPacket(val sourceReference: Int, val requestId: UUID, val debugConnectionId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<SourceReferenceRequestC2SPacket>(Identifier("command_crafter", "source_reference_request"))
+        val ID = CustomPayload.Id<SourceReferenceRequestC2SPacket>(Identifier.of("command_crafter", "source_reference_request"))
         val CODEC: PacketCodec<ByteBuf, SourceReferenceRequestC2SPacket> = PacketCodec.tuple(
             PacketCodecs.VAR_INT,
             SourceReferenceRequestC2SPacket::sourceReference,

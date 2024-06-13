@@ -45,7 +45,7 @@ public class ItemStringReaderReaderMixin {
             method = "readComponents",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/DataComponentType;"
+                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;"
             )
     )
     private void command_crafter$saveComponentTypeStart(CallbackInfo ci, @Share("componentTypeStart") LocalIntRef startCursor) {
@@ -56,7 +56,7 @@ public class ItemStringReaderReaderMixin {
             method = "readComponents",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/DataComponentType;",
+                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;",
                     shift = At.Shift.AFTER
             )
     )

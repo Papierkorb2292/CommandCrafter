@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier
 
 class LogMessageS2CPacket(val logMessage: String): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<LogMessageS2CPacket>(Identifier("command_crafter", "log_message"))
+        val ID = CustomPayload.Id<LogMessageS2CPacket>(Identifier.of("command_crafter", "log_message"))
         val CODEC: PacketCodec<ByteBuf, LogMessageS2CPacket> = PacketCodecs.STRING.xmap(
             ::LogMessageS2CPacket,
             LogMessageS2CPacket::logMessage

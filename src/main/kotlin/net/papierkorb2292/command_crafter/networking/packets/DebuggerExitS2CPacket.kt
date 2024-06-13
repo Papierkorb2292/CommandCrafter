@@ -13,7 +13,7 @@ import java.util.*
 
 class DebuggerExitS2CPacket(val args: ExitedEventArguments, val editorDebugConnection: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<DebuggerExitS2CPacket>(Identifier("command_crafter", "debugger_exit"))
+        val ID = CustomPayload.Id<DebuggerExitS2CPacket>(Identifier.of("command_crafter", "debugger_exit"))
         val CODEC: PacketCodec<ByteBuf, DebuggerExitS2CPacket> = PacketCodec.tuple(
             EXITED_EVENT_ARGUMENTS_PACKET_CODEC,
             DebuggerExitS2CPacket::args,

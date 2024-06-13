@@ -105,10 +105,10 @@ val BREAKPOINT_PACKET_CODEC = object : PacketCodec<ByteBuf, Breakpoint> {
         isVerified = PacketCodecs.BOOL.decode(buf)
         message = NULLABLE_STRING_PACKET_CODEC.decode(buf)
         source = NULLABLE_SOURCE_CODEC.decode(buf)
-        line = PacketCodecs.VAR_INT.decode(buf)
-        column = PacketCodecs.VAR_INT.decode(buf)
-        endLine = PacketCodecs.VAR_INT.decode(buf)
-        endColumn = PacketCodecs.VAR_INT.decode(buf)
+        line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        column = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        endLine = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        endColumn = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
     }
 
     override fun encode(buf: ByteBuf, value: Breakpoint) {
@@ -116,10 +116,10 @@ val BREAKPOINT_PACKET_CODEC = object : PacketCodec<ByteBuf, Breakpoint> {
         PacketCodecs.BOOL.encode(buf, value.isVerified)
         NULLABLE_STRING_PACKET_CODEC.encode(buf, value.message)
         NULLABLE_SOURCE_CODEC.encode(buf, value.source)
-        PacketCodecs.VAR_INT.encode(buf, value.line)
-        PacketCodecs.VAR_INT.encode(buf, value.column)
-        PacketCodecs.VAR_INT.encode(buf, value.endLine)
-        PacketCodecs.VAR_INT.encode(buf, value.endColumn)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.column)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endLine)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endColumn)
     }
 }
 
@@ -175,11 +175,11 @@ val SCOPE_PACKET_CODEC = object : PacketCodec<ByteBuf, Scope> {
         namedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
         indexedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
         isExpensive = PacketCodecs.BOOL.decode(buf)
-        source = SOURCE_PACKET_CODEC.decode(buf)
-        line = PacketCodecs.VAR_INT.decode(buf)
-        column = PacketCodecs.VAR_INT.decode(buf)
-        endLine = PacketCodecs.VAR_INT.decode(buf)
-        endColumn = PacketCodecs.VAR_INT.decode(buf)
+        source = NULLABLE_SOURCE_CODEC.decode(buf)
+        line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        column = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        endLine = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        endColumn = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
     }
 
     override fun encode(buf: ByteBuf, value: Scope) {
@@ -189,11 +189,11 @@ val SCOPE_PACKET_CODEC = object : PacketCodec<ByteBuf, Scope> {
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.namedVariables)
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.indexedVariables)
         PacketCodecs.BOOL.encode(buf, value.isExpensive)
-        SOURCE_PACKET_CODEC.encode(buf, value.source)
-        PacketCodecs.VAR_INT.encode(buf, value.line)
-        PacketCodecs.VAR_INT.encode(buf, value.column)
-        PacketCodecs.VAR_INT.encode(buf, value.endLine)
-        PacketCodecs.VAR_INT.encode(buf, value.endColumn)
+        NULLABLE_SOURCE_CODEC.encode(buf, value.source)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.column)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endLine)
+        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endColumn)
     }
 }
 

@@ -15,7 +15,7 @@ import java.util.*
 
 class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugConnection.DebugTarget?, val nextSourceReference: Int, val suspendServer: Boolean, val debugConnectionId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<DebugConnectionRegistrationC2SPacket>(Identifier("command_crafter", "editor_debug_connection_registration"))
+        val ID = CustomPayload.Id<DebugConnectionRegistrationC2SPacket>(Identifier.of("command_crafter", "editor_debug_connection_registration"))
         val CODEC: PacketCodec<ByteBuf, DebugConnectionRegistrationC2SPacket> = PacketCodec.tuple(
             DEBUG_TARGET_PACKET_CODEC.nullable(),
             DebugConnectionRegistrationC2SPacket::oneTimeDebugTarget,

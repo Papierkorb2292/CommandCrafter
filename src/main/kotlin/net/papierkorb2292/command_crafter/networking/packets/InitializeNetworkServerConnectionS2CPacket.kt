@@ -18,7 +18,7 @@ class InitializeNetworkServerConnectionS2CPacket(
 ) : CustomPayload {
     companion object {
         val ID = CustomPayload.Id<InitializeNetworkServerConnectionS2CPacket>(
-            Identifier("command_crafter", "initialize_network_server_connection")
+            Identifier.of("command_crafter", "initialize_network_server_connection")
         )
         val CODEC: PacketCodec<PacketByteBuf, InitializeNetworkServerConnectionS2CPacket> = PacketCodec.tuple(
             CommandTreeS2CPacket.CODEC,

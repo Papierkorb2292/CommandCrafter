@@ -11,7 +11,7 @@ import java.util.*
 
 class RequestNetworkServerConnectionC2SPacket(val requestId: UUID): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<RequestNetworkServerConnectionC2SPacket>(Identifier("command_crafter", "request_network_server_connection"))
+        val ID = CustomPayload.Id<RequestNetworkServerConnectionC2SPacket>(Identifier.of("command_crafter", "request_network_server_connection"))
         val CODEC: PacketCodec<ByteBuf, RequestNetworkServerConnectionC2SPacket> = Uuids.PACKET_CODEC.xmap(
             ::RequestNetworkServerConnectionC2SPacket,
             RequestNetworkServerConnectionC2SPacket::requestId

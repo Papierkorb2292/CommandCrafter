@@ -61,8 +61,8 @@ object CommandCrafter: ModInitializer {
         })
 
     private fun initializeParser() {
-        Registry.register(LanguageManager.LANGUAGES, Identifier(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
-        ArgumentTypeRegistry.registerArgumentType(Identifier(MOD_ID, "datapack_build_args"), DatapackBuildArgs.DatapackBuildArgsArgumentType.javaClass, ConstantArgumentSerializer.of { -> DatapackBuildArgs.DatapackBuildArgsArgumentType })
+        Registry.register(LanguageManager.LANGUAGES, Identifier.of(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
+        ArgumentTypeRegistry.registerArgumentType(Identifier.of(MOD_ID, "datapack_build_args"), DatapackBuildArgs.DatapackBuildArgsArgumentType.javaClass, ConstantArgumentSerializer.of { -> DatapackBuildArgs.DatapackBuildArgsArgumentType })
         RawZipResourceCreator.DATA_TYPE_PROCESSORS += object : RawZipResourceCreator.DataTypeProcessor {
             override val type: String
                 get() = "functions"

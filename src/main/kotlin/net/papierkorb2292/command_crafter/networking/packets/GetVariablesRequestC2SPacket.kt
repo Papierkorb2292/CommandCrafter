@@ -13,7 +13,7 @@ import java.util.*
 
 class GetVariablesRequestC2SPacket(val pauseId: UUID, val requestId: UUID, val args: VariablesArguments): CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<GetVariablesRequestC2SPacket>(Identifier("command_crafter", "get_variables_request"))
+        val ID = CustomPayload.Id<GetVariablesRequestC2SPacket>(Identifier.of("command_crafter", "get_variables_request"))
         val CODEC: PacketCodec<ByteBuf, GetVariablesRequestC2SPacket> = PacketCodec.tuple(
             Uuids.PACKET_CODEC,
             GetVariablesRequestC2SPacket::pauseId,

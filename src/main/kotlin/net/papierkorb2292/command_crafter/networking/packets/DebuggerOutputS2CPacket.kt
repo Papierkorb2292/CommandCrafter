@@ -13,7 +13,7 @@ import java.util.*
 
 class DebuggerOutputS2CPacket(val args: OutputEventArguments, val editorDebugConnection: UUID) : CustomPayload {
     companion object {
-        val ID = CustomPayload.Id<DebuggerOutputS2CPacket>(Identifier("command_crafter", "debugger_output"))
+        val ID = CustomPayload.Id<DebuggerOutputS2CPacket>(Identifier.of("command_crafter", "debugger_output"))
         val CODEC: PacketCodec<ByteBuf, DebuggerOutputS2CPacket> = PacketCodec.tuple(
             OUTPUT_EVENT_ARGUMENTS_PACKET_CODEC,
             DebuggerOutputS2CPacket::args,

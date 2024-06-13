@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.function.Predicate;
 
-@Mixin(targets = "net/minecraft/command/argument/ItemPredicateArgumentType$class_9445")
+@Mixin(targets = "net/minecraft/command/argument/ItemPredicateArgumentType$Context")
 public class ItemPredicateArgumentTypeCallbacksMixin implements InlineTagPackratParsingCallbacks<Predicate<ItemStack>> {
 
     @Shadow @Final private RegistryWrapper.Impl<Item> itemRegistryWrapper;
