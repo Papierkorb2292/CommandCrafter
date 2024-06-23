@@ -134,7 +134,11 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             else if(cursor > it.cursorRange.end || (!inclusiveRangeEnd && cursor == it.cursorRange.end)) -1
             else 0
         }
-        return if(index >= 0) providers[index] else null
+        return if(index >= 0) {
+            if(inclusiveRangeEnd && index + 1 < providers.size && cursor == providers[index + 1].cursorRange.start) {
+                providers[index + 1]
+            } else providers[index]
+        } else null
     }
 
     fun toFileRange(stringRange: StringRange): Range {
@@ -147,6 +151,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     }
 
     companion object {
+        fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
+            getPositionFromCursor(cursor, mappingInfo.lines, zeroBased)
+
         fun getPositionFromCursor(cursor: Int, lines: List<String>, zeroBased: Boolean = true): Position {
             if(lines.isEmpty()) return Position()
             var charactersLeft = cursor
@@ -163,6 +170,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             return if(zeroBased) Position(lastLineNumber - 1, lastColumnNumber)
             else Position(lastLineNumber, lastColumnNumber + 1)
         }
+
+        fun getCursorFromPosition(position: Position, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
+            getCursorFromPosition(mappingInfo.lines, position, zeroBased)
 
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
             if(lines.isEmpty()) return 0
@@ -196,6 +206,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
                 startCharactersLeft = 0
             }
         }
+
+        fun getLineCursorRange(lineNumber: Int, mappingInfo: FileMappingInfo) =
+            getLineCursorRange(lineNumber, mappingInfo.lines)
 
         fun getLineCursorRange(lineNumber: Int, lines: List<String>): StringRange {
             var cursor = 0

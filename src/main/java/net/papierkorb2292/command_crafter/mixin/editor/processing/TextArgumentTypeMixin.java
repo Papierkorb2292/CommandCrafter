@@ -10,6 +10,7 @@ import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonR
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.string_range_gson.Strictness;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 
@@ -24,7 +25,7 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
         var prevReadCharacters = result.getMappingInfo().getReadCharacters();
         try {
             result.getMappingInfo().setReadCharacters(prevReadCharacters + range.getStart());
-            var stringRangeTree = stringRangeTreeReader.read();
+            var stringRangeTree = stringRangeTreeReader.read(Strictness.LENIENT);
             stringRangeTree.generateSemanticTokens(StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider.INSTANCE, result.getSemanticTokens());
         } finally {
             result.getMappingInfo().setReadCharacters(prevReadCharacters);

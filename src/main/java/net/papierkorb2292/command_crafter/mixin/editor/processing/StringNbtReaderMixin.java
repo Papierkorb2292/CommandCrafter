@@ -34,6 +34,8 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
     private @Nullable StringRangeTree.Builder<NbtElement> command_crafter$stringRangeTreeBuilder;
     private ThreadLocal<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray = new ThreadLocal<>();
 
+    private int command_crafter$elementAllowedStartCursor = 0;
+
     @Override
     public void command_crafter$setStringRangeTreeBuilder(@NotNull StringRangeTree.Builder<NbtElement> builder) {
         command_crafter$stringRangeTreeBuilder = builder;
@@ -66,7 +68,7 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             element = NbtShortAccessor.callInit(nbtShort.shortValue());
         }
 
-        command_crafter$stringRangeTreeBuilder.addNode(element, new StringRange(startCursor, reader.getCursor()));
+        command_crafter$stringRangeTreeBuilder.addNode(element, new StringRange(startCursor, reader.getCursor()), command_crafter$elementAllowedStartCursor);
         return element;
     }
 
@@ -91,7 +93,7 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
     )
     private NbtCompound command_crafter$addCompoundToStringRangeTree(NbtCompound compound, @Share("compoundStartCursor") LocalIntRef compoundStartCursor) {
         if(command_crafter$stringRangeTreeBuilder != null) {
-            command_crafter$stringRangeTreeBuilder.addNode(compound, new StringRange(compoundStartCursor.get(), reader.getCursor()));
+            command_crafter$stringRangeTreeBuilder.addNode(compound, new StringRange(compoundStartCursor.get(), reader.getCursor()), command_crafter$elementAllowedStartCursor);
         }
         return compound;
     }
@@ -124,6 +126,7 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
         if (command_crafter$stringRangeTreeBuilder != null) {
             // startCursor has skipped whitespaces before the name because of addCompoundRangeBetweenRangeToStringRangeTree
             command_crafter$stringRangeTreeBuilder.addMapKeyRange(compound, new StringRange(startCursor, reader.getCursor()));
+            command_crafter$elementAllowedStartCursor = reader.getCursor() + 1;
         }
         return compound;
     }
@@ -149,7 +152,7 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
     )
     private NbtElement command_crafter$addListToStringRangeTree(NbtElement list, @Share("listStartCursor") LocalIntRef listStartCursor) {
         if(command_crafter$stringRangeTreeBuilder != null) {
-            command_crafter$stringRangeTreeBuilder.addNode(list, new StringRange(listStartCursor.get(), reader.getCursor()));
+            command_crafter$stringRangeTreeBuilder.addNode(list, new StringRange(listStartCursor.get(), reader.getCursor()), command_crafter$elementAllowedStartCursor);
         }
         return list;
     }
@@ -167,6 +170,7 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             var entryEnd = reader.getCursor();
             reader.skipWhitespace();
             command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(list, new StringRange(entryEnd, reader.getCursor()));
+            command_crafter$elementAllowedStartCursor = entryEnd;
         }
         return list;
     }

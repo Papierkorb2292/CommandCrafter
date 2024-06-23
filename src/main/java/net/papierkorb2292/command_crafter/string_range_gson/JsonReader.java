@@ -261,6 +261,7 @@ public class JsonReader implements Closeable {
   public int consumedChars = 0;
   public int pos = 0;
   public int limit = 0;
+  public int absoluteValueStartPosBeforeWhitespace = -1;
   public int absoluteValueStartPos = -1;
   public int absoluteEntryEndPos = -1;
 
@@ -571,6 +572,7 @@ public class JsonReader implements Closeable {
     } else if (peekStack == JsonScope.EMPTY_OBJECT || peekStack == JsonScope.NONEMPTY_OBJECT) {
       stack[stackSize - 1] = JsonScope.DANGLING_NAME;
       // Look for a comma before the next element.
+      absoluteEntryEndPos = getAbsolutePos();
       if (peekStack == JsonScope.NONEMPTY_OBJECT) {
         int c = nextNonWhitespace(true);
         switch (c) {
@@ -641,6 +643,7 @@ public class JsonReader implements Closeable {
       throw new IllegalStateException("JsonReader is closed");
     }
 
+    absoluteValueStartPosBeforeWhitespace = getAbsolutePos();
     int c = nextNonWhitespace(true);
     absoluteValueStartPos = getAbsolutePos() - 1;
     switch (c) {

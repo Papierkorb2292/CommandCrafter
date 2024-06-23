@@ -11,6 +11,9 @@ import java.util.*
 
 fun Position.advance() = advance(1)
 fun Position.advance(amount: Int) = Position(line, character + amount)
+fun Position.advanceLine() = advanceLines(1)
+fun Position.advanceLines(amount: Int) = Position(line + amount, 0)
+
 fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
     val oneBasedOffset = if(zeroBased) 0 else 1
     return Position(
