@@ -16,7 +16,8 @@
  *
  * This file has been modified by the CommandCrafter contributors
  * (repackaged, removed unnecessary dependencies for this application,
- * added public fields and methods keeping track of reader position for generating StringRangeTrees)
+ * added public fields and methods keeping track of reader position for generating StringRangeTrees,
+ * added methods to allow being more lenient)
  * Changes are licensed under the license used by CommandCrafter (Mit License).
  */
 
@@ -875,6 +876,44 @@ public class JsonReader implements Closeable {
         return false;
       default:
         return true;
+    }
+  }
+
+  public void skipEntry() throws IOException {
+    switch(stack[stackSize - 1]) {
+      case JsonScope.EMPTY_OBJECT:
+      case JsonScope.NONEMPTY_OBJECT:
+      case JsonScope.DANGLING_NAME:
+        while(true) {
+          switch(nextNonWhitespace(true)) {
+            case '}':
+              peeked = PEEKED_END_OBJECT;
+              return;
+            case ';':
+              checkLenient();
+              //fall-through
+            case ',':
+              pos--;
+              stack[stackSize - 1] = JsonScope.NONEMPTY_OBJECT;
+              return;
+          }
+        }
+      case JsonScope.EMPTY_ARRAY:
+      case JsonScope.NONEMPTY_ARRAY:
+        while(true) {
+          switch(nextNonWhitespace(true)) {
+            case ']':
+              peeked = PEEKED_END_ARRAY;
+              return;
+            case ';':
+              checkLenient();
+              //fall-through
+            case ',':
+              pos--;
+              stack[stackSize - 1] = JsonScope.NONEMPTY_ARRAY;
+              return;
+          }
+        }
     }
   }
 
