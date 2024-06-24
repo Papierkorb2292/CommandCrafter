@@ -3,11 +3,14 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
+import net.minecraft.registry.RegistryOps
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLine
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
+import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItem
 import java.nio.ByteBuffer
@@ -171,9 +174,39 @@ class StringRangeTree<TNode>(
         }
     }
 
-    class AnalyzingDynamicOps<TNode>(private val delegate: DynamicOps<TNode>) : DynamicOps<TNode> {
+    fun copy() = StringRangeTree(root, ArrayList(orderedNodes), IdentityHashMap(ranges), IdentityHashMap(nodeAllowedStartRanges), IdentityHashMap(mapKeyRanges), IdentityHashMap(internalNodeRangesBetweenEntries))
+
+    class AnalyzingDynamicOps<TNode> private constructor(private val delegate: DynamicOps<TNode>, private val tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
         companion object {
-            val IS_RUNNING_MAP_GET = ThreadLocal<Boolean>()
+            val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
+
+            fun <TNode, TEncoded> decodeWithAnalyzingOps(delegate: DynamicOps<TNode>, input: StringRangeTree<TNode>, decoder: Decoder<TEncoded>): kotlin.Pair<StringRangeTree<TNode>, AnalyzingDynamicOps<TNode>> {
+                val analyzingDynamicOps: AnalyzingDynamicOps<TNode>
+                val wrappedOps: DynamicOps<TNode>
+                val treeCopy: StringRangeTree<TNode>
+                when(delegate) {
+                    is AnalyzingDynamicOps -> {
+                        analyzingDynamicOps = delegate
+                        wrappedOps = delegate.delegate
+                        treeCopy = delegate.tree
+                    }
+                    is RegistryOps -> {
+                        treeCopy = input.copy()
+                        @Suppress("UNCHECKED_CAST")
+                        analyzingDynamicOps = AnalyzingDynamicOps((delegate as ForwardingDynamicOpsAccessor).delegate as DynamicOps<TNode>, treeCopy)
+                        wrappedOps = delegate.withDelegate(analyzingDynamicOps)
+                    }
+                    else -> {
+                        treeCopy = input.copy()
+                        analyzingDynamicOps = AnalyzingDynamicOps(delegate, treeCopy)
+                        wrappedOps = analyzingDynamicOps
+                    }
+                }
+                CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
+                    decoder.decode(wrappedOps, input.root)
+                }
+                return treeCopy to analyzingDynamicOps
+            }
         }
         internal val nodeStartSuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
         internal val mapKeySuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
@@ -212,12 +245,7 @@ class StringRangeTree<TNode>(
             return delegate.getMap(input).map { delegateMap ->
                 object : MapLike<TNode> {
                     override fun get(key: TNode): TNode? {
-                        val value = try {
-                            IS_RUNNING_MAP_GET.set(true)
-                            delegateMap.get(key)
-                        } finally {
-                            IS_RUNNING_MAP_GET.remove()
-                        }
+                        val value = delegateMap.get(key)
                         if(value == null) {
                             getMapKeySuggestions(input).add(Suggestion(key))
                         }
@@ -225,12 +253,7 @@ class StringRangeTree<TNode>(
                     }
 
                     override fun get(key: String): TNode? {
-                        val value = try {
-                            IS_RUNNING_MAP_GET.set(true)
-                            delegateMap.get(key)
-                        } finally {
-                            IS_RUNNING_MAP_GET.remove()
-                        }
+                        val value = delegateMap.get(key)
                         if(value == null) {
                             getMapKeySuggestions(input).add(Suggestion(delegate.createString(key)))
                         }

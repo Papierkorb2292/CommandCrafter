@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
+import net.minecraft.client.network.ClientDynamicRegistryType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -24,13 +25,13 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             val lines = file.stringifyLines()
             val result = AnalyzingResult(FileMappingInfo(lines), Position())
             val reader = StringReader(lines.joinToString("\n"))
-            val dynamicOps = StringRangeTree.AnalyzingDynamicOps(JsonOps.INSTANCE)
-            val stringRangeTree = StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
-            try {
-                fileDecoder.decode(dynamicOps, stringRangeTree.root)
-            } catch(_: Exception) { }
-            stringRangeTree.suggestFromAnalyzingOps(
-                dynamicOps,
+            val (analyzedStringRangeTree, analyzingDynamicOps) = StringRangeTree.AnalyzingDynamicOps.decodeWithAnalyzingOps(
+                ClientDynamicRegistryType.createCombinedDynamicRegistries().combinedRegistryManager.getOps(JsonOps.INSTANCE),
+                StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true),
+                fileDecoder
+            )
+            analyzedStringRangeTree.suggestFromAnalyzingOps(
+                analyzingDynamicOps,
                 result,
                 languageServer,
                 StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver
