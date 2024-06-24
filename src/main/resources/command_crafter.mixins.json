@@ -47,6 +47,7 @@
     "editor.processing.CommandFunctionArgumentTypeMixin",
     "editor.processing.CommandNodeMixin",
     "editor.processing.DimensionArgumentTypeMixin",
+    "editor.processing.EitherCodecMixin",
     "editor.processing.EntityArgumentTypeMixin",
     "editor.processing.EntitySelectorOptionsMixin",
     "editor.processing.EntitySelectorReaderMixin",
