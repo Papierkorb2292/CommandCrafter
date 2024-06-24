@@ -146,12 +146,15 @@ class StringRangeTree<TNode>(
                 var length = 0
                 while(currentPos.line < result.mappingInfo.lines.size) {
                     val line = result.mappingInfo.lines[currentPos.line]
+                    if(currentPos.character >= line.length) {
+                        if(!it.inputMatcher('\n')) break
+                        currentPos = currentPos.advanceLine()
+                        continue
+                    }
                     if(!it.inputMatcher(line[currentPos.character])) break
                     length++
 
-                    currentPos =
-                        if(currentPos.character + 1 < line.length) currentPos.advance()
-                        else currentPos.advanceLine()
+                    currentPos = currentPos.advance()
                 }
                 length
             }
