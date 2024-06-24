@@ -25,7 +25,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             val result = AnalyzingResult(FileMappingInfo(lines), Position())
             val reader = StringReader(lines.joinToString("\n"))
             val dynamicOps = StringRangeTree.AnalyzingDynamicOps(JsonOps.INSTANCE)
-            val stringRangeTree = StringRangeTreeJsonReader(reader).read(Strictness.LENIENT)
+            val stringRangeTree = StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
             try {
                 fileDecoder.decode(dynamicOps, stringRangeTree.root)
             } catch(_: Exception) { }

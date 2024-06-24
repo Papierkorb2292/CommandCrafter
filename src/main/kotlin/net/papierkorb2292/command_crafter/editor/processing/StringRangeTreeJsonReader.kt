@@ -7,6 +7,7 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
+import net.papierkorb2292.command_crafter.string_range_gson.MalformedJsonException
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import java.io.IOException
 import java.io.Reader
@@ -62,7 +63,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         return builder.build(terminal)
     }
 
-    fun read(strictness: Strictness = Strictness.STRICT): StringRangeTree<JsonElement> {
+    fun read(strictness: Strictness = Strictness.STRICT, allowMalformed: Boolean = false): StringRangeTree<JsonElement> {
         val `in` = JsonReader(stringReader)
         `in`.strictness = strictness
         val builder = StringRangeTree.Builder<JsonElement>()
@@ -84,7 +85,16 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         try {
             while(true) {
                 while(true) {
-                    if(!`in`.hasNext()) {
+                    val hasNext = try {
+                        `in`.hasNext()
+                    } catch(e: MalformedJsonException) {
+                        if(!allowMalformed) {
+                            throw e
+                        }
+                        `in`.skipEntry()
+                        continue
+                    }
+                    if(!hasNext) {
                         builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absolutePos - 1))
                         break
                     }
@@ -99,12 +109,27 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         builder.addMapKeyRange(current, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos))
                     }
 
-                    peeked = `in`.peek()
-                    var value = tryBeginNesting(`in`, peeked)
-                    val isNesting = value != null
+                    val isNesting: Boolean
+                    var value: JsonElement?
 
-                    if(value == null) {
-                        value = readTerminal(`in`, peeked)
+                    try {
+                        peeked = `in`.peek()
+                        value = tryBeginNesting(`in`, peeked)
+                        isNesting = value != null
+
+                        if(value == null) {
+                            value = readTerminal(`in`, peeked)
+                        }
+                    } catch(e: MalformedJsonException) {
+                        if(!allowMalformed) {
+                            throw e
+                        }
+                        if(current is JsonObject) {
+                            @Suppress("DEPRECATION")
+                            current.add(name, JsonNull())
+                        }
+                        `in`.skipEntry()
+                        continue
                     }
 
                     if(current is JsonArray) {
@@ -147,6 +172,9 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                 }
             }
         } catch(e: IOException) {
+            for(entry in stack)
+                builder.addNode(entry.element, StringRange(entry.startPos, `in`.absolutePos), entry.allowedStartPos)
+            builder.addNode(current, StringRange(nestedStartPos, `in`.absolutePos), nestedAllowedStartPos)
             return builder.build(stack.peekLast()?.element ?: current)
         }
     }

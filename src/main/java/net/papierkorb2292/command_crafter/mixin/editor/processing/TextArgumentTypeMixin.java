@@ -25,7 +25,7 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
         var prevReadCharacters = result.getMappingInfo().getReadCharacters();
         try {
             result.getMappingInfo().setReadCharacters(prevReadCharacters + range.getStart());
-            var stringRangeTree = stringRangeTreeReader.read(Strictness.LENIENT);
+            var stringRangeTree = stringRangeTreeReader.read(Strictness.LENIENT, true);
             stringRangeTree.generateSemanticTokens(StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider.INSTANCE, result.getSemanticTokens());
         } finally {
             result.getMappingInfo().setReadCharacters(prevReadCharacters);
