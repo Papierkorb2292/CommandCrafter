@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.google.common.collect.Streams
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
@@ -174,42 +175,36 @@ class StringRangeTree<TNode>(
         }
     }
 
-    fun copy() = StringRangeTree(root, ArrayList(orderedNodes), IdentityHashMap(ranges), IdentityHashMap(nodeAllowedStartRanges), IdentityHashMap(mapKeyRanges), IdentityHashMap(internalNodeRangesBetweenEntries))
-
-    class AnalyzingDynamicOps<TNode> private constructor(private val delegate: DynamicOps<TNode>, private val tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
+    class AnalyzingDynamicOps<TNode> private constructor(private val delegate: DynamicOps<TNode>, private var tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
         companion object {
             val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
 
             fun <TNode, TEncoded> decodeWithAnalyzingOps(delegate: DynamicOps<TNode>, input: StringRangeTree<TNode>, decoder: Decoder<TEncoded>): kotlin.Pair<StringRangeTree<TNode>, AnalyzingDynamicOps<TNode>> {
                 val analyzingDynamicOps: AnalyzingDynamicOps<TNode>
                 val wrappedOps: DynamicOps<TNode>
-                val treeCopy: StringRangeTree<TNode>
                 when(delegate) {
                     is AnalyzingDynamicOps -> {
                         analyzingDynamicOps = delegate
                         wrappedOps = delegate.delegate
-                        treeCopy = delegate.tree
                     }
                     is RegistryOps -> {
-                        treeCopy = input.copy()
                         @Suppress("UNCHECKED_CAST")
-                        analyzingDynamicOps = AnalyzingDynamicOps((delegate as ForwardingDynamicOpsAccessor).delegate as DynamicOps<TNode>, treeCopy)
+                        analyzingDynamicOps = AnalyzingDynamicOps((delegate as ForwardingDynamicOpsAccessor).delegate as DynamicOps<TNode>, input)
                         wrappedOps = delegate.withDelegate(analyzingDynamicOps)
                     }
                     else -> {
-                        treeCopy = input.copy()
-                        analyzingDynamicOps = AnalyzingDynamicOps(delegate, treeCopy)
+                        analyzingDynamicOps = AnalyzingDynamicOps(delegate, input)
                         wrappedOps = analyzingDynamicOps
                     }
                 }
                 CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
                     decoder.decode(wrappedOps, input.root)
                 }
-                return treeCopy to analyzingDynamicOps
+                return analyzingDynamicOps.tree to analyzingDynamicOps
             }
         }
-        internal val nodeStartSuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
-        internal val mapKeySuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
+        internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
+        internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
 
         fun getNodeStartSuggestions(node: TNode) =
             nodeStartSuggestions.computeIfAbsent(node) { mutableListOf() }
@@ -226,7 +221,21 @@ class StringRangeTree<TNode>(
 
         override fun getStream(input: TNode): DataResult<Stream<TNode>> {
             getNodeStartSuggestions(input).add(Suggestion(delegate.createList(Stream.empty())))
-            return delegate.getStream(input)
+            return delegate.getStream(input).map { stream ->
+                val placeholder = delegate.emptyList()
+                var isEmpty = true
+                Streams.concat(stream, Stream.of(placeholder)).flatMap {
+                    if(it !== placeholder) {
+                        isEmpty = false
+                        return@flatMap Stream.of(it)
+                    }
+                    if(!isEmpty)
+                        return@flatMap Stream.empty()
+
+                    insertListPlaceholder(input, it)
+                    Stream.of(it)
+                }
+            }
         }
         override fun getByteBuffer(input: TNode): DataResult<ByteBuffer> {
             getNodeStartSuggestions(input).add(Suggestion(delegate.createByteList(ByteBuffer.allocate(0))))
@@ -268,7 +277,41 @@ class StringRangeTree<TNode>(
         }
         override fun getList(input: TNode): DataResult<Consumer<Consumer<TNode>>> {
             getNodeStartSuggestions(input).add(Suggestion(delegate.createList(Stream.empty())))
-            return delegate.getList(input)
+            return delegate.getList(input).map{ list -> Consumer{ entryConsumer ->
+                var isEmpty = true
+                list.accept {
+                    entryConsumer.accept(it)
+                    isEmpty = false
+                }
+                if(isEmpty) {
+                    val placeholder = delegate.emptyList()
+                    insertListPlaceholder(input, placeholder)
+                    entryConsumer.accept(placeholder)
+                }
+            } }
+        }
+
+        private fun insertListPlaceholder(list: TNode, placeholder: TNode) {
+            val orderedNodes = tree.orderedNodes.toMutableList()
+            orderedNodes.add(orderedNodes.indexOf(list) + 1, placeholder)
+
+            val listInnerRanges = tree.internalNodeRangesBetweenEntries[list]
+                ?: throw IllegalArgumentException("Node $list not found in internal node ranges between entries")
+            val listInnerRange = listInnerRanges.stream().findFirst().orElseThrow {
+                IllegalArgumentException("No internal node ranges between entries found for node $list")
+            }
+            val ranges = IdentityHashMap(tree.ranges)
+            ranges[placeholder] = StringRange.at(listInnerRange.end)
+            val nodeAllowedStartRanges = IdentityHashMap(tree.nodeAllowedStartRanges)
+            nodeAllowedStartRanges[placeholder] = listInnerRange
+            tree = StringRangeTree(
+                tree.root,
+                orderedNodes,
+                ranges,
+                nodeAllowedStartRanges,
+                tree.mapKeyRanges,
+                tree.internalNodeRangesBetweenEntries
+            )
         }
 
         //For later: Saving the path for each node to request suggestion descriptions for keys
