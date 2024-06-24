@@ -169,6 +169,9 @@ class StringRangeTree<TNode>(
     }
 
     class AnalyzingDynamicOps<TNode>(private val delegate: DynamicOps<TNode>) : DynamicOps<TNode> {
+        companion object {
+            val IS_RUNNING_MAP_GET = ThreadLocal<Boolean>()
+        }
         internal val nodeStartSuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
         internal val mapKeySuggestions = mutableMapOf<TNode, MutableCollection<Suggestion<TNode>>>()
 
@@ -206,7 +209,12 @@ class StringRangeTree<TNode>(
             return delegate.getMap(input).map { delegateMap ->
                 object : MapLike<TNode> {
                     override fun get(key: TNode): TNode? {
-                        val value = delegateMap.get(key)
+                        val value = try {
+                            IS_RUNNING_MAP_GET.set(true)
+                            delegateMap.get(key)
+                        } finally {
+                            IS_RUNNING_MAP_GET.remove()
+                        }
                         if(value == null) {
                             getMapKeySuggestions(input).add(Suggestion(key))
                         }
@@ -214,7 +222,12 @@ class StringRangeTree<TNode>(
                     }
 
                     override fun get(key: String): TNode? {
-                        val value = delegateMap.get(key)
+                        val value = try {
+                            IS_RUNNING_MAP_GET.set(true)
+                            delegateMap.get(key)
+                        } finally {
+                            IS_RUNNING_MAP_GET.remove()
+                        }
                         if(value == null) {
                             getMapKeySuggestions(input).add(Suggestion(delegate.createString(key)))
                         }

@@ -109,7 +109,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         builder.addMapKeyRange(current, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos))
                     }
 
-                    val isNesting: Boolean
+                    var isNesting: Boolean
                     var value: JsonElement?
 
                     try {
@@ -124,12 +124,10 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         if(!allowMalformed) {
                             throw e
                         }
-                        if(current is JsonObject) {
-                            @Suppress("DEPRECATION")
-                            current.add(name, JsonNull())
-                        }
+                        @Suppress("DEPRECATION")
+                        value = JsonNull()
+                        isNesting = false
                         `in`.skipEntry()
-                        continue
                     }
 
                     if(current is JsonArray) {
@@ -145,10 +143,10 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         stack.addLast(ReaderStackEntry(current, nestedStartPos, nestedAllowedStartPos))
                         nestedStartPos = `in`.absoluteValueStartPos
                         nestedAllowedStartPos = `in`.absoluteValueStartPosBeforeWhitespace
-                        current = value
+                        current = value!!
                         builder.addNodeOrder(current)
                     } else {
-                        builder.addNode(value, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos), `in`.absoluteValueStartPosBeforeWhitespace)
+                        builder.addNode(value!!, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos), `in`.absoluteValueStartPosBeforeWhitespace)
                     }
                 }
 
