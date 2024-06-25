@@ -10,6 +10,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHa
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.Position
+import java.io.IOException
 import java.io.StringReader
 
 class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>) : FileAnalyseHandler {
@@ -25,9 +26,14 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             val lines = file.stringifyLines()
             val result = AnalyzingResult(FileMappingInfo(lines), Position())
             val reader = StringReader(lines.joinToString("\n"))
+            val parsedStringRangeTree = try {
+                StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
+            } catch(e: IOException) {
+                return result
+            }
             val (analyzedStringRangeTree, analyzingDynamicOps) = StringRangeTree.AnalyzingDynamicOps.decodeWithAnalyzingOps(
                 ClientDynamicRegistryType.createCombinedDynamicRegistries().combinedRegistryManager.getOps(JsonOps.INSTANCE),
-                StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true),
+                parsedStringRangeTree,
                 fileDecoder
             )
             analyzedStringRangeTree.suggestFromAnalyzingOps(

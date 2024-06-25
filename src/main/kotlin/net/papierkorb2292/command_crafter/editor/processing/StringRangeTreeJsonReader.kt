@@ -7,7 +7,6 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
-import net.papierkorb2292.command_crafter.string_range_gson.MalformedJsonException
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import java.io.IOException
 import java.io.Reader
@@ -87,7 +86,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                 while(true) {
                     val hasNext = try {
                         `in`.hasNext()
-                    } catch(e: MalformedJsonException) {
+                    } catch(e: IOException) {
                         if(!allowMalformed) {
                             throw e
                         }
@@ -120,7 +119,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         if(value == null) {
                             value = readTerminal(`in`, peeked)
                         }
-                    } catch(e: MalformedJsonException) {
+                    } catch(e: IOException) {
                         if(!allowMalformed) {
                             throw e
                         }
