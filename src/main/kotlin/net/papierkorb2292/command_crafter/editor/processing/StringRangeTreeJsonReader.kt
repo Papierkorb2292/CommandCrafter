@@ -228,14 +228,12 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         val jsonReader = JsonReader(mappingInfo.getReader(suggestionRange.end))
                         jsonReader.strictness = Strictness.LENIENT
                         jsonReader.stack[0] = 3 // EMPTY_OBJECT
-                        suggestionRange.end + try {
+                        try {
                             jsonReader.nextName()
                             jsonReader.pos++
                             jsonReader.nextNonWhitespace(true)
-                            jsonReader.absolutePos - 1
-                        } catch(ignored: Exception) {
-                            jsonReader.absolutePos
-                        }
+                        } catch(ignored: Exception) { }
+                        suggestionRange.end + jsonReader.absolutePos - 1
                     }
                     return StringRangeTree.ResolvedSuggestion(
                         StringRangeTree.SimpleInputMatcher(keySuggestion),
