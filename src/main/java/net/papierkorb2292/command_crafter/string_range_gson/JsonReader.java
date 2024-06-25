@@ -17,7 +17,7 @@
  * This file has been modified by the CommandCrafter contributors
  * (repackaged, removed unnecessary dependencies for this application,
  * added public fields and methods keeping track of reader position for generating StringRangeTrees,
- * added methods to allow being more lenient)
+ * added methods to allow being more lenient, made nextNonWhitespace method public, made stack field public)
  * Changes are licensed under the license used by CommandCrafter (Mit License).
  */
 
@@ -292,7 +292,7 @@ public class JsonReader implements Closeable {
   /*
    * The nesting stack. Using a manual array rather than an ArrayList saves 20%.
    */
-  private int[] stack = new int[32];
+  public int[] stack = new int[32];
   private int stackSize = 0;
 
   {
@@ -1513,7 +1513,7 @@ public class JsonReader implements Closeable {
    * When this returns, the returned character is always at {@code buffer[pos-1]}; this means the
    * caller can always push back the returned character by decrementing {@code pos}.
    */
-  private int nextNonWhitespace(boolean throwOnEof) throws IOException {
+  public int nextNonWhitespace(boolean throwOnEof) throws IOException {
     /*
      * This code uses ugly local variables 'p' and 'l' representing the 'pos'
      * and 'limit' fields respectively. Using locals rather than fields saves

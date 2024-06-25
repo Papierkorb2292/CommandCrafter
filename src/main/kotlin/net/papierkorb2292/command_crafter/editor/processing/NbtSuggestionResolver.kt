@@ -18,7 +18,7 @@ object NbtSuggestionResolver : StringRangeTree.SuggestionResolver<NbtElement> {
                 val elementString = suggestion.element.toString()
                 return StringRangeTree.ResolvedSuggestion(
                     StringRangeTree.SimpleInputMatcher(elementString),
-                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange, mappingInfo)
+                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { suggestionRange.end /*TODO*/ }, mappingInfo, languageServer)
                 )
             }
             StringRangeTree.SuggestionType.MAP_KEY -> {
@@ -26,7 +26,7 @@ object NbtSuggestionResolver : StringRangeTree.SuggestionResolver<NbtElement> {
                 val keySuggestion = "\"$key\": "
                 return StringRangeTree.ResolvedSuggestion(
                     StringRangeTree.SimpleInputMatcher(keySuggestion),
-                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange, mappingInfo, key)
+                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { suggestionRange.end /*TODO*/ }, mappingInfo, languageServer, key)
                 )
             }
         }

@@ -13,7 +13,8 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -365,19 +366,46 @@ class StringRangeTree<TNode>(
 
     class SimpleCompletionItemProvider(
         private val text: String,
-        private val suggestionRange: StringRange,
+        private val insertStart: Int,
+        private val replaceEndProvider: () -> Int,
         private val mappingInfo: FileMappingInfo,
-        private val label: String = text
+        private val languageServer: MinecraftLanguageServer,
+        private val label: String = text,
     ) : (Int) -> CompletionItem {
         override fun invoke(offset: Int): CompletionItem {
-            //Important when implementing InsertReplace
-            /*val pos = AnalyzingResult.getPositionFromCursor(
-                mappingInfo.cursorMapper.mapToSource(suggestionRange.start + offset),
+            // Adjusting the insert start if the cursor is before the insert start
+            val adjustedInsertStart = min(insertStart, offset)
+            val insertStartPos = AnalyzingResult.getPositionFromCursor(
+                mappingInfo.cursorMapper.mapToSource(adjustedInsertStart),
                 mappingInfo
-            )*/
+            )
+            val insertEndPos = AnalyzingResult.getPositionFromCursor(
+                mappingInfo.cursorMapper.mapToSource(offset),
+                mappingInfo
+            )
+            val clampedInsertStartPos = if(insertStartPos.line < insertEndPos.line) {
+                Position(insertStartPos.line, 0)
+            } else {
+                insertStartPos
+            }
+            if(!languageServer.clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) {
+                return CompletionItem().also {
+                    it.label = label
+                    it.textEdit = Either.forLeft(TextEdit(Range(clampedInsertStartPos, insertEndPos), text))
+                }
+            }
+            val replaceEndPos = AnalyzingResult.getPositionFromCursor(
+                mappingInfo.cursorMapper.mapToSource(replaceEndProvider()),
+                mappingInfo
+            )
+            val clampedReplaceEndPos = if(replaceEndPos.line > insertEndPos.line) {
+                Position(insertEndPos.line, mappingInfo.lines[insertEndPos.line].length)
+            } else {
+                replaceEndPos
+            }
             return CompletionItem().also {
                 it.label = label
-                it.insertText = text
+                it.textEdit = Either.forRight(InsertReplaceEdit(text, Range(clampedReplaceEndPos, insertEndPos), Range(clampedInsertStartPos, clampedReplaceEndPos)))
             }
         }
     }

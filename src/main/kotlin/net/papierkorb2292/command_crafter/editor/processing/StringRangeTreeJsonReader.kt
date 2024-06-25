@@ -208,18 +208,39 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
             when(suggestionType) {
                 StringRangeTree.SuggestionType.NODE_START -> {
                     val elementString = suggestion.element.toString()
+                    val replaceEndProvider = {
+                        suggestionRange.end + try {
+                            val childStringRangeTree = StringRangeTreeJsonReader(mappingInfo.getReader(suggestionRange.end)).read(Strictness.LENIENT, true)
+                            childStringRangeTree.ranges[childStringRangeTree.root]!!.end
+                        } catch(ignored: Exception) {
+                            0
+                        }
+                    }
                     return StringRangeTree.ResolvedSuggestion(
                         StringRangeTree.SimpleInputMatcher(elementString),
-                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange, mappingInfo)
+                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, replaceEndProvider, mappingInfo, languageServer)
                     )
                 }
                 StringRangeTree.SuggestionType.MAP_KEY -> {
                     val element = suggestion.element
                     val key = if(element.isJsonPrimitive) element.asString else element.toString()
                     val keySuggestion = "\"$key\": "
+                    val replaceEndProvider = {
+                        val jsonReader = JsonReader(mappingInfo.getReader(suggestionRange.end))
+                        jsonReader.strictness = Strictness.LENIENT
+                        jsonReader.stack[0] = 3 // EMPTY_OBJECT
+                        suggestionRange.end + try {
+                            jsonReader.nextName()
+                            jsonReader.pos++
+                            jsonReader.nextNonWhitespace(true)
+                            jsonReader.absolutePos - 1
+                        } catch(ignored: Exception) {
+                            jsonReader.absolutePos
+                        }
+                    }
                     return StringRangeTree.ResolvedSuggestion(
                         StringRangeTree.SimpleInputMatcher(keySuggestion),
-                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange, mappingInfo, key)
+                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, replaceEndProvider, mappingInfo, languageServer, key)
                     )
                 }
             }
