@@ -92,7 +92,9 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                             throw e
                         }
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
+                        val entryEnd = `in`.absoluteEntryEndPos
                         `in`.skipEntry()
+                        builder.addRangeBetweenInternalNodeEntries(current, StringRange(entryEnd, `in`.absolutePos - 1))
                         continue
                     }
                     if(!hasNext) {

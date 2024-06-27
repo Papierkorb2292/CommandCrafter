@@ -6,10 +6,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.registry.RegistryOps
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLine
-import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -140,7 +137,7 @@ class StringRangeTree<TNode>(
 
         val sorted = flattenSorted(
             resolvedSuggestions,
-            Comparator.comparing(kotlin.Pair<StringRange, *>::first, StringRange::compareTo)
+            Comparator.comparing(kotlin.Pair<StringRange, *>::first, StringRange::compareToExclusive)
         )
         for((i, suggestionEntry) in sorted.withIndex()) {
             val (range, suggestions) = suggestionEntry
@@ -230,10 +227,8 @@ class StringRangeTree<TNode>(
                         isEmpty = false
                         return@flatMap Stream.of(it)
                     }
-                    if(!isEmpty)
+                    if(!isEmpty || !insertListPlaceholder(input, it))
                         return@flatMap Stream.empty()
-
-                    insertListPlaceholder(input, it)
                     Stream.of(it)
                 }
             }
@@ -286,13 +281,19 @@ class StringRangeTree<TNode>(
                 }
                 if(isEmpty) {
                     val placeholder = delegate.emptyList()
-                    insertListPlaceholder(input, placeholder)
-                    entryConsumer.accept(placeholder)
+                    if(insertListPlaceholder(input, placeholder))
+                        entryConsumer.accept(placeholder)
                 }
             } }
         }
 
-        private fun insertListPlaceholder(list: TNode, placeholder: TNode) {
+        private val placeholders = mutableSetOf<TNode>()
+
+        private fun insertListPlaceholder(list: TNode, placeholder: TNode): Boolean {
+            if(list in placeholders) return false
+
+            placeholders += placeholder
+
             val orderedNodes = tree.orderedNodes.toMutableList()
             orderedNodes.add(orderedNodes.indexOf(list) + 1, placeholder)
 
@@ -313,6 +314,7 @@ class StringRangeTree<TNode>(
                 tree.mapKeyRanges,
                 tree.internalNodeRangesBetweenEntries
             )
+            return true
         }
 
         //For later: Saving the path for each node to request suggestion descriptions for keys

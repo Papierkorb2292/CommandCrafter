@@ -887,6 +887,7 @@ public class JsonReader implements Closeable {
         while(true) {
           switch(nextNonWhitespace(true)) {
             case '}':
+              absoluteEntryEndPos = getAbsolutePos() - 1;
               peeked = PEEKED_END_OBJECT;
               return;
             case ';':
@@ -903,6 +904,7 @@ public class JsonReader implements Closeable {
         while(true) {
           switch(nextNonWhitespace(true)) {
             case ']':
+              absoluteEntryEndPos = getAbsolutePos() - 1;
               peeked = PEEKED_END_ARRAY;
               return;
             case ';':
