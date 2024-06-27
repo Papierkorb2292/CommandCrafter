@@ -7,11 +7,11 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
-import net.papierkorb2292.command_crafter.string_range_gson.MalformedJsonException
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import java.io.IOException
 import java.io.Reader
 import java.util.*
+import kotlin.math.max
 
 class StringRangeTreeJsonReader(private val stringReader: Reader) {
     @Throws(IOException::class)
@@ -87,11 +87,11 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                 while(true) {
                     val hasNext = try {
                         `in`.hasNext()
-                    } catch(e: MalformedJsonException) {
+                    } catch(e: IOException) {
                         if(!allowMalformed) {
                             throw e
                         }
-                        `in`.pos-- // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
+                        `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
                         `in`.skipEntry()
                         continue
                     }
@@ -121,14 +121,14 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         if(value == null) {
                             value = readTerminal(`in`, peeked)
                         }
-                    } catch(e: MalformedJsonException) {
+                    } catch(e: IOException) {
                         if(!allowMalformed) {
                             throw e
                         }
                         @Suppress("DEPRECATION")
                         value = JsonNull()
                         isNesting = false
-                        `in`.pos-- // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
+                        `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
                         `in`.skipEntry()
                     }
 
