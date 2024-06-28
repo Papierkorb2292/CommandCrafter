@@ -409,6 +409,7 @@ class StringRangeTree<TNode: Any>(
             }
             return CompletionItem().also {
                 it.label = label
+                it.filterText = text
                 it.textEdit = Either.forRight(InsertReplaceEdit(text, Range(clampedInsertStartPos, insertEndPos), Range(clampedInsertStartPos, clampedReplaceEndPos)))
             }
         }
