@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.google.gson.JsonElement
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
 import net.minecraft.client.network.ClientDynamicRegistryType
@@ -31,8 +32,9 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
+            val registryOps = ClientDynamicRegistryType.createCombinedDynamicRegistries().combinedRegistryManager.getOps(JsonOps.INSTANCE)
             val (analyzedStringRangeTree, analyzingDynamicOps) = StringRangeTree.AnalyzingDynamicOps.decodeWithAnalyzingOps(
-                ClientDynamicRegistryType.createCombinedDynamicRegistries().combinedRegistryManager.getOps(JsonOps.INSTANCE),
+                registryOps,
                 parsedStringRangeTree,
                 fileDecoder
             )
@@ -42,6 +44,12 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                 languageServer,
                 StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver
             )
+
+            // Create error diagnostics
+            val errorCallback = parsedStringRangeTree.DecoderErrorLeafRangesCallback(JsonElement::class)
+            PreLaunchDecoderOutputTracker.decodeWithCallback(fileDecoder, registryOps, parsedStringRangeTree.root, errorCallback)
+            result.diagnostics += errorCallback.generateDiagnostics(result.mappingInfo)
+
             return result
         }
     }

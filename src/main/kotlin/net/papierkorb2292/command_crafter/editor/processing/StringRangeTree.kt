@@ -21,12 +21,14 @@ import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
 import kotlin.math.min
+import kotlin.reflect.KClass
+import kotlin.reflect.safeCast
 
 /**
  * Used for storing the [StringRange]s of the nodes in a tree alongside the nodes themselves,
  * so semantic tokens and other editor language features can use them.
  */
-class StringRangeTree<TNode>(
+class StringRangeTree<TNode: Any>(
     val root: TNode,
     /**
      * The nodes in the tree in the order they appear in the input string.
@@ -173,11 +175,11 @@ class StringRangeTree<TNode>(
         }
     }
 
-    class AnalyzingDynamicOps<TNode> private constructor(private val delegate: DynamicOps<TNode>, private var tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
+    class AnalyzingDynamicOps<TNode: Any> private constructor(private val delegate: DynamicOps<TNode>, private var tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
         companion object {
             val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
 
-            fun <TNode, TEncoded> decodeWithAnalyzingOps(delegate: DynamicOps<TNode>, input: StringRangeTree<TNode>, decoder: Decoder<TEncoded>): kotlin.Pair<StringRangeTree<TNode>, AnalyzingDynamicOps<TNode>> {
+            fun <TNode: Any, TEncoded> decodeWithAnalyzingOps(delegate: DynamicOps<TNode>, input: StringRangeTree<TNode>, decoder: Decoder<TEncoded>): kotlin.Pair<StringRangeTree<TNode>, AnalyzingDynamicOps<TNode>> {
                 val analyzingDynamicOps: AnalyzingDynamicOps<TNode>
                 val wrappedOps: DynamicOps<TNode>
                 when(delegate) {
@@ -434,7 +436,7 @@ class StringRangeTree<TNode>(
         MAP_KEY
     }
 
-    class Builder<TNode> {
+    class Builder<TNode: Any> {
         private val nodesSet = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
         private val orderedNodes = mutableListOf<TNode>()
         private val nodeRanges = IdentityHashMap<TNode, StringRange>()
@@ -482,5 +484,78 @@ class StringRangeTree<TNode>(
         }
 
         class NodeWithoutRangeError(message: String) : Error(message)
+    }
+
+    /**
+     * A decoder  callback that tracks all errors and the range of the input that caused them.
+     *
+     * This callback only keeps the errors that are caused by the leaf nodes of a StringRangeTree that is reduced
+     * to only the nodes with errors. In other words, all errors whose range encompasses another error's
+     * range are ignored
+     */
+    inner class DecoderErrorLeafRangesCallback(private val nodeClass: KClass<out TNode>) : PreLaunchDecoderOutputTracker.ResultCallback {
+        private val errors = mutableListOf<kotlin.Pair<StringRange, String>>()
+
+        private fun throwForPartialOverlap(range1: StringRange, range2: StringRange) {
+            throw IllegalStateException("Ranges of nodes must not partially overlap. They must either not overlap or one must encompass the other. Ranges: $range1, $range2")
+        }
+
+        override fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput) {
+            val inputNode = nodeClass.safeCast(input) ?: return
+            val range = ranges[inputNode] ?: return
+            val index = errors.binarySearch { entry -> entry.first.compareToExclusive(range) }
+            if(index < 0) {
+                errors.add(-index - 1, range to error.message())
+                return
+            }
+            val existingRange = errors[index].first
+            if(existingRange.start <= range.start && existingRange.end >= range.end) {
+                errors[index] = range to error.message()
+                return
+            }
+
+            if((existingRange.start < range.start).xor(existingRange.end > range.end))
+                throwForPartialOverlap(existingRange, range)
+        }
+
+        override fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput) {
+            if(isPartial) return
+
+            //Since decoding was successful, all errors that are encompassed by the input node's range are removed
+            val inputNode = nodeClass.safeCast(input) ?: return
+            val range = ranges[inputNode] ?: return
+            var index = errors.binarySearch { entry -> entry.first.compareToExclusive(range) }
+            if(index < 0) return
+
+            while(index >= 0) {
+                val existingRange = errors[index].first
+                if(existingRange.start < range.start) {
+                    if(existingRange.end < range.end && existingRange.end > range.start)
+                        throwForPartialOverlap(existingRange, range)
+                    break
+                }
+                if(existingRange.end > range.end) {
+                    if(existingRange.start > range.start && existingRange.start < range.end)
+                        throwForPartialOverlap(existingRange, range)
+                    break
+                }
+                errors.removeAt(index)
+                if(index >= errors.size)
+                    index = errors.lastIndex
+            }
+        }
+
+        fun generateDiagnostics(fileMappingInfo: FileMappingInfo): List<Diagnostic> {
+            return errors.map { (range, message) ->
+                Diagnostic().also {
+                    it.range = Range(
+                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.start), fileMappingInfo),
+                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.end), fileMappingInfo)
+                    )
+                    it.message = message
+                    it.severity = DiagnosticSeverity.Error
+                }
+            }
+        }
     }
 }

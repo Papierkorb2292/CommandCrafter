@@ -11,7 +11,8 @@ class CodecSuggestionWrapper<A>(private val delegate: Codec<A>, val suggestionsP
     override fun <T> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T>
         = delegate.encode(input, ops, prefix)
 
-    override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
+    override fun <T: Any> decode(ops: DynamicOps<T>, input: T?): DataResult<Pair<A, T>> {
+        if(input == null) return delegate.decode(ops, null)
         StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull()?.let { analyzingOps ->
             @Suppress("UNCHECKED_CAST")
             val castedOps = analyzingOps as StringRangeTree.AnalyzingDynamicOps<T>
