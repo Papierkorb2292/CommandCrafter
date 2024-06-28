@@ -8,6 +8,7 @@ import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import org.spongepowered.asm.mixin.MixinEnvironment
+import java.lang.invoke.MethodHandles
 
 object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
 
@@ -19,6 +20,7 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
     private const val COPROCESSORS_FIELD_NAME = "coprocessors"
 
     private const val DECODER_OUTPUT_TRACKER_COPROCESSOR_NAME = "org.spongepowered.asm.mixin.transformer.CommandCrafterDecoderOutputTrackerMixinCoprocessor"
+    private val DECODER_OUTPUT_TRACKER_COPROCESSOR_CLASS_FILE = DECODER_OUTPUT_TRACKER_COPROCESSOR_NAME.replace('.', '/') + ".class"
 
     override fun onPreLaunch() {
         val mixinTransformerProcessorField = Class.forName(MIXIN_TRANSFORMER_NAME).getDeclaredField(PROCESSOR_FIELD_NAME)
@@ -31,7 +33,11 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         val coprocessors = mixinProcessorCoprocessorsField.get(processor) as MutableList<in Any>
 
         val appClassLoader = transformer.javaClass.classLoader
-        coprocessors += appClassLoader.loadClass(DECODER_OUTPUT_TRACKER_COPROCESSOR_NAME).constructors.first().newInstance()
+        val classBytes = javaClass.classLoader.getResourceAsStream(DECODER_OUTPUT_TRACKER_COPROCESSOR_CLASS_FILE)!!.readAllBytes()
+        MethodHandles.privateLookupIn(transformer.javaClass, MethodHandles.lookup()).defineClass(classBytes)
+        val constructor = appClassLoader.loadClass(DECODER_OUTPUT_TRACKER_COPROCESSOR_NAME).getDeclaredConstructor()
+        constructor.isAccessible = true
+        coprocessors += constructor.newInstance()
     }
 
     fun <TResult, TInput> decodeWithCallback(decoder: Decoder<TResult>, ops: DynamicOps<TInput>, input: TInput, callback: ResultCallback): DataResult<Pair<TResult, TInput>> {
