@@ -409,7 +409,7 @@ class StringRangeTree<TNode: Any>(
             }
             return CompletionItem().also {
                 it.label = label
-                it.textEdit = Either.forRight(InsertReplaceEdit(text, Range(clampedReplaceEndPos, insertEndPos), Range(clampedInsertStartPos, clampedReplaceEndPos)))
+                it.textEdit = Either.forRight(InsertReplaceEdit(text, Range(clampedInsertStartPos, insertEndPos), Range(clampedInsertStartPos, clampedReplaceEndPos)))
             }
         }
     }
