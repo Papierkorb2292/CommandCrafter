@@ -414,10 +414,14 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    class SimpleInputMatcher(private val text: String) : (Char) -> Boolean {
+    class SimpleInputMatcher(private vararg val texts: String) : (Char) -> Boolean {
         private var index = 0
         override fun invoke(char: Char): Boolean {
-            return index < text.length && char == text[index++]
+            if(texts.any { index < it.length && char == it[index] }) {
+                index++
+                return true
+            }
+            return false
         }
     }
 

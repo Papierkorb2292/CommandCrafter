@@ -241,7 +241,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         suggestionRange.end + jsonReader.absolutePos - 1
                     }
                     return StringRangeTree.ResolvedSuggestion(
-                        StringRangeTree.SimpleInputMatcher(keySuggestion),
+                        StringRangeTree.SimpleInputMatcher(keySuggestion, key),
                         StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, replaceEndProvider, mappingInfo, languageServer, key)
                     )
                 }
