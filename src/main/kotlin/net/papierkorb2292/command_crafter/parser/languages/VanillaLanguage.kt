@@ -24,7 +24,6 @@ import net.minecraft.registry.RegistryWrapper
 import net.minecraft.registry.entry.RegistryEntry
 import net.minecraft.registry.entry.RegistryEntryList
 import net.minecraft.registry.tag.TagEntry
-import net.minecraft.registry.tag.TagManagerLoader
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandOutput
@@ -120,7 +119,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
             }
         }
-
         reader.endStatementAndAnalyze(result)
         while (reader.canRead() && reader.currentLanguage == this) {
             if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
@@ -476,7 +474,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         analyzingResult,
                         node.name
                     )
-                } catch(_: CommandSyntaxException) { }
+                } catch(_: Exception) { }
                 if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
                         context,
                         node.name
