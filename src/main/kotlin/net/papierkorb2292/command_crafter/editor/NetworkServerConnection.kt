@@ -24,6 +24,7 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
@@ -413,6 +414,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             return future
         }
     }
+    override val dynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
 
     class NetworkServerLog : Log {
         val log = CallbackLinkedBlockingQueue<String>()

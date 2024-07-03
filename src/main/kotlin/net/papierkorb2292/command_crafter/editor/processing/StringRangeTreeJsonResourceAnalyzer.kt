@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.google.gson.JsonElement
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
-import net.minecraft.client.network.ClientDynamicRegistryType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -32,7 +31,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
-            val registryOps = ClientDynamicRegistryType.createCombinedDynamicRegistries().combinedRegistryManager.getOps(JsonOps.INSTANCE)
+            val registryOps = languageServer.dynamicRegistryManager.getOps(JsonOps.INSTANCE)
             val (analyzedStringRangeTree, analyzingDynamicOps) = StringRangeTree.AnalyzingDynamicOps.decodeWithAnalyzingOps(
                 registryOps,
                 parsedStringRangeTree,

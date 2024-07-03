@@ -24,8 +24,14 @@ import net.minecraft.loot.condition.LootCondition
 import net.minecraft.loot.function.LootFunctionTypes
 import net.minecraft.network.message.MessageType
 import net.minecraft.recipe.Recipe
+import net.minecraft.registry.CombinedDynamicRegistries
 import net.minecraft.registry.Registry
+import net.minecraft.registry.RegistryLoader
+import net.minecraft.registry.ServerDynamicRegistryType
 import net.minecraft.registry.tag.TagFile
+import net.minecraft.resource.LifecycledResourceManagerImpl
+import net.minecraft.resource.ResourceType
+import net.minecraft.resource.VanillaDataPackProvider
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
@@ -59,7 +65,6 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.Position
 import java.io.BufferedReader
-
 
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"
@@ -186,5 +191,18 @@ object CommandCrafter: ModInitializer {
                 process(args, id, content, RawZipResourceCreator(), dispatcher)
             }
         }
+    }
+
+    val defaultDynamicRegistryManager: CombinedDynamicRegistries<ServerDynamicRegistryType> by lazy {
+        val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries();
+        val precedingWorldgen = initialRegistries.getPrecedingRegistryManagers(ServerDynamicRegistryType.WORLDGEN);
+        return@lazy initialRegistries.with(
+            ServerDynamicRegistryType.RELOADABLE,
+            RegistryLoader.loadFromResource(
+                LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, listOf(VanillaDataPackProvider.createDefaultPack())),
+                precedingWorldgen,
+                RegistryLoader.DYNAMIC_REGISTRIES
+            )
+        )
     }
 }

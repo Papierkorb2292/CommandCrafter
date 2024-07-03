@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.command.CommandSource
+import net.minecraft.registry.DynamicRegistryManager
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
@@ -14,4 +15,5 @@ interface MinecraftServerConnection {
     val commandExecutor: CommandExecutor?
     val debugService: ServerDebugConnectionService?
     val contextCompletionProvider: ContextCompletionProvider?
+    val dynamicRegistryManager: () -> DynamicRegistryManager
 }

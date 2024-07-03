@@ -49,3 +49,5 @@ inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValue(value: TValue, blo
         remove()
     }
 }
+
+fun <R> (() -> R).memoize(): () -> R = lazy(this)::value
