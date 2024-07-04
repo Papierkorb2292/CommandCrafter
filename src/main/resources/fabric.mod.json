@@ -32,6 +32,10 @@
       {
         "adapter": "kotlin",
         "value": "net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener"
+      },
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker"
       }
     ]
   },

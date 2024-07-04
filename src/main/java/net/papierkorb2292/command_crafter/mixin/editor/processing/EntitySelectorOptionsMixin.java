@@ -2,21 +2,23 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.context.StringRange;
 import net.minecraft.command.EntitySelectorOptions;
 import net.minecraft.command.EntitySelectorReader;
 import net.minecraft.entity.EntityType;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer;
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
-import net.papierkorb2292.command_crafter.editor.processing.TokenType;
+import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.helper.AnalyzedRegistryEntryList;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
@@ -414,20 +416,24 @@ public class EntitySelectorOptionsMixin {
         };
     }
 
-    @ModifyReceiver(
+    @WrapOperation(
             method = "method_9966",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/nbt/StringNbtReader;parseCompound()Lnet/minecraft/nbt/NbtCompound;"
             )
     )
-    private static StringNbtReader command_crafter$highlightNbtOption(StringNbtReader nbtReader, EntitySelectorReader selectorReader) {
-        var semanticBuilderContainer = (AnalyzingResultDataContainer)selectorReader;
-        var analyzingResult = semanticBuilderContainer.command_crafter$getAnalyzingResult();
-        if(analyzingResult != null) {
-            ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
-        }
-        return nbtReader;
+    private static NbtCompound command_crafter$highlightNbtOption(StringNbtReader nbtReader, Operation<NbtCompound> op, EntitySelectorReader selectorReader) {
+        var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
+        if (analyzingResult == null)
+            return op.call(nbtReader);
+        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        //noinspection unchecked
+        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        var nbt = op.call(nbtReader);
+        var tree = treeBuilder.build(nbt);
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), analyzingResult.getSemanticTokens());
+        return nbt;
     }
 
     @ModifyExpressionValue(

@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.command.CommandSource
+import net.minecraft.registry.DynamicRegistryManager
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
@@ -14,4 +16,5 @@ class ClientDummyServerConnection(
     override val commandExecutor: CommandExecutor? = null,
     override val debugService: ServerDebugConnectionService? = null,
     override val contextCompletionProvider: ContextCompletionProvider? = null,
+    override val dynamicRegistryManager: () -> DynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
 ) : MinecraftServerConnection

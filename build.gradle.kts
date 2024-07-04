@@ -38,10 +38,12 @@ tasks {
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> { kotlinOptions { jvmTarget = javaVersion.toString() } }
     jar { from("LICENSE") { rename { "${it}_${base.archivesName.get()}" } } }
     jar { from("README.md") }
+    jar { from("GSON_LICENSE") }
     processResources {
         filesMatching("fabric.mod.json") { expand(mutableMapOf("version" to project.extra["mod_version"] as String, "fabricloader" to project.extra["loader_version"] as String, "fabric_api" to project.extra["fabric_version"] as String, "fabric_language_kotlin" to project.extra["fabric_language_kotlin_version"] as String, "minecraft" to project.extra["minecraft_version"] as String, "java" to project.extra["java_version"] as String)) }
         filesMatching("*.mixins.json") { expand(mutableMapOf("java" to project.extra["java_version"] as String)) }
     }
+
     java {
         toolchain { languageVersion.set(JavaLanguageVersion.of(javaVersion.toString())) }
         sourceCompatibility = javaVersion

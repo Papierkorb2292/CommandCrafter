@@ -6,3 +6,5 @@ accessible class net/minecraft/server/function/Macro$Line
 accessible class net/minecraft/server/function/Macro$VariableLine
 accessible class net/minecraft/command/argument/NbtPathArgumentType$PathNode
 accessible class net/minecraft/command/argument/packrat/ParsingState$PackratCache
+extendable method net/minecraft/nbt/NbtByte <init> (B)V
+accessible class net/minecraft/client/font/FontManager$Providers

@@ -44,6 +44,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
     var clientCapabilities: ClientCapabilities? = null
         private set
 
+    val dynamicRegistryManager get() = minecraftServer.dynamicRegistryManager()
+
     private var remote: Endpoint? = null
     private var running = true
 

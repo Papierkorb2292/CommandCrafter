@@ -3,14 +3,14 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.binarySearch
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 
-class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf(), val filePosition: Position, var documentation: String? = null) {
-    constructor(reader: DirectiveStringReader<*>, filePosition: Position, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(reader, SemanticTokensBuilder(reader), diagnostics, filePosition)
+class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf(), val filePosition: Position, var documentation: String? = null) {
+    constructor(reader: FileMappingInfo, filePosition: Position, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(reader, SemanticTokensBuilder(reader), diagnostics, filePosition)
 
     private val completionProviders: MutableList<RangedDataProvider<CompletableFuture<List<CompletionItem>>>> = mutableListOf()
     private val hoverProviders: MutableList<RangedDataProvider<CompletableFuture<Hover>>> = mutableListOf()
@@ -57,7 +57,7 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
     fun getDefinitionProviderForCursor(cursor: Int) =
         getRangedDataProviderForCursor(definitionProviders, cursor) ?: getRangedDataProviderForCursor(definitionProviders, cursor - 1)
 
-    fun copyInput() = AnalyzingResult(reader, SemanticTokensBuilder(reader), mutableListOf(), filePosition, documentation)
+    fun copyInput() = AnalyzingResult(mappingInfo, SemanticTokensBuilder(mappingInfo), mutableListOf(), filePosition, documentation)
     fun copy() = copyInput().also {
         it.combineWith(this)
     }
@@ -74,9 +74,9 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
     }
 
     private fun <TData> addMappedRangedDataProvider(dest: MutableList<RangedDataProvider<TData>>, unmappedProvider: RangedDataProvider<TData>) {
-        val startCursor = unmappedProvider.cursorRange.start + reader.readSkippingChars
+        val startCursor = unmappedProvider.cursorRange.start + mappingInfo.readSkippingChars
 
-        val cursorMapper = reader.cursorMapper
+        val cursorMapper = mappingInfo.cursorMapper
 
         var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
             if(cursorMapper.targetCursors[index] <= startCursor) -1
@@ -134,19 +134,26 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
             else if(cursor > it.cursorRange.end || (!inclusiveRangeEnd && cursor == it.cursorRange.end)) -1
             else 0
         }
-        return if(index >= 0) providers[index] else null
+        return if(index >= 0) {
+            if(inclusiveRangeEnd && index + 1 < providers.size && cursor == providers[index + 1].cursorRange.start) {
+                providers[index + 1]
+            } else providers[index]
+        } else null
     }
 
     fun toFileRange(stringRange: StringRange): Range {
-        val startCursor = stringRange.start + reader.readSkippingChars
-        val endCursor = stringRange.end + reader.readSkippingChars
+        val startCursor = stringRange.start + mappingInfo.readSkippingChars
+        val endCursor = stringRange.end + mappingInfo.readSkippingChars
         return Range(
-            getPositionFromCursor(reader.cursorMapper.mapToSource(startCursor), reader.lines),
-            getPositionFromCursor(reader.cursorMapper.mapToSource(endCursor), reader.lines)
+            getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(startCursor), mappingInfo.lines),
+            getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(endCursor), mappingInfo.lines)
         )
     }
 
     companion object {
+        fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
+            getPositionFromCursor(cursor, mappingInfo.lines, zeroBased)
+
         fun getPositionFromCursor(cursor: Int, lines: List<String>, zeroBased: Boolean = true): Position {
             if(lines.isEmpty()) return Position()
             var charactersLeft = cursor
@@ -163,6 +170,9 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
             return if(zeroBased) Position(lastLineNumber - 1, lastColumnNumber)
             else Position(lastLineNumber, lastColumnNumber + 1)
         }
+
+        fun getCursorFromPosition(position: Position, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
+            getCursorFromPosition(mappingInfo.lines, position, zeroBased)
 
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
             if(lines.isEmpty()) return 0
@@ -196,6 +206,9 @@ class AnalyzingResult(val reader: DirectiveStringReader<*>, val semanticTokens: 
                 startCharactersLeft = 0
             }
         }
+
+        fun getLineCursorRange(lineNumber: Int, mappingInfo: FileMappingInfo) =
+            getLineCursorRange(lineNumber, mappingInfo.lines)
 
         fun getLineCursorRange(lineNumber: Int, lines: List<String>): StringRange {
             var cursor = 0

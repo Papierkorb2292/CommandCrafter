@@ -2,11 +2,11 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.helper.binarySearch
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.SemanticTokens
 import kotlin.math.min
 
-class SemanticTokensBuilder(val reader: DirectiveStringReader<*>) {
+class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     private val data = ArrayList<Int>(100)
     private var dataSize = 100
     private var lastLine = 0
@@ -41,12 +41,12 @@ class SemanticTokensBuilder(val reader: DirectiveStringReader<*>) {
         type: TokenType,
         modifiers: Int
     ) {
-        val lines = reader.lines
+        val lines = mappingInfo.lines
         // Find the starting line
         if(lines.isEmpty())
             return
-        val offsetCursor = cursor + reader.readSkippingChars
-        val cursorMapper = reader.cursorMapper
+        val offsetCursor = cursor + mappingInfo.readSkippingChars
+        val cursorMapper = mappingInfo.cursorMapper
         // Map the command cursor to an absolute cursor
         var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
             if(cursorMapper.targetCursors[index] <= offsetCursor) -1

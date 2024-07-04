@@ -19,6 +19,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         fun fromLines(uri: String, lines: List<String>, version: Int = 0) = OpenFile(uri, lines.mapTo(ArrayList(lines.size), ::StringBuffer), version)
     }
 
+    fun stringifyLines() = lines.map { it.toString() }
 
     fun applyContentChange(change: TextDocumentContentChangeEvent) =
         applyContentChange(

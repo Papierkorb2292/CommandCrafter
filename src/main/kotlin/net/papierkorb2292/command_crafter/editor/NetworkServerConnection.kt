@@ -24,6 +24,7 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
@@ -47,6 +48,7 @@ import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import org.eclipse.lsp4j.Position
@@ -253,9 +255,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ServerPlayNetworking.registerGlobalReceiver(ContextCompletionRequestC2SPacket.ID) { payload, context ->
                 val server = context.player().server
                 @Suppress("UNCHECKED_CAST")
-                val reader = DirectiveStringReader(payload.inputLines, server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
+                val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
                 server.execute {
-                    val analyzingResult = AnalyzingResult(reader, Position())
+                    val analyzingResult = AnalyzingResult(reader.fileMappingInfo, Position())
                     LanguageManager.analyse(reader, server.commandSource, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
                     val completionFuture = analyzingResult.getCompletionProviderForCursor(payload.cursor)
                         ?.dataProvider?.invoke(payload.cursor)
@@ -412,6 +414,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             return future
         }
     }
+    override val dynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
 
     class NetworkServerLog : Log {
         val log = CallbackLinkedBlockingQueue<String>()

@@ -1,16 +1,22 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
 import net.minecraft.command.argument.ItemStringReader;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
+import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -66,17 +72,23 @@ public class ItemStringReaderReaderMixin {
         }
     }
 
-    @ModifyReceiver(
+    @WrapOperation(
             method = "readComponentValue",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/nbt/StringNbtReader;parseElement()Lnet/minecraft/nbt/NbtElement;"
             )
     )
-    private StringNbtReader command_crafter$analyzeComponentNbt(StringNbtReader nbtReader) {
-        if (command_crafter$analyzingResult != null) {
-            ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(command_crafter$analyzingResult);
+    private NbtElement command_crafter$analyzeComponentNbt(StringNbtReader nbtReader, Operation<NbtElement> op) {
+        if (command_crafter$analyzingResult == null) {
+            return op.call(nbtReader);
         }
-        return nbtReader;
+        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        //noinspection unchecked
+        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        var nbt = op.call(nbtReader);
+        var tree = treeBuilder.build(nbt);
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), command_crafter$analyzingResult.getSemanticTokens());
+        return nbt;
     }
 }

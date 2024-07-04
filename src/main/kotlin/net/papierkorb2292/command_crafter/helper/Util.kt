@@ -40,3 +40,14 @@ inline fun <T> Semaphore.withAcquired(block: () -> T): T {
 
 fun <T> ThreadLocal<T>.getOrNull(): T? =
     get().also { if(it == null) remove() }
+
+inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValue(value: TValue, block: () -> TResult): TResult {
+    set(value)
+    try {
+        return block()
+    } finally {
+        remove()
+    }
+}
+
+fun <R> (() -> R).memoize(): () -> R = lazy(this)::value

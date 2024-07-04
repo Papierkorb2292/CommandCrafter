@@ -42,6 +42,12 @@
           "light": "resources/minecraft-icon-light.svg",
           "dark": "resources/minecraft-icon-dark.svg"
         }
+      },
+      {
+        "id": "json",
+        "extensions": [
+          ".mcmeta"
+        ]
       }
     ],
     "viewsContainers": {

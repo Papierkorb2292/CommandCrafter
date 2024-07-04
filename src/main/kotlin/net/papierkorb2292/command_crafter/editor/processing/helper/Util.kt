@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
-import net.minecraft.network.PacketByteBuf
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.*
@@ -11,6 +10,9 @@ import java.util.*
 
 fun Position.advance() = advance(1)
 fun Position.advance(amount: Int) = Position(line, character + amount)
+fun Position.advanceLine() = advanceLines(1)
+fun Position.advanceLines(amount: Int) = Position(line + amount, 0)
+
 fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
     val oneBasedOffset = if(zeroBased) 0 else 1
     return Position(
@@ -29,6 +31,12 @@ operator fun Int.compareTo(range: StringRange): Int {
 operator fun StringRange.compareTo(range: StringRange): Int {
     if(this.end < range.start) return -1
     if(this.start > range.end) return 1
+    return 0
+}
+
+fun StringRange.compareToExclusive(range: StringRange): Int {
+    if(this.end <= range.start) return -1
+    if(this.start >= range.end) return 1
     return 0
 }
 
