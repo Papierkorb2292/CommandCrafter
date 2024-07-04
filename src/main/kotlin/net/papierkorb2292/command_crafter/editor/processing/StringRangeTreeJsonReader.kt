@@ -98,13 +98,10 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         builder.addRangeBetweenInternalNodeEntries(current, StringRange(entryEnd, `in`.absolutePos - 1))
                         continue
                     }
-                    if(!hasNext) {
-                        builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absolutePos - 1))
-                        break
-                    }
                     if(`in`.absoluteEntryEndPos != -1) {
                         builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absoluteValueStartPos))
                     }
+                    if(!hasNext) break
 
                     var name: String? = null
                     // Name is only used for JSON object members

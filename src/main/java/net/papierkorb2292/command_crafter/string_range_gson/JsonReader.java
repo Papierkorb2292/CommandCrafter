@@ -578,6 +578,7 @@ public class JsonReader implements Closeable {
         int c = nextNonWhitespace(true);
         switch (c) {
           case '}':
+            absoluteEntryEndPos = -1; // There's no comma, so no name can be entered
             return peeked = PEEKED_END_OBJECT;
           case ';':
             checkLenient(); // fall-through
