@@ -143,25 +143,8 @@ class StringRangeTree<TNode: Any>(
         )
         for((i, suggestionEntry) in sorted.withIndex()) {
             val (range, suggestions) = suggestionEntry
-            val originalEndPos = AnalyzingResult.getPositionFromCursor(range.end, result.mappingInfo)
             // Extending the range to the furthest any suggestion matches the input
-            val extendedEndCursor = range.end + suggestions.maxOf {
-                var currentPos = originalEndPos
-                var length = 0
-                while(currentPos.line < result.mappingInfo.lines.size) {
-                    val line = result.mappingInfo.lines[currentPos.line]
-                    if(currentPos.character >= line.length) {
-                        if(!it.inputMatcher('\n')) break
-                        currentPos = currentPos.advanceLine()
-                        continue
-                    }
-                    if(!it.inputMatcher(line[currentPos.character])) break
-                    length++
-
-                    currentPos = currentPos.advance()
-                }
-                length
-            }
+            val extendedEndCursor = suggestions.maxOf { it.suggestionEnd }
 
             // Make sure to not overlap with the next entry
             val newEndCursor = if(i + 1 < sorted.size) {
@@ -364,7 +347,7 @@ class StringRangeTree<TNode: Any>(
     }
 
     data class Suggestion<TNode>(val element: TNode)
-    class ResolvedSuggestion(val inputMatcher: (Char) -> Boolean, val completionItemProvider: (Int) -> CompletionItem)
+    class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: (Int) -> CompletionItem)
     data class TokenInfo(val type: TokenType, val modifiers: Int)
     data class AdditionalToken(val range: StringRange, val tokenInfo: TokenInfo)
 
@@ -412,17 +395,6 @@ class StringRangeTree<TNode: Any>(
                 it.filterText = text
                 it.textEdit = Either.forRight(InsertReplaceEdit(text, Range(clampedInsertStartPos, insertEndPos), Range(clampedInsertStartPos, clampedReplaceEndPos)))
             }
-        }
-    }
-
-    class SimpleInputMatcher(private vararg val texts: String) : (Char) -> Boolean {
-        private var index = 0
-        override fun invoke(char: Char): Boolean {
-            if(texts.any { index < it.length && char == it[index] }) {
-                index++
-                return true
-            }
-            return false
         }
     }
 

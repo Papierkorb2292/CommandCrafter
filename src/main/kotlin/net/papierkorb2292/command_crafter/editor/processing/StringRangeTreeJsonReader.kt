@@ -4,6 +4,7 @@ import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
@@ -202,6 +203,28 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
     }
 
     object StringRangeTreeSuggestionResolver : StringRangeTree.SuggestionResolver<JsonElement> {
+
+        private val valueEndParser = { mappingInfo: FileMappingInfo, suggestionRange: StringRange ->
+            suggestionRange.end + try {
+                val childStringRangeTree = StringRangeTreeJsonReader(mappingInfo.getReader(suggestionRange.end)).read(Strictness.LENIENT, true)
+                childStringRangeTree.ranges[childStringRangeTree.root]!!.end
+            } catch(ignored: Exception) {
+                0
+            }
+        }.memoizeLast()
+
+        private val keyEndParser = { mappingInfo: FileMappingInfo, suggestionRange: StringRange ->
+            val jsonReader = JsonReader(mappingInfo.getReader(suggestionRange.end))
+            jsonReader.strictness = Strictness.LENIENT
+            jsonReader.stack[0] = 3 // EMPTY_OBJECT
+            try {
+                jsonReader.nextName()
+                jsonReader.pos++
+                jsonReader.nextNonWhitespace(true)
+            } catch(ignored: Exception) { }
+            suggestionRange.end + jsonReader.absolutePos - 1
+        }.memoizeLast()
+
         override fun resolveSuggestion(
             suggestion: StringRangeTree.Suggestion<JsonElement>,
             suggestionType: StringRangeTree.SuggestionType,
@@ -212,37 +235,20 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
             when(suggestionType) {
                 StringRangeTree.SuggestionType.NODE_START -> {
                     val elementString = suggestion.element.toString()
-                    val replaceEndProvider = {
-                        suggestionRange.end + try {
-                            val childStringRangeTree = StringRangeTreeJsonReader(mappingInfo.getReader(suggestionRange.end)).read(Strictness.LENIENT, true)
-                            childStringRangeTree.ranges[childStringRangeTree.root]!!.end
-                        } catch(ignored: Exception) {
-                            0
-                        }
-                    }
+                    val replaceEnd = valueEndParser(mappingInfo, suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
-                        StringRangeTree.SimpleInputMatcher(elementString),
-                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, replaceEndProvider, mappingInfo, languageServer)
+                        replaceEnd,
+                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer)
                     )
                 }
                 StringRangeTree.SuggestionType.MAP_KEY -> {
                     val element = suggestion.element
                     val key = if(element.isJsonPrimitive) element.asString else element.toString()
                     val keySuggestion = "\"$key\": "
-                    val replaceEndProvider = {
-                        val jsonReader = JsonReader(mappingInfo.getReader(suggestionRange.end))
-                        jsonReader.strictness = Strictness.LENIENT
-                        jsonReader.stack[0] = 3 // EMPTY_OBJECT
-                        try {
-                            jsonReader.nextName()
-                            jsonReader.pos++
-                            jsonReader.nextNonWhitespace(true)
-                        } catch(ignored: Exception) { }
-                        suggestionRange.end + jsonReader.absolutePos - 1
-                    }
+                    val replaceEnd = keyEndParser(mappingInfo, suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
-                        StringRangeTree.SimpleInputMatcher(keySuggestion, key),
-                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, replaceEndProvider, mappingInfo, languageServer, key)
+                        replaceEnd,
+                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key)
                     )
                 }
             }

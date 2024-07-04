@@ -51,3 +51,37 @@ inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValue(value: TValue, blo
 }
 
 fun <R> (() -> R).memoize(): () -> R = lazy(this)::value
+
+fun <P, R> ((P) -> R).memoizeLast() = object : (P) -> R {
+    private var initialized = false
+    private var lastParam: P? = null
+    private var lastResult: R? = null
+
+    override fun invoke(p: P): R {
+        if (p != lastParam || !initialized) {
+            lastParam = p
+            initialized = true
+            lastResult = this@memoizeLast(p)
+        }
+        @Suppress("UNCHECKED_CAST")
+        return lastResult as R
+    }
+}
+
+fun <P1, P2, R> ((P1, P2) -> R).memoizeLast() = object : (P1, P2) -> R {
+    private var initialized = false
+    private var lastParam1: P1? = null
+    private var lastParam2: P2? = null
+    private var lastResult: R? = null
+
+    override fun invoke(p1: P1, p2: P2): R {
+        if (p1 != lastParam1 || p2 != lastParam2 || !initialized) {
+            lastParam1 = p1
+            lastParam2 = p2
+            initialized = true
+            lastResult = this@memoizeLast(p1, p2)
+        }
+        @Suppress("UNCHECKED_CAST")
+        return lastResult as R
+    }
+}
