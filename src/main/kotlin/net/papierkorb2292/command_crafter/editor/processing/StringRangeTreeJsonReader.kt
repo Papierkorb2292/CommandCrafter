@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
+import org.eclipse.lsp4j.CompletionItemKind
 import java.io.IOException
 import java.io.Reader
 import java.util.*
@@ -235,7 +236,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     val replaceEnd = valueEndParser(mappingInfo, suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
-                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer)
+                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
                     )
                 }
                 StringRangeTree.SuggestionType.MAP_KEY -> {
@@ -245,7 +246,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     val replaceEnd = keyEndParser(mappingInfo, suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
-                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key)
+                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
                     )
                 }
             }

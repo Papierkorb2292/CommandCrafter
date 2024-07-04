@@ -358,6 +358,7 @@ class StringRangeTree<TNode: Any>(
         private val mappingInfo: FileMappingInfo,
         private val languageServer: MinecraftLanguageServer,
         private val label: String = text,
+        private val kind: CompletionItemKind? = null
     ) : (Int) -> CompletionItem {
         override fun invoke(offset: Int): CompletionItem {
             // Adjusting the insert start if the cursor is before the insert start
@@ -378,6 +379,8 @@ class StringRangeTree<TNode: Any>(
             if(!languageServer.clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) {
                 return CompletionItem().also {
                     it.label = label
+                    it.kind = kind
+                    it.sortText = " $label" // Add whitespace so it appears above VSCodes suggestions
                     it.textEdit = Either.forLeft(TextEdit(Range(clampedInsertStartPos, insertEndPos), text))
                 }
             }
@@ -393,6 +396,8 @@ class StringRangeTree<TNode: Any>(
             return CompletionItem().also {
                 it.label = label
                 it.filterText = text
+                it.sortText = " $label" // Add whitespace so it appears above VSCodes suggestions
+                it.kind = kind
                 it.textEdit = Either.forRight(InsertReplaceEdit(text, Range(clampedInsertStartPos, insertEndPos), Range(clampedInsertStartPos, clampedReplaceEndPos)))
             }
         }
