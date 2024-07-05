@@ -68,7 +68,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         // Distribute the length over the mapped regions and convert the regions that are covered by the length to semantic tokens (a region might include multiple lines)
         var remainingLength = length
         var prevMappingAbsoluteStart = 0
-        while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size()) {
+        while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size) {
             var remainingLengthCoveredByMapping =
                 if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
                     min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)

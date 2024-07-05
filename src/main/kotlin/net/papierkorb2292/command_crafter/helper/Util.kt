@@ -1,9 +1,8 @@
 package net.papierkorb2292.command_crafter.helper
 
-import org.apache.commons.compress.harmony.pack200.IntList
 import java.util.concurrent.Semaphore
 
-fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size(), comparison: (index: Int) -> Int): Int {
+fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
     var low = fromIndex
     var high = toIndex - 1
 

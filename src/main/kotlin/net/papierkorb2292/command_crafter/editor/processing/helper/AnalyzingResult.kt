@@ -92,7 +92,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
 
         var remainingLength = unmappedProvider.cursorRange.length
-        while(mappingIndex < cursorMapper.targetCursors.size()) {
+        while(mappingIndex < cursorMapper.targetCursors.size) {
             val remainingLengthCoveredByMapping =
                 if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
                     min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)

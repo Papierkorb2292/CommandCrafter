@@ -2,8 +2,8 @@ package net.papierkorb2292.command_crafter.parser
 
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLine
+import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
-import org.apache.commons.compress.harmony.pack200.IntList
 import org.eclipse.lsp4j.Position
 import java.io.IOException
 import java.io.Reader

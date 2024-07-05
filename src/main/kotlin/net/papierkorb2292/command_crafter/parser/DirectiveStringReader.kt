@@ -7,8 +7,6 @@ import net.minecraft.command.CommandSource
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
-import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
-import org.apache.commons.compress.harmony.pack200.IntList
 import java.io.IOException
 import java.io.Reader
 import java.util.*

@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
+import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
-import org.apache.commons.compress.harmony.pack200.IntList
 
 /**
  * This class is used to map between cursor positions,
