@@ -57,6 +57,7 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.parser.*
@@ -97,10 +98,6 @@ object CommandCrafter: ModInitializer {
         })
 
         MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer)
-
-        fun addJsonAnalyzer(packContentFileType: PackContentFileType, codec: Codec<*>) {
-            MinecraftLanguageServer.addAnalyzer(StringRangeTreeJsonResourceAnalyzer(packContentFileType, codec))
-        }
 
         addJsonAnalyzer(PackContentFileType.ADVANCEMENTS_FILE_TYPE, Advancement.CODEC)
         addJsonAnalyzer(PackContentFileType.BANNER_PATTERN_FILE_TYPE, BannerPattern.CODEC)
@@ -149,9 +146,6 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.JUKEBOX_SONG_FILE_TYPE, JukeboxSong.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_FILE_TYPE, Enchantment.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE, EnchantmentProvider.CODEC)
-
-        addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
-        addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
     }
 
     private fun initializeParser() {

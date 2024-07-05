@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.google.gson.JsonElement
+import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
@@ -22,6 +23,11 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         Companion.analyze(file, languageServer, fileDecoder)
 
     companion object {
+
+        fun addJsonAnalyzer(packContentFileType: PackContentFileType, codec: Codec<*>) {
+            MinecraftLanguageServer.addAnalyzer(StringRangeTreeJsonResourceAnalyzer(packContentFileType, codec))
+        }
+
         fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
             val result = AnalyzingResult(FileMappingInfo(lines), Position())

@@ -4,6 +4,8 @@ import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.minecraft.client.font.FontManager
+import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.registry.BuiltinRegistries
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
@@ -15,6 +17,8 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
@@ -89,6 +93,9 @@ object ClientCommandCrafter : ClientModInitializer {
     )
 
     private fun initializeEditor() {
+        addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
+        addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
+
         val registryWrapperLookup = BuiltinRegistries.createWrapperLookup()
         fun setDefaultServerConnection() {
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
