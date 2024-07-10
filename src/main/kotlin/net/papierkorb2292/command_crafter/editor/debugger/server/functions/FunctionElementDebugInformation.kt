@@ -455,7 +455,7 @@ class FunctionElementDebugInformation(
                 sourceReferenceDebugHandlers[sourceReference] = this
             }
 
-            val replacements = elements.asSequence().mapNotNull { it.getReplacings(path, debugFrame, this@FunctionElementDebugInformation)?.asSequence() }.flatten()
+            val replacements = elements.asSequence().mapNotNull { it.getReplacements(path, debugFrame, this@FunctionElementDebugInformation)?.asSequence() }.flatten()
             return FileContentReplacer.ReplacementDataProvider(replacements, emptySequence(), ::addSourceReference)
         }
     }
@@ -477,7 +477,7 @@ class FunctionElementDebugInformation(
             frame: FunctionDebugFrame
         )
 
-        fun getReplacings(
+        fun getReplacements(
             path: String,
             frame: FunctionDebugFrame,
             debugInformation: FunctionElementDebugInformation,
@@ -641,7 +641,7 @@ class FunctionElementDebugInformation(
             frame: FunctionDebugFrame
         ) { }
 
-        override fun getReplacings(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Nothing? = null
+        override fun getReplacements(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Nothing? = null
     }
 
     class MacroElementProcessor(
@@ -762,8 +762,8 @@ class FunctionElementDebugInformation(
             )
         }
 
-        override fun getReplacings(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Iterator<FileContentReplacer.Replacement>? {
-            if(path != PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(debugInformation.sourceFunctionFile))
+        override fun getReplacements(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Iterator<FileContentReplacer.Replacement>? {
+            if(path.endsWith(PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(PackagedId(debugInformation.sourceFunctionFile, ""))))
                 return null
 
             val action = frame.procedure.entries()[elementIndex] as? SingleCommandActionAccessor<*> ?: return null
