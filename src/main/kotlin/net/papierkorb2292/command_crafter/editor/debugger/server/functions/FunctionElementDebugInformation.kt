@@ -16,6 +16,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServe
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
+import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.getFileBreakpointRange
 import net.papierkorb2292.command_crafter.editor.debugger.server.StepInTargetsManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.*
 import net.papierkorb2292.command_crafter.editor.debugger.variables.StringMapValueReference
@@ -52,21 +53,6 @@ class FunctionElementDebugInformation(
         private const val STEP_IN_NEXT_SECTION_BEGINNING_LABEL = "Next section: beginning"
         private const val STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL = "Next section: follow context"
         private const val STEP_IN_CURRENT_SECTION_LABEL = "Current section: "
-
-        fun getFileBreakpointRange(breakpoint: ServerBreakpoint<FunctionBreakpointLocation>, lines: List<String>): StringRange {
-            val sourceBreakpoint = breakpoint.unparsed.sourceBreakpoint
-            val column = sourceBreakpoint.column
-            return if (column == null) {
-                AnalyzingResult.getLineCursorRange(sourceBreakpoint.line, lines)
-            } else {
-                val breakpointCursor = AnalyzingResult.getCursorFromPosition(
-                    lines,
-                    Position(sourceBreakpoint.line, column),
-                    false
-                )
-                StringRange.at(breakpointCursor)
-            }
-        }
     }
 
     private var functionStackFrameRange = Range(Position(), Position())

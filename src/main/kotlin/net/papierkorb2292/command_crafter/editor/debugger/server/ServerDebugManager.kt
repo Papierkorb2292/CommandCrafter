@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
+import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ReferenceMap
 import it.unimi.dsi.fastutil.ints.Int2ReferenceOpenHashMap
 import net.minecraft.server.MinecraftServer
@@ -8,10 +9,13 @@ import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandlerFactory
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.debug.SourceResponse
 
@@ -20,6 +24,22 @@ class ServerDebugManager(private val server: MinecraftServer) {
         val INITIAL_SOURCE_REFERENCE: Int? = null
 
         private val additionalDebugHandlers = mutableMapOf<PackContentFileType, DebugHandlerFactory>()
+
+        // TODO: Use FileMappingInfo instead of raw lines
+        fun <TBreakpointLocation> getFileBreakpointRange(breakpoint: ServerBreakpoint<TBreakpointLocation>, lines: List<String>): StringRange {
+            val sourceBreakpoint = breakpoint.unparsed.sourceBreakpoint
+            val column = sourceBreakpoint.column
+            return if (column == null) {
+                AnalyzingResult.getLineCursorRange(sourceBreakpoint.line, lines)
+            } else {
+                val breakpointCursor = AnalyzingResult.getCursorFromPosition(
+                    lines,
+                    Position(sourceBreakpoint.line, column),
+                    false
+                )
+                StringRange.at(breakpointCursor)
+            }
+        }
     }
 
     val functionDebugHandler = FunctionDebugHandler(server)
