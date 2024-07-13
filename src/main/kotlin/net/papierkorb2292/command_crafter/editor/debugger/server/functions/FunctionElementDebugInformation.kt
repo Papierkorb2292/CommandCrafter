@@ -631,7 +631,7 @@ class FunctionElementDebugInformation(
                                 }
                                 breakpoints.poll()
                                 breakpoint.action = BreakpointAction(
-                                    FunctionBreakpointLocation(functionId, context, rootContext),
+                                    FunctionBreakpointLocation(context, rootContext),
                                     debugInformation.conditionParser.parseCondition(
                                         breakpoint.unparsed.sourceBreakpoint.condition,
                                         breakpoint.unparsed.sourceBreakpoint.hitCondition
