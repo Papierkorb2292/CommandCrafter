@@ -4,6 +4,7 @@ import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import org.eclipse.lsp4j.debug.SteppingGranularity
 import java.util.*
@@ -20,8 +21,8 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
 
     class Concat<L : Any, F : PauseContext.DebugFrame>(private val delegateDebugInformations: List<DebugInformation<L, F>>, private val pauseHandlerSelector: (F) -> Int) :
         DebugInformation<L, F> {
-        override fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<L>>, server: MinecraftServer, sourceReference: Int?, debugConnection: EditorDebugConnection) =
-            delegateDebugInformations.flatMap { it.parseBreakpoints(breakpoints, server, sourceReference, debugConnection) }
+        override fun parseBreakpoints(breakpoints: Queue<ServerBreakpoint<L>>, server: MinecraftServer, sourceFile: BreakpointManager.FileBreakpointSource, debugConnection: EditorDebugConnection) =
+            delegateDebugInformations.flatMap { it.parseBreakpoints(breakpoints, server, sourceFile, debugConnection) }
 
         override fun createDebugPauseHandler(debugFrame: F): DebugPauseHandler = object : DebugPauseHandler, FileContentReplacer {
             private var currentPauseHandler: DebugPauseHandler? = null
@@ -55,8 +56,8 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
                 updatePauseHandler().findNextPauseLocation()
             }
 
-            override fun getStackFrames(sourceReference: Int?) =
-                updatePauseHandler().getStackFrames(sourceReference)
+            override fun getStackFrames() =
+                updatePauseHandler().getStackFrames()
 
             override fun onExitFrame() =
                 delegatePauseHandlers.forEach { it.onExitFrame() }

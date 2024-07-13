@@ -51,9 +51,8 @@ class ParsedResourceCreator(
                 if(function is FileSourceContainer && generatedChildFunction is FileSourceContainer) {
                     val lines = function.`command_crafter$getFileSourceLines`()
                     val fileId = function.`command_crafter$getFileSourceId`()
-                    val fileType= function.`command_crafter$getFileSourceType`()
-                    if(lines != null && fileId != null && fileType != null)
-                        generatedChildFunction.`command_crafter$setFileSource`(lines, fileId, fileType)
+                    if(lines != null && fileId != null)
+                        generatedChildFunction.`command_crafter$setFileSource`(lines, fileId)
                 }
                 functionMapBuilder.put(functionId, generatedChildFunction)
                 childFunction.idSetter(functionId)

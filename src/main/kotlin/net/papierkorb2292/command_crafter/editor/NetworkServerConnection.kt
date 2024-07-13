@@ -348,7 +348,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             breakpoints: Array<UnparsedServerBreakpoint>,
             source: Source,
             fileType: PackContentFileType,
-            id: Identifier,
+            id: PackagedId,
             editorDebugConnection: EditorDebugConnection
         ): CompletableFuture<SetBreakpointsResponse> {
             val debugConnectionId = getOrCreateDebugConnectionId(editorDebugConnection)

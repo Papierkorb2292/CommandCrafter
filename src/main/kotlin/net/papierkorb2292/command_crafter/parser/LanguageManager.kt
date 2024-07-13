@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformatio
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugPauseHandlerCreatorIndexConsumer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugPauseHandlerCreatorIndexProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
@@ -46,7 +47,7 @@ object LanguageManager {
         override fun parseBreakpoints(
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
             server: MinecraftServer,
-            sourceReference: Int?,
+            sourceFile: BreakpointManager.FileBreakpointSource,
             debugConnection: EditorDebugConnection
         ): List<Breakpoint> = emptyList()
 

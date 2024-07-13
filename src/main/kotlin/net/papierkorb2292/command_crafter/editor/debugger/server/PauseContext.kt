@@ -1,14 +1,12 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
-import it.unimi.dsi.fastutil.objects.Reference2IntMap
-import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
+import com.mojang.datafixers.util.Either
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerTask
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
@@ -135,10 +133,6 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     fun popDebugFrame() {
         val entry = debugFrameStack.pop()
         entry.minecraftStackFrameCount?.let { debugConnection?.popStackFrames(it) }
-        val debugManager = server.getDebugManager()
-        entry.createdSourceReferences.reference2IntEntrySet().forEach { (networkHandler, sourceReferenceId) ->
-            debugManager.removeSourceReference(networkHandler, sourceReferenceId)
-        }
         if(debugConnection != null && entry.everPaused) {
             if(pauseOnFrameExit == null) {
                 notifyClientPauseLocationSkipped()
@@ -200,11 +194,6 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         if(debugConnection != null) {
             if(breakpoint.debugConnection != debugConnection) {
                 //A different debugee is currently debugging the function
-                return false
-            }
-            val currentDebugFrame = debugFrameStack.peek()
-            if(currentDebugFrame != null && breakpoint.unparsed.sourceReference != null && breakpoint.debugConnection !in currentDebugFrame.createdSourceReferences.keys) {
-                //This breakpoint shouldn't be paused at, because it doesn't belong to the debugee's sourceReference
                 return false
             }
         } else if(breakpoint.debugConnection.oneTimeDebugTarget != null) {
@@ -271,12 +260,12 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     }
 
     private fun getSourceReferenceWrappedStackFrames(debugStackEntry: DebugFrameStack.Entry, debugConnection: EditorDebugConnection): List<MinecraftStackFrame> {
-        fun wrapStackFrameWithSourceReference(stackFrame: MinecraftStackFrame, sourceReferenceId: Int): MinecraftStackFrame {
+        fun wrapStackFrameWithSourceReference(stackFrame: MinecraftStackFrame, sourceReferenceId: Int?): MinecraftStackFrame {
             val source = stackFrame.visualContext.source
             return MinecraftStackFrame(
                 stackFrame.name,
                 DebuggerVisualContext(Source().apply {
-                    name = FunctionDebugHandler.getSourceName(source.path, sourceReferenceId)
+                    name = source.name
                     path = source.path
                     sourceReference = sourceReferenceId
                     presentationHint = source.presentationHint
@@ -288,34 +277,44 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             )
         }
 
-        @Suppress("DEPRECATION") // createdSourceReferences.get is supposed to be nullable
-        val sourceReference = debugStackEntry.createdSourceReferences[debugConnection]
-        val stackFrames = debugStackEntry.frame.getDebugPauseHandler().getStackFrames(sourceReference)
+        val stackFrames = debugStackEntry.frame.getDebugPauseHandler().getStackFrames()
         debugStackEntry.minecraftStackFrameCount = stackFrames.size
         val wrappedStackFrames = mutableListOf<MinecraftStackFrame>()
         for(stackFrame in stackFrames) {
             val source = stackFrame.visualContext.source
-            val sourcePath = source.path
-            val pathSourceReferences = debugStackEntry.createdSourceReferences
-            if(pathSourceReferences.containsKey(debugConnection)) {
-                val sourceReferenceId = pathSourceReferences.getInt(debugConnection)
-                wrappedStackFrames.add(wrapStackFrameWithSourceReference(stackFrame, sourceReferenceId))
+            if(source.sourceReference != null && source.sourceReference != 0) {
+                wrappedStackFrames.add(stackFrame)
                 continue
             }
+            val sourcePath = source.path
             val sourceReferenceWrapper = debugStackEntry.frame.shouldWrapInSourceReference(sourcePath)
-            if(sourceReferenceWrapper != null) {
-                val sourceReferenceId = server.getDebugManager().addSourceReference(debugConnection, sourceReferenceWrapper.originalLines) {
-                    val (content, cursorMapper) = sourceReferenceWrapper.content(it)
-                    SourceResponse().apply {
-                        this.content = content
-                    } to cursorMapper
+            if(sourceReferenceWrapper == null) {
+                wrappedStackFrames.add(stackFrame)
+                continue
+            }
+            val updateStackFrames = sourceReferenceWrapper.map(
+                {
+                    val sourceReferenceId = server.getDebugManager()
+                        .addSourceReference(debugConnection, it.originalLines) { sourceReference ->
+                            val (content, cursorMapper) = it.content(sourceReference)
+                            SourceResponse().apply {
+                                this.content = content
+                            } to cursorMapper
+                        }
+                    it.sourceReferenceCallback(sourceReferenceId)
+                    true
+                },
+                {
+                    val newFrame = wrapStackFrameWithSourceReference(stackFrame, it.sourceReferenceId)
+                    it.additionalSourceChanges(newFrame.visualContext.source)
+                    wrappedStackFrames.add(newFrame)
+                    it.updateStackFrames
                 }
-                debugStackEntry.createdSourceReferences.put(debugConnection, sourceReferenceId)
-                sourceReferenceWrapper.sourceReferenceCallback(sourceReferenceId)
-                // The stack frames must be created again, since getStackFrames should be passed the new sourceReference
+            )
+            if(updateStackFrames) {
+                // The stack frames must be created again, since they might change with the new sourceReference
                 return getSourceReferenceWrappedStackFrames(debugStackEntry, debugConnection)
             }
-            wrappedStackFrames.add(stackFrame)
         }
         return wrappedStackFrames
     }
@@ -323,15 +322,22 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     interface DebugFrame {
         fun getDebugPauseHandler(): DebugPauseHandler
         fun unpause()
-        fun shouldWrapInSourceReference(path: String): SourceReferenceWrapper?
+        fun shouldWrapInSourceReference(path: String): Either<NewSourceReferenceWrapper, ExistingSourceReferenceWrapper>?
         fun onExitFrame()
         fun onContinue(stackEntry: DebugFrameStack.Entry)
     }
 
-    class SourceReferenceWrapper(
+    // Doesn't need additionalSourceChanges, because stack frames will be updated anyway, at which point an ExistingSourceReferenceWrapper should be returned
+    class NewSourceReferenceWrapper(
         val sourceReferenceCallback: (Int) -> Unit,
         val originalLines: List<String>,
         val content: (Int) -> Pair<String, ProcessedInputCursorMapper>
+    )
+
+    class ExistingSourceReferenceWrapper(
+        val sourceReferenceId: Int?,
+        val additionalSourceChanges: (Source) -> Unit,
+        val updateStackFrames: Boolean
     )
 
     class DebugFrameStack {
@@ -357,7 +363,6 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         class Entry(
             val frame: DebugFrame,
             var minecraftStackFrameCount: Int? = null,
-            var createdSourceReferences: Reference2IntMap<EditorDebugConnection> = Reference2IntOpenHashMap(),
             var everPaused: Boolean = false,
         )
     }

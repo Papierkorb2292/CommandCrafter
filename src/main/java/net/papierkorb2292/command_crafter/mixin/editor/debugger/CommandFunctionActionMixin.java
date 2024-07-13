@@ -7,6 +7,8 @@ import net.minecraft.command.*;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.Procedure;
+import net.papierkorb2292.command_crafter.CommandCrafter;
+import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MacroValuesContainer;
@@ -44,13 +46,15 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
         var debugInformation = ((DebugInformationContainer<?, FunctionDebugFrame>) container).command_crafter$getDebugInformation();
         if (debugInformation == null)
             return;
-        var fileLines = new HashMap<String, List<String>>();
-        if (function instanceof FileSourceContainer fileSource) {
-            var lines = fileSource.command_crafter$getFileSourceLines();
-            var fileId = fileSource.command_crafter$getFileSourceId();
-            var fileType = fileSource.command_crafter$getFileSourceType();
-            if(lines != null && fileId != null && fileType != null)
-                fileLines.put(fileType.toStringPath(fileId), lines);
+        if (!(function instanceof FileSourceContainer fileSource)) {
+            CommandCrafter.INSTANCE.getLOGGER().warn("Function {} does not implement FileSourceContainer, no debug frame will be created", function);
+            return;
+        }
+        var lines = fileSource.command_crafter$getFileSourceLines();
+        var fileId = fileSource.command_crafter$getFileSourceId();
+        if(lines == null || fileId == null) {
+            CommandCrafter.INSTANCE.getLOGGER().warn("Function {} does not have a valid file source, no debug frame will be created", function);
+            return;
         }
 
         MacroValuesContainer macroValuesContainer = function instanceof MacroValuesContainer macroValuesContainer2 ? macroValuesContainer2 : null;
@@ -65,7 +69,8 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
                 macroNames != null ? macroNames : List.of(),
                 macroValues != null ? macroValues : List.of(),
                 new CommandExecutionContextContinueCallback(commandExecutionContext),
-                fileLines
+                fileId,
+                lines
         );
         //noinspection unchecked
         commandExecutionContext.enqueueCommand((CommandQueueEntry<T>) new CommandQueueEntry<>(frame,

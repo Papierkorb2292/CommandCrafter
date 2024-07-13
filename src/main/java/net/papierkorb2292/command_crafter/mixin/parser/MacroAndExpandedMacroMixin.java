@@ -23,7 +23,6 @@ public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseRe
     private DebugInformation<FunctionBreakpointLocation, FunctionDebugFrame> command_crafter$debugInformation;
     private List<String> command_crafter$fileSourceLines;
     private Identifier command_crafter$fileSourceId;
-    private PackContentFileType command_crafter$fileSourceType;
 
     public void command_crafter$setResourceCreator(ParsedResourceCreator command_crafter$resourceCreator) {
         this.command_crafter$resourceCreator = command_crafter$resourceCreator;
@@ -45,10 +44,9 @@ public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseRe
     }
 
     @Override
-    public void command_crafter$setFileSource(@NotNull List<String> lines, @NotNull Identifier fileId, @NotNull PackContentFileType fileType) {
+    public void command_crafter$setFileSource(@NotNull List<String> lines, @NotNull Identifier fileId) {
         this.command_crafter$fileSourceLines = lines;
         this.command_crafter$fileSourceId = fileId;
-        this.command_crafter$fileSourceType = fileType;
     }
 
     @Override
@@ -60,11 +58,5 @@ public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseRe
     @Override
     public Identifier command_crafter$getFileSourceId() {
         return command_crafter$fileSourceId;
-    }
-
-    @Nullable
-    @Override
-    public PackContentFileType command_crafter$getFileSourceType() {
-        return command_crafter$fileSourceType;
     }
 }

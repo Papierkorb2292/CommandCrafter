@@ -7,6 +7,7 @@ import net.minecraft.network.codec.PacketCodec
 import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.networking.NULLABLE_VAR_INT_PACKET_CODEC
@@ -14,7 +15,7 @@ import net.papierkorb2292.command_crafter.networking.UNPARSED_BREAKPOINT_PACKET_
 import net.papierkorb2292.command_crafter.networking.array
 import java.util.*
 
-class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakpoint>, val fileType: PackContentFileType, val id: Identifier, val sourceReference: Int?, val requestId: UUID, val debugConnectionId: UUID): CustomPayload {
+class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakpoint>, val fileType: PackContentFileType, val id: PackagedId, val sourceReference: Int?, val requestId: UUID, val debugConnectionId: UUID): CustomPayload {
     companion object {
         val ID = CustomPayload.Id<SetBreakpointsRequestC2SPacket>(Identifier.of("command_crafter", "set_breakpoints_request"))
         val CODEC: PacketCodec<ByteBuf, SetBreakpointsRequestC2SPacket> = PacketCodec.tuple(
@@ -22,7 +23,7 @@ class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakp
             SetBreakpointsRequestC2SPacket::breakpoints,
             PackContentFileType.PACKET_CODEC,
             SetBreakpointsRequestC2SPacket::fileType,
-            Identifier.PACKET_CODEC,
+            PackagedId.PACKET_CODEC,
             SetBreakpointsRequestC2SPacket::id,
             NULLABLE_VAR_INT_PACKET_CODEC,
             SetBreakpointsRequestC2SPacket::sourceReference,

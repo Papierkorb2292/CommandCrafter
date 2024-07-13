@@ -4,8 +4,8 @@ import kotlinx.atomicfu.locks.SynchronizedObject
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.CommandCrafterDebugClient
 import net.papierkorb2292.command_crafter.editor.EditorService
-import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
@@ -178,38 +178,28 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     private var suspendServer = true
 
     /**
-     * If a source path can't be parsed by [PackContentFileType.parsePath],
-     * this function returns a CompletableFuture which resolves to **false**
-     * after child sources have been mapped.
+     * Uses the source's path as pattern when searching for files. The first file that is found to
+     * fit the pattern will replace the source's path. If no file is found, the path stays the same.
      *
-     * Otherwise, it sends a request to the editor to search for fitting resources.
-     * Upon receiving a response, the provided Source will be updated and the
-     * returned CompletableFuture will be completed with **true** if a file for this source
-     * and all child sources could be found, **false** otherwise.
+     * The same procedure is recursively applied to child sources.
      */
-    fun mapSourceToDatapack(source: Source): CompletableFuture<Boolean> {
-        val client = client ?: return CompletableFuture.completedFuture(false)
+    fun mapSourceToDatapack(source: Source): CompletableFuture<Void> {
+        val client = client ?: return CompletableFuture.completedFuture(null)
 
-        val mappingChildSourcesFutures = source.sources?.map { mapSourceToDatapack(it) }?.toTypedArray()
+        val mappingChildSourcesFuture = CompletableFuture.allOf(
+            *source.sources
+                ?.map { mapSourceToDatapack(it) }
+                ?.toTypedArray()
+                ?: emptyArray()
+        )
 
-        val parsedPath = PackContentFileType.parsePath(source.path)
-            ?: return if(mappingChildSourcesFutures != null) {
-                CompletableFuture.allOf(*mappingChildSourcesFutures)
-                    .thenApply { false }
-            } else CompletableFuture.completedFuture(false)
+        val path = source.path ?: return mappingChildSourcesFuture
 
-        val mappingCurrentSourceFuture = PackContentFileType.findWorkspaceResourceFromIdAndPackContentFileType(
-            parsedPath.id, parsedPath.type, client
-        ).thenApply {
-            source.path = it ?: return@thenApply false
-            true
+        val mappingCurrentSourceFuture = client.findFiles(path).thenApply {
+            source.path = it?.getOrNull(0) ?: return@thenApply null
         }
 
-        return if(mappingChildSourcesFutures != null) {
-            CompletableFuture.allOf(*mappingChildSourcesFutures, mappingCurrentSourceFuture).thenApply {
-                mappingCurrentSourceFuture.get() && mappingChildSourcesFutures.all { it.get() }
-            }
-        } else mappingCurrentSourceFuture
+        return CompletableFuture.allOf(mappingCurrentSourceFuture, mappingChildSourcesFuture)
     }
 
     override fun initialize(args: InitializeRequestArguments): CompletableFuture<Capabilities> {
@@ -272,7 +262,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     override fun setBreakpoints(args: SetBreakpointsArguments): CompletableFuture<SetBreakpointsResponse> {
 
-        val parsedPath = PackContentFileType.parsePath(EditorURI.parseURI(args.source.path).path)
+        val parsedPath = PackContentFileType.parsePath(args.source.path)
         val breakpointResource = parsedPath?.let { ClientBreakpointResource(parsedPath.type, parsedPath.id, args.source.sourceReference) }
         val prevBreakpoints = breakpoints[breakpointResource]?.first
 
@@ -480,5 +470,5 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         this.client = client
     }
 
-    private data class ClientBreakpointResource(val packContentFileType: PackContentFileType, val id: Identifier, val sourceReference: Int?)
+    private data class ClientBreakpointResource(val packContentFileType: PackContentFileType, val id: PackagedId, val sourceReference: Int?)
 }

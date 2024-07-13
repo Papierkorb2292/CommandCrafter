@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ReferenceMap
 import it.unimi.dsi.fastutil.ints.Int2ReferenceOpenHashMap
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandlerFactory
@@ -33,7 +33,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
     fun setBreakpoints(
         breakpoints: Array<UnparsedServerBreakpoint>,
         fileType: PackContentFileType,
-        id: Identifier,
+        id: PackagedId,
         player: ServerPlayerEntity,
         debuggerConnector: ServerNetworkDebugConnection,
         sourceReference: Int? = null

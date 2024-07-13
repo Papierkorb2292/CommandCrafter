@@ -6,7 +6,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.Positionable
 import net.papierkorb2292.command_crafter.parser.helper.CombinedProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
-import kotlin.math.min
 
 interface FileContentReplacer {
     companion object {
@@ -98,7 +97,7 @@ interface FileContentReplacer {
                 resultCursorMapperEntries += CombinedProcessedInputCursorMapper.Entry(
                     StringRange(currentCursorMappingSourceChar, currentCursorMappingSourceChar + contentLength),
                     StringRange(currentCursorMappingTargetChar, currentCursorMappingTargetChar + contentLength),
-                    OffsetProcessedInputCursorMapper(currentCursorMappingTargetChar - currentCursorMappingSourceChar)
+                    OffsetProcessedInputCursorMapper(0)
                 )
                 currentCursorMappingSourceChar += contentLength
                 currentCursorMappingTargetChar += contentLength
@@ -173,12 +172,12 @@ interface FileContentReplacer {
                     "Replacements must not overlap: $replacement and $nextRepl"
                 }
                 addReplacement(replacement)
-                addExisting(replacement.endLine, nextRepl.startLine, replacement.endChar + 1, nextRepl.startChar)
+                addExisting(replacement.endLine, nextRepl.startLine, replacement.endChar, nextRepl.startChar)
             }
             val last = replacementsSorted.last()
             addReplacement(last)
             val endChar = lines.last().length
-            addExisting(last.endLine, lines.size - 1, min(last.endChar + 1, endChar), endChar)
+            addExisting(last.endLine, lines.size - 1, last.endChar, endChar)
             return Document(resultLines, resultPositionables.asSequence()) to CombinedProcessedInputCursorMapper(resultCursorMapperEntries)
         }
 

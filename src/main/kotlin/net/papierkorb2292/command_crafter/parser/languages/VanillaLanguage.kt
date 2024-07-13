@@ -268,7 +268,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.currentLine,
                     source
                 )
-                val endCursorWithoutNewLine = reader.absoluteCursor - if(reader.canRead()) 1 else 0
+                val endCursorWithoutNewLine = reader.absoluteCursor - if(easyNewLine && reader.canRead(0) && reader.peek(-1) == '\n') 1 else 0
                 val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
                 @Suppress("UNCHECKED_CAST")
                 elementBreakpointParsers += FunctionElementDebugInformation.MacroElementProcessor(

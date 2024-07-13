@@ -18,6 +18,7 @@ import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
@@ -81,7 +82,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
         }
         var function = functionBuilder.toCommandFunction(id);
         if(function instanceof FileSourceContainer container) {
-            container.command_crafter$setFileSource(lines, UtilKt.withExtension(id, ".mcfunction"), PackContentFileType.FUNCTIONS_FILE_TYPE);
+            container.command_crafter$setFileSource(lines, UtilKt.withExtension(id, FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()));
         }
         ParsedResourceCreator.Companion.addResourceCreatorToFunction(function, resourceCreator);
         if(resourceCreator != null) {
