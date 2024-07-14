@@ -206,7 +206,7 @@ class FunctionDebugFrame(
             replacementData.sourceReferenceCallback(it)
         }, functionLines) { sourceReference ->
             val newBreakpoints = pauseContext.server.getDebugManager().functionDebugHandler
-                .getFunctionBreakpoints(procedure.getOriginalId()).map {
+                .getFunctionBreakpointsForDebugConnection(procedure.getOriginalId(), editorConnection).map {
                     PositionableBreakpoint(it.unparsed.copy())
                 }
             val (replacedDocument, cursorMapper) = FileContentReplacer.Document(

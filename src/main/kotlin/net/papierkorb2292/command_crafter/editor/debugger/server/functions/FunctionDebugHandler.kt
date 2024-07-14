@@ -102,6 +102,9 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
             functionBreakpoints[id]?.get(sourceReferences?.get(debugConnection))?.values ?: emptyList()
         }.flatMap { it.list }
 
+    fun getFunctionBreakpointsForDebugConnection(id: Identifier, debugConnection: EditorDebugConnection, sourceReference: Int? = INITIAL_SOURCE_REFERENCE) =
+        breakpointManager.breakpoints[debugConnection]?.get(id)?.get(sourceReference)?.values?.flatMap { it.list } ?: emptyList()
+
     override fun onReload() {
         breakpointManager.reloadBreakpoints()
     }
