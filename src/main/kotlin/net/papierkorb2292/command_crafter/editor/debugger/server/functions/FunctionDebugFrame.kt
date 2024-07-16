@@ -112,6 +112,7 @@ class FunctionDebugFrame(
     init {
         breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.getOriginalId())
         if(breakpoints.isNotEmpty()) {
+            // The debug pause handler might need to parse dynamic breakpoints
             getDebugPauseHandler()
         }
     }
