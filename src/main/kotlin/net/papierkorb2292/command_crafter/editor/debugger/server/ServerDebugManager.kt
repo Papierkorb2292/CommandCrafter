@@ -14,7 +14,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Unp
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.debug.SourceResponse
@@ -103,12 +102,6 @@ class ServerDebugManager(private val server: MinecraftServer) {
         return sourceReferences.sources[sourceReferenceId]?.getLinesOrGenerate(sourceReferenceId)
     }
 
-    fun getSourceReferenceCursorMapper(debugConnection: EditorDebugConnection, sourceReference: Int?): ProcessedInputCursorMapper? {
-        val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
-        val sourceReferenceId = sourceReference ?: return null
-        return sourceReferences.sources[sourceReferenceId]?.getCursorMapperOrGenerate(sourceReferenceId)
-    }
-
     fun retrieveSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int): SourceResponse? {
         val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
         return sourceReferences.sources[sourceReference]?.generateSourceReference(sourceReference)
@@ -119,24 +112,16 @@ class ServerDebugManager(private val server: MinecraftServer) {
     class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier, val originalLines: List<String>) {
         var generatedResponse: SourceResponse? = null
             private set
-        var cursorMapper: ProcessedInputCursorMapper? = null
-            private set
         val generatedLines: List<String>?
             get() = generatedResponse?.content?.lines()
 
         fun generateSourceReference(id: Int) =
-            generatedResponse ?: responseCallback(id).also { (response, cursorMapper) ->
+            generatedResponse ?: responseCallback(id).also { response ->
                 generatedResponse = response
-                this.cursorMapper = cursorMapper
-            }.first
+            }
 
         fun getLinesOrGenerate(id: Int) = generatedLines ?: generateSourceReference(id).content.lines()
-        fun getCursorMapperOrGenerate(sourceReferenceId: Int): ProcessedInputCursorMapper {
-            if(cursorMapper == null)
-                generateSourceReference(sourceReferenceId)
-            return cursorMapper!!
-        }
     }
 }
 
-typealias SourceReferenceSupplier = (Int) -> Pair<SourceResponse, ProcessedInputCursorMapper>
+typealias SourceReferenceSupplier = (Int) -> SourceResponse

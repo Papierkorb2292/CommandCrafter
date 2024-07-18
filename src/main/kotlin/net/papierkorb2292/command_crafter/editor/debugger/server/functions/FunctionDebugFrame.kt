@@ -20,6 +20,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.OutputEventArgumentsCategory
 
@@ -36,6 +37,7 @@ class FunctionDebugFrame(
     companion object {
         val functionCallDebugInfo = ThreadLocal<FunctionCallDebugInfo>()
         val commandResult = ThreadLocal<CommandResult?>()
+        val sourceReferenceCursorMapper = mutableMapOf<Pair<EditorDebugConnection, Int>, ProcessedInputCursorMapper>()
         fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {
             val pauseContext = currentPauseContext.get() ?: return null
             val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return null
@@ -94,6 +96,8 @@ class FunctionDebugFrame(
     @Suppress("DEPRECATION")
     val currentSourceReference: Int?
         get() = createdSourceReferences[pauseContext.debugConnection!!]
+    val currentSourceReferenceCursorMapper: ProcessedInputCursorMapper?
+        get() = sourceReferenceCursorMapper[pauseContext.debugConnection!! to currentSourceReference]
 
     private var debugPauseHandler: DebugPauseHandler? = null
     override fun getDebugPauseHandler(): DebugPauseHandler {
@@ -214,13 +218,14 @@ class FunctionDebugFrame(
                 functionLines,
                 newBreakpoints.asSequence() + replacementData.positionables
             ).applyReplacements(replacementData.replacements)
+            sourceReferenceCursorMapper[editorConnection to sourceReference] = cursorMapper
             pauseContext.server.getDebugManager().functionDebugHandler.addNewSourceReferenceBreakpoints(
                 newBreakpoints.map { BreakpointManager.NewSourceReferenceBreakpoint(it.breakpoint.sourceBreakpoint, it.breakpoint.id) },
                 editorConnection,
                 sourceFilePackagedIdWithoutExtension,
                 sourceReference
             )
-            replacedDocument.concatLines() to cursorMapper
+            replacedDocument.concatLines()
         })
     }
 
@@ -229,6 +234,7 @@ class FunctionDebugFrame(
         val debugManager = pauseContext.server.getDebugManager()
         createdSourceReferences.forEach {
             debugManager.removeSourceReference(it.key, it.value)
+            sourceReferenceCursorMapper.remove(it.key to it.value)
         }
         if(pauseContext.debugFrameDepth == 0 && pauseContext.oneTimeDebugConnection != null) {
             pauseContext.oneTimeDebugConnection.output(OutputEventArguments().apply {

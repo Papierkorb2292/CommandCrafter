@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
-import it.unimi.dsi.fastutil.objects.Reference2IntMap
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
@@ -96,9 +95,8 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
     fun functionHasBreakpoints(id: Identifier) =
         breakpointManager.breakpoints.values.flatMap { it.keys}.any { it == id }
 
-    fun getFunctionBreakpoints(id: Identifier, sourceReferences: Reference2IntMap<EditorDebugConnection>? = null): List<ServerBreakpoint<FunctionBreakpointLocation>> =
+    fun getFunctionBreakpoints(id: Identifier, sourceReferences: Map<EditorDebugConnection, Int>? = null): List<ServerBreakpoint<FunctionBreakpointLocation>> =
         breakpointManager.breakpoints.entries.flatMap { (debugConnection, functionBreakpoints) ->
-            @Suppress("DEPRECATION")
             functionBreakpoints[id]?.get(sourceReferences?.get(debugConnection))?.values ?: emptyList()
         }.flatMap { it.list }
 
@@ -123,13 +121,14 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         )
     }
 
-    fun updateGroupKeyBreakpoints(functionId: Identifier, sourceReference: Int?, debugConnection: EditorDebugConnection, groupKey: BreakpointManager.BreakpointGroupKey<FunctionBreakpointLocation>, breakpointList: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>) {
+    fun updateGroupKeyBreakpoints(functionId: Identifier, sourceReference: Int?, debugConnection: EditorDebugConnection, groupKey: BreakpointManager.BreakpointGroupKey<FunctionBreakpointLocation>, breakpointList: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>, cursorMapperSupplier: BreakpointManager.SourceReferenceCursorMapperSupplier?) {
         breakpointManager.setGroupBreakpoints(
             functionId,
             sourceReference,
             groupKey,
             breakpointList,
-            debugConnection
+            debugConnection,
+            cursorMapperSupplier
         )
     }
 }

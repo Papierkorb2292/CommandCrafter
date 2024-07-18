@@ -103,7 +103,9 @@ class FunctionElementDebugInformation(
             debugConnection,
             BreakpointManager.BreakpointGroupKey(this, sourceFile.fileId),
             addedBreakpoints
-        )
+        ) {
+            FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceFile.sourceReference]
+        }
         return result
     }
     override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) = FunctionElementDebugPauseHandler(debugFrame)
@@ -303,7 +305,7 @@ class FunctionElementDebugInformation(
             val sourceReference = debugFrame.currentSourceReference
             val contextChain = debugFrame.currentContextChain
             val lines = getLinesForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, sourceReference)
-            val sourceReferenceCursorMapper = debugFrame.pauseContext.server.getDebugManager().getSourceReferenceCursorMapper(debugFrame.pauseContext.debugConnection!!, sourceReference)
+            val sourceReferenceCursorMapper = debugFrame.currentSourceReferenceCursorMapper
 
             fun getContextRange(context: CommandContext<*>): Range {
                 val firstParsedNode = context.nodes.first()
@@ -539,7 +541,7 @@ class FunctionElementDebugInformation(
                 )
             }
             val sourceReferenceCursorMapper = debugConnection?.let {
-                server.getDebugManager().getSourceReferenceCursorMapper(it, sourceReference)
+                FunctionDebugFrame.sourceReferenceCursorMapper[it to sourceReference]
             }
             val sourceReferenceFunctionFileRange =
                 sourceReferenceCursorMapper?.mapToTarget(originalFunctionFileRange) ?: originalFunctionFileRange

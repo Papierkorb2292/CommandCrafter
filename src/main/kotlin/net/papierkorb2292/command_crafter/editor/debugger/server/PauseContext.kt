@@ -9,7 +9,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
-import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.*
 import java.lang.Thread
 import java.util.*
@@ -296,10 +295,10 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
                 {
                     val sourceReferenceId = server.getDebugManager()
                         .addSourceReference(debugConnection, it.originalLines) { sourceReference ->
-                            val (content, cursorMapper) = it.content(sourceReference)
+                            val content = it.content(sourceReference)
                             SourceResponse().apply {
                                 this.content = content
-                            } to cursorMapper
+                            }
                         }
                     it.sourceReferenceCallback(sourceReferenceId)
                     true
@@ -331,7 +330,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     class NewSourceReferenceWrapper(
         val sourceReferenceCallback: (Int) -> Unit,
         val originalLines: List<String>,
-        val content: (Int) -> Pair<String, ProcessedInputCursorMapper>
+        val content: (Int) -> String
     )
 
     class ExistingSourceReferenceWrapper(
