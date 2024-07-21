@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Deb
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import org.eclipse.lsp4j.Position
@@ -42,10 +43,14 @@ class ServerDebugManager(private val server: MinecraftServer) {
     }
 
     val functionDebugHandler = FunctionDebugHandler(server)
+    val functionTagDebugHandler = FunctionTagDebugHandler(server)
 
-    private val debugHandlers = additionalDebugHandlers.mapValues { (_, factory) ->
+    private val debugHandlers = mapOf(
+        PackContentFileType.FUNCTIONS_FILE_TYPE to functionDebugHandler,
+        PackContentFileType.FUNCTION_TAGS_FILE_TYPE to functionTagDebugHandler
+    ) + additionalDebugHandlers.mapValues { (_, factory) ->
         factory.createDebugHandler(server)
-    } + (PackContentFileType.FUNCTIONS_FILE_TYPE to functionDebugHandler)
+    }
 
     private val sourceReferencesMap = mutableMapOf<EditorDebugConnection, PlayerSourceReferences>()
 

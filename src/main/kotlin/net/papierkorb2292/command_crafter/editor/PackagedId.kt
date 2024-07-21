@@ -19,6 +19,14 @@ data class PackagedId(
             PackagedId::packPath,
             ::PackagedId
         )
+
+        private val POTENTIAL_PACK_ID_PREFIX = "file/"
+        fun getPackIdWithoutPrefix(packId: String): String {
+            return if(packId.startsWith(POTENTIAL_PACK_ID_PREFIX))
+                packId.substring(POTENTIAL_PACK_ID_PREFIX.length)
+            else
+                packId
+        }
     }
 
     fun removeExtension(extension: String) =

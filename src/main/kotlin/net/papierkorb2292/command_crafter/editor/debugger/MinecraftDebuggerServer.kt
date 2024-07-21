@@ -26,7 +26,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         const val SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON = "Server does not support debugging"
         const val FILE_TYPE_NOT_DETERMINED_REJECTION_REASON = "File type not determined by path"
         const val FILE_TYPE_NOT_SUPPORTED_REJECTION_REASON = "File type not supported by server"
-        const val DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON = "No debug information available for this function"
+        const val DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON = "No debug information available for this file"
         const val UNKNOWN_FUNCTION_REJECTION_REASON = "Function not known to server"
         const val DYNAMIC_BREAKPOINT_MESSAGE = "Dynamic breakpoint will be validated once function is called"
 

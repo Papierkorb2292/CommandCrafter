@@ -11,14 +11,22 @@ import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.FunctionCommand;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FunctionCallDebugInfo;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.PotentialDebugFrameInitiator;
+import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
+import net.papierkorb2292.command_crafter.mixin.editor.CommandManagerAccessor;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Collection;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(targets = "net.minecraft.server.command.FunctionCommand$Command")
 public class FunctionCommandCommandMixin implements PotentialDebugFrameInitiator {
@@ -26,6 +34,20 @@ public class FunctionCommandCommandMixin implements PotentialDebugFrameInitiator
     @Override
     public boolean command_crafter$willInitiateDebugFrame() {
         return true;
+    }
+
+    @Inject(
+            method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
+            at = @At("HEAD")
+    )
+    private void command_crafter$initiateTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, CallbackInfo ci) {
+        var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
+        if(pauseContext != null)
+            FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag(contextChain.getTopContext(),
+                    "name",
+                    pauseContext,
+                    new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
+            );
     }
 
     @WrapOperation(
