@@ -20,6 +20,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugMana
 import net.papierkorb2292.command_crafter.editor.debugger.server.StepInTargetsManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.*
 import net.papierkorb2292.command_crafter.editor.debugger.variables.StringMapValueReference
+import net.papierkorb2292.command_crafter.editor.debugger.variables.createScope
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
@@ -352,22 +353,18 @@ class FunctionElementDebugInformation(
 
 
             fun createServerCommandSourceScope(source: ServerCommandSource, setter: ((ServerCommandSource) -> Unit)? = null): Scope {
-                val variablesReferencer = ServerCommandSourceValueReference(debugFrame.pauseContext.variablesReferenceMapper, source, setter)
-                return Scope().apply {
-                    name = COMMAND_SOURCE_SCOPE_NAME
-                    variablesReference = variablesReferencer.getVariablesReferencerId()
-                    namedVariables = variablesReferencer.namedVariableCount
-                    indexedVariables = variablesReferencer.indexedVariableCount
-                }
+                return ServerCommandSourceValueReference(debugFrame.pauseContext.variablesReferenceMapper, source, setter)
+                    .createScope(COMMAND_SOURCE_SCOPE_NAME)
             }
 
-            val macrosScope = if(debugFrame.macroArguments.isNotEmpty()) Scope().apply {
-                val macrosVariableReferencer = StringMapValueReference(debugFrame.pauseContext.variablesReferenceMapper, debugFrame.macroNames.zip(debugFrame.macroArguments).toMap())
-                name = FUNCTION_MACROS_SCOPE_NAME
-                variablesReference = macrosVariableReferencer.getVariablesReferencerId()
-                namedVariables = macrosVariableReferencer.namedVariableCount
-                indexedVariables = macrosVariableReferencer.indexedVariableCount
-            } else null
+            val macrosScope =
+                if(debugFrame.macroArguments.isNotEmpty())
+                    StringMapValueReference(
+                        debugFrame.pauseContext.variablesReferenceMapper,
+                        debugFrame.macroNames.zip(debugFrame.macroArguments).toMap()
+                    ).createScope(FUNCTION_MACROS_SCOPE_NAME)
+                else
+                    null
 
             val source = Source().apply {
                 name = FunctionDebugHandler.getSourceName(sourceFunctionFile.toString(), sourceReference)
@@ -390,16 +387,12 @@ class FunctionElementDebugInformation(
             fun addStackFrameForSection(context: CommandContext<*>, sectionIndex: Int, sourceIndex: Int) {
                 val firstParsedNode = context.nodes.firstOrNull()
                 val showsCommandResult = sectionIndex == debugFrame.currentSectionIndex && FunctionDebugFrame.commandResult.get() != null
-                val commandResultScope = if(showsCommandResult) Scope().apply {
+                val commandResultScope = if(showsCommandResult) {
                     val commandResult = FunctionDebugFrame.commandResult.get()!!
-                    val commandResultValueReference = CommandResultValueReference(debugFrame.pauseContext.variablesReferenceMapper, commandResult) {
+                    CommandResultValueReference(debugFrame.pauseContext.variablesReferenceMapper, commandResult) {
                         FunctionDebugFrame.commandResult.set(it)
                         it
-                    }
-                    name = COMMAND_RESULT_SCOPE_NAME
-                    variablesReference = commandResultValueReference.getVariablesReferencerId()
-                    namedVariables = commandResultValueReference.namedVariableCount
-                    indexedVariables = commandResultValueReference.indexedVariableCount
+                    }.createScope(COMMAND_RESULT_SCOPE_NAME)
                 } else null
                 val shownSourceIndex = if(!showsCommandResult) sourceIndex else sourceIndex - 1
                 val contextRange = getContextRange(context)

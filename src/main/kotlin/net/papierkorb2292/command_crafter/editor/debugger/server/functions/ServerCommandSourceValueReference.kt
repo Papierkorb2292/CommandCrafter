@@ -9,7 +9,7 @@ class ServerCommandSourceValueReference(
     private val mapper: VariablesReferenceMapper,
     private var source: ServerCommandSource,
     private val setter: ((ServerCommandSource) -> Unit)? = null
-) : VariableValueReference, CountedVariablesReferencer {
+) : VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
     companion object {
         const val ENTITY_VARIABLE_NAME = "@s"
         const val DIMENSION_VARIABLE_NAME = "dimension"
@@ -85,7 +85,7 @@ class ServerCommandSourceValueReference(
         it.indexedVariables = 0
     }
 
-    fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+    override fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
         variablesReferencerId = it
     }
 
