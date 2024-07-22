@@ -38,6 +38,7 @@ public class ExecuteIfUnlessRedirectorMixin implements PotentialDebugFrameInitia
             FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag(context,
                     "name",
                     pauseContext,
+                    null,
                     new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
             );
     }

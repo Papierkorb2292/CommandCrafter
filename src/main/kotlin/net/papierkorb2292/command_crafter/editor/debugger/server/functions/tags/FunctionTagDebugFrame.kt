@@ -5,6 +5,7 @@ import com.mojang.datafixers.util.Either
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
 import net.minecraft.command.CommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
+import net.minecraft.nbt.NbtCompound
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -14,10 +15,14 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
+import org.eclipse.lsp4j.Range
 
 class FunctionTagDebugFrame(
     val pauseContext: PauseContext,
     val tagId: Identifier,
+    val macroNames: List<String>,
+    val macroArguments: List<String>,
     private val unpauseCallback: () -> Unit
 ) : PauseContext.DebugFrame {
 
@@ -26,11 +31,20 @@ class FunctionTagDebugFrame(
             context: CommandContext<ServerCommandSource>,
             functionArgumentName: String,
             pauseContext: PauseContext,
+            macros: NbtCompound?,
             unpauseCallback: () -> Unit
         ) {
             val functionArgument = CommandFunctionArgumentType.getFunctionOrTag(context, functionArgumentName)
             if(functionArgument.second.right().isPresent)
-                pauseContext.pushDebugFrame(FunctionTagDebugFrame(pauseContext, functionArgument.first, unpauseCallback))
+                pauseContext.pushDebugFrame(FunctionTagDebugFrame(
+                    pauseContext,
+                    functionArgument.first,
+                    macros?.keys?.toList() ?: emptyList(),
+                    macros?.keys?.map {
+                        MacroAccessor.callToString(macros.get(it))
+                    } ?: emptyList(),
+                    unpauseCallback
+                ))
         }
 
         fun <TSource> wrapCommandActionWithTagPauseCheck(action: CommandAction<TSource>, entryIndex: Int): CommandAction<TSource> {

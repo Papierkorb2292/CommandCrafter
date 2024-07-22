@@ -26,6 +26,7 @@
     "editor.debugger.FunctionCommandCommandMixin",
     "editor.debugger.FunctionCommandMixin",
     "editor.debugger.FunctionLoaderMixin",
+    "editor.debugger.MacroAccessor",
     "editor.debugger.MacroInvocationMixin",
     "editor.debugger.MacroMixin",
     "editor.debugger.MinecraftServerMixin",
