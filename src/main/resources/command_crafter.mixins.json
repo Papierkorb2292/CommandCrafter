@@ -32,6 +32,8 @@
     "editor.debugger.MinecraftServerMixin",
     "editor.debugger.ResourceManagerHolderAccessor",
     "editor.debugger.ReturnRunRedirectorMixin",
+    "editor.debugger.ReturnValueAdderAccessor",
+    "editor.debugger.ReturnValueAdderMixin",
     "editor.debugger.ReturnValueFailCommandMixin",
     "editor.debugger.SingleCommandActionAccessor",
     "editor.debugger.SingleCommandActionMixin",

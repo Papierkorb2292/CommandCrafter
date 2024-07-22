@@ -58,7 +58,7 @@ class FunctionTagDebugPauseHandler(val debugFrame: FunctionTagDebugFrame) : Debu
             CommandResultValueReference(variablesReferenceMapper, lastFunctionResult) { lastFunctionResult},
             CommandResultValueReference(variablesReferenceMapper, CommandResult(debugFrame.accumulatedResult)) {
                 if(it.returnValue != null) {
-                    debugFrame.accumulatedResult = it.returnValue
+                    debugFrame.setAccumulatedResult(it.returnValue.first, it.returnValue.second)
                     it
                 } else CommandResult(debugFrame.accumulatedResult)
             }

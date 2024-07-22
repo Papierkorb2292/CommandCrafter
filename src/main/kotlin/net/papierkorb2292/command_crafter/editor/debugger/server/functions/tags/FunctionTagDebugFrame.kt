@@ -19,6 +19,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReturnValueAdderAccessor
 import org.eclipse.lsp4j.Range
 
 class FunctionTagDebugFrame(
@@ -27,7 +28,8 @@ class FunctionTagDebugFrame(
     val macroNames: List<String>,
     val macroArguments: List<String>,
     val commandSource: ServerCommandSource,
-    private val unpauseCallback: () -> Unit
+    private val unpauseCallback: () -> Unit,
+    var returnValueAdder: ReturnValueAdderAccessor? = null
 ) : PauseContext.DebugFrame {
 
     companion object {
@@ -88,11 +90,20 @@ class FunctionTagDebugFrame(
     var currentEntryIndex = 0
 
     var accumulatedResult = false to 0
+        private set
 
     fun addFunctionResult(result: CommandResult) {
         if(result.returnValue != null)
             // ReturnValueAdder in FunctionCommand always goes to successful=true as well
             accumulatedResult = true to (accumulatedResult.second + result.returnValue.second)
+    }
+
+    fun setAccumulatedResult(succesful: Boolean, returnValue: Int) {
+        accumulatedResult = succesful to returnValue
+        returnValueAdder?.apply {
+            setSuccessful(succesful)
+            setReturnValue(returnValue)
+        }
     }
 
     override fun onContinue(stackEntry: PauseContext.DebugFrameStack.Entry) {
