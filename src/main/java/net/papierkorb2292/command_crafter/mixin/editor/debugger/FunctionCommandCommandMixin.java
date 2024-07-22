@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -41,19 +42,24 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
         return true;
     }
 
-    @Inject(
+    @ModifyExpressionValue(
             method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
-            at = @At("HEAD")
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/context/CommandContext;copyFor(Ljava/lang/Object;)Lcom/mojang/brigadier/context/CommandContext;"
+            )
     )
-    private void command_crafter$initiateTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, CallbackInfo ci) throws CommandSyntaxException {
+    private CommandContext<ServerCommandSource> command_crafter$initiateTagDebugFrame(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
         if(pauseContext != null)
-            FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag(contextChain.getTopContext(),
+            FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag(
+                    context,
                     "name",
                     pauseContext,
-                    getArguments(contextChain.getTopContext()),
+                    getArguments(context),
                     new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
             );
+        return context;
     }
 
     @WrapOperation(

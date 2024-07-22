@@ -23,6 +23,7 @@ class FunctionTagDebugFrame(
     val tagId: Identifier,
     val macroNames: List<String>,
     val macroArguments: List<String>,
+    val commandSource: ServerCommandSource,
     private val unpauseCallback: () -> Unit
 ) : PauseContext.DebugFrame {
 
@@ -43,6 +44,7 @@ class FunctionTagDebugFrame(
                     macros?.keys?.map {
                         MacroAccessor.callToString(macros.get(it))
                     } ?: emptyList(),
+                    context.source,
                     unpauseCallback
                 ))
         }
