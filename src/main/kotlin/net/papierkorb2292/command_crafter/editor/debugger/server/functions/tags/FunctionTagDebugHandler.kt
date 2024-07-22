@@ -52,7 +52,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
     ): List<Breakpoint> {
         val source = Source().apply {
             this.name = getSourceName(file.fileId, file.sourceReference)
-            this.path = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(file.fileId.withExtension(
+            this.path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(file.fileId.withExtension(
                 FunctionDebugHandler.FUNCTION_FILE_EXTENSTION
             ))
             this.sourceReference = file.sourceReference
