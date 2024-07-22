@@ -38,8 +38,8 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
 
         fun getSourceName(base: String, sourceReference: Int? = ServerDebugManager.INITIAL_SOURCE_REFERENCE): String {
             return if(sourceReference != ServerDebugManager.INITIAL_SOURCE_REFERENCE) {
-                "fun[] $base@$sourceReference"
-            } else "fun[] $base"
+                "fun #$base@$sourceReference"
+            } else "fun #$base"
         }
     }
 
