@@ -31,7 +31,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
     companion object {
         val TAG_PATH = RegistryKeys.getTagPath(FunctionLoader.FUNCTION_REGISTRY_KEY)
         val TAG_PARSING_ELEMENT_RANGES = ThreadLocal<Map<JsonElement, StringRange>>()
-        private val TAG_FILE_EXTENSTION = ".json"
+        val TAG_FILE_EXTENSION = ".json"
 
         fun getSourceName(function: PackagedId, sourceReference: Int? = ServerDebugManager.INITIAL_SOURCE_REFERENCE) =
             getSourceName(function.toString(), sourceReference)
@@ -82,7 +82,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
     ): Array<Breakpoint> = breakpointManager.onBreakpointUpdate(
         sourceBreakpoints,
         debugConnection,
-        id.removeExtension(TAG_FILE_EXTENSTION) ?: id,
+        id.removeExtension(TAG_FILE_EXTENSION) ?: id,
         sourceReference
     ).toTypedArray()
 

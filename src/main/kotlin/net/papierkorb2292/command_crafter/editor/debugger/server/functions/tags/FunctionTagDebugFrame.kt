@@ -8,13 +8,16 @@ import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionPausedThrowable
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
+import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
 import org.eclipse.lsp4j.Range
 
@@ -63,6 +66,10 @@ class FunctionTagDebugFrame(
         }
     }
 
+    val filePath = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
+        PackagedId(tagId.withExtension(FunctionTagDebugHandler.TAG_FILE_EXTENSION), "")
+    )
+
     private var nextPauseIndex = -1
     private var lastPauseIndex = -1
 
@@ -70,6 +77,9 @@ class FunctionTagDebugFrame(
     @Suppress("DEPRECATION")
     val currentSourceReference: Int?
         get() = createdSourceReferences[pauseContext.debugConnection!!]
+
+    var sourceReferenceEntries: List<Pair<Identifier, Range>>? = null
+    var sourceReferenceFileRange: Range? = null
 
     private var debugPauseHandler: DebugPauseHandler? = null
 
