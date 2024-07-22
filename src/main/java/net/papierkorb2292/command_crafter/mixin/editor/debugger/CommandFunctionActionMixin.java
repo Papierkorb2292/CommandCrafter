@@ -16,6 +16,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -127,7 +128,11 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
             }
 
             private void setCommandResult(boolean successful, int returnValue) {
-                FunctionDebugFrame.Companion.getCommandResult().set(new CommandResult(new Pair<>(successful, returnValue)));
+                var result = new CommandResult(new Pair<>(successful, returnValue));
+                FunctionDebugFrame.Companion.getCommandResult().set(result);
+                var currentFrame = pauseContext.peekDebugFrame();
+                if(currentFrame instanceof FunctionTagDebugFrame functionTagDebugFrame)
+                    functionTagDebugFrame.addFunctionResult(result);
             }
 
             private void enqueueFrameExitWithReturnValue() {
