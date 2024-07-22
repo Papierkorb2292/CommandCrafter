@@ -8,6 +8,7 @@
   "mixins": [
     "CommandContextAccessor",
     "MinecraftServerAccessor",
+    "NbtTextFormatterMixin",
     "WorldSavePathAccessor",
     "editor.ClientConnectionAccessor",
     "editor.CommandManagerAccessor",
