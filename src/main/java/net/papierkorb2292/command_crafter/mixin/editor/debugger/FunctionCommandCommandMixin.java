@@ -46,7 +46,8 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
             method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/context/CommandContext;copyFor(Ljava/lang/Object;)Lcom/mojang/brigadier/context/CommandContext;"
+                    target = "Lcom/mojang/brigadier/context/CommandContext;copyFor(Ljava/lang/Object;)Lcom/mojang/brigadier/context/CommandContext;",
+                    remap = false
             )
     )
     private CommandContext<ServerCommandSource> command_crafter$initiateTagDebugFrame(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
