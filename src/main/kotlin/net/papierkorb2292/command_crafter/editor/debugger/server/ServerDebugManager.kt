@@ -88,11 +88,11 @@ class ServerDebugManager(private val server: MinecraftServer) {
         if(playerReferences.sources.isEmpty()) sourceReferencesMap.remove(debugConnection)
     }
 
-    fun addSourceReference(debugConnection: EditorDebugConnection, originalLines: List<String>, response: SourceReferenceSupplier): Int {
+    fun addSourceReference(debugConnection: EditorDebugConnection, response: SourceReferenceSupplier): Int {
         val references = sourceReferencesMap.getOrPut(debugConnection, ::PlayerSourceReferences)
         val id = debugConnection.nextSourceReference
         debugConnection.onSourceReferenceAdded()
-        references.sources[id] = SourceReferenceGenerator(response, originalLines)
+        references.sources[id] = SourceReferenceGenerator(response)
         return id
     }
 
@@ -114,7 +114,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
 
     class PlayerSourceReferences(val sources: Int2ReferenceMap<SourceReferenceGenerator> = Int2ReferenceOpenHashMap())
 
-    class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier, val originalLines: List<String>) {
+    class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier) {
         var generatedResponse: SourceResponse? = null
             private set
         val generatedLines: List<String>?

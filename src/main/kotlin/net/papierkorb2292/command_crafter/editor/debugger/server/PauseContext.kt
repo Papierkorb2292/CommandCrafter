@@ -294,7 +294,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             val updateStackFrames = sourceReferenceWrapper.map(
                 {
                     val sourceReferenceId = server.getDebugManager()
-                        .addSourceReference(debugConnection, it.originalLines) { sourceReference ->
+                        .addSourceReference(debugConnection) { sourceReference ->
                             val content = it.content(sourceReference)
                             SourceResponse().apply {
                                 this.content = content
@@ -329,7 +329,6 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     // Doesn't need additionalSourceChanges, because stack frames will be updated anyway, at which point an ExistingSourceReferenceWrapper should be returned
     class NewSourceReferenceWrapper(
         val sourceReferenceCallback: (Int) -> Unit,
-        val originalLines: List<String>,
         val content: (Int) -> String
     )
 

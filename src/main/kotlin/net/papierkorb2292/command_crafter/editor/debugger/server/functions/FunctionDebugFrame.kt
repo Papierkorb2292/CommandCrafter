@@ -209,7 +209,7 @@ class FunctionDebugFrame(
         return Either.left(PauseContext.NewSourceReferenceWrapper({
             createdSourceReferences[editorConnection] = it
             replacementData.sourceReferenceCallback(it)
-        }, functionLines) { sourceReference ->
+        }) { sourceReference ->
             val newBreakpoints = pauseContext.server.getDebugManager().functionDebugHandler
                 .getFunctionBreakpointsForDebugConnection(procedure.getOriginalId(), editorConnection).map {
                     PositionableBreakpoint(it.unparsed.copy())
