@@ -112,10 +112,10 @@ class FunctionTagDebugFrame(
             accumulatedResult = true to (accumulatedResult.second + result.returnValue.second)
     }
 
-    fun setAccumulatedResult(succesful: Boolean, returnValue: Int) {
-        accumulatedResult = succesful to returnValue
+    fun setAccumulatedResult(successful: Boolean, returnValue: Int) {
+        accumulatedResult = successful to returnValue
         returnValueAdder?.apply {
-            setSuccessful(succesful)
+            setSuccessful(successful)
             setReturnValue(returnValue)
         }
     }
