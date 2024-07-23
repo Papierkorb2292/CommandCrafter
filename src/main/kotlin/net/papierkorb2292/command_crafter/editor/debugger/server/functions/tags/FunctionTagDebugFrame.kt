@@ -17,7 +17,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReturnValueAdderAccessor
 import org.eclipse.lsp4j.Range
@@ -59,12 +61,23 @@ class FunctionTagDebugFrame(
             val tagDebugFrame = (pauseContext?.peekDebugFrame() as? FunctionTagDebugFrame)
             return if(tagDebugFrame != null)
                 CommandAction { context, frame ->
+                    FunctionDebugFrame.commandResult.remove()
                     tagDebugFrame.checkPause(entryIndex)
                     action.execute(context, frame)
                 }
             else
                 action
+        }
 
+        val LAST_TAG_PAUSE_COMMAND_ACTION = CommandAction<ServerCommandSource> { _, _ ->
+            val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
+            val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@CommandAction
+            tagDebugFrame.checkPause(tagDebugFrame.currentEntryIndex + 1)
+        }
+        val COPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION = CommandAction<ServerCommandSource> { _, _ ->
+            val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
+            val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@CommandAction
+            FunctionDebugFrame.commandResult.set(CommandResult(tagDebugFrame.accumulatedResult))
         }
     }
 

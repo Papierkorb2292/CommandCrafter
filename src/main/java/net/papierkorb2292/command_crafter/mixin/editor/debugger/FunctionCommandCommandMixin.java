@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutio
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FunctionCallDebugInfo;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.PotentialDebugFrameInitiator;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
 import net.papierkorb2292.command_crafter.mixin.editor.CommandManagerAccessor;
@@ -36,6 +37,8 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 public abstract class FunctionCommandCommandMixin implements PotentialDebugFrameInitiator {
 
     @Shadow protected abstract @Nullable NbtCompound getArguments(CommandContext<ServerCommandSource> context) throws CommandSyntaxException;
+
+    @Shadow public abstract void executeInner(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl) throws CommandSyntaxException;
 
     @Override
     public boolean command_crafter$willInitiateDebugFrame() {
@@ -61,6 +64,23 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
                     new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
             );
         return context;
+    }
+
+    @Inject(
+            method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
+            at = @At("RETURN")
+    )
+    private void command_crafter$enqueueExitTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, CallbackInfo ci) {
+        var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
+        if(pauseContext == null) return;
+        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLAST_TAG_PAUSE_COMMAND_ACTION());
+        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
+        executionControl.enqueueAction(new ExitDebugFrameCommandAction(
+                pauseContext.getDebugFrameDepth() - 1,
+                null,
+                !executionFlags.isInsideReturnRun(),
+                null
+        ));
     }
 
     @WrapOperation(
