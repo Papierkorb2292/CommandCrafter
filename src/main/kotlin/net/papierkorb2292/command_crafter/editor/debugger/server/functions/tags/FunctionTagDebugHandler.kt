@@ -60,7 +60,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
         @Suppress("CAST_NEVER_SUCCEEDS")
         val functionLoader = ((server as MinecraftServerAccessor).resourceManagerHolder as ResourceManagerHolderAccessor).dataPackContents.functionLoader
         @Suppress("UNCHECKED_CAST")
-        val breakpointParser = (functionLoader as IdentifiedBreakpointParserProvider<FunctionTagBreakpointLocation>).`command_crafter$getBreakpointParser`(file.fileId.resourceId)
+        val breakpointParser = (functionLoader as IdentifiedBreakpointParserProvider<BreakpointParser<FunctionTagBreakpointLocation>, FunctionTagBreakpointLocation>).`command_crafter$getBreakpointParser`(file.fileId.resourceId)
             ?: return MinecraftDebuggerServer.rejectAllBreakpoints(
                 breakpoints,
                 MinecraftDebuggerServer.DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON,

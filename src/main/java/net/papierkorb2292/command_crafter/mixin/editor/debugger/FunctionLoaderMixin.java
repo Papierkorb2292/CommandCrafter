@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.*;
 
 @Mixin(FunctionLoader.class)
-public class FunctionLoaderMixin implements IdentifiedBreakpointParserProvider<FunctionTagBreakpointLocation> {
+public class FunctionLoaderMixin implements IdentifiedBreakpointParserProvider<RangeFunctionTagBreakpointParser, FunctionTagBreakpointLocation> {
 
     @Shadow @Final private TagGroupLoader<CommandFunction<ServerCommandSource>> tagLoader;
     private final Map<Identifier, RangeFunctionTagBreakpointParser> command_crafter$tagBreakpointParsers = new HashMap<>();
@@ -85,7 +85,7 @@ public class FunctionLoaderMixin implements IdentifiedBreakpointParserProvider<F
 
     @Nullable
     @Override
-    public BreakpointParser<FunctionTagBreakpointLocation> command_crafter$getBreakpointParser(@NotNull Identifier id) {
+    public RangeFunctionTagBreakpointParser command_crafter$getBreakpointParser(@NotNull Identifier id) {
         return command_crafter$tagBreakpointParsers.get(id);
     }
 }
