@@ -2,26 +2,23 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.datafixers.util.Either
-import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
 import net.minecraft.command.CommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
-import net.papierkorb2292.command_crafter.editor.debugger.helper.*
+import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionPausedThrowable
+import net.papierkorb2292.command_crafter.editor.debugger.helper.IdentifiedDebugInformationProvider
+import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReturnValueAdderAccessor
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.Range
 
 class FunctionTagDebugFrame(
     val pauseContext: PauseContext,
@@ -80,20 +77,8 @@ class FunctionTagDebugFrame(
         }
     }
 
-    val filePath = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
-        PackagedId(tagId.withExtension(FunctionTagDebugHandler.TAG_FILE_EXTENSION), "")
-    )
-
     private var nextPauseIndex = -1
     private var lastPauseIndex = -1
-
-    private val createdSourceReferences = Reference2IntOpenHashMap<EditorDebugConnection>()
-    @Suppress("DEPRECATION")
-    val currentSourceReference: Int?
-        get() = createdSourceReferences[pauseContext.debugConnection!!]
-
-    var sourceReferenceEntries: List<Pair<Identifier, Range>>? = null
-    var sourceReferenceFileRange: Range? = null
 
     private var debugPauseHandler: DebugPauseHandler? = null
 
@@ -119,7 +104,7 @@ class FunctionTagDebugFrame(
     }
 
     override fun onContinue(stackEntry: PauseContext.DebugFrameStack.Entry) {
-        breakpoints = pauseContext.server.getDebugManager().functionTagDebugHandler.getTagBreakpoints(tagId, createdSourceReferences)
+        breakpoints = pauseContext.server.getDebugManager().functionTagDebugHandler.getTagBreakpoints(tagId)
     }
 
     init {
@@ -184,42 +169,10 @@ class FunctionTagDebugFrame(
     }
 
     override fun shouldWrapInSourceReference(path: String): Either<PauseContext.NewSourceReferenceWrapper, PauseContext.ExistingSourceReferenceWrapper>? {
-        if(path != filePath) return null
-        if(currentSourceReference != null) return Either.right(PauseContext.ExistingSourceReferenceWrapper(currentSourceReference!!, { }, false))
-        return Either.left(PauseContext.NewSourceReferenceWrapper({
-            createdSourceReferences[pauseContext.debugConnection!!] = it
-        }, ) {
-            val entryIds = pauseContext.server.commandFunctionManager.getTag(tagId).map { it.id() }
-            val entryRanges = mutableListOf<Pair<Identifier, Range>>()
-            sourceReferenceEntries = entryRanges
-            val listIndent = "    "
-            val entryIndent = listIndent.repeat(2)
-            buildString {
-                append("{\n")
-                append("$listIndent\"values\": [\n")
-                for((index, entry) in entryIds.withIndex()) {
-                    append(entryIndent)
-                    val entryString = "\"$entry\""
-                    append(entryString)
-                    entryRanges.add(entry to Range(
-                        Position(2 + index + 1, entryIndent.length + 1),
-                        Position(2 + index + 1, entryIndent.length + entryString.length + 1)
-                    ))
-                    if(index != entryIds.size - 1)
-                        append(',')
-                    append('\n')
-                }
-                append("$listIndent]\n")
-                append("}")
-            }
-        })
+        return null
     }
 
     override fun onExitFrame() {
         debugPauseHandler?.onExitFrame()
-        val debugManager = pauseContext.server.getDebugManager()
-        createdSourceReferences.forEach {
-            debugManager.removeSourceReference(it.key, it.value)
-        }
     }
 }

@@ -1,14 +1,13 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.mojang.brigadier.context.StringRange
+import net.minecraft.registry.tag.TagEntry
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
-import net.papierkorb2292.command_crafter.editor.debugger.helper.DebuggerVisualContext
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
-import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
-import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.getFileBreakpointRange
 import net.papierkorb2292.command_crafter.editor.debugger.server.StepInTargetsManager
@@ -22,7 +21,8 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ServerCommandSourceValueReference
 import net.papierkorb2292.command_crafter.editor.debugger.variables.StringMapValueReference
 import net.papierkorb2292.command_crafter.editor.debugger.variables.createScope
-import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -33,6 +33,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 
 class RangeFunctionTagDebugInformation(
+    private val tagEntrySources: List<TagEntrySource>,
     private val sourceFileEntries: List<TagEntriesRangeFile>,
     private val conditionParser: BreakpointConditionParser?
 ) : FunctionTagDebugInformation {
@@ -40,6 +41,58 @@ class RangeFunctionTagDebugInformation(
         private const val COMMAND_SOURCE_SCOPE_NAME = "Command-Source"
         private const val FUNCTION_TAG_MACROS_SCOPE_NAME = "Macros"
         private const val FUNCTION_TAG_RESULT_SCOPE_NAME = "Command-Result"
+
+        fun fromFinalTagContentProvider(finalTags: FinalTagContentProvider): Map<Identifier, RangeFunctionTagDebugInformation> {
+            val fileContent = finalTags.`command_crafter$getFileContent`()
+            val finalEntries = finalTags.`command_crafter$getFinalTags`()
+
+            val tagEntriesRangeFiles = mutableMapOf<Identifier, MutableList<TagEntriesRangeFile>>()
+
+            for((id, entries) in finalEntries.entries) {
+                for((entryIndex, entry) in entries.map { it.getLastChild() }.withIndex()) {
+                    val tagEntriesRangeFilesForSource =
+                        tagEntriesRangeFiles.getOrPut(entry.sourceId, ::mutableListOf)
+                    val packIdWithoutPrefix = PackagedId.getPackIdWithoutPrefix(entry.trackedEntry.source)
+                    var tagEntriesRangeFile = tagEntriesRangeFilesForSource.find { it.packId == packIdWithoutPrefix }
+                    if(tagEntriesRangeFile == null) {
+                        tagEntriesRangeFile = TagEntriesRangeFile(
+                            packIdWithoutPrefix,
+                            FileMappingInfo(fileContent[PackagedId(entry.sourceId, packIdWithoutPrefix)]!!),
+                            mutableListOf()
+                        )
+                        tagEntriesRangeFilesForSource += tagEntriesRangeFile
+                    }
+                    val entryRange = (entry.trackedEntry.entry as StringRangeContainer).`command_crafter$getRange`()!!
+                    val fileEntryIndex = tagEntriesRangeFile.entries.binarySearch { it.range.compareTo(entryRange) }
+                    if(fileEntryIndex < 0) {
+                        tagEntriesRangeFile.entries.add(-fileEntryIndex - 1, FileEntry(entryRange, FunctionTagBreakpointLocation(mutableMapOf(id to entryIndex))))
+                        continue
+                    }
+                    tagEntriesRangeFile.entries[fileEntryIndex].breakpointLocation.entryIndexPerTag[id] = entryIndex
+                }
+            }
+
+            return finalEntries.mapValues { (id, entries) ->
+                RangeFunctionTagDebugInformation(
+                    entries.map {
+                        val pathToEntry = mutableListOf<TagEntrySourcePathSegment>()
+                        var entry: TagFinalEntriesValueGetter.FinalEntry? = it
+                        while(entry != null) {
+                            val packagedId = PackagedId(entry.sourceId, PackagedId.getPackIdWithoutPrefix(entry.trackedEntry.source))
+                            pathToEntry += TagEntrySourcePathSegment(
+                                packagedId,
+                                FileMappingInfo(fileContent[packagedId]!!),
+                                entry.trackedEntry.entry
+                            )
+                            entry = entry.child
+                        }
+                        TagEntrySource(pathToEntry)
+                    },
+                    tagEntriesRangeFiles[id] ?: emptyList(),
+                    null
+                )
+            }
+        }
     }
 
     override fun parseBreakpoints(
@@ -87,16 +140,12 @@ class RangeFunctionTagDebugInformation(
             result += MinecraftDebuggerServer.acceptBreakpoint(breakpoint.unparsed)
         }
 
-        if(sourceFile.sourceReference == INITIAL_SOURCE_REFERENCE) {
-            setInitialSourceReferenceBreakpoints(addedBreakpoints, debugConnection, sourceFile.fileId, server)
-        } else {
-            setSourceReferenceBreakpoints(addedBreakpoints, debugConnection, sourceFile, server)
-        }
+        setBreakpoints(addedBreakpoints, debugConnection, sourceFile.fileId, server)
 
         return result
     }
 
-    private fun setInitialSourceReferenceBreakpoints(
+    private fun setBreakpoints(
         addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionTagBreakpointLocation>,
         debugConnection: EditorDebugConnection,
         fileId: PackagedId,
@@ -113,34 +162,13 @@ class RangeFunctionTagDebugInformation(
                     debugConnection,
                     BreakpointManager.BreakpointGroupKey(this, fileId),
                     addedBreakpoints,
-                    null //TODO
+                    null
                 )
             }
     }
 
-    private fun setSourceReferenceBreakpoints(
-        addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionTagBreakpointLocation>,
-        debugConnection: EditorDebugConnection,
-        sourceFile: BreakpointManager.FileBreakpointSource,
-        server: MinecraftServer,
-    ) {
-        server.getDebugManager().functionTagDebugHandler.updateGroupKeyBreakpoints(
-            sourceFile.fileId.resourceId,
-            sourceFile.sourceReference,
-            debugConnection,
-            BreakpointManager.BreakpointGroupKey(this, sourceFile.fileId),
-            addedBreakpoints,
-            null
-        )
-    }
-
     private fun getEntriesForFile(file: BreakpointManager.FileBreakpointSource): TagEntriesRangeFile? {
         val pack = file.fileId.packPath
-        val sourceReference = file.sourceReference
-        if(sourceReference != INITIAL_SOURCE_REFERENCE) {
-            require(pack.isEmpty()) { "Encountered source reference for a tag with a pack path: $file" }
-            TODO("Not yet implemented: Get all entries and map their position to the source reference")
-        }
         if(sourceFileEntries.isEmpty())
             return null
         if(sourceFileEntries.size == 1)
@@ -156,7 +184,7 @@ class RangeFunctionTagDebugInformation(
     data class TagEntriesRangeFile(
         val packId: String,
         val mappingInfo: FileMappingInfo,
-        val entries: List<FileEntry>
+        val entries: MutableList<FileEntry>
     )
 
     data class FileEntry(
@@ -167,25 +195,19 @@ class RangeFunctionTagDebugInformation(
     override fun createDebugPauseHandler(debugFrame: FunctionTagDebugFrame) = object : DebugPauseHandler {
 
         override fun findNextPauseLocation() {
+            if(tagEntrySources.isEmpty()) {
+                // Don't pause, because there would be no location for the "return" stack frame
+                debugFrame.pauseContext.debugConnection!!.output(OutputEventArguments().apply {
+                    category = OutputEventArgumentsCategory.IMPORTANT
+                    output = "Tag has no entries"
+                })
+                debugFrame.pauseContext.pauseAfterExitFrame()
+                return
+            }
             debugFrame.pauseOnEntryIndex(debugFrame.currentEntryIndex + 1)
         }
 
         override fun getStackFrames(): List<MinecraftStackFrame> {
-            val sourceReference = debugFrame.currentSourceReference
-            val source = Source().apply {
-                name = FunctionTagDebugHandler.getSourceName(debugFrame.tagId.toString(), sourceReference)
-                path = debugFrame.filePath
-            }
-
-            if(sourceReference == INITIAL_SOURCE_REFERENCE) {
-                // Return dummy frame until source reference is created
-                return listOf(
-                    MinecraftStackFrame(
-                    "", DebuggerVisualContext(source, Range()), emptyArray()
-                )
-                )
-            }
-
             val variablesReferenceMapper = debugFrame.pauseContext.variablesReferenceMapper
             val serverCommandSourceScope = ServerCommandSourceValueReference(
                 variablesReferenceMapper,
@@ -215,31 +237,51 @@ class RangeFunctionTagDebugInformation(
 
             val variableScopes = arrayOfNotNull(serverCommandSourceScope, commandResultScope, macrosScope)
 
-            val hasRunThrough = debugFrame.sourceReferenceEntries!!.size <= debugFrame.currentEntryIndex
-            val fileRange = debugFrame.sourceReferenceFileRange!!
+            val hasRunThrough = tagEntrySources.size <= debugFrame.currentEntryIndex
 
-            val result = mutableListOf(
-                MinecraftStackFrame(
-                    '#' + debugFrame.tagId.toString(),
-                    DebuggerVisualContext(source, fileRange),
-                    variableScopes
-                )
-            )
-
-            result += if(hasRunThrough) {
-                MinecraftStackFrame(
+            if(hasRunThrough) {
+                val lastEntryPathStart = tagEntrySources.last().pathToEntry.first()
+                val fileLength = lastEntryPathStart.fileMappingInfo.accumulatedLineLengths.run { get(size() - 1) }
+                return listOf(MinecraftStackFrame(
                     "return",
-                    DebuggerVisualContext(source, Range(fileRange.end.advance(-1), fileRange.end)),
+                    DebuggerVisualContext(
+                        Source().apply {
+                            name = FunctionTagDebugHandler.getSourceName(lastEntryPathStart.fileId)
+                            path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
+                                lastEntryPathStart.fileId.resourceId.namespace,
+                                lastEntryPathStart.fileId.resourceId.path,
+                                "**/${lastEntryPathStart.fileId.packPath}"
+                            )
+                        },
+                        Range(
+                            AnalyzingResult.getPositionFromCursor(fileLength - 1, lastEntryPathStart.fileMappingInfo),
+                            AnalyzingResult.getPositionFromCursor(fileLength, lastEntryPathStart.fileMappingInfo)
+                        )
+                    ),
                     variableScopes
-                )
-            } else {
-                val currentEntry = debugFrame.sourceReferenceEntries!![debugFrame.currentEntryIndex]
-                val currentEntryId = currentEntry.first
-                val currentEntryRange = currentEntry.second
+                ))
+            }
+            val result = mutableListOf<MinecraftStackFrame>()
+            val currentEntry = tagEntrySources[debugFrame.currentEntryIndex]
 
-                MinecraftStackFrame(
-                    currentEntryId.toString(),
-                    DebuggerVisualContext(source, currentEntryRange),
+            for(pathSegment in currentEntry.pathToEntry) {
+                val segmentStringRange = (pathSegment.tagEntry as StringRangeContainer).`command_crafter$getRange`()!!
+                result += MinecraftStackFrame(
+                    pathSegment.tagEntry.toString(),
+                    DebuggerVisualContext(
+                        Source().apply {
+                            name = FunctionTagDebugHandler.getSourceName(pathSegment.fileId)
+                            path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
+                                pathSegment.fileId.resourceId.namespace,
+                                pathSegment.fileId.resourceId.path,
+                                "**/${pathSegment.fileId.packPath}"
+                            )
+                        },
+                        Range(
+                            AnalyzingResult.getPositionFromCursor(segmentStringRange.start, pathSegment.fileMappingInfo),
+                            AnalyzingResult.getPositionFromCursor(segmentStringRange.end, pathSegment.fileMappingInfo)
+                        )
+                    ),
                     variableScopes
                 )
             }
@@ -278,4 +320,14 @@ class RangeFunctionTagDebugInformation(
             debugFrame.pauseContext.removePause()
         }
     }
+
+    data class TagEntrySource(
+        val pathToEntry: List<TagEntrySourcePathSegment>
+    )
+
+    data class TagEntrySourcePathSegment(
+        val fileId: PackagedId,
+        val fileMappingInfo: FileMappingInfo,
+        val tagEntry: TagEntry,
+    )
 }

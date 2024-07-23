@@ -7,14 +7,11 @@ import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation;
-import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
-import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagRangeEntriesProvider;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.IdentifiedDebugInformationProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagBreakpointLocation;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.RangeFunctionTagDebugInformation;
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
-import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
@@ -30,7 +27,7 @@ import java.util.*;
 public class FunctionLoaderMixin implements IdentifiedDebugInformationProvider<FunctionTagBreakpointLocation, FunctionTagDebugFrame> {
 
     @Shadow @Final private TagGroupLoader<CommandFunction<ServerCommandSource>> tagLoader;
-    private final Map<Identifier, RangeFunctionTagDebugInformation> command_crafter$tagBreakpointParsers = new HashMap<>();
+    private Map<Identifier, RangeFunctionTagDebugInformation> command_crafter$tagDebugInformations = new HashMap<>();
 
     @Inject(
             method = "method_29453",
@@ -41,53 +38,12 @@ public class FunctionLoaderMixin implements IdentifiedDebugInformationProvider<F
             )
     )
     private void command_crafter$createTagBreakpointParsers(Pair<?, ?> intermediate, CallbackInfo ci) {
-        command_crafter$tagBreakpointParsers.clear();
-
-        var finalTags = Objects.requireNonNull(((FinalTagRangeEntriesProvider) tagLoader).command_crafter$getFinalRangeTags());
-        var tagEntryRangesFilesPerId = new HashMap<Identifier, List<RangeFunctionTagDebugInformation.TagEntriesRangeFile>>();
-
-        for(var finalTag : finalTags.entrySet()) {
-            var packagedId = finalTag.getKey();
-            var tagInfo = finalTag.getValue();
-            var lines = tagInfo.getFirst();
-            var tagEntries = tagInfo.getSecond();
-            var tagEntriesRangeFile = new RangeFunctionTagDebugInformation.TagEntriesRangeFile(
-                    packagedId.getPackPath(),
-                    new FileMappingInfo(
-                            lines,
-                            new SplitProcessedInputCursorMapper(),
-                            0,
-                            0
-                    ),
-                    tagEntries.entrySet().stream().map(entry -> {
-                        var packPath = entry.getKey();
-                        var entryIndices = entry.getValue();
-                        return new RangeFunctionTagDebugInformation.FileEntry(
-                                packPath,
-                                new FunctionTagBreakpointLocation(entryIndices)
-                        );
-                    }).toList()
-            );
-
-            tagEntryRangesFilesPerId.computeIfAbsent(
-                    packagedId.getResourceId(),
-                    key -> new ArrayList<>()
-            ).add(tagEntriesRangeFile);
-        }
-
-        for(var tag : tagEntryRangesFilesPerId.entrySet()) {
-            var tagId = tag.getKey();
-            var tagEntryRangesFiles = tag.getValue();
-            command_crafter$tagBreakpointParsers.put(
-                    tagId,
-                    new RangeFunctionTagDebugInformation(tagEntryRangesFiles, null)
-            );
-        }
+        command_crafter$tagDebugInformations = RangeFunctionTagDebugInformation.Companion.fromFinalTagContentProvider((FinalTagContentProvider) tagLoader);
     }
 
     @Nullable
     @Override
     public DebugInformation<FunctionTagBreakpointLocation, FunctionTagDebugFrame> command_crafter$getDebugInformation(@NotNull Identifier id) {
-        return command_crafter$tagBreakpointParsers.get(id);
+        return command_crafter$tagDebugInformations.get(id);
     }
 }

@@ -9,5 +9,5 @@ import net.minecraft.util.Identifier
  * in which case each of them have their own entry index.
  */
 class FunctionTagBreakpointLocation(
-    val entryIndexPerTag: Map<Identifier, Int>
+    val entryIndexPerTag: MutableMap<Identifier, Int>
 )

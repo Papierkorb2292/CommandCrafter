@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.google.gson.JsonElement
 import com.mojang.brigadier.context.StringRange
-import it.unimi.dsi.fastutil.objects.Reference2IntMap
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.function.FunctionLoader
@@ -15,6 +14,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServe
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.IdentifiedDebugInformationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager
+import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandler
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
@@ -98,10 +98,9 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
         breakpointManager.reloadBreakpoints()
     }
 
-    fun getTagBreakpoints(id: Identifier, sourceReferences: Reference2IntMap<EditorDebugConnection>? = null): List<ServerBreakpoint<FunctionTagBreakpointLocation>> =
+    fun getTagBreakpoints(id: Identifier): List<ServerBreakpoint<FunctionTagBreakpointLocation>> =
         breakpointManager.breakpoints.entries.flatMap { (debugConnection, functionBreakpoints) ->
-            @Suppress("DEPRECATION")
-            functionBreakpoints[id]?.get(sourceReferences?.get(debugConnection))?.values ?: emptyList()
+            functionBreakpoints[id]?.get(INITIAL_SOURCE_REFERENCE)?.values ?: emptyList()
         }.flatMap { it.list }
 
     fun updateGroupKeyBreakpoints(
