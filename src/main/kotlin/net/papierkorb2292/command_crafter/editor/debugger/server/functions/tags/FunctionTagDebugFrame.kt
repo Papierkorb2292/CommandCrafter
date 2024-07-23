@@ -10,16 +10,14 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
-import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionPausedThrowable
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
-import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
-import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.helper.getOrNull
+import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReturnValueAdderAccessor
 import org.eclipse.lsp4j.Position
@@ -168,7 +166,13 @@ class FunctionTagDebugFrame(
 
     override fun getDebugPauseHandler(): DebugPauseHandler {
         debugPauseHandler?.run { return this }
-        val handler = FunctionTagDebugPauseHandler(this)
+        @Suppress("UNCHECKED_CAST")
+        val handler = ((pauseContext.server as MinecraftServerAccessor)
+            .resourceManagerHolder
+            .dataPackContents
+            .functionLoader as IdentifiedDebugInformationProvider<*, FunctionTagDebugFrame>)
+            .`command_crafter$getDebugInformation`(tagId)!!
+            .createDebugPauseHandler(this)
         debugPauseHandler = handler
         return handler
     }

@@ -9,11 +9,11 @@ import net.minecraft.server.function.FunctionLoader
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
-import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
+import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
-import net.papierkorb2292.command_crafter.editor.debugger.helper.IdentifiedBreakpointParserProvider
+import net.papierkorb2292.command_crafter.editor.debugger.helper.IdentifiedDebugInformationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandler
@@ -60,7 +60,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
         @Suppress("CAST_NEVER_SUCCEEDS")
         val functionLoader = ((server as MinecraftServerAccessor).resourceManagerHolder as ResourceManagerHolderAccessor).dataPackContents.functionLoader
         @Suppress("UNCHECKED_CAST")
-        val breakpointParser = (functionLoader as IdentifiedBreakpointParserProvider<BreakpointParser<FunctionTagBreakpointLocation>, FunctionTagBreakpointLocation>).`command_crafter$getBreakpointParser`(file.fileId.resourceId)
+        val breakpointParser = (functionLoader as IdentifiedDebugInformationProvider<FunctionTagBreakpointLocation, *>).`command_crafter$getDebugInformation`(file.fileId.resourceId)
             ?: return MinecraftDebuggerServer.rejectAllBreakpoints(
                 breakpoints,
                 MinecraftDebuggerServer.DEBUG_INFORMATION_NOT_SAVED_REJECTION_REASON,
@@ -123,4 +123,4 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
     }
 }
 
-typealias FunctionTagBreakpointParser = BreakpointParser<FunctionTagBreakpointLocation>
+typealias FunctionTagDebugInformation = DebugInformation<FunctionTagBreakpointLocation, FunctionTagDebugFrame>
