@@ -22,6 +22,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReturnValueAdderAccessor
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 
 class FunctionTagDebugFrame(
@@ -179,7 +180,35 @@ class FunctionTagDebugFrame(
     }
 
     override fun shouldWrapInSourceReference(path: String): Either<PauseContext.NewSourceReferenceWrapper, PauseContext.ExistingSourceReferenceWrapper>? {
-        TODO("Not yet implemented")
+        if(path != filePath) return null
+        if(currentSourceReference != null) return Either.right(PauseContext.ExistingSourceReferenceWrapper(currentSourceReference!!, { }, false))
+        return Either.left(PauseContext.NewSourceReferenceWrapper({
+            createdSourceReferences[pauseContext.debugConnection!!] = it
+        }, ) {
+            val entryIds = pauseContext.server.commandFunctionManager.getTag(tagId).map { it.id() }
+            val entryRanges = mutableListOf<Pair<Identifier, Range>>()
+            sourceReferenceEntries = entryRanges
+            val listIndent = "    "
+            val entryIndent = listIndent.repeat(2)
+            buildString {
+                append("{\n")
+                append("$listIndent\"values\": [\n")
+                for((index, entry) in entryIds.withIndex()) {
+                    append(entryIndent)
+                    val entryString = "\"$entry\""
+                    append(entryString)
+                    entryRanges.add(entry to Range(
+                        Position(2 + index + 1, entryIndent.length + 1),
+                        Position(2 + index + 1, entryIndent.length + entryString.length + 1)
+                    ))
+                    if(index != entryIds.size - 1)
+                        append(',')
+                    append('\n')
+                }
+                append("$listIndent]\n")
+                append("}")
+            }
+        })
     }
 
     override fun onExitFrame() {
