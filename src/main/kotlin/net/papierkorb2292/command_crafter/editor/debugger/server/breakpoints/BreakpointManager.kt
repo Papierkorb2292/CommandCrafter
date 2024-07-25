@@ -50,7 +50,7 @@ class BreakpointManager<TBreakpointLocation>(
         groupKey: BreakpointGroupKey<TBreakpointLocation>,
         breakpoints: AddedBreakpointList<TBreakpointLocation>,
         debugConnection: EditorDebugConnection,
-        cursorMapperSupplier: SourceReferenceCursorMapperSupplier?
+        sourceReferenceMapping: SourceReferenceMappingSupplier?
     ) {
         if(breakpoints.list.isEmpty()) {
             removeGroupBreakpoints(debugConnection, resourceId, sourceReference, groupKey)
@@ -58,7 +58,7 @@ class BreakpointManager<TBreakpointLocation>(
         }
         val resourceBreakpoints = getOrCreateResourceBreakpoints(debugConnection, resourceId, sourceReference)
         val prevBreakpoints = resourceBreakpoints.put(groupKey, breakpoints) ?: AddedBreakpointList()
-        if(sourceReference != INITIAL_SOURCE_REFERENCE || cursorMapperSupplier == null) return
+        if(sourceReference != INITIAL_SOURCE_REFERENCE || sourceReferenceMapping == null) return
 
         // Update source reference that copy the breakpoints
         val prevBreakpointIds = prevBreakpoints.list.mapTo(HashSet()) { it.unparsed.id }
@@ -68,7 +68,7 @@ class BreakpointManager<TBreakpointLocation>(
             val sourceReferenceGroupKey = groupKey.copy(fileId = groupKey.fileId.forPackPath(""))
             for((subSourceReference, subSourceBreakpoints) in this.breakpoints[debugConnection]!![resourceId]!!) {
                 if(subSourceReference == INITIAL_SOURCE_REFERENCE) continue
-                val cursorMapper = cursorMapperSupplier.getCursorMapper(subSourceReference!!) ?: continue
+                val cursorMapper = sourceReferenceMapping.getCursorMapper(subSourceReference!!) ?: continue
 
                 val breakpointParserBreakpoints =
                     if(added.isEmpty()) subSourceBreakpoints[sourceReferenceGroupKey] ?: continue
@@ -90,12 +90,12 @@ class BreakpointManager<TBreakpointLocation>(
                         val sourceReferenceEntry = server.getDebugManager().getSourceReferenceEntry(debugConnection, subSourceReference)
                             ?: throw IllegalArgumentException("Couldn't retrieve entry for source reference when adding new breakpoints to original file")
                         val initialSourceCursor = AnalyzingResult.getCursorFromPosition(
-                            sourceReferenceEntry.originalLines,
+                            sourceReferenceMapping.originalLines,
                             Position(newSourceBreakpoint.line, newSourceBreakpoint.column ?: 0),
                             false
                         )
                         val mappedCursor = cursorMapper.mapToTarget(initialSourceCursor, true)
-                        val newPosition = AnalyzingResult.getPositionFromCursor(mappedCursor, sourceReferenceEntry.getLinesOrGenerate(subSourceReference!!), false)
+                        val newPosition = AnalyzingResult.getPositionFromCursor(mappedCursor, sourceReferenceEntry.getLinesOrGenerate(subSourceReference), false)
                         newSourceBreakpoint.line = newPosition.line
                         newSourceBreakpoint.column = newPosition.character
                         UnparsedServerBreakpoint(addedIdStart + index, subSourceReference, newSourceBreakpoint, original.unparsed.id)
@@ -384,7 +384,8 @@ class BreakpointManager<TBreakpointLocation>(
 
     data class BreakpointGroupKey<TBreakpointLocation>(val parser: BreakpointParser<TBreakpointLocation>, val fileId: PackagedId)
 
-    fun interface SourceReferenceCursorMapperSupplier {
+    interface SourceReferenceMappingSupplier {
+        val originalLines: List<String>
         fun getCursorMapper(sourceReference: Int): ProcessedInputCursorMapper?
     }
 }

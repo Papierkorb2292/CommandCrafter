@@ -109,7 +109,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
         debugConnection: EditorDebugConnection,
         breakpointGroupKey: BreakpointManager.BreakpointGroupKey<FunctionTagBreakpointLocation>,
         addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionTagBreakpointLocation>,
-        cursorMapperSupplier: BreakpointManager.SourceReferenceCursorMapperSupplier?,
+        cursorMapperSupplier: BreakpointManager.SourceReferenceMappingSupplier?,
     ) {
         breakpointManager.setGroupBreakpoints(
             functionId,

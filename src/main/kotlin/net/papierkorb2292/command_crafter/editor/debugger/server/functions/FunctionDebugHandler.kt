@@ -121,14 +121,14 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         )
     }
 
-    fun updateGroupKeyBreakpoints(functionId: Identifier, sourceReference: Int?, debugConnection: EditorDebugConnection, groupKey: BreakpointManager.BreakpointGroupKey<FunctionBreakpointLocation>, breakpointList: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>, cursorMapperSupplier: BreakpointManager.SourceReferenceCursorMapperSupplier?) {
+    fun updateGroupKeyBreakpoints(functionId: Identifier, sourceReference: Int?, debugConnection: EditorDebugConnection, groupKey: BreakpointManager.BreakpointGroupKey<FunctionBreakpointLocation>, breakpointList: BreakpointManager.AddedBreakpointList<FunctionBreakpointLocation>, sourceReferenceMapper: BreakpointManager.SourceReferenceMappingSupplier?) {
         breakpointManager.setGroupBreakpoints(
             functionId,
             sourceReference,
             groupKey,
             breakpointList,
             debugConnection,
-            cursorMapperSupplier
+            sourceReferenceMapper
         )
     }
 }

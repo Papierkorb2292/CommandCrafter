@@ -103,10 +103,15 @@ class FunctionElementDebugInformation(
             sourceFile.sourceReference,
             debugConnection,
             BreakpointManager.BreakpointGroupKey(this, sourceFile.fileId),
-            addedBreakpoints
-        ) {
-            FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceFile.sourceReference]
-        }
+            addedBreakpoints,
+            object : BreakpointManager.SourceReferenceMappingSupplier {
+                override val originalLines: List<String>
+                    get() = lines
+
+                override fun getCursorMapper(sourceReference: Int): ProcessedInputCursorMapper? =
+                    FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceFile.sourceReference]
+            }
+        )
         return result
     }
     override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) = FunctionElementDebugPauseHandler(debugFrame)
