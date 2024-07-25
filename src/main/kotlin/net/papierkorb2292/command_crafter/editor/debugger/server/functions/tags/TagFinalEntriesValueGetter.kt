@@ -10,18 +10,22 @@ class TagFinalEntriesValueGetter(
     private val parsedTags: Map<Identifier, List<TagGroupLoader.TrackedEntry>>,
     private val finalEntries: MutableMap<Identifier, Collection<FinalEntry>> = mutableMapOf()
 ) : TagEntry.ValueGetter<TagFinalEntriesValueGetter.FinalEntry> {
+    companion object {
+        fun getOrCreateFinalEntriesForTag(id: Identifier, parsedTags: Map<Identifier, List<TagGroupLoader.TrackedEntry>>, finalEntries: MutableMap<Identifier, Collection<FinalEntry>>): Collection<FinalEntry> {
+            finalEntries[id]?.let { return it }
+            val result = mutableListOf<FinalEntry>()
+            parsedTags[id]!!.forEach { trackedEntry ->
+                trackedEntry.entry.resolve(TagFinalEntriesValueGetter(id, trackedEntry, parsedTags, finalEntries), result::add)
+            }
+            finalEntries[id] = result
+            return result
+        }
+    }
+
     override fun direct(id: Identifier): FinalEntry = FinalEntry(tagId, currentEntry, null)
 
     override fun tag(id: Identifier): Collection<FinalEntry> {
-        finalEntries[id]?.let { return it }
-        val result = mutableListOf<FinalEntry>()
-        parsedTags[id]!!.forEach { trackedEntry ->
-            trackedEntry.entry.resolve(TagFinalEntriesValueGetter(id, trackedEntry, parsedTags, finalEntries)) { finalEntry ->
-                result += FinalEntry(id, currentEntry, finalEntry)
-            }
-        }
-        finalEntries[id] = result
-        return result
+        return getOrCreateFinalEntriesForTag(id, parsedTags, finalEntries).map { FinalEntry(tagId, currentEntry, it) }
     }
 
     data class FinalEntry(

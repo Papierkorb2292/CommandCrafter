@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.context.StringRange;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Dynamic;
@@ -40,7 +41,6 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
 
     @Shadow @Final private String dataType;
     private final ThreadLocal<Map<Identifier, List<TagGroupLoader.TrackedEntry>>> command_crafter$parsedTags = new ThreadLocal<>();
-    private final ThreadLocal<Identifier> command_crafter$resolveTagId = new ThreadLocal<>();
     private final Map<PackagedId, List<String>> command_crafter$tagFileLines = new HashMap<>();
     private final Map<Identifier, Collection<TagFinalEntriesValueGetter.FinalEntry>> command_crafter$finalEntries = new HashMap<>();
 
@@ -97,31 +97,19 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
     )
     private void command_crafter$buildBreakpointParsers(Map<Identifier, Collection<T>> finalEntries, CallbackInfoReturnable<Map<Identifier, Collection<T>>> cir) {
         command_crafter$parsedTags.remove();
-        command_crafter$resolveTagId.remove();
     }
 
     @Inject(
             method = "method_51476",
             at = @At("HEAD")
     )
-    private void command_crafter$storeTagId(TagEntry.ValueGetter<T> valueGetter, Map<Identifier, Collection<T>> map, Identifier id, @Coerce Object dependencies, CallbackInfo ci) {
-        command_crafter$resolveTagId.set(id);
-    }
-
-    @ModifyVariable(
-            method = "resolveAll",
-            at = @At("STORE")
-    )
-    private TagGroupLoader.TrackedEntry command_crafter$storeEntryRangesForTagDebugging(TagGroupLoader.TrackedEntry trackedEntry) {
-        if(!dataType.equals(FunctionTagDebugHandler.Companion.getTAG_PATH()))
-            return trackedEntry;
-        new TagFinalEntriesValueGetter(
-                Identifier.of("", ""),
-                trackedEntry,
+    private void command_crafter$createFinalRangedForTagDebugging(TagEntry.ValueGetter<T> valueGetter, Map<Identifier, Collection<T>> map, Identifier id, @Coerce Object dependencies, CallbackInfo ci) {
+        if(!dataType.equals(FunctionTagDebugHandler.Companion.getTAG_PATH())) return;
+        TagFinalEntriesValueGetter.Companion.getOrCreateFinalEntriesForTag(
+                id,
                 command_crafter$parsedTags.get(),
                 command_crafter$finalEntries
-        ).tag(command_crafter$resolveTagId.get());
-        return trackedEntry;
+        );
     }
 
     @NotNull
