@@ -19,7 +19,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.DebugHandler
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ResourceManagerHolderAccessor
@@ -52,9 +51,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
     ): List<Breakpoint> {
         val source = Source().apply {
             this.name = getSourceName(file.fileId, file.sourceReference)
-            this.path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(file.fileId.withExtension(
-                FunctionDebugHandler.FUNCTION_FILE_EXTENSTION
-            ))
+            this.path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(file.fileId.withExtension(TAG_FILE_EXTENSION))
             this.sourceReference = file.sourceReference
         }
         @Suppress("CAST_NEVER_SUCCEEDS")
