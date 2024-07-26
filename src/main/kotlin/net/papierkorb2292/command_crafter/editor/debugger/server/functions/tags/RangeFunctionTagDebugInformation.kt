@@ -160,19 +160,14 @@ class RangeFunctionTagDebugInformation(
         server: MinecraftServer,
     ) {
         val tagDebugHandler = server.getDebugManager().functionTagDebugHandler
-        addedBreakpoints.list.asSequence()
-            .flatMap { it.action?.location?.entryIndexPerTag?.keys ?: emptyList() }
-            .distinct()
-            .forEach {
-                tagDebugHandler.updateGroupKeyBreakpoints(
-                    it,
-                    INITIAL_SOURCE_REFERENCE,
-                    debugConnection,
-                    BreakpointManager.BreakpointGroupKey(this, fileId),
-                    addedBreakpoints,
-                    null
-                )
-            }
+        tagDebugHandler.updateGroupKeyBreakpoints(
+            fileId.resourceId,
+            INITIAL_SOURCE_REFERENCE,
+            debugConnection,
+            BreakpointManager.BreakpointGroupKey(this, fileId),
+            addedBreakpoints,
+            null
+        )
     }
 
     private fun getEntriesForFile(file: BreakpointManager.FileBreakpointSource): TagEntriesRangeFile? {

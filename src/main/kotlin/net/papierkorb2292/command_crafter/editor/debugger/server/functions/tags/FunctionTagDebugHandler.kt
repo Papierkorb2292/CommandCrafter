@@ -99,9 +99,16 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
     }
 
     fun getTagBreakpoints(id: Identifier): List<ServerBreakpoint<FunctionTagBreakpointLocation>> =
-        breakpointManager.breakpoints.entries.flatMap { (debugConnection, functionBreakpoints) ->
-            functionBreakpoints[id]?.get(INITIAL_SOURCE_REFERENCE)?.values ?: emptyList()
-        }.flatMap { it.list }
+        breakpointManager.breakpoints.entries.flatMap { (_, functionBreakpoints) ->
+            functionBreakpoints.values
+        }.flatMap {
+            it[INITIAL_SOURCE_REFERENCE]?.values ?: emptyList()
+        }.flatMap {
+            it.list
+        }.filter {
+            val action = it.action ?: return@filter false
+            action.location.entryIndexPerTag.containsKey(id)
+        }
 
     fun updateGroupKeyBreakpoints(
         functionId: Identifier,
@@ -109,7 +116,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
         debugConnection: EditorDebugConnection,
         breakpointGroupKey: BreakpointManager.BreakpointGroupKey<FunctionTagBreakpointLocation>,
         addedBreakpoints: BreakpointManager.AddedBreakpointList<FunctionTagBreakpointLocation>,
-        cursorMapperSupplier: BreakpointManager.SourceReferenceMappingSupplier?,
+        sourceReferenceMapping: BreakpointManager.SourceReferenceMappingSupplier?,
     ) {
         breakpointManager.setGroupBreakpoints(
             functionId,
@@ -117,7 +124,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
             breakpointGroupKey,
             addedBreakpoints,
             debugConnection,
-            cursorMapperSupplier
+            sourceReferenceMapping
         )
     }
 }
