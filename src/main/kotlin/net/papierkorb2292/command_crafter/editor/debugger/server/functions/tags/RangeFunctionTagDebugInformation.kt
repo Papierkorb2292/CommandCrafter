@@ -252,8 +252,8 @@ class RangeFunctionTagDebugInformation(
                             )
                         },
                         Range(
-                            AnalyzingResult.getPositionFromCursor(fileLength - 1, lastEntryPathStart.fileMappingInfo),
-                            AnalyzingResult.getPositionFromCursor(fileLength, lastEntryPathStart.fileMappingInfo)
+                            AnalyzingResult.getPositionFromCursor(fileLength - 1, lastEntryPathStart.fileMappingInfo, false),
+                            AnalyzingResult.getPositionFromCursor(fileLength, lastEntryPathStart.fileMappingInfo, false)
                         )
                     ),
                     variableScopes
@@ -276,8 +276,8 @@ class RangeFunctionTagDebugInformation(
                             )
                         },
                         Range(
-                            AnalyzingResult.getPositionFromCursor(segmentStringRange.start, pathSegment.fileMappingInfo),
-                            AnalyzingResult.getPositionFromCursor(segmentStringRange.end, pathSegment.fileMappingInfo)
+                            AnalyzingResult.getPositionFromCursor(segmentStringRange.start, pathSegment.fileMappingInfo, false),
+                            AnalyzingResult.getPositionFromCursor(segmentStringRange.end, pathSegment.fileMappingInfo, false)
                         )
                     ),
                     variableScopes
