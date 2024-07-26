@@ -181,11 +181,6 @@ class RangeFunctionTagDebugInformation(
             return null
         if(sourceFileEntries.size == 1)
             return sourceFileEntries.first()
-        if(sourceFileEntries.size == 2 && pack != "vanilla") {
-            val nonVanilla = sourceFileEntries.filter { it.packId != "vanilla" }
-            if(nonVanilla.size == 1)
-                return nonVanilla.first()
-        }
         return sourceFileEntries.find { it.packId == pack }
     }
 
