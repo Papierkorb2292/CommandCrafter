@@ -290,6 +290,10 @@ class RangeFunctionTagDebugInformation(
         override fun onExitFrame() { }
 
         override fun next(granularity: SteppingGranularity) {
+            if(debugFrame.currentEntryIndex >= tagEntrySources.size) {
+                debugFrame.pauseContext.pauseAfterExitFrame()
+                return
+            }
             debugFrame.pauseOnEntryIndex(debugFrame.currentEntryIndex + 1)
         }
 

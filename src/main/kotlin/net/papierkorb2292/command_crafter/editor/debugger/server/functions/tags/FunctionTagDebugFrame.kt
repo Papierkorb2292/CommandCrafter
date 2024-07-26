@@ -68,7 +68,8 @@ class FunctionTagDebugFrame(
         val LAST_TAG_PAUSE_COMMAND_ACTION = CommandAction<ServerCommandSource> { _, _ ->
             val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
             val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@CommandAction
-            tagDebugFrame.checkPause(tagDebugFrame.currentEntryIndex + 1)
+            val pauseIndex = pauseContext.server.commandFunctionManager.getTag(tagDebugFrame.tagId).size
+            tagDebugFrame.checkPause(pauseIndex)
         }
         val COPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION = CommandAction<ServerCommandSource> { _, _ ->
             val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
