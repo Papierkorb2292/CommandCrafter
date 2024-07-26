@@ -78,7 +78,7 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
                 new ExitDebugFrameCommandAction(
                         pauseContext.getDebugFrameDepth(),
                         FunctionDebugFrame.Companion.getCommandResult(),
-                        true, //TODO: Should be !propagateReturn once tags are implemented as well
+                        !propagateReturn && !(pauseContext.peekDebugFrame() instanceof FunctionTagDebugFrame),
                         null
                 )));
         pauseContext.pushDebugFrame(debugFrame);
@@ -130,9 +130,6 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
             private void setCommandResult(boolean successful, int returnValue) {
                 var result = new CommandResult(new Pair<>(successful, returnValue));
                 FunctionDebugFrame.Companion.getCommandResult().set(result);
-                var currentFrame = pauseContext.peekDebugFrame();
-                if(currentFrame instanceof FunctionTagDebugFrame functionTagDebugFrame)
-                    functionTagDebugFrame.addFunctionResult(result);
             }
 
             private void enqueueFrameExitWithReturnValue() {

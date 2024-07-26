@@ -26,7 +26,8 @@ public class FunctionCommandMixin {
             )
     )
     private static <T extends AbstractServerCommandSource<T>> CommandAction<T> command_crafter$addPauseToCommandFunctionAction(CommandAction<T> action) {
-        var tagWrappedAction = FunctionTagDebugFrame.Companion.wrapCommandActionWithTagPauseCheck(action, command_crafter$getNextTagEntryIndex());
+        var entryIndex = getOrNull(command_crafter$tagEntryIndex);
+        var tagWrappedAction = FunctionTagDebugFrame.Companion.wrapCommandActionWithTagPauseCheck(action, entryIndex == null ? 0 : entryIndex);
 
         FunctionCallDebugInfo debugInfo = FunctionDebugFrame.Companion.getFunctionCallDebugInfo().get();
         if (debugInfo != null) {

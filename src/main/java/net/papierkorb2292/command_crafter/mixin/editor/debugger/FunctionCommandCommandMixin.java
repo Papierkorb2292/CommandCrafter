@@ -73,11 +73,11 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
     private void command_crafter$enqueueExitTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, CallbackInfo ci) {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
         if(pauseContext == null) return;
-        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLAST_TAG_PAUSE_COMMAND_ACTION());
+        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
         executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
         executionControl.enqueueAction(new ExitDebugFrameCommandAction(
                 pauseContext.getDebugFrameDepth() - 1,
-                null,
+                FunctionDebugFrame.Companion.getCommandResult(),
                 !executionFlags.isInsideReturnRun(),
                 null
         ));
