@@ -181,7 +181,7 @@ class RangeFunctionTagDebugInformation(
             return null
         if(sourceFileEntries.size == 1)
             return sourceFileEntries.first()
-        return sourceFileEntries.find { it.packId == pack }
+        return sourceFileEntries.find { pack.endsWith(it.packId) }
     }
 
     data class TagEntriesRangeFile(
