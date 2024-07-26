@@ -118,6 +118,16 @@ export class DebugClient implements ConnectionFeature {
             });
             return;
         }
+        if(message.type === 'request' && message.command == 'getWorkspaceRoot') {
+            const workspaceFolders = vscode.workspace.workspaceFolders
+            messageSender({
+                type: 'response',
+                request_seq: message.seq,
+                success: true,
+                body: workspaceFolders == null || workspaceFolders.length != 1 ? null : workspaceFolders[0].uri.toString()
+            });
+            return;
+        }
         vscodeHandleEventEmitter.fire(<vscode.DebugProtocolMessage>message);
     }
     

@@ -8,4 +8,7 @@ interface CommandCrafterDebugClient : IDebugProtocolClient, EditorClientFileFind
 
     @JsonRequest
     override fun findFiles(pattern: String): CompletableFuture<Array<String>>
+
+    @JsonRequest
+    fun getWorkspaceRoot(): CompletableFuture<String>
 }

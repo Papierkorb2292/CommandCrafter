@@ -2,10 +2,7 @@ package net.papierkorb2292.command_crafter.editor.debugger
 
 import kotlinx.atomicfu.locks.SynchronizedObject
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.editor.CommandCrafterDebugClient
-import net.papierkorb2292.command_crafter.editor.EditorService
-import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
-import net.papierkorb2292.command_crafter.editor.PackagedId
+import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
@@ -195,8 +192,14 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         val path = source.path ?: return mappingChildSourcesFuture
 
-        val mappingCurrentSourceFuture = client.findFiles(path).thenApply {
-            source.path = it?.getOrNull(0) ?: return@thenApply null
+        val mappingCurrentSourceFuture = client.getWorkspaceRoot().thenApply { workspaceUri ->
+            if(workspaceUri == null) return@thenApply path
+            val workspacePath = EditorURI.parseURI(workspaceUri).path
+            val workspacePrefix = "**/" + workspacePath.substring(workspacePath.indexOfLast { it == '/' } + 1)
+            if(!path.startsWith(workspacePrefix)) return@thenApply path
+            return@thenApply "**" + path.substring(workspacePrefix.length)
+        }.thenCompose { client.findFiles(it) }.thenApply {
+            source.path = it?.firstOrNull() ?: return@thenApply
         }
 
         return CompletableFuture.allOf(mappingCurrentSourceFuture, mappingChildSourcesFuture)

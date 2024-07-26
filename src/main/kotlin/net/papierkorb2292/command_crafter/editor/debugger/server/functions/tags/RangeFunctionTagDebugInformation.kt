@@ -247,7 +247,7 @@ class RangeFunctionTagDebugInformation(
                             name = FunctionTagDebugHandler.getSourceName(lastEntryPathStart.fileId)
                             path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
                                 lastEntryPathStart.fileId.resourceId.namespace,
-                                lastEntryPathStart.fileId.resourceId.path,
+                                lastEntryPathStart.fileId.resourceId.path + FunctionTagDebugHandler.TAG_FILE_EXTENSION,
                                 "**/${lastEntryPathStart.fileId.packPath}"
                             )
                         },
@@ -271,7 +271,7 @@ class RangeFunctionTagDebugInformation(
                             name = FunctionTagDebugHandler.getSourceName(pathSegment.fileId)
                             path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
                                 pathSegment.fileId.resourceId.namespace,
-                                pathSegment.fileId.resourceId.path,
+                                pathSegment.fileId.resourceId.path + FunctionTagDebugHandler.TAG_FILE_EXTENSION,
                                 "**/${pathSegment.fileId.packPath}"
                             )
                         },
