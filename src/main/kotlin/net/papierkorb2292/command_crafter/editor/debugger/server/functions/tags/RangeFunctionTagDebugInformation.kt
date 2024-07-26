@@ -42,6 +42,15 @@ class RangeFunctionTagDebugInformation(
         private const val FUNCTION_TAG_MACROS_SCOPE_NAME = "Macros"
         private const val FUNCTION_TAG_RESULT_SCOPE_NAME = "Command-Result"
 
+        fun getFullFileIdFromFinalEntry(finalEntry: TagFinalEntriesValueGetter.FinalEntry): PackagedId {
+            val packPath = PackagedId.getPackIdWithoutPrefix(finalEntry.trackedEntry.source)
+            val identifier = Identifier.of(
+                finalEntry.sourceId.namespace,
+                "${PackContentFileType.FUNCTION_TAGS_FILE_TYPE.contentTypePath}/${finalEntry.sourceId.path}.json"
+            )
+            return PackagedId(identifier, packPath)
+        }
+
         fun fromFinalTagContentProvider(finalTags: FinalTagContentProvider): Map<Identifier, RangeFunctionTagDebugInformation> {
             val fileContent = finalTags.`command_crafter$getFileContent`()
             val finalEntries = finalTags.`command_crafter$getFinalTags`()
@@ -57,7 +66,7 @@ class RangeFunctionTagDebugInformation(
                     if(tagEntriesRangeFile == null) {
                         tagEntriesRangeFile = TagEntriesRangeFile(
                             packIdWithoutPrefix,
-                            FileMappingInfo(fileContent[PackagedId(entry.sourceId, packIdWithoutPrefix)]!!),
+                            FileMappingInfo(fileContent[getFullFileIdFromFinalEntry(entry)]!!),
                             mutableListOf()
                         )
                         tagEntriesRangeFilesForSource += tagEntriesRangeFile
@@ -78,10 +87,9 @@ class RangeFunctionTagDebugInformation(
                         val pathToEntry = mutableListOf<TagEntrySourcePathSegment>()
                         var entry: TagFinalEntriesValueGetter.FinalEntry? = it
                         while(entry != null) {
-                            val packagedId = PackagedId(entry.sourceId, PackagedId.getPackIdWithoutPrefix(entry.trackedEntry.source))
                             pathToEntry += TagEntrySourcePathSegment(
-                                packagedId,
-                                FileMappingInfo(fileContent[packagedId]!!),
+                                PackagedId(entry.sourceId, PackagedId.getPackIdWithoutPrefix(entry.trackedEntry.source)),
+                                FileMappingInfo(fileContent[getFullFileIdFromFinalEntry(entry)]!!),
                                 entry.trackedEntry.entry
                             )
                             entry = entry.child
