@@ -34,7 +34,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Mixin(TagGroupLoader.class)
 public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
@@ -73,7 +75,8 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
     )
     private DataResult<TagFile> command_crafter$provideElementRanges(Codec<TagFile> instance, Dynamic<JsonElement> dynamic, Operation<DataResult<TagFile>> op, @Local Resource resource) throws IOException {
         try {
-            var stringRangeTree = new StringRangeTreeJsonReader(resource.getReader()).read(Strictness.LENIENT, false);
+            var contentReader = new StringReader(resource.getReader().lines().collect(Collectors.joining("\n")));
+            var stringRangeTree = new StringRangeTreeJsonReader(contentReader).read(Strictness.LENIENT, false);
             // Copy to HashMap because the StringRangeTree doesn't contain the instances that are passed to the codec, so it can't use the IdentityHashMap
             FunctionTagDebugHandler.Companion.getTAG_PARSING_ELEMENT_RANGES().set(new HashMap<>(stringRangeTree.getRanges()));
             return op.call(instance, dynamic);
