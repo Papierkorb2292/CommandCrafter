@@ -11,6 +11,7 @@ import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
 import net.minecraft.command.CommandSource;
 import net.minecraft.registry.tag.TagGroupLoader;
+import net.minecraft.resource.Resource;
 import net.minecraft.server.DataPackContents;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ServerCommandSource;
@@ -53,12 +54,12 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
                     remap = true
             )
     )
-    private <T extends AbstractServerCommandSource<T>> CommandFunction<T> command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<T> dispatcher, T source, List<String> lines, Operation<CommandFunction<T>> op) {
+    private <T extends AbstractServerCommandSource<T>> CommandFunction<T> command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<T> dispatcher, T source, List<String> lines, Operation<CommandFunction<T>> op, Map.Entry<Identifier, Resource> resourceEntry) {
         if(!(source instanceof ServerCommandSource serverSource)) {
             //noinspection MixinExtrasOperationParameters
             return op.call(id, dispatcher, source, lines);
         }
-        var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, command_crafter$resourceCreatorContext);
+        var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, resourceEntry.getValue().getPackId(), command_crafter$resourceCreatorContext);
         var infoSetCallbacks = new ArrayList<Function1<? super ParsedResourceCreator.ResourceStackInfo, Unit>>();
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().push((idSetter) -> idSetter.invoke(id));

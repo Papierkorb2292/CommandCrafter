@@ -24,6 +24,7 @@ import java.util.stream.Collectors
 
 class ParsedResourceCreator(
     val functionId: Identifier,
+    val functionPackId: String,
     val dataPackContents: DataPackContents,
 ) {
     companion object {
@@ -61,7 +62,7 @@ class ParsedResourceCreator(
             for(functionTag in resourceCreator.functionTags) {
                 val tagId = resourceCreator.getPath(resourceId++)
                 val entryList: MutableList<TagGroupLoader.TrackedEntry> = ArrayList()
-                functionTagMap[tagId] = functionTag.resource.mapTo(entryList) { TagGroupLoader.TrackedEntry(it, "FUNCTION: $functionTag") }
+                functionTagMap[tagId] = functionTag.resource.mapTo(entryList) { TagGroupLoader.TrackedEntry(it, resourceCreator.functionPackId) }
                 functionTag.idSetter(tagId)
             }
             resourceId = 0
