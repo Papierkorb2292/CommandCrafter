@@ -16,9 +16,12 @@ import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ExecuteCommand;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
+import net.papierkorb2292.command_crafter.mixin.editor.CommandManagerAccessor;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -93,7 +96,31 @@ public abstract class ExecuteCommandMixin {
             debugFrame.checkPause(commandInfo, contextChain.getTopContext(), (ServerCommandSource)source);
             var sectionSources = debugFrame.getCurrentSectionSources();
             sectionSources.setCurrentSourceIndex(sectionSources.getCurrentSourceIndex() + 1);
+
+            //noinspection unchecked
+            var isTag = FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag((
+                    CommandContext<ServerCommandSource>) contextChain.getTopContext(),
+                    "name",
+                    debugFrame.getPauseContext(),
+                    null,
+                    new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
+            );
+
             original.accept(control);
+
+            if(isTag) {
+                //noinspection unchecked
+                control.enqueueAction((CommandAction<T>) FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
+                //noinspection unchecked
+                control.enqueueAction((CommandAction<T>) FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
+                //noinspection unchecked
+                control.enqueueAction((CommandAction<T>) new ExitDebugFrameCommandAction(
+                        debugFrame.getPauseContext().getDebugFrameDepth() - 1,
+                        null,
+                        false,
+                        null
+                ));
+            }
         };
     }
 

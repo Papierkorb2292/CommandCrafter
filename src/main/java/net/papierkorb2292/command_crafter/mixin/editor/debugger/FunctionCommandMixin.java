@@ -4,8 +4,6 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.command.CommandAction;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.FunctionCommand;
-import net.papierkorb2292.command_crafter.editor.debugger.helper.FunctionCallDebugInfo;
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,16 +25,8 @@ public class FunctionCommandMixin {
     )
     private static <T extends AbstractServerCommandSource<T>> CommandAction<T> command_crafter$addPauseToCommandFunctionAction(CommandAction<T> action) {
         var entryIndex = getOrNull(command_crafter$tagEntryIndex);
-        var tagWrappedAction = FunctionTagDebugFrame.Companion.wrapCommandActionWithTagPauseCheck(action, entryIndex == null ? 0 : entryIndex);
 
-        FunctionCallDebugInfo debugInfo = FunctionDebugFrame.Companion.getFunctionCallDebugInfo().get();
-        if (debugInfo != null) {
-            return (context, frame) -> {
-                FunctionDebugFrame.Companion.checkSimpleActionPause(debugInfo.getContext(), debugInfo.getSource(), debugInfo.getCommandInfo());
-                tagWrappedAction.execute(context, frame);
-            };
-        }
-        return tagWrappedAction;
+        return FunctionTagDebugFrame.Companion.wrapCommandActionWithTagPauseCheck(action, entryIndex == null ? 0 : entryIndex);
     }
 
     @ModifyExpressionValue(
@@ -47,13 +37,11 @@ public class FunctionCommandMixin {
             )
     )
     private static boolean command_crafter$countTagEntryIndex(boolean hasNext) {
-        if(hasNext) command_crafter$tagEntryIndex.set(command_crafter$getNextTagEntryIndex());
+        if(hasNext) {
+            Integer index = getOrNull(command_crafter$tagEntryIndex);
+            command_crafter$tagEntryIndex.set(index != null ? index + 1 : 0);
+        }
         else command_crafter$tagEntryIndex.remove();
         return hasNext;
-    }
-
-    private static int command_crafter$getNextTagEntryIndex() {
-        Integer index = getOrNull(command_crafter$tagEntryIndex);
-        return index != null ? index + 1 : 0;
     }
 }

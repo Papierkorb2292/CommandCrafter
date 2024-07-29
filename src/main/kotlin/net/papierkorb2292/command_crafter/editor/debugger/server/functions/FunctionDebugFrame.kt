@@ -35,7 +35,6 @@ class FunctionDebugFrame(
     val functionLines: List<String>
 ) : PauseContext.DebugFrame {
     companion object {
-        val functionCallDebugInfo = ThreadLocal<FunctionCallDebugInfo>()
         val commandResult = ThreadLocal<CommandResult?>()
         val sourceReferenceCursorMapper = mutableMapOf<Pair<EditorDebugConnection, Int>, ProcessedInputCursorMapper>()
         fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {

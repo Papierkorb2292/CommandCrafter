@@ -37,9 +37,9 @@ class FunctionTagDebugFrame(
             pauseContext: PauseContext,
             macros: NbtCompound?,
             unpauseCallback: () -> Unit
-        ) {
+        ): Boolean {
             val functionArgument = CommandFunctionArgumentType.getFunctionOrTag(context, functionArgumentName)
-            if(functionArgument.second.right().isPresent)
+            if(functionArgument.second.right().isPresent) {
                 pauseContext.pushDebugFrame(FunctionTagDebugFrame(
                     pauseContext,
                     functionArgument.first,
@@ -50,28 +50,31 @@ class FunctionTagDebugFrame(
                     context.source,
                     unpauseCallback
                 ))
+                return true
+            }
+            return false
         }
 
         fun <TSource> wrapCommandActionWithTagPauseCheck(action: CommandAction<TSource>, entryIndex: Int): CommandAction<TSource> {
-            val pauseContext = PauseContext.currentPauseContext.get()
-            val tagDebugFrame = (pauseContext?.peekDebugFrame() as? FunctionTagDebugFrame)
-            return if(tagDebugFrame != null) {
-                val accumulatedResultUpdater = tagDebugFrame.getAccumulatedResultSingleTimeUpdater()
-                CommandAction { context, frame ->
-                    accumulatedResultUpdater()
+            val accumulatedResultUpdater = getAccumulatedResultSingleTimeUpdater()
+            return CommandAction { context, frame ->
+                val pauseContext = PauseContext.currentPauseContext.getOrNull()
+                val tagDebugFrame = (pauseContext?.peekDebugFrame() as? FunctionTagDebugFrame)
+                if(tagDebugFrame != null) {
+                    accumulatedResultUpdater(tagDebugFrame)
                     tagDebugFrame.checkPause(entryIndex)
                     FunctionDebugFrame.commandResult.remove()
-                    action.execute(context, frame)
                 }
-            } else action
+                action.execute(context, frame)
+            }
         }
 
         fun getLastTagPauseCommandAction(): CommandAction<ServerCommandSource> {
-            val pauseContext = PauseContext.currentPauseContext.getOrNull()!!
-            val tagDebugFrame = pauseContext.peekDebugFrame() as FunctionTagDebugFrame
-            val accumulatedResultUpdater = tagDebugFrame.getAccumulatedResultSingleTimeUpdater()
+            val accumulatedResultUpdater = getAccumulatedResultSingleTimeUpdater()
             return CommandAction<ServerCommandSource> { _, _ ->
-                accumulatedResultUpdater()
+                val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
+                val tagDebugFrame = pauseContext.peekDebugFrame() as? FunctionTagDebugFrame ?: return@CommandAction
+                accumulatedResultUpdater(tagDebugFrame)
                 val pauseIndex = pauseContext.server.commandFunctionManager.getTag(tagDebugFrame.tagId).size
                 tagDebugFrame.checkPause(pauseIndex)
             }
@@ -82,6 +85,18 @@ class FunctionTagDebugFrame(
             val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@CommandAction
             FunctionDebugFrame.commandResult.set(CommandResult(tagDebugFrame.accumulatedResult))
         }
+
+        fun getAccumulatedResultSingleTimeUpdater(): (FunctionTagDebugFrame) -> Unit {
+            var hasUpdatedAccumulatedResult = false
+            return { frame ->
+                if(!hasUpdatedAccumulatedResult) {
+                    FunctionDebugFrame.commandResult.getOrNull()?.let {
+                        frame.addFunctionResult(it)
+                    }
+                    hasUpdatedAccumulatedResult = true
+                }
+            }
+        }
     }
 
     private var nextPauseIndex = -1
@@ -91,7 +106,7 @@ class FunctionTagDebugFrame(
 
     var breakpoints: List<ServerBreakpoint<FunctionTagBreakpointLocation>>
 
-    var currentEntryIndex = 0
+    var currentEntryIndex = -1
 
     var accumulatedResult = false to 0
         private set
@@ -100,18 +115,6 @@ class FunctionTagDebugFrame(
         if(result.returnValue != null)
             // ReturnValueAdder in FunctionCommand always goes to successful=true as well
             accumulatedResult = true to (accumulatedResult.second + result.returnValue.second)
-    }
-
-    fun getAccumulatedResultSingleTimeUpdater(): () -> Unit {
-        var hasUpdatedAccumulatedResult = false
-        return {
-            if(!hasUpdatedAccumulatedResult) {
-                FunctionDebugFrame.commandResult.getOrNull()?.let {
-                    addFunctionResult(it)
-                }
-                hasUpdatedAccumulatedResult = true
-            }
-        }
     }
 
     fun setAccumulatedResult(successful: Boolean, returnValue: Int) {
