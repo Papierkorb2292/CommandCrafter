@@ -36,6 +36,7 @@ import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
@@ -1034,16 +1035,17 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
 
         private fun parseTagEntry(reader: DirectiveStringReader<*>): TagEntry {
+            val startCursor = reader.cursor
             val referencesTag = reader.peek() == '#'
             if(referencesTag) {
                 reader.skip()
             }
             val id = Identifier.fromCommandInput(reader)
-            return if(referencesTag) {
-                TagEntry.createTag(id)
-            } else {
-                TagEntry.create(id)
-            }
+            val tagEntry =
+                if(referencesTag) TagEntry.createTag(id)
+                else TagEntry.create(id)
+            (tagEntry as StringRangeContainer).`command_crafter$setRange`(StringRange(startCursor, reader.cursor))
+            return tagEntry
         }
 
         private fun analyzeTagEntry(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
