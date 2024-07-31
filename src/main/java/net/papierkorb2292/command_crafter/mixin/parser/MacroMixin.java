@@ -28,9 +28,8 @@ public abstract class MacroMixin<T> {
         if(procedure instanceof FileSourceContainer container) {
             var lines = ((FileSourceContainer) this).command_crafter$getFileSourceLines();
             var fileId = ((FileSourceContainer) this).command_crafter$getFileSourceId();
-            var fileType = ((FileSourceContainer) this).command_crafter$getFileSourceType();
-            if(lines != null && fileId != null && fileType != null)
-                container.command_crafter$setFileSource(lines, fileId, fileType);
+            if(lines != null && fileId != null)
+                container.command_crafter$setFileSource(lines, fileId);
         }
         if(procedure instanceof ProcedureOriginalIdContainer container) {
             container.command_crafter$setOriginalId(id());

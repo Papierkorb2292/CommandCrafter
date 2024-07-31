@@ -2,9 +2,11 @@ package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandAction;
 import net.minecraft.command.ExecutionControl;
 import net.minecraft.command.ExecutionFlags;
@@ -14,10 +16,15 @@ import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ExecuteCommand;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
+import net.papierkorb2292.command_crafter.mixin.editor.CommandManagerAccessor;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -32,7 +39,7 @@ import java.util.function.Function;
 import java.util.function.IntPredicate;
 
 @Mixin(ExecuteCommand.class)
-public class ExecuteCommandMixin {
+public abstract class ExecuteCommandMixin {
 
     @Inject(
             method = "enqueueExecutions",
@@ -89,7 +96,31 @@ public class ExecuteCommandMixin {
             debugFrame.checkPause(commandInfo, contextChain.getTopContext(), (ServerCommandSource)source);
             var sectionSources = debugFrame.getCurrentSectionSources();
             sectionSources.setCurrentSourceIndex(sectionSources.getCurrentSourceIndex() + 1);
+
+            //noinspection unchecked
+            var isTag = FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag((
+                    CommandContext<ServerCommandSource>) contextChain.getTopContext(),
+                    "name",
+                    debugFrame.getPauseContext(),
+                    null,
+                    new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
+            );
+
             original.accept(control);
+
+            if(isTag) {
+                //noinspection unchecked
+                control.enqueueAction((CommandAction<T>) FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
+                //noinspection unchecked
+                control.enqueueAction((CommandAction<T>) FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
+                //noinspection unchecked
+                control.enqueueAction((CommandAction<T>) new ExitDebugFrameCommandAction(
+                        debugFrame.getPauseContext().getDebugFrameDepth() - 1,
+                        null,
+                        false,
+                        null
+                ));
+            }
         };
     }
 
@@ -126,5 +157,18 @@ public class ExecuteCommandMixin {
             debugFrame.setCurrentSectionIndex(commandInfoRef.get().getSectionOffset() + 1);
             original.execute(context, frame);
         };
+    }
+
+    @ModifyArg(
+            method = "method_54852",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/command/ExecutionControl;enqueueAction(Lnet/minecraft/command/CommandAction;)V"
+            )
+    )
+    private static <T extends AbstractServerCommandSource<T>> CommandAction<T> command_crafter$addTagPauseCheck(CommandAction<T> original, @Share("entryIndex") LocalIntRef entryIndexRef) {
+        var wrappedAction = FunctionTagDebugFrame.Companion.wrapCommandActionWithTagPauseCheck(original, entryIndexRef.get());
+        entryIndexRef.set(entryIndexRef.get() + 1);
+        return wrappedAction;
     }
 }

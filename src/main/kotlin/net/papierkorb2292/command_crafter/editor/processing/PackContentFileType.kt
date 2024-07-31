@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.brigadier.StringReader
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.processing.helper.getKeywordsFromPath
 import net.papierkorb2292.command_crafter.editor.processing.helper.standardizeKeyword
 import net.papierkorb2292.command_crafter.networking.enumConstantCodec
@@ -92,11 +93,12 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                     val potentialContentTypePath = path.subpath(i + 1, j).name.replace('\\', '/')
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
-                    val id = Identifier.of(
+                    val resourceId = Identifier.of(
                         path.getName(i + 1).name,
                         path.subpath(j, path.nameCount).name.replace('\\', '/')
                     ) ?: continue
-                    return ParsedPath(id, type)
+                    val packPath = path.subpath(0, i).toString()
+                    return ParsedPath(resourceId, packPath, type)
                 }
             }
             return null
@@ -111,23 +113,28 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                     val potentialContentTypePath = segments.subList(i + 2, j).joinToString("/")
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
-                    val id = Identifier.of(
+                    val resourceId = Identifier.of(
                         segments[i + 1],
                         segments.subList(j, segments.size).joinToString("/")
                     ) ?: continue
-                    return ParsedPath(id, type)
+                    val packPath = segments.subList(0, i).joinToString("/")
+                    return ParsedPath(resourceId, packPath, type)
                 }
             }
             return null
         }
 
-        fun findWorkspaceResourceFromId(id: Identifier, editorClientFileFinder: EditorClientFileFinder, keywords: Set<String>): CompletableFuture<Pair<PackContentFileType, String>?> {
+        fun findWorkspaceResourceFromId(id: Identifier, editorClientFileFinder: EditorClientFileFinder, keywords: Set<String>): CompletableFuture<Pair<PackContentFileType, String>?>
+            = findWorkspaceResourceFromId(PackagedId(id, "**"), editorClientFileFinder, keywords)
+
+        fun findWorkspaceResourceFromId(packagedId: PackagedId, editorClientFileFinder: EditorClientFileFinder, keywords: Set<String>): CompletableFuture<Pair<PackContentFileType, String>?> {
+            val id = packagedId.resourceId
             val dotIndex = id.path.lastIndexOf('.')
             val fileExtensionPath =
                 if(dotIndex == -1 || dotIndex < id.path.lastIndexOf('/')) "${id.path}.*"
                 else id.path
             return editorClientFileFinder
-                .findFiles("**/${id.namespace}/**/$fileExtensionPath")
+                .findFiles("${packagedId.packPath}/${id.namespace}/**/$fileExtensionPath")
                 .thenApply { uris ->
                     uris.mapNotNull { uri ->
                         val idPathStart = uri.lastIndexOf(id.path)
@@ -146,13 +153,17 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                 }
         }
 
-        fun findWorkspaceResourceFromIdAndPackContentFileType(id: Identifier, type: PackContentFileType, editorClientFileFinder: EditorClientFileFinder): CompletableFuture<String?> {
+        fun findWorkspaceResourceFromIdAndPackContentFileType(id: Identifier, type: PackContentFileType, editorClientFileFinder: EditorClientFileFinder): CompletableFuture<String?>
+            = findWorkspaceResourceFromIdAndPackContentFileType(PackagedId(id, "**"), type, editorClientFileFinder)
+
+        fun findWorkspaceResourceFromIdAndPackContentFileType(packagedId: PackagedId, type: PackContentFileType, editorClientFileFinder: EditorClientFileFinder): CompletableFuture<String?> {
+            val id = packagedId.resourceId
             val dotIndex = id.path.lastIndexOf('.')
             val fileExtensionPath =
                 if(dotIndex == -1 || dotIndex < id.path.lastIndexOf('/')) "${id.path}.*"
                 else id.path
             return editorClientFileFinder
-                .findFiles("**/${type.toStringPath(id.namespace, fileExtensionPath)}")
+                .findFiles(type.toStringPath(id.namespace, fileExtensionPath, packagedId.packPath))
                 .thenApply { it.firstOrNull() }
         }
 
@@ -185,15 +196,14 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
         }
     }
 
-    fun toPath(id: Identifier): Path {
-        return Path.of(packType.folderName, id.namespace, contentTypePath, id.path)
-    }
-    fun toStringPath(id: Identifier) =
-        toStringPath(id.namespace, id.path)
-    fun toStringPath(namespace: String, path: String) =
-        "${packType.folderName}/$namespace/$contentTypePath/$path"
+    fun toStringPath(id: PackagedId) =
+        toStringPath(id.resourceId.namespace, id.resourceId.path, id.packPath)
+    fun toStringPath(namespace: String, path: String, packPath: String) =
+        "${packPath}/${packType.folderName}/$namespace/$contentTypePath/$path"
 
-    data class ParsedPath(val id: Identifier, val type: PackContentFileType)
+    data class ParsedPath(val id: PackagedId, val type: PackContentFileType) {
+        constructor(resourceId: Identifier, packPath: String, type: PackContentFileType) : this(PackagedId(resourceId, packPath), type)
+    }
 
     enum class PackType(val folderName: String) {
         DATA("data"), RESOURCE("assets")

@@ -11,6 +11,7 @@ import net.minecraft.command.CommandExecutionContext;
 import net.minecraft.command.CommandQueueEntry;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionCompletedFutureProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ExitDebugFrameCommandAction;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugFrame;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
@@ -106,11 +107,11 @@ public class CommandExecutionContextMixin<T> implements ExecutionCompletedFuture
     private Object command_crafter$saveDiscardedExitDebugFrameActions(Object removed, @Share("removedExitActions") LocalRef<List<CommandQueueEntry<T>>> removedExitActions) {
         //noinspection unchecked
         var entry = (CommandQueueEntry<T>)removed;
-        if(entry.action() instanceof ExitDebugFrameCommandAction) {
+        if(entry.action() instanceof ExitDebugFrameCommandAction || entry.action() == FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION()) {
             if(removedExitActions.get() == null) {
                 removedExitActions.set(new ArrayList<>());
             }
-            removedExitActions.get().add(0, entry);
+            removedExitActions.get().addFirst(entry);
         }
         return removed;
     }

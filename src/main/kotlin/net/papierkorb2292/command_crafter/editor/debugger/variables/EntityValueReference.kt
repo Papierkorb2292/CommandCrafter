@@ -17,7 +17,7 @@ class EntityValueReference(
     private var entity: Entity?,
     private val source: ServerCommandSource? = null,
     private val entitySetter: (Entity?) -> Entity?
-): VariableValueReference, CountedVariablesReferencer {
+): VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
 
     companion object {
         const val TYPE = "Entity"
@@ -63,7 +63,7 @@ class EntityValueReference(
         it.indexedVariables = indexedVariableCount
     }
 
-    private fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+    override fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
         variablesReferencerId = it
     }
 

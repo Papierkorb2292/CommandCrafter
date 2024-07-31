@@ -36,6 +36,7 @@ import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
@@ -268,7 +269,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.currentLine,
                     source
                 )
-                val endCursorWithoutNewLine = reader.absoluteCursor - if(reader.canRead()) 1 else 0
+                val endCursorWithoutNewLine = reader.absoluteCursor - if(easyNewLine && reader.canRead(0) && reader.peek(-1) == '\n') 1 else 0
                 val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
                 @Suppress("UNCHECKED_CAST")
                 elementBreakpointParsers += FunctionElementDebugInformation.MacroElementProcessor(
@@ -1034,16 +1035,20 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
 
         private fun parseTagEntry(reader: DirectiveStringReader<*>): TagEntry {
+            val startCursor = reader.skippingCursor
             val referencesTag = reader.peek() == '#'
             if(referencesTag) {
                 reader.skip()
             }
             val id = Identifier.fromCommandInput(reader)
-            return if(referencesTag) {
-                TagEntry.createTag(id)
-            } else {
-                TagEntry.create(id)
-            }
+            val tagEntry =
+                if(referencesTag) TagEntry.createTag(id)
+                else TagEntry.create(id)
+            (tagEntry as StringRangeContainer).`command_crafter$setRange`(StringRange(
+                reader.cursorMapper.mapToSource(startCursor),
+                reader.cursorMapper.mapToSource(reader.skippingCursor)
+            ))
+            return tagEntry
         }
 
         private fun analyzeTagEntry(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {

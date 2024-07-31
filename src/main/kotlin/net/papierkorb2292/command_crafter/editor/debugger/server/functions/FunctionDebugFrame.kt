@@ -2,18 +2,25 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.ContextChain
+import com.mojang.datafixers.util.Either
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.Procedure
+import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext.Companion.currentPauseContext
+import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.PositionableBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.OutputEventArgumentsCategory
 
@@ -24,17 +31,18 @@ class FunctionDebugFrame(
     val macroNames: List<String>,
     val macroArguments: List<String>,
     val unpauseCallback: () -> Unit,
-    val fileLines: Map<String, List<String>>,
+    val sourceFileId: Identifier,
+    val functionLines: List<String>
 ) : PauseContext.DebugFrame {
     companion object {
-        val functionCallDebugInfo = ThreadLocal<FunctionCallDebugInfo>()
         val commandResult = ThreadLocal<CommandResult?>()
-
+        val sourceReferenceCursorMapper = mutableMapOf<Pair<EditorDebugConnection, Int>, ProcessedInputCursorMapper>()
         fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {
             val pauseContext = currentPauseContext.get() ?: return null
             val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return null
             return debugFrame.getCommandInfo(context)
         }
+
         fun checkSimpleActionPause(context: CommandContext<ServerCommandSource>, source: ServerCommandSource, commandInfo: CommandInfo? = null) {
             val pauseContext = currentPauseContext.get() ?: return
             val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return
@@ -57,11 +65,12 @@ class FunctionDebugFrame(
         }
 
     var currentCommandIndex = 0
+
     var currentSectionIndex = 0
     var sectionSources: MutableList<SectionSources> = mutableListOf()
-
     val currentContextChain: ContextChain<ServerCommandSource>
         get() = contextChains[currentCommandIndex]
+
     val currentContext: CommandContext<ServerCommandSource>
         get() = currentContextChain[currentSectionIndex]!!
     val currentSectionSources: SectionSources
@@ -72,11 +81,22 @@ class FunctionDebugFrame(
             currentSectionSources.currentSource = value
         }
 
+    private val sourceFilePackagedId = PackagedId(sourceFileId, "")
+    private val sourceFilePackagedIdWithoutExtension = sourceFilePackagedId.removeExtension(FunctionDebugHandler.FUNCTION_FILE_EXTENSTION) ?: throw IllegalArgumentException("Source file id $sourceFileId doesn't have .mcfunction extension")
+    private val sourceFilePath = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(sourceFilePackagedId)
+
     private var nextPauseRootContext: CommandContext<ServerCommandSource>? = null
     private var nextPauseSectionIndex: Int = 0
-    
+
     private var lastPauseContext: CommandContext<ServerCommandSource>? = null
     private var lastPauseSourceIndex: Int = 0
+
+    private val createdSourceReferences = Reference2IntOpenHashMap<EditorDebugConnection>()
+    @Suppress("DEPRECATION")
+    val currentSourceReference: Int?
+        get() = createdSourceReferences[pauseContext.debugConnection!!]
+    val currentSourceReferenceCursorMapper: ProcessedInputCursorMapper?
+        get() = sourceReferenceCursorMapper[pauseContext.debugConnection!! to currentSourceReference]
 
     private var debugPauseHandler: DebugPauseHandler? = null
     override fun getDebugPauseHandler(): DebugPauseHandler {
@@ -89,12 +109,13 @@ class FunctionDebugFrame(
     var breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>
 
     override fun onContinue(stackEntry: PauseContext.DebugFrameStack.Entry) {
-        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.getOriginalId(), stackEntry.createdSourceReferences)
+        breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.getOriginalId(), createdSourceReferences)
     }
 
     init {
         breakpoints = pauseContext.server.getDebugManager().functionDebugHandler.getFunctionBreakpoints(procedure.getOriginalId())
         if(breakpoints.isNotEmpty()) {
+            // The debug pause handler might need to parse dynamic breakpoints
             getDebugPauseHandler()
         }
     }
@@ -171,34 +192,49 @@ class FunctionDebugFrame(
         }
     }
 
-    override fun shouldWrapInSourceReference(path: String): PauseContext.SourceReferenceWrapper? {
+    override fun shouldWrapInSourceReference(path: String): Either<PauseContext.NewSourceReferenceWrapper, PauseContext.ExistingSourceReferenceWrapper>? {
+        if(!path.endsWith(sourceFilePath)) return null
+        val existingSourceReference = currentSourceReference
+        if(existingSourceReference != INITIAL_SOURCE_REFERENCE)
+            return Either.right(PauseContext.ExistingSourceReferenceWrapper(existingSourceReference, {
+                it.path = sourceFilePath
+                it.name += "@$existingSourceReference"
+            }, false))
         val pauseHandler = getDebugPauseHandler()
         if(pauseHandler !is FileContentReplacer) return null
-        val lines = fileLines[path] ?: return null
         val editorConnection = pauseContext.debugConnection ?: return null
         val replacementData = pauseHandler.getReplacementData(path)
         if(replacementData == null || !replacementData.replacements.iterator().hasNext()) return null
-        return PauseContext.SourceReferenceWrapper(replacementData.sourceReferenceCallback, lines) { sourceReference ->
+        return Either.left(PauseContext.NewSourceReferenceWrapper({
+            createdSourceReferences[editorConnection] = it
+            replacementData.sourceReferenceCallback(it)
+        }) { sourceReference ->
             val newBreakpoints = pauseContext.server.getDebugManager().functionDebugHandler
-                .getFunctionBreakpoints(procedure.getOriginalId()).map {
+                .getFunctionBreakpointsForDebugConnection(procedure.getOriginalId(), editorConnection).map {
                     PositionableBreakpoint(it.unparsed.copy())
                 }
             val (replacedDocument, cursorMapper) = FileContentReplacer.Document(
-                lines,
+                functionLines,
                 newBreakpoints.asSequence() + replacementData.positionables
             ).applyReplacements(replacementData.replacements)
+            sourceReferenceCursorMapper[editorConnection to sourceReference] = cursorMapper
             pauseContext.server.getDebugManager().functionDebugHandler.addNewSourceReferenceBreakpoints(
                 newBreakpoints.map { BreakpointManager.NewSourceReferenceBreakpoint(it.breakpoint.sourceBreakpoint, it.breakpoint.id) },
                 editorConnection,
-                procedure.getOriginalId(),
+                sourceFilePackagedIdWithoutExtension,
                 sourceReference
             )
-            replacedDocument.concatLines() to cursorMapper
-        }
+            replacedDocument.concatLines()
+        })
     }
 
     override fun onExitFrame() {
         debugPauseHandler?.onExitFrame()
+        val debugManager = pauseContext.server.getDebugManager()
+        createdSourceReferences.forEach {
+            debugManager.removeSourceReference(it.key, it.value)
+            sourceReferenceCursorMapper.remove(it.key to it.value)
+        }
         if(pauseContext.debugFrameDepth == 0 && pauseContext.oneTimeDebugConnection != null) {
             pauseContext.oneTimeDebugConnection.output(OutputEventArguments().apply {
                 category = OutputEventArgumentsCategory.IMPORTANT
@@ -229,6 +265,10 @@ class FunctionDebugFrame(
     }
 
     fun onBreakpointHit(breakpoint: ServerBreakpoint<FunctionBreakpointLocation>) {
+        if(breakpoint.unparsed.sourceReference == INITIAL_SOURCE_REFERENCE && breakpoint.debugConnection in createdSourceReferences.keys) {
+            //This breakpoint shouldn't be paused at, because it doesn't belong to the debugee's sourceReference
+            return
+        }
         if(pauseContext.initBreakpointPause(breakpoint)) {
             startPause()
         }

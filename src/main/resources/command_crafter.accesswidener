@@ -8,3 +8,4 @@ accessible class net/minecraft/command/argument/NbtPathArgumentType$PathNode
 accessible class net/minecraft/command/argument/packrat/ParsingState$PackratCache
 extendable method net/minecraft/nbt/NbtByte <init> (B)V
 accessible class net/minecraft/client/font/FontManager$Providers
+accessible class net/minecraft/server/MinecraftServer$ResourceManagerHolder

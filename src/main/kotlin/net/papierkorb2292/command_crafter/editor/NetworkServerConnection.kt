@@ -15,13 +15,17 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.client.MinecraftClient
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.CommandSource
+import net.minecraft.network.ClientConnection
+import net.minecraft.network.listener.ClientCommonPacketListener
+import net.minecraft.network.packet.CustomPayload
+import net.minecraft.network.packet.Packet
+import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
@@ -55,11 +59,23 @@ import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.set
 
 class NetworkServerConnection private constructor(private val client: MinecraftClient, initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
     companion object {
         const val SERVER_LOG_CHANNEL = "server"
+
+        private val asyncServerPacketHandlers = mutableMapOf<CustomPayload.Id<*>, AsyncPacketHandler<*, AsyncC2SPacketContext>>()
+        fun <TPayload : CustomPayload> registerAsyncServerPacketHandler(id: CustomPayload.Id<TPayload>, handler: AsyncPacketHandler<TPayload, AsyncC2SPacketContext>) {
+            asyncServerPacketHandlers[id] = handler
+        }
+        fun <TPayload: CustomPayload> callPacketHandler(packet: TPayload, context: AsyncC2SPacketContext): Boolean {
+            val handler = asyncServerPacketHandlers[packet.id] ?: return false
+            @Suppress("UNCHECKED_CAST")
+            (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
+            return true
+        }
 
         val currentGetVariablesRequests: MutableMap<UUID, CompletableFuture<Array<Variable>>> = mutableMapOf()
         val currentSetVariableRequests: MutableMap<UUID, CompletableFuture<VariablesReferencer.SetVariableResult?>> = mutableMapOf()
@@ -72,7 +88,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
 
         private val clientEditorDebugConnections: BiMap<EditorDebugConnection, UUID> = HashBiMap.create()
-        private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = mutableMapOf()
+        private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = ConcurrentHashMap()
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
 
         fun requestAndCreate(): CompletableFuture<NetworkServerConnection> {
@@ -168,23 +184,21 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     startSendingLogMessages(context.responseSender(), context.player())
                 }
             }
-            ServerPlayNetworking.registerGlobalReceiver(SetBreakpointsRequestC2SPacket.ID) { payload, context ->
-                val server = context.player().server
+            registerAsyncServerPacketHandler(SetBreakpointsRequestC2SPacket.ID) { payload, context ->
+                val server = context.player.server
                 val debugManager = server.getDebugManager()
-                server.execute {
-                    context.responseSender().sendPacket(
-                        SetBreakpointsResponseS2CPacket(debugManager.setBreakpoints(
-                            payload.breakpoints,
-                            payload.fileType,
-                            payload.id,
-                            context.player(),
-                            serverEditorDebugConnections.computeIfAbsent(payload.debugConnectionId) {
-                                ServerNetworkDebugConnection(context.player(), it)
-                            },
-                            payload.sourceReference
-                        ), payload.requestId)
-                    )
-                }
+                context.sendPacket(
+                    SetBreakpointsResponseS2CPacket(debugManager.setBreakpoints(
+                        payload.breakpoints,
+                        payload.fileType,
+                        payload.id,
+                        context.player,
+                        serverEditorDebugConnections.computeIfAbsent(payload.debugConnectionId) {
+                            ServerNetworkDebugConnection(context.player, it)
+                        },
+                        payload.sourceReference
+                    ), payload.requestId)
+                )
             }
             ServerPlayNetworking.registerGlobalReceiver(EditorDebugConnectionRemovedC2SPacket.ID) { payload, context ->
                 val debugConnection = serverEditorDebugConnections.remove(payload.debugConnectionId) ?: return@registerGlobalReceiver
@@ -195,52 +209,44 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val debugManager = server.getDebugManager()
                 server.execute { debugManager.removeDebugConnection(debugConnection) }
             }
-            ServerPlayNetworking.registerGlobalReceiver(DebugPauseActionC2SPacket.ID) { payload, _ ->
-                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerGlobalReceiver
+            registerAsyncServerPacketHandler(DebugPauseActionC2SPacket.ID) { payload, _ ->
+                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
                 payload.action.apply(debugPause.actions, payload)
             }
-            ServerPlayNetworking.registerGlobalReceiver(GetVariablesRequestC2SPacket.ID) { payload, context ->
-                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerGlobalReceiver
-                context.player().server.execute {
-                    debugPause.pauseContext.getVariables(payload.args).thenAccept {
-                        context.responseSender().sendPacket(
-                            GetVariablesResponseS2CPacket(payload.requestId, it)
-                        )
-                    }
-                }
-            }
-            ServerPlayNetworking.registerGlobalReceiver(SetVariableRequestC2SPacket.ID) { payload, context ->
-                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerGlobalReceiver
-                context.player().server.execute {
-                    debugPause.pauseContext.setVariable(payload.args).thenAccept {
-                        context.responseSender().sendPacket(
-                            SetVariableResponseS2CPacket(payload.requestId, it)
-                        )
-                    }
-                }
-            }
-            ServerPlayNetworking.registerGlobalReceiver(StepInTargetsRequestC2SPacket.ID) { payload, context ->
-                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerGlobalReceiver
-                context.player().server.execute {
-                    debugPause.actions.stepInTargets(payload.frameId).thenAccept {
-                        context.responseSender().sendPacket(
-                            StepInTargetsResponseS2CPacket(payload.requestId, it)
-                        )
-                    }
-                }
-            }
-            ServerPlayNetworking.registerGlobalReceiver(SourceReferenceRequestC2SPacket.ID) { payload, context ->
-                val debugConnection = serverEditorDebugConnections[payload.debugConnectionId] ?: return@registerGlobalReceiver
-                val server = context.player().server
-                val debugManager = server.getDebugManager()
-                server.execute {
-                    val sourceResponse = debugManager.retrieveSourceReference(debugConnection, payload.sourceReference)
-                    context.responseSender().sendPacket(
-                        SourceReferenceResponseS2CPacket(sourceResponse, payload.requestId)
+            registerAsyncServerPacketHandler(GetVariablesRequestC2SPacket.ID) { payload, context ->
+                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
+                debugPause.pauseContext.getVariables(payload.args).thenAccept {
+                    context.sendPacket(
+                        GetVariablesResponseS2CPacket(payload.requestId, it)
                     )
                 }
             }
-            ServerPlayNetworking.registerGlobalReceiver(ReserveBreakpointIdsResponseC2SPacket.ID) { payload, _ ->
+            registerAsyncServerPacketHandler(SetVariableRequestC2SPacket.ID) { payload, context ->
+                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
+                debugPause.pauseContext.setVariable(payload.args).thenAccept {
+                    context.sendPacket(
+                        SetVariableResponseS2CPacket(payload.requestId, it)
+                    )
+                }
+            }
+            registerAsyncServerPacketHandler(StepInTargetsRequestC2SPacket.ID) { payload, context ->
+                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
+                debugPause.actions.stepInTargets(payload.frameId).thenAccept {
+                    context.sendPacket(
+                        StepInTargetsResponseS2CPacket(payload.requestId, it)
+                    )
+                }
+            }
+            registerAsyncServerPacketHandler(SourceReferenceRequestC2SPacket.ID) { payload, context ->
+                val debugConnection = serverEditorDebugConnections[payload.debugConnectionId] ?: return@registerAsyncServerPacketHandler
+                val server = context.player.server
+                val debugManager = server.getDebugManager()
+                val sourceResponse = debugManager.retrieveSourceReference(debugConnection, payload.sourceReference)
+                context.sendPacket(
+                    SourceReferenceResponseS2CPacket(sourceResponse, payload.requestId)
+                )
+            }
+            registerAsyncServerPacketHandler(ReserveBreakpointIdsResponseC2SPacket.ID) { payload, _ ->
                 currentBreakpointIdsRequests.remove(payload.requestId)?.complete(payload.start)
             }
             ServerPlayNetworking.registerGlobalReceiver(ConfigurationDoneC2SPacket.ID) { payload, _ ->
@@ -348,8 +354,8 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             breakpoints: Array<UnparsedServerBreakpoint>,
             source: Source,
             fileType: PackContentFileType,
-            id: Identifier,
-            editorDebugConnection: EditorDebugConnection
+            id: PackagedId,
+            editorDebugConnection: EditorDebugConnection,
         ): CompletableFuture<SetBreakpointsResponse> {
             val debugConnectionId = getOrCreateDebugConnectionId(editorDebugConnection)
             val completableFuture = CompletableFuture<SetBreakpointsResponse>()
@@ -434,5 +440,22 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
     class ServerConnectionNotSupportedException(message: String?) : Exception(message) {
         constructor() : this(null)
+    }
+
+    fun interface AsyncPacketHandler<TPayload, TContext> {
+        fun receive(packet: TPayload, context: TContext)
+    }
+
+    data class AsyncC2SPacketContext(
+        val player: ServerPlayerEntity,
+        val clientConnection: ClientConnection,
+    ) {
+        fun sendPacket(packet: CustomPayload) {
+            sendPacket(CustomPayloadS2CPacket(packet))
+        }
+
+        fun sendPacket(packet: Packet<ClientCommonPacketListener>) {
+            clientConnection.send(packet)
+        }
     }
 }

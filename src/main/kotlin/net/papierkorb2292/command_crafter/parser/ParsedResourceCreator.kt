@@ -19,11 +19,13 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.DataPackContentsAccessor
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer
+import net.papierkorb2292.command_crafter.parser.helper.InlineTagFunctionIdContainer
 import java.util.*
 import java.util.stream.Collectors
 
 class ParsedResourceCreator(
     val functionId: Identifier,
+    val functionPackId: String,
     val dataPackContents: DataPackContents,
 ) {
     companion object {
@@ -51,9 +53,8 @@ class ParsedResourceCreator(
                 if(function is FileSourceContainer && generatedChildFunction is FileSourceContainer) {
                     val lines = function.`command_crafter$getFileSourceLines`()
                     val fileId = function.`command_crafter$getFileSourceId`()
-                    val fileType= function.`command_crafter$getFileSourceType`()
-                    if(lines != null && fileId != null && fileType != null)
-                        generatedChildFunction.`command_crafter$setFileSource`(lines, fileId, fileType)
+                    if(lines != null && fileId != null)
+                        generatedChildFunction.`command_crafter$setFileSource`(lines, fileId)
                 }
                 functionMapBuilder.put(functionId, generatedChildFunction)
                 childFunction.idSetter(functionId)
@@ -62,7 +63,13 @@ class ParsedResourceCreator(
             for(functionTag in resourceCreator.functionTags) {
                 val tagId = resourceCreator.getPath(resourceId++)
                 val entryList: MutableList<TagGroupLoader.TrackedEntry> = ArrayList()
-                functionTagMap[tagId] = functionTag.resource.mapTo(entryList) { TagGroupLoader.TrackedEntry(it, "FUNCTION: $functionTag") }
+                @Suppress("INFERRED_TYPE_VARIABLE_INTO_POSSIBLE_EMPTY_INTERSECTION")
+                functionTagMap[tagId] = functionTag.resource.mapTo(entryList) {
+                    val trackedEntry = TagGroupLoader.TrackedEntry(it, resourceCreator.functionPackId)
+                    @Suppress("CAST_NEVER_SUCCEEDS")
+                    (trackedEntry as InlineTagFunctionIdContainer).`command_crafter$setInlineTagFunctionId`(resourceCreator.functionId)
+                    trackedEntry
+                }
                 functionTag.idSetter(tagId)
             }
             resourceId = 0

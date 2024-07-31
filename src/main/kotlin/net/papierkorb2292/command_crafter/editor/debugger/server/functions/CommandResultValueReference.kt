@@ -8,7 +8,7 @@ class CommandResultValueReference(
     private val mapper: VariablesReferenceMapper,
     private var commandResult: CommandResult,
     private val commandResultSetter: (CommandResult) -> CommandResult
-): VariableValueReference, CountedVariablesReferencer {
+): VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
 
     companion object {
         const val TYPE = "CommandResult"
@@ -72,7 +72,7 @@ class CommandResultValueReference(
         it.indexedVariables = indexedVariableCount
     }
 
-    fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+    override fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
         variablesReferencerId = it
     }
 

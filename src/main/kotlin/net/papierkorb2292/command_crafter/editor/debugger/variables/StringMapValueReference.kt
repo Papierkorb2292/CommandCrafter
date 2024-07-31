@@ -7,7 +7,7 @@ class StringMapValueReference(
     private val mapper: VariablesReferenceMapper,
     private var values: Map<String, String?>,
     private val setter: ((Map<String, String?>) -> Unit)? = null
-) : VariableValueReference, CountedVariablesReferencer {
+) : VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
     companion object {
         const val TYPE = "String-Map"
     }
@@ -28,7 +28,7 @@ class StringMapValueReference(
 
     private var variablesReferencerId: Int? = null
 
-    fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+    override fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
         variablesReferencerId = it
     }
 

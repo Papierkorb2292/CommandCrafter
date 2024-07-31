@@ -11,13 +11,17 @@ import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
 import net.minecraft.command.CommandSource;
 import net.minecraft.registry.tag.TagGroupLoader;
+import net.minecraft.resource.Resource;
 import net.minecraft.server.DataPackContents;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
+import net.papierkorb2292.command_crafter.editor.PackagedId;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
@@ -26,7 +30,9 @@ import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
 import java.util.ArrayList;
@@ -40,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 @Mixin(FunctionLoader.class)
 public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceContextContainer {
 
+    @Shadow @Final private TagGroupLoader<CommandFunction<ServerCommandSource>> tagLoader;
     private @Nullable DataPackContents command_crafter$resourceCreatorContext;
 
     @SuppressWarnings("DefaultAnnotationParam")
@@ -52,12 +59,12 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
                     remap = true
             )
     )
-    private <T extends AbstractServerCommandSource<T>> CommandFunction<T> command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<T> dispatcher, T source, List<String> lines, Operation<CommandFunction<T>> op) {
+    private <T extends AbstractServerCommandSource<T>> CommandFunction<T> command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<T> dispatcher, T source, List<String> lines, Operation<CommandFunction<T>> op, Map.Entry<Identifier, Resource> resourceEntry) {
         if(!(source instanceof ServerCommandSource serverSource)) {
             //noinspection MixinExtrasOperationParameters
             return op.call(id, dispatcher, source, lines);
         }
-        var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, command_crafter$resourceCreatorContext);
+        var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, resourceEntry.getValue().getPackId(), command_crafter$resourceCreatorContext);
         var infoSetCallbacks = new ArrayList<Function1<? super ParsedResourceCreator.ResourceStackInfo, Unit>>();
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().push((idSetter) -> idSetter.invoke(id));
@@ -81,12 +88,19 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
         }
         var function = functionBuilder.toCommandFunction(id);
         if(function instanceof FileSourceContainer container) {
-            container.command_crafter$setFileSource(lines, UtilKt.withExtension(id, ".mcfunction"), PackContentFileType.FUNCTIONS_FILE_TYPE);
+            container.command_crafter$setFileSource(lines, UtilKt.withExtension(id, FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()));
         }
         ParsedResourceCreator.Companion.addResourceCreatorToFunction(function, resourceCreator);
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().pop();
         }
+        ((FinalTagContentProvider)tagLoader).command_crafter$getFileContent().put(
+                new PackagedId(
+                        Identifier.of(id.getNamespace(), PackContentFileType.FUNCTIONS_FILE_TYPE.getContentTypePath() + "/" + id.getPath() + FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()),
+                        PackagedId.Companion.getPackIdWithoutPrefix(resourceEntry.getValue().getPackId())
+                ),
+                lines
+        );
         //noinspection unchecked
         return (CommandFunction<T>) function;
     }

@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.brigadier.context.StringRange
+import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 
 class CombinedProcessedInputCursorMapper(entries: List<Entry>) : ProcessedInputCursorMapper {
     private val entries = entries.sortedBy { it.sourceRange.start }
@@ -15,7 +16,7 @@ class CombinedProcessedInputCursorMapper(entries: List<Entry>) : ProcessedInputC
     }
 
     override fun mapToTarget(sourceCursor: Int, clampInGaps: Boolean): Int {
-        val entryIndex = entries.binarySearch { it.sourceRange.start.compareTo(sourceCursor) }
+        val entryIndex = entries.binarySearch { -sourceCursor.compareTo(it.sourceRange) }
         val entry = if(entryIndex < 0) {
             val insertionPoint = -entryIndex - 1
             if(insertionPoint == 0) return sourceCursor

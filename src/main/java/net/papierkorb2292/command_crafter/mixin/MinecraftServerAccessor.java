@@ -10,4 +10,7 @@ public interface MinecraftServerAccessor {
 
     @Accessor
     LevelStorage.Session getSession();
+
+    @Accessor
+    MinecraftServer.ResourceManagerHolder getResourceManagerHolder();
 }

@@ -9,7 +9,7 @@ class NbtValueReference(
     private val mapper: VariablesReferenceMapper,
     private var nbt: NbtElement,
     private val nbtSetter: (NbtElement?) -> NbtElement?
-): VariableValueReference {
+): VariableValueReference, IdentifiedVariablesReferencer {
 
     companion object {
         fun getTypeName(nbtType: NbtType<*>) = "NBT: ${nbtType.crashReportName}"
@@ -39,12 +39,12 @@ class NbtValueReference(
         }
     }
 
-    private fun getVariablesReferencerId() = variablesReferencerId ?:
-        nbt.run {
-            when (this) {
+    override fun getVariablesReferencerId() = variablesReferencerId ?:
+        nbt.let {
+            when (it) {
                 is NbtCompound -> {
-                    mapper.addVariablesReferencer(NbtCompoundVariablesReferencer(mapper, this) {
-                        val value = nbtSetter(it) ?: NbtEnd.INSTANCE
+                    val variablesReferencer = NbtCompoundVariablesReferencer(mapper, it) { newValue ->
+                        val value = nbtSetter(newValue) ?: NbtEnd.INSTANCE
                         nbt = value
                         if(value is NbtCompound) {
                             return@NbtCompoundVariablesReferencer value
@@ -52,16 +52,20 @@ class NbtValueReference(
                         variablesReferencerId = null
                         variablesReferencer = null
                         return@NbtCompoundVariablesReferencer NbtCompound()
-                    })
+                    }
+                    this.variablesReferencer = variablesReferencer
+                    val id = mapper.addVariablesReferencer(variablesReferencer)
+                    variablesReferencerId = id
+                    id
                 }
-                is AbstractNbtList<*> -> createNbtListVariablesReferencer(this)
+                is AbstractNbtList<*> -> createNbtListVariablesReferencer(it)
                 else -> 0
             }
         }
 
     private fun <Content : NbtElement> createNbtListVariablesReferencer(list: AbstractNbtList<Content>): Int {
         val originalContentType = list.heldType
-        return mapper.addVariablesReferencer(NbtListVariablesReferencer(mapper, list) {
+        val variablesReferencer = NbtListVariablesReferencer(mapper, list) {
             val value = nbtSetter(it) ?: NbtEnd.INSTANCE
             nbt = value
             if(value is AbstractNbtList<*> && value.heldType == originalContentType) {
@@ -71,7 +75,11 @@ class NbtValueReference(
             variablesReferencerId = null
             variablesReferencer = null
             return@NbtListVariablesReferencer list
-        })
+        }
+        this.variablesReferencer = variablesReferencer
+        val id = mapper.addVariablesReferencer(variablesReferencer)
+        variablesReferencerId = id
+        return id
     }
 
     override fun setValue(value: String) {

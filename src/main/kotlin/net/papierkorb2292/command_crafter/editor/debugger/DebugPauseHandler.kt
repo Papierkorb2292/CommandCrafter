@@ -41,7 +41,7 @@ interface DebugPauseHandler : DebugPauseActions {
      */
     fun findNextPauseLocation()
 
-    fun getStackFrames(sourceReference: Int?): List<MinecraftStackFrame>
+    fun getStackFrames(): List<MinecraftStackFrame>
 
     fun onExitFrame()
 
@@ -54,7 +54,7 @@ interface DebugPauseHandler : DebugPauseActions {
         override fun continue_() {}
         override fun findNextPauseLocation() {}
 
-        override fun getStackFrames(sourceReference: Int?) = emptyList<MinecraftStackFrame>()
+        override fun getStackFrames() = emptyList<MinecraftStackFrame>()
         override fun onExitFrame() { }
 
         override fun shouldStopOnCurrentContext(): Boolean {

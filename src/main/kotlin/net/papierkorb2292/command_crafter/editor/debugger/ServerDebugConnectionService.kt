@@ -1,6 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
-import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -14,7 +14,7 @@ interface ServerDebugConnectionService {
         breakpoints: Array<UnparsedServerBreakpoint>,
         source: Source,
         fileType: PackContentFileType,
-        id: Identifier,
+        id: PackagedId,
         editorDebugConnection: EditorDebugConnection
     ): CompletableFuture<SetBreakpointsResponse>
 
