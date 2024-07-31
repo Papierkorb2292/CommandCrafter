@@ -29,7 +29,7 @@
       },
       {
         "command": "commandcrafter.toggleLanguageClient",
-        "title": "Start and stop the CommandCrafter language client"
+        "title": "Toggle CommandCrafter"
       }
     ],
     "languages": [
