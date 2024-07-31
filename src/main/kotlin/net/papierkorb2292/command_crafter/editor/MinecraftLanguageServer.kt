@@ -273,6 +273,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
     fun getOpenFile(uri: String) = openFiles[uri]
 
+    override fun onClosed() {
+        running = false
+    }
+
     fun markDocumentation(documentation: String): CompletableFuture<String> {
         val client = client ?: return CompletableFuture.completedFuture(documentation)
         val reader = StringReader(documentation)
