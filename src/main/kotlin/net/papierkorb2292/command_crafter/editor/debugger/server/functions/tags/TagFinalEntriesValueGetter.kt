@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
+import com.google.common.collect.ImmutableSet
 import net.minecraft.registry.tag.TagEntry
 import net.minecraft.registry.tag.TagGroupLoader
 import net.minecraft.util.Identifier
@@ -13,10 +14,11 @@ class TagFinalEntriesValueGetter(
     companion object {
         fun getOrCreateFinalEntriesForTag(id: Identifier, parsedTags: Map<Identifier, List<TagGroupLoader.TrackedEntry>>, finalEntries: MutableMap<Identifier, Collection<FinalEntry>>): Collection<FinalEntry> {
             finalEntries[id]?.let { return it }
-            val result = mutableListOf<FinalEntry>()
+            val resultBuilder = ImmutableSet.builder<FinalEntry>()
             parsedTags[id]!!.forEach { trackedEntry ->
-                trackedEntry.entry.resolve(TagFinalEntriesValueGetter(id, trackedEntry, parsedTags, finalEntries), result::add)
+                trackedEntry.entry.resolve(TagFinalEntriesValueGetter(id, trackedEntry, parsedTags, finalEntries), resultBuilder::add)
             }
+            val result = resultBuilder.build()
             finalEntries[id] = result
             return result
         }
