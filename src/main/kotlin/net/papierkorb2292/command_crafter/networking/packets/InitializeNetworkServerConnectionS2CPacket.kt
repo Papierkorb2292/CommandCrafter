@@ -12,6 +12,7 @@ import net.minecraft.util.Uuids
 import java.util.*
 
 class InitializeNetworkServerConnectionS2CPacket(
+    val successful: Boolean,
     val commandTree: CommandTreeS2CPacket,
     val functionPermissionLevel: Int,
     val requestId: UUID,
@@ -21,6 +22,8 @@ class InitializeNetworkServerConnectionS2CPacket(
             Identifier.of("command_crafter", "initialize_network_server_connection")
         )
         val CODEC: PacketCodec<PacketByteBuf, InitializeNetworkServerConnectionS2CPacket> = PacketCodec.tuple(
+            PacketCodecs.BOOL,
+            InitializeNetworkServerConnectionS2CPacket::successful,
             CommandTreeS2CPacket.CODEC,
             InitializeNetworkServerConnectionS2CPacket::commandTree,
             PacketCodecs.VAR_INT,

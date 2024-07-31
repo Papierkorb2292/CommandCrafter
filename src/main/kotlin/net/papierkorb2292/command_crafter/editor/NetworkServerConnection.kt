@@ -6,6 +6,7 @@ import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.Suggestions
+import com.mojang.brigadier.tree.RootCommandNode
 import io.netty.channel.local.LocalChannel
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
@@ -91,6 +92,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = ConcurrentHashMap()
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
 
+        fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
+            player.hasPermissionLevel(2)
+
         fun requestAndCreate(): CompletableFuture<NetworkServerConnection> {
             if(!ClientPlayNetworking.canSend(RequestNetworkServerConnectionC2SPacket.ID)) {
                 return CompletableFuture.failedFuture(ServerConnectionNotSupportedException("Server doesn't support editor connections"))
@@ -106,6 +110,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ClientPlayNetworking.registerGlobalReceiver(InitializeNetworkServerConnectionS2CPacket.ID) handler@{ payload, context ->
                 val currentRequest = currentConnectionRequest ?: return@handler
                 if(payload.requestId != currentRequest.first) return@handler
+                if(!payload.successful) {
+                    currentRequest.second.completeExceptionally(ServerConnectionNotSupportedException("Server didn't permit editor connection"))
+                    return@handler
+                }
                 currentRequest.second.complete(NetworkServerConnection(context.client(), payload))
             }
             ClientPlayNetworking.registerGlobalReceiver(LogMessageS2CPacket.ID) handler@{ payload, _ ->
@@ -177,7 +185,17 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
         fun registerServerPacketHandlers() {
             ServerPlayNetworking.registerGlobalReceiver(RequestNetworkServerConnectionC2SPacket.ID) handler@{ payload, context ->
-                //TODO: Whitelist for which players are allowed to connect this way
+                if(!isPlayerAllowedConnection(context.player())) {
+                    context.responseSender().sendPacket(
+                        InitializeNetworkServerConnectionS2CPacket(
+                            false,
+                            CommandTreeS2CPacket(RootCommandNode()),
+                            0,
+                            payload.requestId
+                        )
+                    )
+                    return@handler
+                }
                 sendConnectionRequestResponse(context.player().server, payload, context.responseSender())
 
                 if(context.player().server.isDedicated) {
@@ -185,6 +203,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
             }
             registerAsyncServerPacketHandler(SetBreakpointsRequestC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 val server = context.player.server
                 val debugManager = server.getDebugManager()
                 context.sendPacket(
@@ -201,6 +220,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 )
             }
             ServerPlayNetworking.registerGlobalReceiver(EditorDebugConnectionRemovedC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
                 val debugConnection = serverEditorDebugConnections.remove(payload.debugConnectionId) ?: return@registerGlobalReceiver
                 debugConnection.currentPauseId?.run {
                     serverDebugPauses.remove(this)?.actions?.continue_()
@@ -209,11 +229,13 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val debugManager = server.getDebugManager()
                 server.execute { debugManager.removeDebugConnection(debugConnection) }
             }
-            registerAsyncServerPacketHandler(DebugPauseActionC2SPacket.ID) { payload, _ ->
+            registerAsyncServerPacketHandler(DebugPauseActionC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
                 payload.action.apply(debugPause.actions, payload)
             }
             registerAsyncServerPacketHandler(GetVariablesRequestC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
                 debugPause.pauseContext.getVariables(payload.args).thenAccept {
                     context.sendPacket(
@@ -222,6 +244,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
             }
             registerAsyncServerPacketHandler(SetVariableRequestC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
                 debugPause.pauseContext.setVariable(payload.args).thenAccept {
                     context.sendPacket(
@@ -230,6 +253,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
             }
             registerAsyncServerPacketHandler(StepInTargetsRequestC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
                 debugPause.actions.stepInTargets(payload.frameId).thenAccept {
                     context.sendPacket(
@@ -238,6 +262,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
             }
             registerAsyncServerPacketHandler(SourceReferenceRequestC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 val debugConnection = serverEditorDebugConnections[payload.debugConnectionId] ?: return@registerAsyncServerPacketHandler
                 val server = context.player.server
                 val debugManager = server.getDebugManager()
@@ -246,19 +271,23 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     SourceReferenceResponseS2CPacket(sourceResponse, payload.requestId)
                 )
             }
-            registerAsyncServerPacketHandler(ReserveBreakpointIdsResponseC2SPacket.ID) { payload, _ ->
+            registerAsyncServerPacketHandler(ReserveBreakpointIdsResponseC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
                 currentBreakpointIdsRequests.remove(payload.requestId)?.complete(payload.start)
             }
-            ServerPlayNetworking.registerGlobalReceiver(ConfigurationDoneC2SPacket.ID) { payload, _ ->
+            ServerPlayNetworking.registerGlobalReceiver(ConfigurationDoneC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
                 val debugConnection = serverEditorDebugConnections[payload.debugConnectionId] ?: return@registerGlobalReceiver
                 debugConnection.lifecycle.configurationDoneEvent.complete(null)
             }
             ServerPlayNetworking.registerGlobalReceiver(DebugConnectionRegistrationC2SPacket.ID) { payload, context->
+                if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
                 val debugConnection = ServerNetworkDebugConnection(context.player(), payload.debugConnectionId, payload.oneTimeDebugTarget, payload.nextSourceReference, payload.suspendServer)
                 serverEditorDebugConnections.putIfAbsent(payload.debugConnectionId, debugConnection)
                 debugConnection.setupOneTimeDebugTarget(context.player().server)
             }
             ServerPlayNetworking.registerGlobalReceiver(ContextCompletionRequestC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
                 val server = context.player().server
                 @Suppress("UNCHECKED_CAST")
                 val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
@@ -317,6 +346,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ))
 
             val responsePacket = InitializeNetworkServerConnectionS2CPacket(
+                true,
                 CommandTreeS2CPacket(rootCommandNode),
                 server.functionPermissionLevel,
                 requestPacket.requestId,
