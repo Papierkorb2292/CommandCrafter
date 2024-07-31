@@ -19,6 +19,7 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.DataPackContentsAccessor
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer
+import net.papierkorb2292.command_crafter.parser.helper.InlineTagFunctionIdContainer
 import java.util.*
 import java.util.stream.Collectors
 
@@ -62,7 +63,13 @@ class ParsedResourceCreator(
             for(functionTag in resourceCreator.functionTags) {
                 val tagId = resourceCreator.getPath(resourceId++)
                 val entryList: MutableList<TagGroupLoader.TrackedEntry> = ArrayList()
-                functionTagMap[tagId] = functionTag.resource.mapTo(entryList) { TagGroupLoader.TrackedEntry(it, resourceCreator.functionPackId) }
+                @Suppress("INFERRED_TYPE_VARIABLE_INTO_POSSIBLE_EMPTY_INTERSECTION")
+                functionTagMap[tagId] = functionTag.resource.mapTo(entryList) {
+                    val trackedEntry = TagGroupLoader.TrackedEntry(it, resourceCreator.functionPackId)
+                    @Suppress("CAST_NEVER_SUCCEEDS")
+                    (trackedEntry as InlineTagFunctionIdContainer).`command_crafter$setInlineTagFunctionId`(resourceCreator.functionId)
+                    trackedEntry
+                }
                 functionTag.idSetter(tagId)
             }
             resourceId = 0

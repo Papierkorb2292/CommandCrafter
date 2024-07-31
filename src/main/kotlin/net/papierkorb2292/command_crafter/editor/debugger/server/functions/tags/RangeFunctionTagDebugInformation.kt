@@ -15,10 +15,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResultValueReference
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.ServerCommandSourceValueReference
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.*
 import net.papierkorb2292.command_crafter.editor.debugger.variables.StringMapValueReference
 import net.papierkorb2292.command_crafter.editor.debugger.variables.createScope
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -27,6 +24,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import net.papierkorb2292.command_crafter.parser.helper.InlineTagFunctionIdContainer
 import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.debug.*
 import java.util.*
@@ -44,10 +42,19 @@ class RangeFunctionTagDebugInformation(
 
         fun getFullFileIdFromFinalEntry(finalEntry: TagFinalEntriesValueGetter.FinalEntry): PackagedId {
             val packPath = PackagedId.getPackIdWithoutPrefix(finalEntry.trackedEntry.source)
-            val identifier = Identifier.of(
-                finalEntry.sourceId.namespace,
-                "${PackContentFileType.FUNCTION_TAGS_FILE_TYPE.contentTypePath}/${finalEntry.sourceId.path}.json"
-            )
+            @Suppress("CAST_NEVER_SUCCEEDS")
+            val inlineTagFunctionPath = (finalEntry.trackedEntry as InlineTagFunctionIdContainer).`command_crafter$getInlineTagFunctionId`()
+            val identifier = if(inlineTagFunctionPath == null) {
+                Identifier.of(
+                    finalEntry.sourceId.namespace,
+                    "${PackContentFileType.FUNCTION_TAGS_FILE_TYPE.contentTypePath}/${finalEntry.sourceId.path}${FunctionTagDebugHandler.TAG_FILE_EXTENSION}"
+                )
+            } else {
+                Identifier.of(
+                    inlineTagFunctionPath.namespace,
+                    "${PackContentFileType.FUNCTIONS_FILE_TYPE.contentTypePath}/${inlineTagFunctionPath.path}${FunctionDebugHandler.FUNCTION_FILE_EXTENSTION}"
+                )
+            }
             return PackagedId(identifier, packPath)
         }
 
@@ -88,7 +95,7 @@ class RangeFunctionTagDebugInformation(
                         var entry: TagFinalEntriesValueGetter.FinalEntry? = it
                         while(entry != null) {
                             pathToEntry += TagEntrySourcePathSegment(
-                                PackagedId(entry.sourceId, PackagedId.getPackIdWithoutPrefix(entry.trackedEntry.source)),
+                                getFullFileIdFromFinalEntry(entry),
                                 FileMappingInfo(fileContent[getFullFileIdFromFinalEntry(entry)]!!),
                                 entry.trackedEntry.entry
                             )
@@ -245,11 +252,7 @@ class RangeFunctionTagDebugInformation(
                     DebuggerVisualContext(
                         Source().apply {
                             name = FunctionTagDebugHandler.getSourceName(lastEntryPathStart.fileId)
-                            path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
-                                lastEntryPathStart.fileId.resourceId.namespace,
-                                lastEntryPathStart.fileId.resourceId.path + FunctionTagDebugHandler.TAG_FILE_EXTENSION,
-                                "**/${lastEntryPathStart.fileId.packPath}"
-                            )
+                            path = "**/${lastEntryPathStart.fileId.packPath}/data/${lastEntryPathStart.fileId.resourceId.namespace}/${lastEntryPathStart.fileId.resourceId.path}"
                         },
                         Range(
                             AnalyzingResult.getPositionFromCursor(fileLength - 1, lastEntryPathStart.fileMappingInfo, false),
@@ -269,11 +272,7 @@ class RangeFunctionTagDebugInformation(
                     DebuggerVisualContext(
                         Source().apply {
                             name = FunctionTagDebugHandler.getSourceName(pathSegment.fileId)
-                            path = PackContentFileType.FUNCTION_TAGS_FILE_TYPE.toStringPath(
-                                pathSegment.fileId.resourceId.namespace,
-                                pathSegment.fileId.resourceId.path + FunctionTagDebugHandler.TAG_FILE_EXTENSION,
-                                "**/${pathSegment.fileId.packPath}"
-                            )
+                            path = "**/${pathSegment.fileId.packPath}/data/${pathSegment.fileId.resourceId.namespace}/${pathSegment.fileId.resourceId.path}"
                         },
                         Range(
                             AnalyzingResult.getPositionFromCursor(segmentStringRange.start, pathSegment.fileMappingInfo, false),

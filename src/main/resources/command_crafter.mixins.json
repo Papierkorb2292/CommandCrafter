@@ -154,6 +154,7 @@
     "parser.vanilla_improved.ScoreHolderArgumentTypeMixin",
     "parser.vanilla_improved.StringLiteralMixin",
     "parser.vanilla_improved.StringNbtReaderMixin",
+    "parser.vanilla_improved.TagGroupLoaderTrackedEntryMixin",
     "parser.vanilla_improved.TagKeyAccessor",
     "parser.vanilla_improved.TextArgumentTypeMixin"
   ],

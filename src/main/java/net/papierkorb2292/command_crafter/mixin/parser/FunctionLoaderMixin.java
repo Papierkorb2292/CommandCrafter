@@ -18,6 +18,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.FunctionLoader;
 import net.minecraft.util.Identifier;
+import net.papierkorb2292.command_crafter.editor.PackagedId;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
@@ -28,7 +30,9 @@ import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
 import java.util.ArrayList;
@@ -42,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 @Mixin(FunctionLoader.class)
 public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceContextContainer {
 
+    @Shadow @Final private TagGroupLoader<CommandFunction<ServerCommandSource>> tagLoader;
     private @Nullable DataPackContents command_crafter$resourceCreatorContext;
 
     @SuppressWarnings("DefaultAnnotationParam")
@@ -89,6 +94,13 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
         if(resourceCreator != null) {
             resourceCreator.getOriginResourceIdSetEventStack().pop();
         }
+        ((FinalTagContentProvider)tagLoader).command_crafter$getFileContent().put(
+                new PackagedId(
+                        Identifier.of(id.getNamespace(), PackContentFileType.FUNCTIONS_FILE_TYPE.getContentTypePath() + "/" + id.getPath() + FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()),
+                        PackagedId.Companion.getPackIdWithoutPrefix(resourceEntry.getValue().getPackId())
+                ),
+                lines
+        );
         //noinspection unchecked
         return (CommandFunction<T>) function;
     }

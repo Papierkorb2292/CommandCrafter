@@ -1035,7 +1035,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
 
         private fun parseTagEntry(reader: DirectiveStringReader<*>): TagEntry {
-            val startCursor = reader.cursor
+            val startCursor = reader.skippingCursor
             val referencesTag = reader.peek() == '#'
             if(referencesTag) {
                 reader.skip()
@@ -1044,7 +1044,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val tagEntry =
                 if(referencesTag) TagEntry.createTag(id)
                 else TagEntry.create(id)
-            (tagEntry as StringRangeContainer).`command_crafter$setRange`(StringRange(startCursor, reader.cursor))
+            (tagEntry as StringRangeContainer).`command_crafter$setRange`(StringRange(
+                reader.cursorMapper.mapToSource(startCursor),
+                reader.cursorMapper.mapToSource(reader.skippingCursor)
+            ))
             return tagEntry
         }
 
