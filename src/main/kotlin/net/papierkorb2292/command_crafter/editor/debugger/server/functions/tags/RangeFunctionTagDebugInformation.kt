@@ -246,7 +246,7 @@ class RangeFunctionTagDebugInformation(
 
             if(hasRunThrough) {
                 val lastEntryPathStart = tagEntrySources.last().pathToEntry.first()
-                val fileLength = lastEntryPathStart.fileMappingInfo.accumulatedLineLengths.run { get(size() - 1) }
+                val lastEntryEnd = (lastEntryPathStart.tagEntry as StringRangeContainer).`command_crafter$getRange`()!!.end
                 return listOf(MinecraftStackFrame(
                     "return",
                     DebuggerVisualContext(
@@ -255,8 +255,8 @@ class RangeFunctionTagDebugInformation(
                             path = "**/${lastEntryPathStart.fileId.packPath}/data/${lastEntryPathStart.fileId.resourceId.namespace}/${lastEntryPathStart.fileId.resourceId.path}"
                         },
                         Range(
-                            AnalyzingResult.getPositionFromCursor(fileLength - 1, lastEntryPathStart.fileMappingInfo, false),
-                            AnalyzingResult.getPositionFromCursor(fileLength, lastEntryPathStart.fileMappingInfo, false)
+                            AnalyzingResult.getPositionFromCursor(lastEntryEnd, lastEntryPathStart.fileMappingInfo, false),
+                            AnalyzingResult.getPositionFromCursor(lastEntryEnd + 1, lastEntryPathStart.fileMappingInfo, false)
                         )
                     ),
                     variableScopes
