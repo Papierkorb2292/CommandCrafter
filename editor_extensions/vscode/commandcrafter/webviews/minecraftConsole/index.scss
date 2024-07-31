@@ -16,13 +16,13 @@
 
 .clientStartButton {
     @extend .clientButton;
-    background-color: green;
+    background-color: rgb(0, 70, 0);
     border-radius: 1em;
 }
 
 .clientStopButton {
     @extend .clientButton;
-    background-color: red;
+    background-color: rgb(90, 0, 0);
     border-radius: 0.5em;
 }
 
