@@ -87,8 +87,13 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         try {
             while(true) {
                 while(true) {
-                    val hasNext = try {
-                        `in`.hasNext()
+                    try {
+                        if(!`in`.hasNext()) {
+                            if(current is JsonArray && current.size() == 0 || current is JsonObject && current.size() == 0) {
+                                builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absoluteValueStartPos))
+                            }
+                            break
+                        }
                     } catch(e: IOException) {
                         if(!allowMalformed) {
                             throw e
@@ -96,13 +101,13 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
                         val entryEnd = `in`.absoluteEntryEndPos
                         `in`.skipEntry()
-                        builder.addRangeBetweenInternalNodeEntries(current, StringRange(entryEnd, `in`.absolutePos - 1))
+                        val rangeEnd =
+                            if(`in`.peek() == JsonToken.END_ARRAY || `in`.peek() == JsonToken.END_OBJECT) `in`.absolutePos - 1
+                            else `in`.absolutePos
+                        builder.addRangeBetweenInternalNodeEntries(current, StringRange(entryEnd, rangeEnd))
                         continue
                     }
-                    if(`in`.absoluteEntryEndPos != -1) {
-                        builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absoluteValueStartPos))
-                    }
-                    if(!hasNext) break
+                    builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absoluteValueStartPos))
 
                     var name: String? = null
                     // Name is only used for JSON object members
