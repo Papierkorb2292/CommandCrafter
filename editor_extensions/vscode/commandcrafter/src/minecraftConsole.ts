@@ -15,7 +15,7 @@ export class MinecraftConsole implements ConnectionFeature {
 
     private client: LanguageClient | undefined;
 
-    constructor(private readonly context: vscode.ExtensionContext, consoleViewId: string, readonly languageClientRunner: LanguageClientRunner) {
+    constructor(private readonly context: vscode.ExtensionContext, private readonly consoleViewId: string, readonly languageClientRunner: LanguageClientRunner) {
         this.consoleView = new MinecraftConsoleViewProvider(context.extensionUri, this);
         this.context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(consoleViewId, this.consoleView)
@@ -45,6 +45,7 @@ export class MinecraftConsole implements ConnectionFeature {
 
     onLanguageClientStart(languageClient: LanguageClient) {
         this.consoleView.onClientStarting();
+        vscode.commands.executeCommand(`${this.consoleViewId}.focus`, { preserveFocus: true });
     }
 
     onLanguageClientStop() {
