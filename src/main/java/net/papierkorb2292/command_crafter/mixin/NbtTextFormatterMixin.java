@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.nbt.visitor.NbtTextFormatter;
+import net.papierkorb2292.command_crafter.CommandCrafter;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,7 +25,9 @@ public class NbtTextFormatterMixin {
             )
     )
     private int command_crafter$deactivateEllipsisShortening(int value) {
-        return Integer.MAX_VALUE;
+        if(!CommandCrafter.INSTANCE.getShortenNbt())
+            return Integer.MAX_VALUE;
+        return value;
     }
 
     @ModifyExpressionValue(
@@ -38,7 +41,7 @@ public class NbtTextFormatterMixin {
             )
     )
     private int command_crafter$deactivateEllipsisForDepth(int value) {
-        if(depth > 64)
+        if(!CommandCrafter.INSTANCE.getShortenNbt() && depth > 64)
             return 64;
         return value;
     }

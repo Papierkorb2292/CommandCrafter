@@ -1,15 +1,14 @@
 package net.papierkorb2292.command_crafter
 
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.serialization.Codec
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
 import net.minecraft.advancement.Advancement
 import net.minecraft.block.entity.BannerPattern
 import net.minecraft.block.jukebox.JukeboxSong
 import net.minecraft.client.MinecraftClient
-import net.minecraft.client.font.FontManager
-import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer
 import net.minecraft.enchantment.Enchantment
@@ -41,6 +40,7 @@ import net.minecraft.structure.processor.StructureProcessorType
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.GameRules
 import net.minecraft.world.biome.Biome
 import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterList
 import net.minecraft.world.dimension.DimensionOptions
@@ -56,7 +56,10 @@ import net.minecraft.world.gen.structure.JigsawStructure
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
@@ -75,8 +78,9 @@ object CommandCrafter: ModInitializer {
 
         initializeEditor()
         NetworkServerConnection.registerServerPacketHandlers()
-
         initializeParser()
+        initializeConfig()
+
         LOGGER.info("Loaded CommandCrafter!")
     }
 
@@ -185,6 +189,16 @@ object CommandCrafter: ModInitializer {
                 process(args, id, content, RawZipResourceCreator(), dispatcher)
             }
         }
+    }
+
+    var shortenNbt: Boolean = true
+        private set
+
+    private fun initializeConfig() {
+        val shortenNbtGameRule = GameRuleFactory.createBooleanRule(true) { _, rule ->
+            shortenNbt = rule.get()
+        }
+        GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
     }
 
     val defaultDynamicRegistryManager: CombinedDynamicRegistries<ServerDynamicRegistryType> by lazy {
