@@ -87,6 +87,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
     private fun analyzeAllFiles() {
         for (file in openFiles.values) {
+            file.analyzingResult = null
             file.analyzeFile(this)
         }
     }
