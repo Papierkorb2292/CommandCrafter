@@ -23,6 +23,11 @@ dependencies {
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.19.0")
+
+    // Only use within PartialIdGeneratorServiceImpl or other services with the purpose of interacting with PartialIdAutocomplete
+    modCompileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:97aac8a") {
+        exclude("com.terraformersmc", "modmenu")
+    }
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))

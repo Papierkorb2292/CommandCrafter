@@ -46,6 +46,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientComma
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
@@ -443,7 +444,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             contextBuilder = contextBuilder.child
         }
-        tryAnalyzeNextNode(analyzingResult, parentNode.resolveRedirects(), result.context, reader)
+        tryAnalyzeNextNode(
+            analyzingResult,
+            result.context.lastChild.nodes.last(),
+            result.context,
+            reader
+        )
     }
 
     private fun analyzeCommandNode(
@@ -514,12 +520,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 CompletableFuture.failedFuture(it)
                             }.thenApply {
                                 AnalyzingClientCommandSource.suggestionsFullInput.remove()
-                                suggestionFutures.flatMap { it.get().list }.toSet().map {
+                                val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
                                     it.toCompletionItem(completionReader)
                                 } + suggestionFutures.flatMap {
                                     (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                                         ?: emptyList()
                                 }
+                                if(context.source !is AnalyzingClientCommandSource)
+                                    completionItems
+                                else
+                                    CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
+                                        completionItems,
+                                        commandInput.substring(parsedNode.range.start)
+                                    )
                             }
                         },
                         true
@@ -532,7 +545,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: CommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         if(reader.canRead() && reader.peek() == ' ')
             reader.skip()
         else if(isReaderEasyNextLine(reader))
@@ -540,7 +553,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
         var furthestParsedContext: CommandContextBuilder<CommandSource>? = null
-        for(nextNode in parentNode.children) {
+        for(nextNode in parentNode.node.resolveRedirects().children) {
             val newReader = reader.copy()
             val start = newReader.cursor
             val newContext = context.copy()
@@ -566,10 +579,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 furthestParsedContext = newContext
             }
         }
-        if(furthestParsedContext == null || furthestParsedReader == null) return
+        if(
+            furthestParsedContext == null
+            || furthestParsedReader == null
+            || furthestParsedContext.nodes.last().range <= parentNode.range
+            ) return
         analyzeCommandNode(
             furthestParsedContext.nodes.last(),
-            parentNode,
+            parentNode.node,
             furthestParsedContext,
             analyzingResult,
             furthestParsedReader
