@@ -109,7 +109,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
             for(i in 0 until segments.size - 2) {
                 val currentFolder = segments[i]
                 if(currentFolder !in packTypeFolders) continue
-                for(j in segments.size - 1 downTo i + 1) {
+                for(j in segments.size - 1 downTo i + 3) {
                     val potentialContentTypePath = segments.subList(i + 2, j).joinToString("/")
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
