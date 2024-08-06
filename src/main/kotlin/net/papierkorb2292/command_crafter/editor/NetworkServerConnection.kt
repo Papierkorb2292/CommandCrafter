@@ -219,13 +219,13 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     ), payload.requestId)
                 )
             }
-            ServerPlayNetworking.registerGlobalReceiver(EditorDebugConnectionRemovedC2SPacket.ID) { payload, context ->
-                if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
-                val debugConnection = serverEditorDebugConnections.remove(payload.debugConnectionId) ?: return@registerGlobalReceiver
+            registerAsyncServerPacketHandler(EditorDebugConnectionRemovedC2SPacket.ID) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+                val debugConnection = serverEditorDebugConnections.remove(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
                 debugConnection.currentPauseId?.run {
                     serverDebugPauses.remove(this)?.actions?.continue_()
                 }
-                val server = context.player().server
+                val server = context.player.server
                 val debugManager = server.getDebugManager()
                 server.execute { debugManager.removeDebugConnection(debugConnection) }
             }
