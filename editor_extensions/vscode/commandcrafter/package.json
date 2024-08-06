@@ -97,7 +97,9 @@
         "initialConfigurations": [
           {
             "type": "commandcrafter",
-            "request": "launch"
+            "request": "launch",
+            "name": "Minecraft Debugger",
+            "suspendServer": true
           }
         ],
 
