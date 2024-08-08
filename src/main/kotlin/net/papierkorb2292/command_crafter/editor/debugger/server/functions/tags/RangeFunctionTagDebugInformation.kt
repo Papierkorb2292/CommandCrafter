@@ -4,6 +4,7 @@ import com.mojang.brigadier.context.StringRange
 import net.minecraft.registry.tag.TagEntry
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
@@ -71,9 +72,15 @@ class RangeFunctionTagDebugInformation(
                     val packIdWithoutPrefix = PackagedId.getPackIdWithoutPrefix(entry.trackedEntry.source)
                     var tagEntriesRangeFile = tagEntriesRangeFilesForSource.find { it.packId == packIdWithoutPrefix }
                     if(tagEntriesRangeFile == null) {
+                        val fileId = getFullFileIdFromFinalEntry(entry)
+                        val content = fileContent[fileId]
+                        if(content == null) {
+                            CommandCrafter.LOGGER.error("Could not find tag file content for id ${fileId}, available ids: ${fileContent.keys.joinToString(", ")}")
+                            continue
+                        }
                         tagEntriesRangeFile = TagEntriesRangeFile(
                             packIdWithoutPrefix,
-                            FileMappingInfo(fileContent[getFullFileIdFromFinalEntry(entry)]!!),
+                            FileMappingInfo(content),
                             mutableListOf()
                         )
                         tagEntriesRangeFilesForSource += tagEntriesRangeFile
