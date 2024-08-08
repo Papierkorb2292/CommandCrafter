@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.parser;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -68,11 +69,12 @@ public class DatapackCommandMixin {
                                     command_crafter$buildDatapack(context, new DatapackBuildArgs.DatapackBuildArgsBuilder());
                                     return 1;
                                 })
-                                .then(CommandManager.argument("args", DatapackBuildArgs.DatapackBuildArgsArgumentType.INSTANCE)
+                                .then(CommandManager.argument("args", StringArgumentType.greedyString())
+                                        .suggests(DatapackBuildArgs.DatapackBuildArgsParser.INSTANCE.getSUGGESTION_PROVIDER())
                                         .executes(context -> {
-                                            command_crafter$buildDatapack(
-                                                    context,
-                                                    DatapackBuildArgs.DatapackBuildArgsArgumentType.INSTANCE.getArgsBuilder(context, "args"));
+                                            var rawArgs = StringArgumentType.getString(context, "args");
+                                            var parsedArgs = DatapackBuildArgs.DatapackBuildArgsParser.INSTANCE.parse(new StringReader(rawArgs));
+                                            command_crafter$buildDatapack(context, parsedArgs);
                                             return 1;
                                         }))));
     }

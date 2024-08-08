@@ -1,17 +1,14 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.mojang.brigadier.StringReader
-import com.mojang.brigadier.arguments.ArgumentType
-import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
-import com.mojang.brigadier.suggestion.Suggestions
+import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
-import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs.DatapackBuildArgsArgumentType.ARG_ALREADY_SPECIFIED_EXCEPTION
-import java.util.concurrent.CompletableFuture
+import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs.DatapackBuildArgsParser.ARG_ALREADY_SPECIFIED_EXCEPTION
 
 class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissionLevel: Int? = null) {
     companion object {
@@ -75,31 +72,12 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissionLevel
         }
     }
 
-    object DatapackBuildArgsArgumentType: ArgumentType<DatapackBuildArgsBuilder> {
-        private val EXAMPLES = listOf("keepDirectives", "functionPermissionLevel=2", "keepDirectives functionPermissionLevel = 3")
+    object DatapackBuildArgsParser {
         private val INVALID_ARG_NAME_EXCEPTION = SimpleCommandExceptionType { "Error while parsing datapack build args: Encountered invalid or empty argument name" }
 
         val ARG_ALREADY_SPECIFIED_EXCEPTION = DynamicCommandExceptionType { Text.of("Error while parsing datapack build args: Argument $it is specified multiple times") }
 
-        override fun parse(reader: StringReader): DatapackBuildArgsBuilder {
-            val builder = DatapackBuildArgsBuilder()
-            while(reader.canRead() && reader.peek() != '\n') {
-                reader.skipWhitespace()
-                val name = reader.readUnquotedString()
-                (ARGUMENTS[name] ?: throw INVALID_ARG_NAME_EXCEPTION.createWithContext(reader)).parse(reader, builder)
-                if(reader.canRead()) {
-                    reader.expect(' ')
-                }
-            }
-            return builder
-        }
-
-        override fun getExamples() = EXAMPLES
-
-        override fun <S> listSuggestions(
-            context: CommandContext<S>,
-            builder: SuggestionsBuilder,
-        ): CompletableFuture<Suggestions> {
+        val SUGGESTION_PROVIDER = SuggestionProvider<ServerCommandSource> { _, builder ->
             val prefix = StringBuilder()
             val reader = StringReader(builder.remaining)
             val arguments = HashMap(ARGUMENTS)
@@ -124,10 +102,21 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissionLevel
                     break
                 }
             }
-            return builder.buildFuture()
+            builder.buildFuture()
         }
 
-        fun getArgsBuilder(context: CommandContext<ServerCommandSource>, name: String): DatapackBuildArgsBuilder = context.getArgument(name, DatapackBuildArgsBuilder::class.java)
+        fun parse(reader: StringReader): DatapackBuildArgsBuilder {
+            val builder = DatapackBuildArgsBuilder()
+            while(reader.canRead() && reader.peek() != '\n') {
+                reader.skipWhitespace()
+                val name = reader.readUnquotedString()
+                (ARGUMENTS[name] ?: throw INVALID_ARG_NAME_EXCEPTION.createWithContext(reader)).parse(reader, builder)
+                if(reader.canRead()) {
+                    reader.expect(' ')
+                }
+            }
+            return builder
+        }
     }
 
     class DatapackBuildArgsBuilder {
