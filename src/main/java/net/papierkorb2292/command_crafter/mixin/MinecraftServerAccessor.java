@@ -13,4 +13,7 @@ public interface MinecraftServerAccessor {
 
     @Accessor
     MinecraftServer.ResourceManagerHolder getResourceManagerHolder();
+
+    @Accessor
+    void setTickStartTimeNanos(long tickStartTimeNanos);
 }

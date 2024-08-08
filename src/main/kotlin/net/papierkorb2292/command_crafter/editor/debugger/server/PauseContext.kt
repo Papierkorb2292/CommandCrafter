@@ -3,12 +3,15 @@ package net.papierkorb2292.command_crafter.editor.debugger.server
 import com.mojang.datafixers.util.Either
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerTask
+import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
+import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonNetworkHandlerAccessor
 import org.eclipse.lsp4j.debug.*
 import java.lang.Thread
 import java.util.*
@@ -229,8 +232,19 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         if(!debugConnection!!.suspendServer)
             throw executionPausedThrowable.get()
         suspendedServer = true
-        while(isPaused)
-            Thread.sleep(100)
+        val tickDelayMs = 50
+        var lastTickMs = Util.getMeasuringTimeMs()
+        while(isPaused) {
+            val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMeasuringTimeMs()
+            if(sleepDurationMs > 0)
+                Thread.sleep(sleepDurationMs)
+            lastTickMs = Util.getMeasuringTimeMs()
+            // Prevent watchdog from killing the server due to a too long tick
+            (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getMeasuringTimeNano())
+            // Tick network handlers to keep connections alive
+            for(player in server.playerManager.playerList)
+                (player.networkHandler as ServerCommonNetworkHandlerAccessor).callBaseTick()
+        }
         suspendedServer = false
     }
 
