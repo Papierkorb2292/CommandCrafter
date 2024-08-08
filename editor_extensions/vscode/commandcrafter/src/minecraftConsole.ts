@@ -45,11 +45,15 @@ export class MinecraftConsole implements ConnectionFeature {
 
     onLanguageClientStart(languageClient: LanguageClient) {
         this.consoleView.onClientStarting();
-        vscode.commands.executeCommand(`${this.consoleViewId}.focus`, { preserveFocus: true });
+        this.focusConsole();
     }
 
     onLanguageClientStop() {
         this.consoleView.onClientStop();
+    }
+
+    focusConsole() {
+        vscode.commands.executeCommand(`${this.consoleViewId}.focus`, { preserveFocus: true });
     }
 
     runCommand(command: ConsoleCommnad) {

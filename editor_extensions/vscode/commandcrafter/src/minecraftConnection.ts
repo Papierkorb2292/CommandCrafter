@@ -51,8 +51,9 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
     connectionFeatures: ConnectionFeature[] = [ ];
 
     constructor(private connectionType: MinecraftConnectionType, context: vscode.ExtensionContext) {
-        this.connectionFeatures.push(new MinecraftConsole(context, "commandcrafter.console", this));
-        this.connectionFeatures.push(new DebugClient(context, "commandcrafter", this))
+        const minecraftConsole = new MinecraftConsole(context, "commandcrafter.console", this);
+        this.connectionFeatures.push(minecraftConsole);
+        this.connectionFeatures.push(new DebugClient(context, "commandcrafter", minecraftConsole, this))
         context.subscriptions.push(this);
         context.subscriptions.push(
             vscode.commands.registerCommand('commandcrafter.toggleLanguageClient', () => {

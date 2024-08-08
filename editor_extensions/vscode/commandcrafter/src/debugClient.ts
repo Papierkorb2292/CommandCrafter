@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { LanguageClientRunner, findFiles } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
+import { MinecraftConsole } from './minecraftConsole';
 
 // The debug adapter implementation is similar to vscodes StreamDebugAdapter implementation,
 // which isn't available through the API.
@@ -12,7 +13,9 @@ export class DebugClient implements ConnectionFeature {
 
     private connectionType: MinecraftConnectionType | undefined;
 
-    constructor(private readonly context: vscode.ExtensionContext, debuggerId: string, readonly languageClientRunner: LanguageClientRunner) {
+    private languageClientRunning = false;
+
+    constructor(private readonly context: vscode.ExtensionContext, debuggerId: string, readonly minecraftConsole: MinecraftConsole, readonly languageClientRunner: LanguageClientRunner) {
         const debugClient = this;
         context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory(debuggerId, {
             createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable) {
@@ -94,7 +97,6 @@ export class DebugClient implements ConnectionFeature {
             "command": "connectToService",
             "arguments": "debugger"
         });
-
         return new vscode.DebugAdapterInlineImplementation(debugAdapter);
     }
 
@@ -128,12 +130,24 @@ export class DebugClient implements ConnectionFeature {
             });
             return;
         }
+
         vscodeHandleEventEmitter.fire(<vscode.DebugProtocolMessage>message);
+
+        if(message.type === "response" && message.command == "launch") {
+            // Focus the minecraft console since vscode focused the debug console
+            if(this.languageClientRunning) {
+                this.minecraftConsole.focusConsole();
+            }
+        }
     }
     
-    onLanguageClientStart(languageClient: LanguageClient) { }
+    onLanguageClientStart(languageClient: LanguageClient) {
+        this.languageClientRunning = true;
+    }
     onLanguageClientReady(languageClient: LanguageClient) { }
-    onLanguageClientStop() { }
+    onLanguageClientStop() {
+        this.languageClientRunning = false;
+    }
     onConnectionTypeChange(connectionType: MinecraftConnectionType) {
         this.connectionType?.dispose();
         this.connectionType = connectionType.copy();
