@@ -29,6 +29,10 @@ The following is an example of the changes this extension can
 make in vscode:
 ![A screenshot of vscode](editor_extensions/vscode/ExampleImage.png)
 
+## Installation and Usage
+
+For information on how to install and use the mod, visit the [Getting Started](wiki/Getting-Started) page on the wiki.
+
 ## License
 
 This mod is licensed under the MIT License (see [LICENSE](LICENSE)).
