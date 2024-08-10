@@ -7,13 +7,27 @@ import {
 } from 'vscode-languageclient/node';
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
-import { LanguageClientRunner, findFiles } from './extension';
+import { LanguageClientRunner, checkUpdateMinecraftAddress, findFiles } from './extension';
 import { DebugClient } from './debugClient';
 
 export interface MinecraftConnectionType extends Disposable {
 
     connect(): Promise<StreamInfo>;
     copy(): MinecraftConnectionType;
+}
+
+export class AddressConfigMalformedError {
+    public message = "Unable to parse Minecraft address config: Must be in the format 'hostname:port'"
+}
+
+export function parseAddressConfig(addressConfig: string): MinecraftConnectionType | AddressConfigMalformedError {
+    const segments = addressConfig.split(':')
+    if(segments.length !== 2)
+        return new AddressConfigMalformedError()
+    const port = Number(segments[1])
+    if(Number.isNaN(port))
+        return new AddressConfigMalformedError()
+    return new SocketConnectionType(segments[0], port)
 }
 
 export class SocketConnectionType implements MinecraftConnectionType {
@@ -50,7 +64,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
 
     connectionFeatures: ConnectionFeature[] = [ ];
 
-    constructor(private connectionType: MinecraftConnectionType, context: vscode.ExtensionContext) {
+    constructor(private connectionType: MinecraftConnectionType | null, context: vscode.ExtensionContext) {
         const minecraftConsole = new MinecraftConsole(context, "commandcrafter.console", this);
         this.connectionFeatures.push(minecraftConsole);
         this.connectionFeatures.push(new DebugClient(context, "commandcrafter", minecraftConsole, this))
@@ -72,7 +86,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
     setConnectionType(connectionType: MinecraftConnectionType) {
         this.stopLanguageClient();
 
-        this.connectionType.dispose();
+        this.connectionType?.dispose();
         this.connectionType = connectionType;
 
         this.alertFeaturesOfConnectionTypeChange();
@@ -83,8 +97,10 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
     }
 
     startLanguageClient() {
+        checkUpdateMinecraftAddress()
+
         this.prevOutputChannel?.dispose();
-        this.connectionType.connect().then((streamInfo) => {
+        this.connectionType?.connect().then((streamInfo) => {
             const serviceRequest = JSON.stringify({
                 "seq": 1,
                 "type": "request",
@@ -139,7 +155,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
     }
 
     dispose() {
-        this.connectionType.dispose();
+        this.connectionType?.dispose();
     }
 }
 
@@ -147,5 +163,5 @@ export interface ConnectionFeature {
     onLanguageClientStart(languageClient: LanguageClient): void;
     onLanguageClientReady(languageClient: LanguageClient): void;
     onLanguageClientStop(): void;
-    onConnectionTypeChange(connectionType: MinecraftConnectionType): void
+    onConnectionTypeChange(connectionType: MinecraftConnectionType | null): void
 }

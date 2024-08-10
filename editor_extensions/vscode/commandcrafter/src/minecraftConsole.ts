@@ -22,7 +22,7 @@ export class MinecraftConsole implements ConnectionFeature {
         );
         this.console = new Console(this.consoleView);
     }
-    onConnectionTypeChange(connectionType: MinecraftConnectionType) { }
+    onConnectionTypeChange(connectionType: MinecraftConnectionType | null) { }
 
     onLanguageClientReady(languageClient: LanguageClient) {
         languageClient.onNotification(new NotificationType<Channel>("createChannel"), channel => {
@@ -150,7 +150,6 @@ class MinecraftConsoleViewProvider implements vscode.WebviewViewProvider, Consol
                 <script nonce="${nonce}" src="${scriptUri}"></script>
                 <div>
                     <button id="toggleClientButton"></button>
-                    <div class="controlElement">Port: 52853</div>
                     <div class="controlElement">
                         Channel:
                         <select class="channelSelector" id="channelSelector"></select>

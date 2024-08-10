@@ -1,12 +1,42 @@
 import * as vscode from 'vscode';
-import { MinecraftLanguageClientRunner, SocketConnectionType } from './minecraftConnection';
-import { State } from 'vscode-languageclient';
+import { AddressConfigMalformedError, MinecraftConnectionType, MinecraftLanguageClientRunner, parseAddressConfig, SocketConnectionType } from './minecraftConnection';
+import { State } from 'vscode-languageclient';5
+
+let prevMinecraftAddress: string | undefined
+let minecraftLanguageClientRunner: MinecraftLanguageClientRunner | undefined
 
 export function activate(context: vscode.ExtensionContext) {
-	let minecraftLanguageClientRunner = new MinecraftLanguageClientRunner(new SocketConnectionType("localhost", 52853), context);
+	startMinecraftLanguageClientRunner(context)
+	context.subscriptions.push(vscode.commands.registerCommand('commandcrafter.activate', () => { }));
+}
+
+export function startMinecraftLanguageClientRunner(context: vscode.ExtensionContext) {
+	const minecraftConnection = getUpdatedMinecraftConnectionType()
+	minecraftLanguageClientRunner = new MinecraftLanguageClientRunner(minecraftConnection, context);
 	minecraftLanguageClientRunner.startLanguageClient();
 
-	context.subscriptions.push(vscode.commands.registerCommand('commandcrafter.activate', () => { }));
+}
+
+export function checkUpdateMinecraftAddress() {
+	const updatedConnectionType = getUpdatedMinecraftConnectionType()
+	if(updatedConnectionType !== null) {
+		minecraftLanguageClientRunner!!.setConnectionType(updatedConnectionType)
+	}
+}
+
+function getUpdatedMinecraftConnectionType(): MinecraftConnectionType | null {
+	const addressConfig = vscode.workspace.getConfiguration("CommandCrafter").get<string>("MinecraftAddress")
+	if(addressConfig == prevMinecraftAddress)
+		return null
+	if(!addressConfig)
+		return null
+	prevMinecraftAddress = addressConfig
+	const minecraftConnection = parseAddressConfig(addressConfig)
+	if(minecraftConnection instanceof AddressConfigMalformedError) {
+		vscode.window.showErrorMessage(minecraftConnection.message)
+		return null
+	}
+	return minecraftConnection
 }
 
 export function deactivate() {}

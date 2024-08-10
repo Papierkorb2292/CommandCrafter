@@ -68,6 +68,16 @@
         }
       ]
     },
+    "configuration": {
+      "title": "CommandCrafter",
+      "properties": {
+        "CommandCrafter.MinecraftAddress": {
+          "type": "string",
+          "default": "localhost:52853",
+          "description": "The address of the Minecraft instance that provides the language server and debugger"
+        }
+      }
+    },
     "breakpoints": [{ "language": "mcfunction" }, { "language": "json" }],
     "debuggers": [
       {

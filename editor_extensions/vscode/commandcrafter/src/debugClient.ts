@@ -148,9 +148,9 @@ export class DebugClient implements ConnectionFeature {
     onLanguageClientStop() {
         this.languageClientRunning = false;
     }
-    onConnectionTypeChange(connectionType: MinecraftConnectionType) {
+    onConnectionTypeChange(connectionType: MinecraftConnectionType | null) {
         this.connectionType?.dispose();
-        this.connectionType = connectionType.copy();
+        this.connectionType = connectionType?.copy();
 
     }
 }
