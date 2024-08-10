@@ -44,3 +44,8 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+
+# Icon .blend backup files
+
+icon.blend*
+!icon.blend
