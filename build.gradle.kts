@@ -9,6 +9,10 @@ version = project.extra["mod_version"] as String
 group = project.extra["maven_group"] as String
 repositories {
     maven("https://jitpack.io")
+    maven {
+        name = "Terraformers"
+        setUrl("https://maven.terraformersmc.com/")
+    }
 }
 dependencies {
     minecraft("com.mojang", "minecraft", project.extra["minecraft_version"] as String)
@@ -16,6 +20,8 @@ dependencies {
     modImplementation("net.fabricmc", "fabric-loader", project.extra["loader_version"] as String)
     modImplementation("net.fabricmc.fabric-api", "fabric-api", project.extra["fabric_version"] as String)
     modImplementation("net.fabricmc", "fabric-language-kotlin", project.extra["fabric_language_kotlin_version"] as String)
+
+    modImplementation("com.terraformersmc:modmenu:${project.extra["modmenu_version"]}")
 
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")

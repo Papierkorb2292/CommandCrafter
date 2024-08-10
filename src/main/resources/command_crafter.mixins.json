@@ -161,6 +161,7 @@
     "parser.vanilla_improved.TextArgumentTypeMixin"
   ],
   "client": [
+    "SimpleOptionAccessor",
     "editor.MinecraftClientAccessor",
     "editor.processing.ClientCommandSourceAccessor"
   ]

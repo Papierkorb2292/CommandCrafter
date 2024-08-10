@@ -1,0 +1,5 @@
+{
+  "command_crafter.config.title": "CommandCrafter Config",
+  "command_crafter.config.services_port": "Services Port",
+  "command_crafter.config.services_port.description": "The port the CommandCrafter services are running on. This needs to match up with the port configured in your editor."
+}

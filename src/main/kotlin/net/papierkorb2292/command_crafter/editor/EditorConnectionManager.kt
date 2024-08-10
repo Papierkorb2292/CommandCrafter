@@ -107,6 +107,14 @@ class EditorConnectionManager(
         }
     }
 
+    fun copyForNewConnectionAcceptor(newConnectionAcceptor: EditorConnectionAcceptor): EditorConnectionManager {
+        return EditorConnectionManager(
+            newConnectionAcceptor,
+            minecraftServerConnection,
+            serviceLaunchers
+        )
+    }
+
     interface ServiceLauncher {
         fun launch(serverConnection: MinecraftServerConnection, editorConnection: EditorConnection, executorService: ExecutorService): LaunchedService
     }

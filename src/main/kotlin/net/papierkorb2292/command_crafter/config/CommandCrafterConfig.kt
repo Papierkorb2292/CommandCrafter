@@ -9,6 +9,9 @@ import kotlin.io.path.reader
 import kotlin.io.path.writer
 
 class CommandCrafterConfig private constructor(var servicesPort: Int, val configPath: Path) {
+
+    private val servicesPortChangedListeners = mutableListOf<(Int) -> Unit>()
+
     companion object {
         val DEFAULT_CONFIG_PATH = Path.of("config/command_crafter.properties")
 
@@ -64,5 +67,9 @@ class CommandCrafterConfig private constructor(var servicesPort: Int, val config
         } catch(e: IOException) {
             CommandCrafter.LOGGER.error("Failed to save config file", e)
         }
+    }
+
+    fun addServicesPortChangedListener(listener: (Int) -> Unit) {
+        servicesPortChangedListeners += listener
     }
 }

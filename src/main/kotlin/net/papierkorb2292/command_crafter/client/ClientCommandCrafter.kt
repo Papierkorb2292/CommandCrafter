@@ -34,7 +34,7 @@ object ClientCommandCrafter : ClientModInitializer {
         initializeEditor()
     }
 
-    val editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
+    var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
         SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
             CommandDispatcher(), 0
@@ -141,6 +141,12 @@ object ClientCommandCrafter : ClientModInitializer {
         }
 
         editorConnectionManager.startServer()
+
+        CommandCrafter.config.addServicesPortChangedListener {
+            editorConnectionManager.stopServer()
+            editorConnectionManager = editorConnectionManager.copyForNewConnectionAcceptor(SocketEditorConnectionType(it))
+            editorConnectionManager.startServer()
+        }
     }
 
     private fun handleEditorServiceException(serviceName: String, e: Throwable): ResponseError {

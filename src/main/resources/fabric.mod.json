@@ -9,7 +9,8 @@
     "Papierkorb2292"
   ],
   "contact": {
-    "sources": "https://github.com/Papierkorb2292/CommandCrafter"
+    "sources": "https://github.com/Papierkorb2292/CommandCrafter",
+    "issues": "https://github.com/Papierkorb2292/CommandCrafter/issues"
   },
   "license": ["MIT","EDL-1.0"],
   "icon": "assets/command_crafter/icon.png",
@@ -36,6 +37,12 @@
       {
         "adapter": "kotlin",
         "value": "net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker"
+      }
+    ],
+    "modmenu": [
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.client.CommandCrafterModMenu"
       }
     ]
   },
