@@ -12,7 +12,7 @@
     "sources": "https://github.com/Papierkorb2292/CommandCrafter",
     "issues": "https://github.com/Papierkorb2292/CommandCrafter/issues"
   },
-  "license": ["MIT","EDL-1.0"],
+  "license": ["MIT","EDL-1.0", "Apache-2.0"],
   "icon": "assets/command_crafter/icon.png",
   "accessWidener": "command_crafter.accesswidener",
   "environment": "*",
