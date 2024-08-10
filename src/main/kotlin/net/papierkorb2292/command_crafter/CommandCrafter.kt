@@ -2,15 +2,14 @@ package net.papierkorb2292.command_crafter
 
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ModInitializer
-import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.advancement.Advancement
 import net.minecraft.block.entity.BannerPattern
 import net.minecraft.block.jukebox.JukeboxSong
 import net.minecraft.client.MinecraftClient
 import net.minecraft.command.CommandSource
-import net.minecraft.command.argument.serialize.ConstantArgumentSerializer
 import net.minecraft.enchantment.Enchantment
 import net.minecraft.enchantment.provider.EnchantmentProvider
 import net.minecraft.entity.damage.DamageType
@@ -53,6 +52,7 @@ import net.minecraft.world.gen.densityfunction.DensityFunction
 import net.minecraft.world.gen.feature.ConfiguredFeature
 import net.minecraft.world.gen.feature.PlacedFeature
 import net.minecraft.world.gen.structure.JigsawStructure
+import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.OpenFile
@@ -73,13 +73,15 @@ import java.io.BufferedReader
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"
     val LOGGER = LogManager.getLogger(MOD_ID)
+    val VERSION = FabricLoader.getInstance().getModContainer(MOD_ID).get().metadata.version.friendlyString
+    lateinit var config: CommandCrafterConfig
+        private set
 
     override fun onInitialize() {
-
+        initializeConfig()
         initializeEditor()
         NetworkServerConnection.registerServerPacketHandlers()
         initializeParser()
-        initializeConfig()
 
         LOGGER.info("Loaded CommandCrafter!")
     }
@@ -198,6 +200,8 @@ object CommandCrafter: ModInitializer {
             shortenNbt = rule.get()
         }
         GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
+
+        config = CommandCrafterConfig.fromFile(CommandCrafterConfig.DEFAULT_CONFIG_PATH)
     }
 
     val defaultDynamicRegistryManager: CombinedDynamicRegistries<ServerDynamicRegistryType> by lazy {

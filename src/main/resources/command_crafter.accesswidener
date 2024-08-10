@@ -9,3 +9,4 @@ accessible class net/minecraft/command/argument/packrat/ParsingState$PackratCach
 extendable method net/minecraft/nbt/NbtByte <init> (B)V
 accessible class net/minecraft/client/font/FontManager$Providers
 accessible class net/minecraft/server/MinecraftServer$ResourceManagerHolder
+accessible class net/minecraft/client/option/SimpleOption$Callbacks

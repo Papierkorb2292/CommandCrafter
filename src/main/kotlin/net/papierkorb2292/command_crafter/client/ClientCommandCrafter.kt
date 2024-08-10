@@ -35,7 +35,7 @@ object ClientCommandCrafter : ClientModInitializer {
     }
 
     val editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
-        SocketEditorConnectionType(52853), //TODO: Let the user change the port
+        SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
             CommandDispatcher(), 0
         ),
