@@ -133,7 +133,7 @@ export class DebugClient implements ConnectionFeature {
 
         vscodeHandleEventEmitter.fire(<vscode.DebugProtocolMessage>message);
 
-        if(message.type === "response" && message.command == "launch") {
+        if(message.type === "response" && message.command == "configurationDone") {
             // Focus the minecraft console since vscode focused the debug console
             if(this.languageClientRunning) {
                 this.minecraftConsole.focusConsole();
