@@ -11,6 +11,7 @@ import net.minecraft.registry.tag.TagEntry;
 import net.minecraft.registry.tag.TagFile;
 import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
@@ -41,6 +42,14 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
     private final ThreadLocal<Map<Identifier, List<TagGroupLoader.TrackedEntry>>> command_crafter$parsedTags = new ThreadLocal<>();
     private final Map<PackagedId, List<String>> command_crafter$tagFileLines = new HashMap<>();
     private final Map<Identifier, Collection<TagFinalEntriesValueGetter.FinalEntry>> command_crafter$finalEntries = new HashMap<>();
+
+    @Inject(
+            method = "loadTags",
+            at = @At("HEAD")
+    )
+    private void command_crafter$clearTagFileLines(ResourceManager resourceManager, CallbackInfoReturnable<Map<Identifier, List<TagGroupLoader.TrackedEntry>>> cir) {
+        command_crafter$tagFileLines.clear();
+    }
 
     @ModifyVariable(
             method = "loadTags",
