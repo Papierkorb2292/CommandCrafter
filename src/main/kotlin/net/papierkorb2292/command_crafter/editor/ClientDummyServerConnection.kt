@@ -16,5 +16,8 @@ class ClientDummyServerConnection(
     override val commandExecutor: CommandExecutor? = null,
     override val debugService: ServerDebugConnectionService? = null,
     override val contextCompletionProvider: ContextCompletionProvider? = null,
-    override val dynamicRegistryManager: () -> DynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
-) : MinecraftServerConnection
+    val dynamicRegistryManagerGetter: () -> DynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
+) : MinecraftServerConnection {
+    override val dynamicRegistryManager: DynamicRegistryManager
+        get() = dynamicRegistryManagerGetter()
+}

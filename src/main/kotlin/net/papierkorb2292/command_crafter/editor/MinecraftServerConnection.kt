@@ -15,5 +15,5 @@ interface MinecraftServerConnection {
     val commandExecutor: CommandExecutor?
     val debugService: ServerDebugConnectionService?
     val contextCompletionProvider: ContextCompletionProvider?
-    val dynamicRegistryManager: () -> DynamicRegistryManager
+    val dynamicRegistryManager: DynamicRegistryManager
 }

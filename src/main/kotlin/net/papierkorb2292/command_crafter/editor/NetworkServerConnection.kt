@@ -16,16 +16,21 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.client.MinecraftClient
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.CommandSource
+import net.minecraft.nbt.NbtOps
 import net.minecraft.network.ClientConnection
 import net.minecraft.network.listener.ClientCommonPacketListener
 import net.minecraft.network.packet.CustomPayload
 import net.minecraft.network.packet.Packet
 import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
+import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
+import net.minecraft.registry.*
+import net.minecraft.resource.ResourceFactory
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
@@ -51,6 +56,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -63,7 +69,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.set
 
-class NetworkServerConnection private constructor(private val client: MinecraftClient, initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
+class NetworkServerConnection private constructor(private val client: MinecraftClient, private val initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
     companion object {
         const val SERVER_LOG_CHANNEL = "server"
 
@@ -92,6 +98,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = ConcurrentHashMap()
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
 
+        private val receivedRegistries = mutableMapOf<RegistryKey<out Registry<*>>, List<SerializableRegistries.SerializedRegistryEntry>>()
+        private var receivedRegistryManager: DynamicRegistryManager? = null
+
         fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
             player.hasPermissionLevel(2)
 
@@ -114,7 +123,27 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     currentRequest.second.completeExceptionally(ServerConnectionNotSupportedException("Server didn't permit editor connection"))
                     return@handler
                 }
-                currentRequest.second.complete(NetworkServerConnection(context.client(), payload))
+                val connection = NetworkServerConnection(context.client(), payload)
+                currentRequest.second.complete(connection)
+            }
+            ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
+                receivedRegistries[payload.dynamicRegistry.registry] = payload.dynamicRegistry.entries
+                if(RegistryLoader.DYNAMIC_REGISTRIES.all { receivedRegistries.containsKey(it.key) }
+                    && RegistryLoader.DIMENSION_REGISTRIES.all { receivedRegistries.containsKey(it.key) }) {
+                    //All registries have been received
+                    val dynamicRegistries = RegistryLoader.loadFromNetwork(
+                        receivedRegistries,
+                        ResourceFactory.MISSING, //No resource loading is required, because no common packs were specified
+                        CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager,
+                        RegistryLoader.DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES
+                    )
+                    val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries();
+                    receivedRegistryManager = initialRegistries.with(
+                        ServerDynamicRegistryType.RELOADABLE,
+                        dynamicRegistries
+                    ).combinedRegistryManager
+                    receivedRegistries.clear()
+                }
             }
             ClientPlayNetworking.registerGlobalReceiver(LogMessageS2CPacket.ID) handler@{ payload, _ ->
                 val serverConnection = ClientCommandCrafter.editorConnectionManager.minecraftServerConnection
@@ -186,7 +215,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         fun registerServerPacketHandlers() {
             ServerPlayNetworking.registerGlobalReceiver(RequestNetworkServerConnectionC2SPacket.ID) handler@{ payload, context ->
                 if(!isPlayerAllowedConnection(context.player())) {
-                    context.responseSender().sendPacket(
+                    context.responseSender().sendPacket(    
                         InitializeNetworkServerConnectionS2CPacket(
                             false,
                             CommandTreeS2CPacket(RootCommandNode()),
@@ -196,7 +225,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     )
                     return@handler
                 }
-                sendConnectionRequestResponse(context.player().server, payload, context.responseSender())
+                sendConnectionRequestResponse(context.player().server, payload, context.responseSender(), context.player().networkHandler)
 
                 if(context.player().server.isDedicated) {
                     startSendingLogMessages(context.responseSender(), context.player())
@@ -332,7 +361,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             server: MinecraftServer,
             requestPacket: RequestNetworkServerConnectionC2SPacket,
             packetSender: PacketSender,
+            networkHandler: ServerPlayNetworkHandler
         ) {
+            sendDynamicRegistries(server, networkHandler)
+
             val rootCommandNode = limitCommandTreeForSource(server.commandManager, ServerCommandSource(
                 CommandOutput.DUMMY,
                 Vec3d.ZERO,
@@ -360,6 +392,37 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
         }
 
+        fun sendDynamicRegistries(
+            server: MinecraftServer,
+            networkHandler: ServerPlayNetworkHandler
+        ) {
+            RegistryLoader.DYNAMIC_REGISTRIES.forEach {
+                sendDynamicRegistry(server, it, networkHandler)
+            }
+            RegistryLoader.DIMENSION_REGISTRIES.forEach {
+                sendDynamicRegistry(server, it, networkHandler)
+            }
+        }
+
+        private fun sendDynamicRegistry(
+            server: MinecraftServer,
+            registry: RegistryLoader.Entry<*>,
+            networkHandler: ServerPlayNetworkHandler
+        ) {
+            SerializableRegistriesAccessor.callSerialize(
+                server.registryManager.getOps(NbtOps.INSTANCE),
+                registry,
+                server.registryManager,
+                emptySet()
+            ) { registryKey, entries ->
+                networkHandler.sendPacket(
+                    CustomPayloadS2CPacket(
+                        CommandCrafterDynamicRegistryS2CPacket(DynamicRegistriesS2CPacket(registryKey, entries))
+                    )
+                )
+            }
+        }
+
         fun addServerDebugPause(debugPause: ServerNetworkDebugConnection.DebugPauseInformation): UUID {
             val id = UUID.randomUUID()
             serverDebugPauses[id] = debugPause
@@ -370,7 +433,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    override val commandDispatcher = CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(client.networkHandler?.registryManager, client.networkHandler?.enabledFeatures)))
+    override val dynamicRegistryManager: DynamicRegistryManager
+        get() = receivedRegistryManager ?: CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager
+    override val commandDispatcher
+        get() = CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(dynamicRegistryManager, client.networkHandler?.enabledFeatures)))
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {
@@ -450,7 +516,6 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             return future
         }
     }
-    override val dynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
 
     class NetworkServerLog : Log {
         val log = CallbackLinkedBlockingQueue<String>()
