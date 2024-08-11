@@ -13,6 +13,7 @@ import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
+import net.papierkorb2292.command_crafter.CommandCrafter;
 import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler;
@@ -33,6 +34,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Mixin(TagGroupLoader.class)
@@ -40,7 +42,7 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
 
     @Shadow @Final private String dataType;
     private final ThreadLocal<Map<Identifier, List<TagGroupLoader.TrackedEntry>>> command_crafter$parsedTags = new ThreadLocal<>();
-    private final Map<PackagedId, List<String>> command_crafter$tagFileLines = new HashMap<>();
+    private final Map<PackagedId, List<String>> command_crafter$tagFileLines = new ConcurrentHashMap<>(64);
     private final Map<Identifier, Collection<TagFinalEntriesValueGetter.FinalEntry>> command_crafter$finalEntries = new HashMap<>();
 
     @Inject(
