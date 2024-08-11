@@ -4,12 +4,9 @@ import com.google.gson.JsonElement;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.brigadier.context.StringRange;
-import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Dynamic;
-import kotlin.Pair;
 import net.minecraft.registry.tag.TagEntry;
 import net.minecraft.registry.tag.TagFile;
 import net.minecraft.registry.tag.TagGroupLoader;
@@ -22,7 +19,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonReader;
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -106,7 +102,7 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
             method = "method_51476",
             at = @At("HEAD")
     )
-    private void command_crafter$createFinalRangedForTagDebugging(TagEntry.ValueGetter<T> valueGetter, Map<Identifier, Collection<T>> map, Identifier id, @Coerce Object dependencies, CallbackInfo ci) {
+    private void command_crafter$createFinalEntriesForTagDebugging(TagEntry.ValueGetter<T> valueGetter, Map<Identifier, Collection<T>> map, Identifier id, @Coerce Object dependencies, CallbackInfo ci) {
         if(!dataType.equals(FunctionTagDebugHandler.Companion.getTAG_PATH())) return;
         TagFinalEntriesValueGetter.Companion.getOrCreateFinalEntriesForTag(
                 id,
