@@ -9,6 +9,7 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import com.mojang.brigadier.tree.ArgumentCommandNode
+import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.datafixers.util.Either
 import net.minecraft.command.CommandSource
@@ -427,9 +428,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
+    fun <S> getAnalyzingParsedRootNode(rootNode: CommandNode<S>): ParsedCommandNode<S> {
+        // The position is -1, because the first actual node will start at 0
+        return ParsedCommandNode(rootNode, StringRange.at(-1))
+    }
+
     fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
-        var parentNode = ParsedCommandNode(contextBuilder.rootNode, StringRange.at(0))
+        var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode)
         while(contextBuilder != null) {
             for (parsedNode in contextBuilder.nodes) {
                 analyzeCommandNode(
@@ -506,7 +512,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                         contextBuilder.build(truncatedInput),
                                         SuggestionsBuilder(
                                             truncatedInput, truncatedInputLowerCase,
-                                            parentNode.range.end + 1
+                                            parsedNode.range.start
                                         )
                                     )
                                 } catch(e: Exception) {
@@ -1130,11 +1136,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     class NestedVanillaClosure(override val startLanguage: Language) : Language.LanguageClosure {
-        override fun endsClosure(reader: DirectiveStringReader<*>) = reader.trySkipWhitespace {
-            reader.canRead() && reader.peek() == '}'
+        override fun endsClosure(reader: DirectiveStringReader<*>): Boolean {
+            val startCursor = reader.cursor
+            val result = reader.canRead() && reader.peek() == '}'
+            reader.cursor = startCursor
+            return result
         }
 
         override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
+            reader.skipWhitespace()
             reader.skip()
         }
     }
