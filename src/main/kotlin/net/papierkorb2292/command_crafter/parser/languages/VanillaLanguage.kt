@@ -9,7 +9,6 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import com.mojang.brigadier.tree.ArgumentCommandNode
-import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.datafixers.util.Either
 import net.minecraft.command.CommandSource
@@ -430,7 +429,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
-        var parentNode = contextBuilder.rootNode
+        var parentNode = ParsedCommandNode(contextBuilder.rootNode, StringRange.at(0))
         while(contextBuilder != null) {
             for (parsedNode in contextBuilder.nodes) {
                 analyzeCommandNode(
@@ -440,13 +439,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     analyzingResult,
                     reader
                 )
-                parentNode = parsedNode.node
+                parentNode = parsedNode
             }
             contextBuilder = contextBuilder.child
         }
         tryAnalyzeNextNode(
             analyzingResult,
-            result.context.lastChild.nodes.last(),
+            parentNode,
             result.context,
             reader
         )
@@ -454,7 +453,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     private fun analyzeCommandNode(
         parsedNode: ParsedCommandNode<CommandSource>,
-        parentNode: CommandNode<CommandSource>,
+        parentNode: ParsedCommandNode<CommandSource>,
         contextBuilder: CommandContextBuilder<CommandSource>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -487,11 +486,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         node.name
                     )
                 ) {
-                    val completionParentNode = parentNode.resolveRedirects()
+                    val completionParentNode = parentNode.node.resolveRedirects()
                     analyzingResult.addCompletionProvider(
                         AnalyzingResult.RangedDataProvider(
                             StringRange(
-                                parsedNode.range.start,
+                                parentNode.range.end + 1,
                                 parsedNode.range.end
                             )
                         ) { cursor ->
@@ -507,7 +506,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                         contextBuilder.build(truncatedInput),
                                         SuggestionsBuilder(
                                             truncatedInput, truncatedInputLowerCase,
-                                            parsedNode.range.start
+                                            parentNode.range.end + 1
                                         )
                                     )
                                 } catch(e: Exception) {
@@ -586,7 +585,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             ) return
         analyzeCommandNode(
             furthestParsedContext.nodes.last(),
-            parentNode.node,
+            parentNode,
             furthestParsedContext,
             analyzingResult,
             furthestParsedReader
