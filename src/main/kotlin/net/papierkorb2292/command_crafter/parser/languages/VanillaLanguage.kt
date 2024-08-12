@@ -56,6 +56,7 @@ import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.function.Predicate
+import kotlin.math.min
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor as FunctionBuilderAccessor_Debug
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor as FunctionBuilderAccessor_Parser
 import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
@@ -127,7 +128,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.endStatementAndAnalyze(result)
                 continue
             }
+            val indentStart = reader.cursor
             reader.saveIndentation()
+            suggestRootNode(
+                reader,
+                StringRange(indentStart, reader.cursor),
+                source,
+                result
+            )
             if(!reader.canRead()) {
                 reader.endStatementAndAnalyze(result)
                 break
@@ -174,6 +182,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.endStatementAndAnalyze(result)
                     continue
                 }
+                //Let command start at cursor 0, so completions don't overlap with suggestRootNode
+                reader.cutReadChars()
 
                 reader.onlyReadEscapedMultiline = !easyNewLine
                 val parseResults = reader.dispatcher.parse(reader, source)
@@ -433,6 +443,26 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return ParsedCommandNode(rootNode, StringRange.at(-1))
     }
 
+    fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: CommandSource, analyzingResult: AnalyzingResult) {
+        val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root)
+        addNodeSuggestions(
+            parsedRootNode,
+            analyzingResult,
+            range,
+            reader.copy().apply {
+                // The string must be empty, so no matter where in the range completions are requested, the literals will be suggested
+                @Suppress("CAST_NEVER_SUCCEEDS")
+                (this as StringReaderAccessor).setString("")
+            },
+            CommandContextBuilder(
+                reader.dispatcher,
+                commandSource,
+                parsedRootNode.node,
+                parsedRootNode.range.start
+            )
+        )
+    }
+
     fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
         var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode)
@@ -473,7 +503,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
             reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
             val completionReader = reader.copy()
-            val readSkippingChars = reader.readSkippingChars
             try {
                 try {
                     node.`command_crafter$analyze`(
@@ -492,55 +521,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         node.name
                     )
                 ) {
-                    val completionParentNode = parentNode.node.resolveRedirects()
-                    analyzingResult.addCompletionProvider(
-                        AnalyzingResult.RangedDataProvider(
-                            StringRange(
-                                parentNode.range.end + 1,
-                                parsedNode.range.end
-                            )
-                        ) { cursor ->
-                            val endCursor = cursor - readSkippingChars
-                            val truncatedInput = commandInput.substring(0, endCursor)
-                            val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
-                            AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
-                                this.cursor = endCursor
-                            })
-                            val suggestionFutures = completionParentNode.children.map { child ->
-                                try {
-                                    child.listSuggestions(
-                                        contextBuilder.build(truncatedInput),
-                                        SuggestionsBuilder(
-                                            truncatedInput, truncatedInputLowerCase,
-                                            parsedNode.range.start
-                                        )
-                                    )
-                                } catch(e: Exception) {
-                                    CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
-                                    Suggestions.empty()
-                                }
-                            }.toTypedArray()
-                            CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
-                                AnalyzingClientCommandSource.suggestionsFullInput.remove()
-                                CompletableFuture.failedFuture(it)
-                            }.thenApply {
-                                AnalyzingClientCommandSource.suggestionsFullInput.remove()
-                                val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
-                                    it.toCompletionItem(completionReader)
-                                } + suggestionFutures.flatMap {
-                                    (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
-                                        ?: emptyList()
-                                }
-                                if(context.source !is AnalyzingClientCommandSource)
-                                    completionItems
-                                else
-                                    CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
-                                        completionItems,
-                                        commandInput.substring(parsedNode.range.start)
-                                    )
-                            }
-                        },
-                        true
+                    addNodeSuggestions(
+                        parentNode,
+                        analyzingResult,
+                        parsedNode.range,
+                        completionReader,
+                        contextBuilder
                     )
                 }
             } finally {
@@ -548,6 +534,65 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.skippedChars = initialSkippedChars
             }
         }
+    }
+
+    private fun addNodeSuggestions(
+        parentNode: ParsedCommandNode<CommandSource>,
+        analyzingResult: AnalyzingResult,
+        parsedNodeRange: StringRange,
+        completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
+        contextBuilder: CommandContextBuilder<CommandSource>,
+    ) {
+        val completionParentNode = parentNode.node.resolveRedirects()
+        analyzingResult.addCompletionProvider(
+            AnalyzingResult.RangedDataProvider(
+                StringRange(
+                    parentNode.range.end + 1,
+                    parsedNodeRange.end
+                )
+            ) { cursor ->
+                val endCursor = cursor - completionReader.readSkippingChars
+                val truncatedInput = completionReader.string.substring(0, min(endCursor, completionReader.string.length))
+                val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
+                AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
+                    this.cursor = endCursor
+                })
+                val suggestionFutures = completionParentNode.children.map { child ->
+                    try {
+                        child.listSuggestions(
+                            contextBuilder.build(truncatedInput),
+                            SuggestionsBuilder(
+                                truncatedInput, truncatedInputLowerCase,
+                                min(parsedNodeRange.start, truncatedInput.length)
+                            )
+                        )
+                    } catch(e: Exception) {
+                        CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
+                        Suggestions.empty()
+                    }
+                }.toTypedArray()
+                CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
+                    AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                    CompletableFuture.failedFuture(it)
+                }.thenApply {
+                    AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                    val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
+                        it.toCompletionItem(completionReader)
+                    } + suggestionFutures.flatMap {
+                        (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
+                            ?: emptyList()
+                    }
+                    if(contextBuilder.source !is AnalyzingClientCommandSource)
+                        completionItems
+                    else
+                        CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
+                            completionItems,
+                            completionReader.string.substring(parsedNodeRange.start)
+                        )
+                }
+            },
+            true
+        )
     }
 
     private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
