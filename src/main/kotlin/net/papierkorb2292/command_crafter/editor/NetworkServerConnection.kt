@@ -55,6 +55,7 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
@@ -433,10 +434,14 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
+    private val commandDispatcherFactory: (DynamicRegistryManager) -> CommandDispatcher<CommandSource> = { registryManager: DynamicRegistryManager ->
+        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures)))
+    }.memoizeLast()
+
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = receivedRegistryManager ?: CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager
     override val commandDispatcher
-        get() = CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(dynamicRegistryManager, client.networkHandler?.enabledFeatures)))
+        get() = commandDispatcherFactory(dynamicRegistryManager)
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {
