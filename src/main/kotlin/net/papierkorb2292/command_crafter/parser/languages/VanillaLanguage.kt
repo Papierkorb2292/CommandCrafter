@@ -587,7 +587,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     else
                         CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
                             completionItems,
-                            completionReader.string.substring(parsedNodeRange.start)
+                            completionReader.string.substring(min(parsedNodeRange.start, completionReader.string.length))
                         )
                 }
             },
