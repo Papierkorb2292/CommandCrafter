@@ -1183,6 +1183,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     class NestedVanillaClosure(override val startLanguage: Language) : Language.LanguageClosure {
         override fun endsClosure(reader: DirectiveStringReader<*>): Boolean {
             val startCursor = reader.cursor
+            reader.skipWhitespace()
             val result = reader.canRead() && reader.peek() == '}'
             reader.cursor = startCursor
             return result
