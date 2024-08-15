@@ -20,6 +20,11 @@ class DirectiveManager {
         (DIRECTIVES.get(Identifier.of(directive))
             ?: throw IllegalArgumentException("Error while parsing function: Encountered unknown directive '$directive' on line ${reader.currentLine}"))
             .read(reader)
+        if(!reader.canRead()) return
+        if(reader.peek() != '\n') {
+            throw IllegalArgumentException("Error while parsing function: Expected newline after directive on line ${reader.currentLine}")
+        }
+        reader.skip()
     }
 
     fun readDirectiveAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
@@ -44,6 +49,15 @@ class DirectiveManager {
         }
         analyzingResult.semanticTokens.add(pos.line, pos.character - directive.length - 1, directive.length + 1, TokenType.STRUCT, 0)
         directiveType.readAndAnalyze(reader, analyzingResult)
+        if(!reader.canRead()) return
+        if(reader.peek() != '\n') {
+            val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+            analyzingResult.diagnostics += Diagnostic(
+                Range(endPos, endPos.advance()),
+                "Expected newline after directive"
+            )
+        }
+        reader.skip()
     }
 
     interface DirectiveType {

@@ -156,20 +156,14 @@ class DirectiveStringReader<out ResourceCreator>(
         cursor = 0
     }
 
-    fun endStatement() {
+    fun endStatement(): Boolean {
         cutReadChars()
-        while(true) {
-            val foundDirective = trySkipWhitespace {
-                if(canRead() && peek() == '@') {
-                    skip()
-                    directiveManager.readDirective(this)
-                    return@trySkipWhitespace true
-                }
-                false
-            }
-            if(!foundDirective) {
-                break
-            }
+        val foundDirective = trySkipWhitespace {
+            if(canRead() && peek() == '@') {
+                skip()
+                directiveManager.readDirective(this)
+                true
+            } else false
         }
         scopeStack.element().closure.let {
             if(it.endsClosure(this)) {
@@ -178,25 +172,20 @@ class DirectiveStringReader<out ResourceCreator>(
                 currentLanguage = null
             }
         }
+        return foundDirective
     }
 
-    fun endStatementAndAnalyze(analyzingResult: AnalyzingResult) {
+    fun endStatementAndAnalyze(analyzingResult: AnalyzingResult): Boolean {
         extendToLengthFromCursor(0)
         setString(string.substring(min(cursor, string.length)))
         readCharacters += cursor
         cursor = 0
-        while(true) {
-            val foundDirective = trySkipWhitespace {
-                if(canRead() && peek() == '@') {
-                    skip()
-                    directiveManager.readDirectiveAndAnalyze(this, analyzingResult)
-                    return@trySkipWhitespace true
-                }
-                false
-            }
-            if(!foundDirective) {
-                break
-            }
+        val foundDirective = trySkipWhitespace {
+            if(canRead() && peek() == '@') {
+                skip()
+                directiveManager.readDirectiveAndAnalyze(this, analyzingResult)
+                true
+            } else false
         }
         scopeStack.element().closure.let {
             if(it.endsClosure(this)) {
@@ -205,6 +194,7 @@ class DirectiveStringReader<out ResourceCreator>(
                 currentLanguage = null
             }
         }
+        return foundDirective
     }
 
     var currentIndentation: Int private set

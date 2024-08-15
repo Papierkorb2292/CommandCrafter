@@ -70,21 +70,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         resource: RawResource,
     ) {
         reader.endStatement()
-        while (reader.canRead() && reader.currentLanguage == this) {
-            if (LanguageManager.readDocComment(reader) != null) {
-                reader.endStatement()
+        while(skipToNextCommand(reader)) {
+            if (LanguageManager.readDocComment(reader) != null)
                 continue
-            }
-            reader.saveIndentation()
-            if(!reader.canRead()) {
-                reader.endStatement()
-                break
-            }
-            if (reader.peek() == '\n') {
-                reader.skip()
-                reader.endStatement()
-                continue
-            }
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
                 val macro = readMacro(reader)
@@ -105,7 +93,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 writeCommand(parsed, resource, reader)
             }
-            reader.endStatement()
         }
     }
 
@@ -124,24 +111,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
         }
 
-        fun skipToNextCommand(): Boolean {
-            reader.cutReadChars()
-            reader.saveIndentation()
-            while(reader.canRead() && reader.peek() == '\n') {
-                reader.skip()
-                reader.saveIndentation()
-            }
-            suggestRootNode(
-                reader,
-                StringRange(Int.MAX_VALUE, reader.cursor),
-                source,
-                result
-            )
-            reader.endStatementAndAnalyze(result)
-            return reader.canRead() && reader.currentLanguage == this
-        }
-
-        while(skipToNextCommand()) {
+        while(skipToNextCommandAndAnalyze(reader, result, source)) {
             if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
                 continue
             }
@@ -253,23 +223,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         source: ServerCommandSource,
         builder: FunctionBuilder<ServerCommandSource>,
     ): FunctionDebugInformation? {
-        reader.endStatement()
         val elementBreakpointParsers = mutableListOf<FunctionElementDebugInformation.FunctionElementProcessor>()
-        while (reader.canRead() && reader.currentLanguage == this) {
-            if (LanguageManager.readDocComment(reader) != null) {
-                reader.endStatement()
+        while(skipToNextCommand(reader)) {
+            if (LanguageManager.readDocComment(reader) != null)
                 continue
-            }
-            reader.saveIndentation()
-            if(!reader.canRead()) {
-                reader.endStatement()
-                break
-            }
-            if(reader.peek() == '\n') {
-                reader.skip()
-                reader.endStatement()
-                continue
-            }
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
                 val startCursor = reader.absoluteCursor
@@ -301,7 +258,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(contextChain.topContext)
             builder.addAction(SingleCommandAction.Sourced(string, contextChain))
-            reader.endStatement()
         }
         return reader.resourceCreator?.run {
             @Suppress("UNCHECKED_CAST")
@@ -390,6 +346,36 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             indentStartCursor = reader.cursor
         }
         return macroBuilder.toString()
+    }
+
+    private fun skipToNextCommand(reader: DirectiveStringReader<*>): Boolean {
+        do {
+            reader.cutReadChars()
+            reader.saveIndentation()
+            while(reader.canRead() && reader.peek() == '\n') {
+                reader.skip()
+                reader.saveIndentation()
+            }
+        } while(reader.endStatement() && reader.canRead() && reader.currentLanguage == this)
+        return reader.canRead() && reader.currentLanguage == this
+    }
+
+    private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: CommandSource): Boolean {
+        do {
+            reader.cutReadChars()
+            reader.saveIndentation()
+            while(reader.canRead() && reader.peek() == '\n') {
+                reader.skip()
+                reader.saveIndentation()
+            }
+            suggestRootNode(
+                reader,
+                StringRange(Int.MAX_VALUE, reader.cursor),
+                source,
+                result
+            )
+        } while(reader.endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
+        return reader.canRead() && reader.currentLanguage == this
     }
 
     fun writeCommand(result: ParseResults<ServerCommandSource>, resource: RawResource, reader: DirectiveStringReader<RawZipResourceCreator>) {
