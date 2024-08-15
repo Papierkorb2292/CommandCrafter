@@ -56,6 +56,7 @@ import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.function.Predicate
+import kotlin.math.max
 import kotlin.math.min
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderAccessor as FunctionBuilderAccessor_Debug
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor as FunctionBuilderAccessor_Parser
@@ -122,27 +123,26 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
             }
         }
-        reader.endStatementAndAnalyze(result)
-        while (reader.canRead() && reader.currentLanguage == this) {
-            if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
-                reader.endStatementAndAnalyze(result)
-                continue
-            }
-            val indentStart = reader.cursor
+
+        fun skipToNextCommand(): Boolean {
+            reader.cutReadChars()
             reader.saveIndentation()
+            while(reader.canRead() && reader.peek() == '\n') {
+                reader.skip()
+                reader.saveIndentation()
+            }
             suggestRootNode(
                 reader,
-                StringRange(indentStart, reader.cursor),
+                StringRange(Int.MAX_VALUE, reader.cursor),
                 source,
                 result
             )
-            if(!reader.canRead()) {
-                reader.endStatementAndAnalyze(result)
-                break
-            }
-            if(reader.peek() == '\n') {
-                reader.skip()
-                reader.endStatementAndAnalyze(result)
+            reader.endStatementAndAnalyze(result)
+            return reader.canRead() && reader.currentLanguage == this
+        }
+
+        while(skipToNextCommand()) {
+            if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
                 continue
             }
             try {
@@ -245,7 +245,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         break
                 }
             }
-            reader.endStatementAndAnalyze(result)
         }
     }
 
@@ -552,18 +551,22 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 )
             ) { cursor ->
                 val endCursor = cursor - completionReader.readSkippingChars
-                val truncatedInput = completionReader.string.substring(0, min(endCursor, completionReader.string.length))
-                val truncatedInputLowerCase = truncatedInput.lowercase(Locale.ROOT)
+                val truncatedInput = completionReader.string
+                    .substring(0, min(endCursor, completionReader.string.length))
+                // The string is extended to a length that covers the cursor (only happens for root suggestions, otherwise the cursor is already contained),
+                // so the suggestions are at the correct location
+                val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
+                val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
                 AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
                     this.cursor = endCursor
                 })
                 val suggestionFutures = completionParentNode.children.map { child ->
                     try {
                         child.listSuggestions(
-                            contextBuilder.build(truncatedInput),
+                            contextBuilder.build(extendedTruncatedInput),
                             SuggestionsBuilder(
-                                truncatedInput, truncatedInputLowerCase,
-                                min(parsedNodeRange.start, truncatedInput.length)
+                                extendedTruncatedInput, truncatedInputLowerCase,
+                                min(parsedNodeRange.start, extendedTruncatedInput.length)
                             )
                         )
                     } catch(e: Exception) {
