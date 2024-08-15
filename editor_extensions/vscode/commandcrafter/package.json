@@ -3,6 +3,7 @@
   "displayName": "CommandCrafter",
   "publisher": "Papierkorb2292",
   "description": "Adds Minecraft Datapack support when used in conjunction with the CommandCrafter Minecraft mod",
+  "icon": "resources/command-crafter-icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Papierkorb2292/CommandCrafter/tree/master/editor_extensions/vscode/commandcrafter"
