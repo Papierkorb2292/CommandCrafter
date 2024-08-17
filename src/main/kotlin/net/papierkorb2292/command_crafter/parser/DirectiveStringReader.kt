@@ -165,6 +165,8 @@ class DirectiveStringReader<out ResourceCreator>(
                 true
             } else false
         }
+        if(foundDirective)
+            return true
         scopeStack.element().closure.let {
             if(it.endsClosure(this)) {
                 it.skipClosureEnd(this)
@@ -172,7 +174,7 @@ class DirectiveStringReader<out ResourceCreator>(
                 currentLanguage = null
             }
         }
-        return foundDirective
+        return false
     }
 
     fun endStatementAndAnalyze(analyzingResult: AnalyzingResult): Boolean {
@@ -187,6 +189,8 @@ class DirectiveStringReader<out ResourceCreator>(
                 true
             } else false
         }
+        if(foundDirective)
+            return true
         scopeStack.element().closure.let {
             if(it.endsClosure(this)) {
                 it.skipClosureEnd(this)
@@ -194,7 +198,7 @@ class DirectiveStringReader<out ResourceCreator>(
                 currentLanguage = null
             }
         }
-        return foundDirective
+        return false
     }
 
     var currentIndentation: Int private set

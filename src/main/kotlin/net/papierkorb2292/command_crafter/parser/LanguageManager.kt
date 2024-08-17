@@ -67,9 +67,10 @@ object LanguageManager {
         reader.enterClosure(closure)
         reader.resourceCreator.resourceStack.push(resource)
         while(reader.closureDepth != closureDepth) {
+            val readerEnd = !reader.canRead()
             reader.currentLanguage?.parseToVanilla(reader, source, resource)
             reader.updateLanguage()
-            if(!reader.canRead() && reader.closureDepth != closureDepth) {
+            if(readerEnd && reader.closureDepth != closureDepth) {
                 throw UNCLOSED_SCOPE_EXCEPTION.create(reader.scopeStack.element().startLine)
             }
         }
@@ -89,12 +90,13 @@ object LanguageManager {
         while(reader.closureDepth != closureDepth) {
             (builder as DebugPauseHandlerCreatorIndexConsumer)
                 .`command_crafter$setPauseHandlerCreatorIndex`(debugInformations.size)
+            val readerEnd = !reader.canRead()
             reader.currentLanguage?.run {
                 val debugInformation = parseToCommands(reader, source, builder)
                 debugInformations += debugInformation ?: SKIP_DEBUG_INFORMATION
             }
             reader.updateLanguage()
-            if(!reader.canRead() && reader.closureDepth != closureDepth) {
+            if(readerEnd && reader.closureDepth != closureDepth) {
                 throw UNCLOSED_SCOPE_EXCEPTION.create(reader.scopeStack.element().startLine)
             }
         }
@@ -122,9 +124,10 @@ object LanguageManager {
         result.documentation = readAndAnalyzeDocComment(reader, result)
 
         while(reader.closureDepth != closureDepth) {
+            val readerEnd = !reader.canRead()
             reader.currentLanguage?.analyze(reader, source, result)
             reader.updateLanguage()
-            if(!reader.canRead() && reader.closureDepth != closureDepth) {
+            if(readerEnd && reader.closureDepth != closureDepth) {
                 val position = Position(reader.lines.size - 1, reader.lines.last().length)
                 result.diagnostics.add(Diagnostic(
                     Range(position, position),
