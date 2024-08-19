@@ -69,7 +69,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         source: ServerCommandSource,
         resource: RawResource,
     ) {
-        reader.endStatement()
         while(skipToNextCommand(reader)) {
             if (LanguageManager.readDocComment(reader) != null)
                 continue
@@ -92,6 +91,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
                 }
                 writeCommand(parsed, resource, reader)
+            }
+            if(reader.canRead(0) && reader.peek(-1) != '\n') {
+                reader.checkEndLanguage()
+                return
             }
         }
     }
@@ -183,13 +186,21 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
                 if(easyNewLine) {
                     reader.skipSpaces()
-                    if (reader.canRead() && reader.peek() != '\n') {
+                    if(!reader.canRead()) {
+                        reader.checkEndLanguage()
+                        break
+                    }
+                    if (reader.peek() != '\n') {
                         if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(
                             reader
                         )
                     } else reader.skip()
                 } else {
                     reader.onlyReadEscapedMultiline = false
+                    if(!reader.canRead()) {
+                        reader.checkEndLanguage()
+                        break
+                    }
                     reader.skip()
                 }
             } catch(e: Exception) {
@@ -211,7 +222,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 )
 
                 while (true) {
-                    if (!reader.canRead() || reader.read() == '\n')
+                    if(!reader.canRead()) {
+                        reader.checkEndLanguage()
+                        return
+                    }
+                    if (reader.read() == '\n')
                         break
                 }
             }
@@ -246,8 +261,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.cursorMapper,
                     startSkippedCharacters
                 )
-                reader.endStatement()
-                continue
+                if(reader.canRead(0) && reader.peek(-1) != '\n')
+                    break
             }
             reader.onlyReadEscapedMultiline = !easyNewLine
             val parsed = parseCommand(reader, source)
@@ -258,6 +273,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(contextChain.topContext)
             builder.addAction(SingleCommandAction.Sourced(string, contextChain))
+            if(reader.canRead(0) && reader.peek(-1) != '\n')
+                break
         }
         return reader.resourceCreator?.run {
             @Suppress("UNCHECKED_CAST")
@@ -374,7 +391,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 source,
                 result
             )
-        } while(reader.endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
+        } while(reader. endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
         return reader.canRead() && reader.currentLanguage == this
     }
 

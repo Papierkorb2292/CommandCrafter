@@ -167,14 +167,16 @@ class DirectiveStringReader<out ResourceCreator>(
         }
         if(foundDirective)
             return true
-        scopeStack.element().closure.let {
-            if(it.endsClosure(this)) {
-                it.skipClosureEnd(this)
-                scopeStack.poll()
-                currentLanguage = null
-            }
-        }
+        checkEndLanguage()
         return false
+    }
+
+    fun checkEndLanguage() {
+        val currentClosure = scopeStack.element().closure
+        if(!currentClosure.endsClosure(this)) return
+        currentClosure.skipClosureEnd(this)
+        scopeStack.poll()
+        currentLanguage = null
     }
 
     fun endStatementAndAnalyze(analyzingResult: AnalyzingResult): Boolean {
