@@ -35,8 +35,6 @@ class DirectiveStringReader<out ResourceCreator>(
         return if(index != -1) index else string.length
     }
 
-    var lastLanguageDirective: String? = null
-
     var absoluteCursor
         get() = cursor + readCharacters
         set(value) { cursor = value - readCharacters }

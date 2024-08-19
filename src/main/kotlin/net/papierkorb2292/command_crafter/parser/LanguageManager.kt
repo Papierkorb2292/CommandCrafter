@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.command.CommandSource
@@ -333,22 +334,34 @@ object LanguageManager {
                             throw IllegalArgumentException("Error while parsing language: Found no closing parentheses for language parameters on line ${reader.currentLine}")
                         }
                 )
-                reader.lastLanguageDirective = reader.string.substring(start, reader.cursor)
             }
 
             override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
-                val start = reader.cursor
+                val startCursor = reader.absoluteCursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                val language = reader.readUnquotedString()
-                val languageType = LANGUAGES.get(Identifier.of(language))
+                val language = try {
+                    Identifier.fromCommandInput(reader)
+                } catch(e: CommandSyntaxException) {
+                    analyzingResult.diagnostics += Diagnostic(
+                        Range(
+                            startPos,
+                            AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                        ),
+                        e.message
+                    )
+                    return
+                }
+                val languageIdEndCursor = reader.absoluteCursor
+                val languageIdEndPos = AnalyzingResult.getPositionFromCursor(languageIdEndCursor, reader.lines)
+                val languageType = LANGUAGES.get(language)
                 if(languageType == null) {
                     analyzingResult.diagnostics += Diagnostic(
-                        Range(startPos, startPos.advance(language.length)),
+                        Range(startPos, languageIdEndPos),
                         "Error while parsing function: Encountered unknown language '$language' on line ${reader.currentLine}"
                     )
                     return
                 }
-                analyzingResult.semanticTokens.add(startPos.line, startPos.character, language.length, TokenType.DECORATOR, 0)
+                analyzingResult.semanticTokens.add(startPos.line, startPos.character, languageIdEndCursor - startCursor, TokenType.DECORATOR, 0)
 
                 reader.skipSpaces()
                 if(!reader.canRead() || reader.peek() != '(') {
@@ -446,7 +459,6 @@ object LanguageManager {
                 val parsedLanguage = languageType.createFromArgumentsAndAnalyze(args, reader.currentLine, analyzingResult, reader.lines)
                 if(parsedLanguage != null) {
                     reader.switchLanguage(parsedLanguage)
-                    reader.lastLanguageDirective = reader.string.substring(start, reader.cursor)
                 }
             }
         })

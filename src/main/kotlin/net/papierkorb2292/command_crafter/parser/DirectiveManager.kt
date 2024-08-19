@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.registry.RegistryKey
 import net.minecraft.util.Identifier
@@ -28,36 +29,60 @@ class DirectiveManager {
     }
 
     fun readDirectiveAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
-        val directive = reader.readUnquotedString()
-        if(!reader.canRead() || reader.peek() != ' ') {
-            val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+        fun endDirective() {
+            if(!reader.canRead()) return
+            if(reader.peek() != '\n') {
+                val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                analyzingResult.diagnostics += Diagnostic(
+                    Range(endPos, endPos.advance()),
+                    "Expected newline after directive"
+                )
+                while(reader.canRead() && reader.peek() != '\n')
+                    reader.skip()
+                if(!reader.canRead())
+                    return
+            }
+            reader.skip()
+        }
+
+        val directiveStartCursor = reader.absoluteCursor - 1 // Subtract 1 to include '@'
+        val directiveStartPos = AnalyzingResult.getPositionFromCursor(directiveStartCursor, reader.lines)
+        val id = try {
+            Identifier.fromCommandInput(reader)
+        } catch(e: CommandSyntaxException) {
             analyzingResult.diagnostics += Diagnostic(
-                Range(pos, pos.advance()),
+                Range(
+                    directiveStartPos,
+                    AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                ),
+                e.message
+            )
+            endDirective()
+            return
+        }
+        val directiveEndCursor = reader.absoluteCursor
+        val directiveEndPos = AnalyzingResult.getPositionFromCursor(directiveEndCursor, reader.lines)
+        if(!reader.canRead() || reader.peek() != ' ') {
+            analyzingResult.diagnostics += Diagnostic(
+                Range(directiveEndPos, directiveEndPos.advance()),
                 "Expected ' '"
             )
+            endDirective()
             return
         }
-        val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
         reader.skip()
-        val directiveType = DIRECTIVES.get(Identifier.of(directive))
+        val directiveType = DIRECTIVES.get(id)
         if(directiveType == null) {
             analyzingResult.diagnostics += Diagnostic(
-                Range(pos.advance(-directive.length-1), pos),
-                "Error while parsing function: Encountered unknown directive '$directive' on line ${reader.currentLine}"
+                Range(directiveStartPos, directiveEndPos),
+                "Error while parsing function: Encountered unknown directive '$id' on line ${reader.currentLine}"
             )
+            endDirective()
             return
         }
-        analyzingResult.semanticTokens.add(pos.line, pos.character - directive.length - 1, directive.length + 1, TokenType.STRUCT, 0)
+        analyzingResult.semanticTokens.add(directiveStartPos.line, directiveStartPos.character, directiveEndCursor - directiveStartCursor, TokenType.STRUCT, 0)
         directiveType.readAndAnalyze(reader, analyzingResult)
-        if(!reader.canRead()) return
-        if(reader.peek() != '\n') {
-            val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-            analyzingResult.diagnostics += Diagnostic(
-                Range(endPos, endPos.advance()),
-                "Expected newline after directive"
-            )
-        }
-        reader.skip()
+        endDirective()
     }
 
     interface DirectiveType {
