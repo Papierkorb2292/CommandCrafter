@@ -158,7 +158,7 @@ object CommandCrafter: ModInitializer {
         Registry.register(LanguageManager.LANGUAGES, Identifier.of(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
         RawZipResourceCreator.DATA_TYPE_PROCESSORS += object : RawZipResourceCreator.DataTypeProcessor {
             override val type: String
-                get() = "functions"
+                get() = PackContentFileType.FUNCTIONS_FILE_TYPE.contentTypePath
 
             override fun shouldProcess(args: DatapackBuildArgs) = !args.keepDirectives
 
