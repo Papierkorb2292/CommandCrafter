@@ -59,22 +59,21 @@ public class NbtPathArgumentTypeMixin implements StringifiableArgumentType {
 
         for(var node : nodes) {
             var endIndex = nodeEndIndices.getInt(node);
-            if(node instanceof NbtPathArgumentTypeFilteredListElementNodeAccessor filteredListNode) {
-                result.append("[{");
-                result.append(filteredListNode.getFilter().asString());
-                result.append("}]");
-            } else if(node instanceof NbtPathArgumentTypeFilteredNamedNodeAccessor filteredNamedNode) {
-                result.append(".");
-                result.append(StringArgumentType.escapeIfRequired(filteredNamedNode.getName()));
-                result.append("{");
-                result.append(filteredNamedNode.getFilter().asString());
-                result.append("}");
-            } else if(node instanceof NbtPathFilteredRootNodeFilterProvider rootNodeFilter) {
-                result.append("{");
-                result.append(rootNodeFilter.command_crafter$getFilter().asString());
-                result.append("}");
-            } else {
-                result.append(sourceString, lastEndIndex, endIndex);
+            switch(node) {
+                case NbtPathArgumentTypeFilteredListElementNodeAccessor filteredListNode -> {
+                    result.append("[");
+                    result.append(filteredListNode.getFilter().asString());
+                    result.append("]");
+                }
+                case NbtPathArgumentTypeFilteredNamedNodeAccessor filteredNamedNode -> {
+                    result.append(".");
+                    result.append(StringArgumentType.escapeIfRequired(filteredNamedNode.getName()));
+                    result.append(filteredNamedNode.getFilter().asString());
+                }
+                case NbtPathFilteredRootNodeFilterProvider rootNodeFilter -> {
+                    result.append(rootNodeFilter.command_crafter$getFilter().asString());
+                }
+                default -> result.append(sourceString, lastEndIndex, endIndex);
             }
             lastEndIndex = endIndex;
         }
