@@ -106,12 +106,12 @@ object LanguageManager {
             (builder as DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame>)
                 .`command_crafter$setDebugInformation`(
                     DebugInformation.Concat(debugInformations) {
-                        val currentCommand = it.currentContextChain
-                        (currentCommand as DebugPauseHandlerCreatorIndexProvider)
-                            .`command_crafter$getPauseHandlerCreatorIndex`()?.run {
-                                return@Concat this
-                            }
-                        0 //SkipAll
+                        if(it.contextChains.isEmpty())
+                            0 //SkipAll
+                        else
+                            (it.currentContextChain as DebugPauseHandlerCreatorIndexProvider)
+                                .`command_crafter$getPauseHandlerCreatorIndex`()
+                                ?: 0 // SkipAll
                     })
         }
         return builder

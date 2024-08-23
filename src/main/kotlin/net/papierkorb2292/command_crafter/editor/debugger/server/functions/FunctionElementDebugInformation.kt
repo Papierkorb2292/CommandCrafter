@@ -7,6 +7,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType.FunctionArgument
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.Macro
 import net.minecraft.util.Identifier
@@ -156,9 +157,12 @@ class FunctionElementDebugInformation(
         }
         override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
             val currentContext = debugFrame.currentContextChain[debugFrame.currentSectionIndex]
-            if(currentContext != null && currentContext.child == null && (currentContext.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true) {
-                debugFrame.pauseContext.stepIntoFrame()
-                return
+            if(currentContext != null && currentContext.child == null && (currentContext.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(currentContext)) == true) {
+                if(!(currentContext.command as PotentialDebugFrameInitiator).`command_crafter$isInitializedDebugFrameEmpty`(addServerToContext(currentContext))) {
+                    debugFrame.pauseContext.stepIntoFrame()
+                    return
+                }
+                notifyClientOfEmptyDebugFrame()
             }
             if(debugFrame.hasNextSection()) {
                 debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, getNextCommandSection())
@@ -225,11 +229,17 @@ class FunctionElementDebugInformation(
 
             val targets = mutableListOf<StepInTarget>()
             val targetsManager = debugFrame.pauseContext.stepInTargetsManager
-            val executable = (debugFrame.currentContextChain as ContextChainAccessor<*>).executable
+            @Suppress("UNCHECKED_CAST")
+            val executable = (debugFrame.currentContextChain as ContextChainAccessor<ServerCommandSource>).executable
             if(sectionContext == executable) {
-                if((executable.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true) {
+                if((executable.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(executable)) == true) {
                     targets += StepInTarget().also {
                         it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
+                            if((executable.command as PotentialDebugFrameInitiator).`command_crafter$isInitializedDebugFrameEmpty`(addServerToContext(executable))) {
+                                notifyClientOfEmptyDebugFrame()
+                                next(SteppingGranularity.STATEMENT)
+                                return@Target
+                            }
                             debugFrame.pauseContext.stepIntoFrame()
                         })
                         it.label = buildStepInCurrentLabel(executable)
@@ -252,11 +262,16 @@ class FunctionElementDebugInformation(
                     })
                     it.label = STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL
                 }
-                if((sectionContext.redirectModifier as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`() == true
+                if((sectionContext.redirectModifier as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(sectionContext)) == true
                     && FunctionDebugFrame.commandResult.get() == null) {
 
                     targets += StepInTarget().also {
                         it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
+                            if((sectionContext.redirectModifier as PotentialDebugFrameInitiator).`command_crafter$isInitializedDebugFrameEmpty`(addServerToContext(sectionContext))) {
+                                notifyClientOfEmptyDebugFrame()
+                                next(SteppingGranularity.STATEMENT)
+                                return@Target
+                            }
                             debugFrame.pauseContext.stepIntoFrame()
                         })
                         it.label = buildStepInCurrentLabel(sectionContext)
@@ -265,6 +280,28 @@ class FunctionElementDebugInformation(
             }
             return CompletableFuture.completedFuture(StepInTargetsResponse().apply {
                 this.targets = targets.toTypedArray()
+            })
+        }
+
+        private fun addServerToContext(context: CommandContext<ServerCommandSource>): CommandContext<ServerCommandSource> =
+            context.copyFor(
+                ServerCommandSource(
+                    CommandOutput.DUMMY,
+                    context.source.position,
+                    context.source.rotation,
+                    context.source.world,
+                    debugFrame.pauseContext.server.functionPermissionLevel,
+                    context.source.name,
+                    context.source.displayName,
+                    debugFrame.pauseContext.server,
+                    context.source.entity,
+                )
+            )
+
+        private fun notifyClientOfEmptyDebugFrame() {
+            debugFrame.pauseContext.debugConnection!!.output(OutputEventArguments().apply {
+                category = OutputEventArgumentsCategory.IMPORTANT
+                output = "Frame is empty"
             })
         }
 
