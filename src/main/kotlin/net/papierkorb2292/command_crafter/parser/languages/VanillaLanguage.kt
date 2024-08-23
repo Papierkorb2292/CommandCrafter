@@ -152,7 +152,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     } catch(e: IllegalArgumentException) {
                         throw CursorAwareExceptionWrapper(e, startCursor)
                     }
-                    reader.endStatementAndAnalyze(result)
                     continue
                 }
                 //Let command start at cursor 0, so completions don't overlap with suggestRootNode
@@ -391,7 +390,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 source,
                 result
             )
-        } while(reader. endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
+        } while(reader.endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
         return reader.canRead() && reader.currentLanguage == this
     }
 
