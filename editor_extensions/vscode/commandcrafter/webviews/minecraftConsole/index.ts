@@ -159,8 +159,8 @@ addEventListener("load", () => {
             log.scrollTop = log.scrollHeight;
         }
 
-        if(targetChannel.children.length > 256) {
-            targetChannel.removeChild(targetChannel.firstElementChild!);
+        while(targetChannel.children.length > 256) {
+            targetChannel.removeChild(targetChannel.firstChild!);
         }
     }
 });
