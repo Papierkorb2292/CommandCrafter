@@ -314,10 +314,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         return CompletableFuture.allOf(*replacements.toTypedArray()).thenApply {
             val newDocumentation = StringBuilder(documentation)
             for(replacement in replacements) {
-                val (range, replacement) = replacement.get()
-                if(replacement == null) continue
+                val (range, replacementContent) = replacement.get()
+                if(replacementContent == null) continue
                 val offset = newDocumentation.length - documentation.length
-                newDocumentation.replace(range.start + offset, range.end + offset, replacement)
+                newDocumentation.replace(range.start + offset, range.end + offset, replacementContent)
             }
             newDocumentation.toString()
         }
