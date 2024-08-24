@@ -8,7 +8,15 @@ import kotlin.io.path.notExists
 import kotlin.io.path.reader
 import kotlin.io.path.writer
 
-class CommandCrafterConfig private constructor(var servicesPort: Int, val configPath: Path) {
+class CommandCrafterConfig private constructor(
+    servicesPort: Int,
+    val configPath: Path
+) {
+    var servicesPort = servicesPort
+        set(value) {
+            field = value
+            servicesPortChangedListeners.forEach { it(value) }
+        }
 
     private val servicesPortChangedListeners = mutableListOf<(Int) -> Unit>()
 
