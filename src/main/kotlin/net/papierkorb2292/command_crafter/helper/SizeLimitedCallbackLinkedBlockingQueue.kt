@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.helper
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
-class CallbackLinkedBlockingQueue<T : Any> : LinkedBlockingQueue<T>() {
+class SizeLimitedCallbackLinkedBlockingQueue<T : Any>(val sizeLimit: Int = 256) : LinkedBlockingQueue<T>() {
     private val callbacks: MutableList<Callback<T>> = mutableListOf()
 
     fun addCallback(callback: Callback<T>) {
@@ -16,12 +16,14 @@ class CallbackLinkedBlockingQueue<T : Any> : LinkedBlockingQueue<T>() {
     override fun put(e: T) {
         super.put(e)
         alertCallbacks(e)
+        reduceToSizeLimit()
     }
     
     override fun offer(e: T): Boolean {
         val successful = super.offer(e)
         if(successful) {
             alertCallbacks(e)
+            reduceToSizeLimit()
         }
         return successful
     }
@@ -30,6 +32,7 @@ class CallbackLinkedBlockingQueue<T : Any> : LinkedBlockingQueue<T>() {
         val successful = super.offer(e, timeout, unit)
         if(successful) {
             alertCallbacks(e)
+            reduceToSizeLimit()
         }
         return successful
     }
@@ -43,6 +46,12 @@ class CallbackLinkedBlockingQueue<T : Any> : LinkedBlockingQueue<T>() {
                 continue
             }
             callback.onElementAdded(e)
+        }
+    }
+
+    private fun reduceToSizeLimit() {
+        while(size > sizeLimit) {
+            poll()
         }
     }
 

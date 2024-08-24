@@ -54,7 +54,7 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
@@ -349,7 +349,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             packetSender: PacketSender,
             player: ServerPlayerEntity,
         ) {
-            PreLaunchLogListener.addLogListener(object : CallbackLinkedBlockingQueue.Callback<String> {
+            PreLaunchLogListener.addLogListener(object : SizeLimitedCallbackLinkedBlockingQueue.Callback<String> {
                 override fun onElementAdded(e: String) {
                     packetSender.sendPacket(LogMessageS2CPacket(e))
                 }
@@ -525,10 +525,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }
 
     class NetworkServerLog : Log {
-        val log = CallbackLinkedBlockingQueue<String>()
+        val log = SizeLimitedCallbackLinkedBlockingQueue<String>()
         override val name
             get() = SERVER_LOG_CHANNEL
-        override fun addMessageCallback(callback: CallbackLinkedBlockingQueue.Callback<String>) {
+        override fun addMessageCallback(callback: SizeLimitedCallbackLinkedBlockingQueue.Callback<String>) {
             log.addCallback(callback)
         }
     }

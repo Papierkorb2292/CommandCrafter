@@ -11,7 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
-import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
@@ -74,7 +74,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         if (console != null) {
             val serverChannel = console.name
             client.createChannel(Channel(serverChannel, commandExecutor != null))
-            console.addMessageCallback(object : CallbackLinkedBlockingQueue.Callback<String> {
+            console.addMessageCallback(object : SizeLimitedCallbackLinkedBlockingQueue.Callback<String> {
                 override fun onElementAdded(e: String) {
                     client.logMinecraftMessage(ConsoleMessage(serverChannel, e))
                 }
@@ -115,7 +115,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         val client = client ?: return
 
         client.createChannel(Channel(CLIENT_LOG_CHANNEL, false))
-        PreLaunchLogListener.addLogListener(object : CallbackLinkedBlockingQueue.Callback<String> {
+        PreLaunchLogListener.addLogListener(object : SizeLimitedCallbackLinkedBlockingQueue.Callback<String> {
             override fun onElementAdded(e: String) {
                 client.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, e))
             }

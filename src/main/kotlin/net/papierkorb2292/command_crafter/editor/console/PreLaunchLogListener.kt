@@ -4,7 +4,7 @@ import com.mojang.logging.LogQueues
 import com.mojang.logging.plugins.QueueLogAppender
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
 import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.helper.CallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.Appender
@@ -22,7 +22,7 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
     private const val EDITOR_LOG_QUEUE = "CommandCrafter"
     private const val VANILLA_SERVER_QUEUE = "ServerGuiConsole"
 
-    private var logQueue: CallbackLinkedBlockingQueue<String>? = null
+    private var logQueue: SizeLimitedCallbackLinkedBlockingQueue<String>? = null
 
     override fun onPreLaunch() {
         val logQueuesProperties = LogQueues::class.staticProperties
@@ -49,7 +49,7 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
 
     private fun startSavingLog(queueLock: ReentrantReadWriteLock, queues: MutableMap<String, BlockingQueue<String>>) {
         queueLock.readLock().lock()
-        val logQueue = CallbackLinkedBlockingQueue<String>()
+        val logQueue = SizeLimitedCallbackLinkedBlockingQueue<String>()
         this.logQueue = logQueue
         queues[EDITOR_LOG_QUEUE] = logQueue
         queueLock.readLock().unlock()
@@ -72,7 +72,7 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         queues[VANILLA_SERVER_QUEUE]?.forEach { logQueue.offer(it) }
     }
 
-    fun addLogListener(logListener: CallbackLinkedBlockingQueue.Callback<String>) {
+    fun addLogListener(logListener: SizeLimitedCallbackLinkedBlockingQueue.Callback<String>) {
         logQueue?.addCallback(logListener)
     }
 }
