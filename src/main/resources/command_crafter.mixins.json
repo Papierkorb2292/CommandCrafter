@@ -106,6 +106,7 @@
     "editor.processing.TextArgumentTypeMixin",
     "parser.ArgumentCommandNodeMixin",
     "parser.CommandDispatcherMixin",
+    "parser.CommandNodeAccessor",
     "parser.CommandNodeMixin",
     "parser.CommandSourceMixin",
     "parser.CommandSyntaxExceptionMixin",

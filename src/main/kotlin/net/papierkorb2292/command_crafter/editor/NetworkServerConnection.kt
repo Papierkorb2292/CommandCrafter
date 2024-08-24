@@ -435,7 +435,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }
 
     private val commandDispatcherFactory: (DynamicRegistryManager) -> CommandDispatcher<CommandSource> = { registryManager: DynamicRegistryManager ->
-        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures)))
+        val root = initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures))
+        CommandCrafter.removeLiteralsStartingWithForwardsSlash(root)
+        CommandDispatcher(root)
     }.memoizeLast()
 
     override val dynamicRegistryManager: DynamicRegistryManager

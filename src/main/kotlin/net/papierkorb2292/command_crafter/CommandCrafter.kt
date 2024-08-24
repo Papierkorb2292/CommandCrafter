@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.tree.CommandNode
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
@@ -63,6 +64,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -215,5 +217,17 @@ object CommandCrafter: ModInitializer {
                 RegistryLoader.DYNAMIC_REGISTRIES
             )
         )
+    }
+
+    fun <S> removeLiteralsStartingWithForwardsSlash(node: CommandNode<S>) {
+        val literals = (node as CommandNodeAccessor).literals
+        val children = (node as CommandNodeAccessor).children
+        val literalsIt = literals.keys.iterator()
+        while(literalsIt.hasNext()) {
+            val key = literalsIt.next()
+            if(!key.startsWith('/')) continue
+            literalsIt.remove()
+            children.remove(key)
+        }
     }
 }

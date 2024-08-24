@@ -98,25 +98,25 @@ object ClientCommandCrafter : ClientModInitializer {
 
         val registryWrapperLookup = BuiltinRegistries.createWrapperLookup()
         fun setDefaultServerConnection() {
+            val rootNode = limitCommandTreeForSource(
+                CommandManager(
+                    CommandManager.RegistrationEnvironment.ALL,
+                    CommandManager.createRegistryAccess(registryWrapperLookup)
+                ), ServerCommandSource(
+                    CommandOutput.DUMMY,
+                    Vec3d.ZERO,
+                    Vec2f.ZERO,
+                    null,
+                    2,
+                    "",
+                    ScreenTexts.EMPTY,
+                    null,
+                    null
+                )
+            )
+            CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
-                CommandDispatcher(
-                    limitCommandTreeForSource(
-                        CommandManager(
-                            CommandManager.RegistrationEnvironment.ALL,
-                            CommandManager.createRegistryAccess(registryWrapperLookup)
-                        ), ServerCommandSource(
-                            CommandOutput.DUMMY,
-                            Vec3d.ZERO,
-                            Vec2f.ZERO,
-                            null,
-                            2,
-                            "",
-                            ScreenTexts.EMPTY,
-                            null,
-                            null
-                        )
-                    )
-                ),
+                CommandDispatcher(rootNode),
                 2
             )
         }
