@@ -10,7 +10,7 @@ public class ScoreHolderArgumentTypeMixin {
 
     @SuppressWarnings("unused")
     @ModifyExpressionValue(
-            method = "parse",
+            method = "parse(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/command/argument/ScoreHolderArgumentType$ScoreHolders;",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;peek()C",

@@ -37,7 +37,7 @@ public class EntityArgumentTypeMixin implements StringifiableArgumentType {
         }
         List<Either<String, RawResource>> result = new ArrayList<>();
         result.add(Either.left(reader.getString().substring(sectionStartCursor, reader.getCursor())));
-        var selectorReader = new EntitySelectorReader(reader);
+        var selectorReader = new EntitySelectorReader(reader, true);
         var isFirstArgument = true;
         while(reader.canRead() && reader.peek() != ']') {
             reader.skipWhitespace();

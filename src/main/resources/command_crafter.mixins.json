@@ -142,7 +142,7 @@
     "parser.vanilla_improved.ItemStackArgumentTypeMixin",
     "parser.vanilla_improved.JsonReaderAccessor",
     "parser.vanilla_improved.JsonReaderUtilsMixin",
-    "parser.vanilla_improved.MessageArgumentTypeMixin",
+    "parser.vanilla_improved.MessageArgumentTypeMessageFormatMixin",
     "parser.vanilla_improved.NbtCompoundArgumentTypeMixin",
     "parser.vanilla_improved.NbtElementArgumentTypeMixin",
     "parser.vanilla_improved.NbtParsingRuleMixin",

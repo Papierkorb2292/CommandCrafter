@@ -21,7 +21,7 @@ public class EntityArgumentTypeMixin implements AnalyzingCommandNode {
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
-        var selectorReader = new EntitySelectorReader(readerCopy);
+        var selectorReader = new EntitySelectorReader(readerCopy, true);
         ((AnalyzingResultDataContainer)selectorReader).command_crafter$setAnalyzingResult(result);
         selectorReader.read();
     }
