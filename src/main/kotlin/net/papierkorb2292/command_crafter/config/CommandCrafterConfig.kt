@@ -67,6 +67,7 @@ class CommandCrafterConfig private constructor(
 
     fun saveToFile() {
         try {
+            configPath.parent?.toFile()?.mkdirs()
             val writer = configPath.writer()
             writer.append("v${CommandCrafter.VERSION}\n")
             val properties = Properties()
