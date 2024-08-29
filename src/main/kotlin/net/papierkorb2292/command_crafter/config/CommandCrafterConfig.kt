@@ -1,5 +1,7 @@
 package net.papierkorb2292.command_crafter.config
 
+import net.fabricmc.api.EnvType
+import net.fabricmc.loader.api.FabricLoader
 import net.papierkorb2292.command_crafter.CommandCrafter
 import java.io.IOException
 import java.nio.file.Path
@@ -71,7 +73,10 @@ class CommandCrafterConfig private constructor(
             val writer = configPath.writer()
             writer.append("v${CommandCrafter.VERSION}\n")
             val properties = Properties()
-            properties.setProperty(SERVICES_PORT_NAME, servicesPort.toString())
+            if(FabricLoader.getInstance().environmentType == EnvType.CLIENT) {
+                // Services are currently only run on the client, so there's no need to save the port on the server
+                properties.setProperty(SERVICES_PORT_NAME, servicesPort.toString())
+            }
             properties.store(writer, "CommandCrafter Config")
         } catch(e: IOException) {
             CommandCrafter.LOGGER.error("Failed to save config file", e)
