@@ -256,7 +256,7 @@ class FunctionElementDebugInformation(
                 val currentSourceIndex = debugFrame.currentSectionSources.currentSourceIndex
                 targets += StepInTarget().also {
                     it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
-                        stepTargetSourceSection = nextSectionIndex
+                        stepTargetSourceSection = debugFrame.currentSectionIndex
                         stepTargetSourceIndex = currentSourceIndex
                         debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, nextSectionIndex)
                     })
