@@ -17,6 +17,7 @@ class CommandCrafterConfig private constructor(
     var servicesPort = servicesPort
         set(value) {
             field = value
+            saveToFile()
             servicesPortChangedListeners.forEach { it(value) }
         }
 
