@@ -303,7 +303,7 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
         if (command_crafter$stringRangeTreeBuilder != null) {
             var entryEnd = reader.getCursor();
             reader.skipWhitespace();
-            command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(command_crafter$preInstantiatedNbtArray.get(), new StringRange(entryEnd, reader.getCursor()));
+            command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(list, new StringRange(entryEnd, reader.getCursor()));
         }
         return list;
     }

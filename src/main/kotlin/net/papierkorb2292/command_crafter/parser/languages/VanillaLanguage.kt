@@ -516,7 +516,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         analyzingResult,
                         node.name
                     )
-                } catch(_: Exception) { }
+                } catch(e: Exception) {
+                    CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                }
                 if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
                         context,
                         node.name
