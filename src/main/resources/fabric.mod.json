@@ -2,8 +2,7 @@
   "schemaVersion": 1,
   "id": "command_crafter",
   "version": "${version}",
-
-  "name": "Command Crafter",
+  "name": "CommandCrafter",
   "description": "The CommandCrafter Minecraft mod aims to provide useful tools for command development",
   "authors": [
     "Papierkorb2292"
