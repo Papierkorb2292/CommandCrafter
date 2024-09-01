@@ -234,6 +234,20 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         suspendedServer = true
         val tickDelayMs = 50
         var lastTickMs = Util.getMeasuringTimeMs()
+
+        // Flushing might be disabled, which would cause timeouts
+        // (for example when the world is being ticked at the moment, which is
+        // the case if for example the commands are run by a command block)
+
+        val flushDisabledNetworkHandlers = server.playerManager.playerList.map {
+            it.networkHandler
+        }.filter {
+            (it as ServerCommonNetworkHandlerAccessor).flushDisabled
+        }
+
+        for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
+            flushDisabledNetworkHandler.enableFlush()
+
         while(isPaused) {
             val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMeasuringTimeMs()
             if(sleepDurationMs > 0)
@@ -246,6 +260,10 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             for(player in server.playerManager.playerList.toList())
                 (player.networkHandler as ServerCommonNetworkHandlerAccessor).callBaseTick()
         }
+
+        for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
+            flushDisabledNetworkHandler.disableFlush()
+
         suspendedServer = false
     }
 
