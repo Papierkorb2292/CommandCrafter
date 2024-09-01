@@ -34,6 +34,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
             analyzers += analyzer
         }
 
+        fun fillDiagnosticsSource(diagnostics: List<Diagnostic>) {
+            for(diagnostic in diagnostics) {
+                diagnostic.source = "CommandCrafter"
+            }
+        }
+
         const val CLIENT_LOG_CHANNEL = "client"
     }
 
@@ -215,7 +221,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
                     ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
-                return analyzer.thenApply { DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics)) }
+                return analyzer.thenApply {
+                    fillDiagnosticsSource(it.diagnostics)
+                    DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics))
+                }
             }
 
 
