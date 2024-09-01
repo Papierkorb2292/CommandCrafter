@@ -68,6 +68,7 @@ import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 import kotlin.collections.set
 
 class NetworkServerConnection private constructor(private val client: MinecraftClient, private val initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
@@ -75,13 +76,16 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         const val SERVER_LOG_CHANNEL = "server"
 
         private val asyncServerPacketHandlers = mutableMapOf<CustomPayload.Id<*>, AsyncPacketHandler<*, AsyncC2SPacketContext>>()
+        private val asyncServerPacketHandlerExecutor = Executors.newSingleThreadExecutor()
         fun <TPayload : CustomPayload> registerAsyncServerPacketHandler(id: CustomPayload.Id<TPayload>, handler: AsyncPacketHandler<TPayload, AsyncC2SPacketContext>) {
             asyncServerPacketHandlers[id] = handler
         }
         fun <TPayload: CustomPayload> callPacketHandler(packet: TPayload, context: AsyncC2SPacketContext): Boolean {
             val handler = asyncServerPacketHandlers[packet.id] ?: return false
-            @Suppress("UNCHECKED_CAST")
-            (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
+            asyncServerPacketHandlerExecutor.execute {
+                @Suppress("UNCHECKED_CAST")
+                (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
+            }
             return true
         }
 
