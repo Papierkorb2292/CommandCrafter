@@ -242,7 +242,8 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             // Prevent watchdog from killing the server due to a too long tick
             (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getMeasuringTimeNano())
             // Tick network handlers to keep connections alive
-            for(player in server.playerManager.playerList)
+            // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
+            for(player in server.playerManager.playerList.toList())
                 (player.networkHandler as ServerCommonNetworkHandlerAccessor).callBaseTick()
         }
         suspendedServer = false
