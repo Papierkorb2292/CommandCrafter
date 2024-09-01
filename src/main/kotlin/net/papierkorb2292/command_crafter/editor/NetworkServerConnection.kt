@@ -314,11 +314,12 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 val debugConnection = serverEditorDebugConnections[payload.debugConnectionId] ?: return@registerGlobalReceiver
                 debugConnection.lifecycle.configurationDoneEvent.complete(null)
             }
-            ServerPlayNetworking.registerGlobalReceiver(DebugConnectionRegistrationC2SPacket.ID) { payload, context->
-                if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
-                val debugConnection = ServerNetworkDebugConnection(context.player(), payload.debugConnectionId, payload.oneTimeDebugTarget, payload.nextSourceReference, payload.suspendServer)
+            // This is async, so it isn't delayed until the next server tick, which sometimes caused "setBreakpoints" to be run first, which created its own DebugConnection
+            registerAsyncServerPacketHandler(DebugConnectionRegistrationC2SPacket.ID) { payload, context->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+                val debugConnection = ServerNetworkDebugConnection(context.player, payload.debugConnectionId, payload.oneTimeDebugTarget, payload.nextSourceReference, payload.suspendServer)
                 serverEditorDebugConnections.putIfAbsent(payload.debugConnectionId, debugConnection)
-                debugConnection.setupOneTimeDebugTarget(context.player().server)
+                debugConnection.setupOneTimeDebugTarget(context.player.server)
             }
             ServerPlayNetworking.registerGlobalReceiver(ContextCompletionRequestC2SPacket.ID) { payload, context ->
                 if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
