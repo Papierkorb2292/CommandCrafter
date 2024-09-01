@@ -334,6 +334,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         debugPauseActions = null
         return CompletableFuture.completedFuture(null)
     }
+    override fun pause(args: PauseArguments?): CompletableFuture<Void> {
+        // Pause has no meaning for debugging Datapacks
+        return CompletableFuture.completedFuture(null)
+    }
 
     override fun stepInTargets(args: StepInTargetsArguments): CompletableFuture<StepInTargetsResponse> {
         return debugPauseActions?.stepInTargets(args.frameId) ?: CompletableFuture.completedFuture(StepInTargetsResponse())
