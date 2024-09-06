@@ -33,7 +33,7 @@ class FunctionDebugFrame(
     val unpauseCallback: () -> Unit,
     val sourceFileId: Identifier,
     val functionLines: List<String>
-) : PauseContext.DebugFrame {
+) : PauseContext.DebugFrame, CommandFeedbackConsumer {
     companion object {
         val commandResult = ThreadLocal<CommandResult?>()
         val sourceReferenceCursorMapper = mutableMapOf<Pair<EditorDebugConnection, Int>, ProcessedInputCursorMapper>()
@@ -63,6 +63,8 @@ class FunctionDebugFrame(
         procedure.entries().mapNotNull {
             (it as? SingleCommandActionAccessor<ServerCommandSource>)?.contextChain
         }
+
+    var commandFeedbackConsumer: CommandFeedbackConsumer? = null
 
     var currentCommandIndex = 0
 
@@ -293,4 +295,12 @@ class FunctionDebugFrame(
     }
 
     class CommandInfo(val commandIndex: Int, val breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>, val sectionOffset: Int)
+
+    override fun onCommandFeedback(feedback: String) {
+        commandFeedbackConsumer?.onCommandFeedback(feedback)
+    }
+
+    override fun onCommandError(error: String) {
+        commandFeedbackConsumer?.onCommandError(error)
+    }
 }

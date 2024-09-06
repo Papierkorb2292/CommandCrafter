@@ -32,7 +32,9 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
             fun updatePauseHandler(): DebugPauseHandler {
                 val newPauseHandler = delegatePauseHandlers[pauseHandlerSelector(debugFrame)]
                 if(newPauseHandler != currentPauseHandler) {
+                    currentPauseHandler?.onHandlerSectionExit()
                     currentPauseHandler = newPauseHandler
+                    newPauseHandler.onHandlerSectionEnter()
                 }
                 return newPauseHandler
             }
@@ -61,6 +63,14 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
 
             override fun onExitFrame() =
                 delegatePauseHandlers.forEach { it.onExitFrame() }
+
+            override fun onHandlerSectionEnter() {
+                updatePauseHandler().onHandlerSectionEnter()
+            }
+
+            override fun onHandlerSectionExit() {
+                updatePauseHandler().onHandlerSectionExit()
+            }
 
             override fun shouldStopOnCurrentContext() =
                 updatePauseHandler().shouldStopOnCurrentContext()

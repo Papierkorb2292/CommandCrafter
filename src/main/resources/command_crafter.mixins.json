@@ -37,6 +37,7 @@
     "editor.debugger.ReturnValueAdderAccessor",
     "editor.debugger.ReturnValueAdderMixin",
     "editor.debugger.ReturnValueFailCommandMixin",
+    "editor.debugger.ServerCommandSourceMixin",
     "editor.debugger.ServerCommonNetworkHandlerAccessor",
     "editor.debugger.SingleCommandActionAccessor",
     "editor.debugger.SingleCommandActionMixin",

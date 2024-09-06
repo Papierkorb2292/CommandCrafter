@@ -294,6 +294,8 @@ class RangeFunctionTagDebugInformation(
         }
 
         override fun onExitFrame() { }
+        override fun onHandlerSectionEnter() { }
+        override fun onHandlerSectionExit() { }
 
         override fun next(granularity: SteppingGranularity) {
             if(debugFrame.currentEntryIndex >= tagEntrySources.size) {

@@ -56,6 +56,7 @@ public class SingleCommandActionMixin<T extends AbstractServerCommandSource<T>> 
         //noinspection unchecked
         commandInfoRef.set(functionDebugFrame.getCommandInfo((CommandContext<ServerCommandSource>)contextChain.getTopContext()));
         debugFrameRef.set(functionDebugFrame);
+        functionDebugFrame.setCurrentCommandIndex(commandInfoRef.get().getCommandIndex());
     }
 
     @ModifyExpressionValue(

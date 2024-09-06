@@ -162,7 +162,14 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         }
 
         override fun output(args: OutputEventArguments) {
-            client?.output(args)
+            val client = client ?: return
+            if(args.source == null) {
+                client.output(args)
+                return
+            }
+            mapSourceToDatapack(args.source).thenAccept {
+                client.output(args)
+            }
         }
 
         override fun onSourceReferenceAdded() {

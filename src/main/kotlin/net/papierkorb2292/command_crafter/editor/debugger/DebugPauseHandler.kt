@@ -44,6 +44,8 @@ interface DebugPauseHandler : DebugPauseActions {
     fun getStackFrames(): List<MinecraftStackFrame>
 
     fun onExitFrame()
+    fun onHandlerSectionEnter()
+    fun onHandlerSectionExit()
 
     class SkipAllDummy(val setNextPauseCallback: () -> Unit) : DebugPauseHandler {
         override fun next(granularity: SteppingGranularity) {}
@@ -56,6 +58,8 @@ interface DebugPauseHandler : DebugPauseActions {
 
         override fun getStackFrames() = emptyList<MinecraftStackFrame>()
         override fun onExitFrame() { }
+        override fun onHandlerSectionEnter() { }
+        override fun onHandlerSectionExit() { }
 
         override fun shouldStopOnCurrentContext(): Boolean {
             setNextPauseCallback()

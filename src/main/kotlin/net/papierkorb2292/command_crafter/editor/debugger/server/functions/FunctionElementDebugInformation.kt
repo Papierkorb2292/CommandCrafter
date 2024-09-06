@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
@@ -344,55 +345,54 @@ class FunctionElementDebugInformation(
             return nextSectionIndex
         }
 
-        override fun getStackFrames(): List<MinecraftStackFrame> {
-            val sourceReference = debugFrame.currentSourceReference
-            val contextChain = debugFrame.currentContextChain
-            val lines = getLinesForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, sourceReference)
+        fun getContextRange(context: CommandContext<*>, contextChain: ContextChain<*>): Range {
+            val firstParsedNode = context.nodes.first()
+            val lastParsedNode = context.nodes.last()
+
+            val lines = getLinesForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, debugFrame.currentSourceReference)
             val sourceReferenceCursorMapper = debugFrame.currentSourceReferenceCursorMapper
 
-            fun getContextRange(context: CommandContext<*>): Range {
-                val firstParsedNode = context.nodes.first()
-                val lastParsedNode = context.nodes.last()
-
-                if((contextChain as IsMacroContainer).`command_crafter$getIsMacro`()) {
-                    val absoluteMacroStartCursor = reader.cursorMapper.mapToSource(
-                        (firstParsedNode as CursorOffsetContainer).getCursorOffset()
-                    ) + 1
-                    val sourceReferenceCursor = sourceReferenceCursorMapper?.mapToTarget(absoluteMacroStartCursor) ?: absoluteMacroStartCursor
-                    return Range(
-                        AnalyzingResult.getPositionFromCursor(
-                            sourceReferenceCursor + firstParsedNode.range.start,
-                            lines,
-                            false
-                        ),
-                        AnalyzingResult.getPositionFromCursor(
-                            sourceReferenceCursor + lastParsedNode.range.end,
-                            lines,
-                            false
-                        )
-                    )
-                }
-                val startAbsoluteCursor = reader.cursorMapper.mapToSource(
-                    firstParsedNode.range.start + (firstParsedNode as CursorOffsetContainer).getCursorOffset()
-                )
-                val endAbsoluteCursor = reader.cursorMapper.mapToSource(
-                    lastParsedNode.range.end + (lastParsedNode as CursorOffsetContainer).getCursorOffset()
-                )
-
+            if((contextChain as IsMacroContainer).`command_crafter$getIsMacro`()) {
+                val absoluteMacroStartCursor = reader.cursorMapper.mapToSource(
+                    (firstParsedNode as CursorOffsetContainer).getCursorOffset()
+                ) + 1
+                val sourceReferenceCursor = sourceReferenceCursorMapper?.mapToTarget(absoluteMacroStartCursor) ?: absoluteMacroStartCursor
                 return Range(
                     AnalyzingResult.getPositionFromCursor(
-                        sourceReferenceCursorMapper?.mapToTarget(startAbsoluteCursor) ?: startAbsoluteCursor,
+                        sourceReferenceCursor + firstParsedNode.range.start,
                         lines,
                         false
                     ),
                     AnalyzingResult.getPositionFromCursor(
-                        sourceReferenceCursorMapper?.mapToTarget(endAbsoluteCursor) ?: endAbsoluteCursor,
+                        sourceReferenceCursor + lastParsedNode.range.end,
                         lines,
                         false
                     )
                 )
             }
+            val startAbsoluteCursor = reader.cursorMapper.mapToSource(
+                firstParsedNode.range.start + (firstParsedNode as CursorOffsetContainer).getCursorOffset()
+            )
+            val endAbsoluteCursor = reader.cursorMapper.mapToSource(
+                lastParsedNode.range.end + (lastParsedNode as CursorOffsetContainer).getCursorOffset()
+            )
 
+            return Range(
+                AnalyzingResult.getPositionFromCursor(
+                    sourceReferenceCursorMapper?.mapToTarget(startAbsoluteCursor) ?: startAbsoluteCursor,
+                    lines,
+                    false
+                ),
+                AnalyzingResult.getPositionFromCursor(
+                    sourceReferenceCursorMapper?.mapToTarget(endAbsoluteCursor) ?: endAbsoluteCursor,
+                    lines,
+                    false
+                )
+            )
+        }
+
+        override fun getStackFrames(): List<MinecraftStackFrame> {
+            val contextChain = debugFrame.currentContextChain
 
             fun createServerCommandSourceScope(source: ServerCommandSource, setter: ((ServerCommandSource) -> Unit)? = null): Scope {
                 return ServerCommandSourceValueReference(debugFrame.pauseContext.variablesReferenceMapper, source, setter)
@@ -437,7 +437,7 @@ class FunctionElementDebugInformation(
                     }.createScope(COMMAND_RESULT_SCOPE_NAME)
                 } else null
                 val shownSourceIndex = if(!showsCommandResult) sourceIndex else sourceIndex - 1
-                val contextRange = getContextRange(context)
+                val contextRange = getContextRange(context, contextChain)
                 stackFrames.add(1, MinecraftStackFrame(
                     firstParsedNode?.node?.toString() ?: "<null>",
                     DebuggerVisualContext(
@@ -487,6 +487,41 @@ class FunctionElementDebugInformation(
         override fun onExitFrame() {
             debugFrame.pauseContext.removeOnContinueListener(onReloadBreakpoints)
             sourceReferenceDebugHandlers -= sourceReferences
+        }
+
+        override fun onHandlerSectionEnter() {
+            debugFrame.commandFeedbackConsumer = object : CommandFeedbackConsumer {
+                override fun onCommandFeedback(feedback: String) {
+                    debugFrame.pauseContext.debugConnection?.output(OutputEventArguments().apply {
+                        category = OutputEventArgumentsCategory.STDOUT
+                        output = feedback + "\n"
+                        addSourceToOutputEvent(this)
+                    })
+                }
+
+                override fun onCommandError(error: String) {
+                    debugFrame.pauseContext.debugConnection?.output(OutputEventArguments().apply {
+                        category = OutputEventArgumentsCategory.STDERR
+                        output = error + "\n"
+                        addSourceToOutputEvent(this)
+                    })
+                }
+            }
+        }
+
+        private fun addSourceToOutputEvent(output: OutputEventArguments) {
+            output.source = Source().apply {
+                name = FunctionDebugHandler.getSourceName(sourceFunctionFile.toString(), debugFrame.currentSourceReference)
+                path = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(PackagedId(sourceFunctionFile, "**"))
+                sourceReference = debugFrame.currentSourceReference
+            }
+            val filePos = getContextRange(debugFrame.currentContext, debugFrame.currentContextChain).start
+            output.line = filePos.line
+            output.column = filePos.character
+        }
+
+        override fun onHandlerSectionExit() {
+            debugFrame.commandFeedbackConsumer = null
         }
 
         override fun getReplacementData(path: String): FileContentReplacer.ReplacementDataProvider {
