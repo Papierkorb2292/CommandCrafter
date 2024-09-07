@@ -35,7 +35,6 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener
@@ -106,6 +105,8 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val receivedRegistries = mutableMapOf<RegistryKey<out Registry<*>>, List<SerializableRegistries.SerializedRegistryEntry>>()
         private var receivedRegistryManager: DynamicRegistryManager? = null
 
+        private val currentConnections = mutableListOf<NetworkServerConnection>()
+
         fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
             player.hasPermissionLevel(2)
 
@@ -129,6 +130,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     return@handler
                 }
                 val connection = NetworkServerConnection(context.client(), payload)
+                currentConnections += connection
                 currentRequest.second.complete(connection)
             }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
@@ -151,9 +153,8 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
             }
             ClientPlayNetworking.registerGlobalReceiver(LogMessageS2CPacket.ID) handler@{ payload, _ ->
-                val serverConnection = ClientCommandCrafter.editorConnectionManager.minecraftServerConnection
-                if(serverConnection is NetworkServerConnection) {
-                    serverConnection.serverLog?.run { log.add(payload.logMessage) }
+                for(connection in currentConnections) {
+                    connection.serverLog?.run { log.add(payload.logMessage) }
                 }
             }
             ClientPlayNetworking.registerGlobalReceiver(SetBreakpointsResponseS2CPacket.ID) { payload, _ ->
@@ -214,6 +215,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 clientEditorDebugConnections.clear()
+                currentConnections.clear()
             }
         }
 
