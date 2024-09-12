@@ -67,6 +67,15 @@
           "name": "Minecraft Console",
           "type": "webview"
         }
+      ],
+      "explorer": [
+        {
+          "id": "commandcrafter.scoreboard_storage_viewer",
+          "name": "Scoreboard/Storage Viewer",
+          "contextualTitle": "Scoreboard/Storage Viewer",
+          "type": "tree",
+          "icon": "resources/scoreboard-storage-icon.svg"
+        }
       ]
     },
     "configuration": {

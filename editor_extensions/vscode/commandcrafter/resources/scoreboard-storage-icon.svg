@@ -1,0 +1,18 @@
+<?xml version='1.0' encoding='ascii'?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="64" height="64">
+    <g id="ViewLayer_LineSet" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" inkscape:groupmode="lineset" inkscape:label="ViewLayer_LineSet">
+        <g xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" inkscape:groupmode="layer" id="strokes" inkscape:label="strokes">
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 34.088, 61.893 34.088, 51.893 34.088, 43.308 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 56.402, 33.456 47.254, 37.495 38.106, 41.534 34.088, 43.308 24.966, 39.211 15.843, 35.115 11.819, 33.308 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 20.542, 29.456 11.819, 33.308 11.819, 43.308 11.819, 51.893 20.941, 55.989 30.064, 60.085 34.088, 61.893 43.236, 57.854 52.384, 53.814 56.402, 52.040 56.402, 42.040 56.402, 33.456 47.280, 29.359 38.157, 25.263 34.232, 23.500 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 27.681, 20.188 22.787, 11.726 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 43.129, 16.160 50.007, 10.487 45.113, 2.025 35.941, 6.010 26.769, 9.995 22.787, 11.726 15.073, 18.089 7.359, 24.452 6.991, 24.755 11.886, 33.218 20.542, 29.456 29.713, 25.471 34.133, 23.551 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 11.886, 33.218 19.600, 26.854 27.314, 20.491 27.681, 20.188 36.853, 16.203 37.486, 15.928 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 40.310, 20.811 41.359, 19.946 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 44.524, 18.571 41.359, 19.946 40.448, 18.372 36.977, 12.369 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 36.977, 12.369 35.928, 13.234 37.486, 15.928 39.399, 19.237 40.310, 20.811 43.475, 19.436 44.524, 18.571 43.129, 16.160 41.889, 14.015 40.141, 10.994 36.977, 12.369 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 34.232, 23.500 39.399, 19.237 " />
+            <path fill="none" stroke-width="3.0" stroke-linecap="butt" stroke-opacity="1.0" stroke="rgb(0, 0, 0)" stroke-linejoin="round" d=" M 41.889, 14.015 50.007, 10.487 " />
+        </g>
+    </g>
+</svg>

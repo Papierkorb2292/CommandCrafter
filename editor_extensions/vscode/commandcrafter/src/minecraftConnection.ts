@@ -9,6 +9,7 @@ import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
 import { LanguageClientRunner, checkUpdateMinecraftAddress, findFiles } from './extension';
 import { DebugClient } from './debugClient';
+import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
 
 export interface MinecraftConnectionType extends Disposable {
 
@@ -67,6 +68,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
     constructor(private connectionType: MinecraftConnectionType | null, context: vscode.ExtensionContext) {
         const minecraftConsole = new MinecraftConsole(context, "commandcrafter.console", this);
         this.connectionFeatures.push(minecraftConsole);
+        this.connectionFeatures.push(new ScoreboardStorageViewer(context, "commandcrafter.scoreboard_storage_viewer"))
         this.connectionFeatures.push(new DebugClient(context, "commandcrafter", minecraftConsole, this))
         context.subscriptions.push(this);
         context.subscriptions.push(
