@@ -170,7 +170,7 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
     
     watch(uri: vscode.Uri, options: { readonly recursive: boolean; readonly excludes: readonly string[]; }): vscode.Disposable {
         const watcherId = this.nextWatcherId++
-        this.makeNotification("scoreboardStorageFileSystem/watch", { uri: uri.toString(), options, watcherId }, uri)
+        this.makeNotification("scoreboardStorageFileSystem/watch", { uri: uri.toString(), ...options, watcherId }, uri)
         return new vscode.Disposable(() => {
             this.makeNotification("scoreboardStorageFileSystem/removeWatch", { uri: uri.toString(), watcherId }, uri)
         })
