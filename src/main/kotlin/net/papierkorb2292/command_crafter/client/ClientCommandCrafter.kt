@@ -19,6 +19,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmitti
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ReadDirectoryResultEntry
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
@@ -55,6 +56,9 @@ object ClientCommandCrafter : ClientModInitializer {
                         .setExecutorService(executorService)
                         .setExceptionHandler {
                             handleEditorServiceException("languageServer", it)
+                        }
+                        .configureGson {
+                            it.registerTypeAdapter(ReadDirectoryResultEntry::class.java, ReadDirectoryResultEntry.TypeAdapter)
                         }
                         .create();
                     val launched = launcher.startListening()
