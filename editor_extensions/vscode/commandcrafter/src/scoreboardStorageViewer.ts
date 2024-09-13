@@ -170,49 +170,47 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
     
     watch(uri: vscode.Uri, options: { readonly recursive: boolean; readonly excludes: readonly string[]; }): vscode.Disposable {
         const watcherId = this.nextWatcherId++
-        this.makeNotification("scoreboardStorageFileSystem/watch", { uri: uri.toString(), options, watcherId })
+        this.makeNotification("scoreboardStorageFileSystem/watch", { uri: uri.toString(), options, watcherId }, uri)
         return new vscode.Disposable(() => {
-            this.makeNotification("scoreboardStorageFileSystem/removeWatch", { uri: uri.toString(), watcherId })
+            this.makeNotification("scoreboardStorageFileSystem/removeWatch", { uri: uri.toString(), watcherId }, uri)
         })
     }
     stat(uri: vscode.Uri): vscode.FileStat | Thenable<vscode.FileStat> {
-        return this.makeRequest("scoreboardStorageFileSystem/stat", { uri: uri.toString() })
+        return this.makeRequest("scoreboardStorageFileSystem/stat", { uri: uri.toString() }, uri)
     }
     readDirectory(uri: vscode.Uri): [string, vscode.FileType][] | Thenable<[string, vscode.FileType][]> {
-        return this.makeRequest("scoreboardStorageFileSystem/readDirectory", { uri: uri.toString() })
+        return this.makeRequest("scoreboardStorageFileSystem/readDirectory", { uri: uri.toString() }, uri)
     }
     createDirectory(uri: vscode.Uri): void | Thenable<void> {
-        return this.makeNotification("scoreboardStorageFileSystem/createDirectory", { uri: uri.toString() })
+        return this.makeNotification("scoreboardStorageFileSystem/createDirectory", { uri: uri.toString() }, uri)
     }
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
-        return this.makeRequest<{ contentBase64: string}>("scoreboardStorageFileSystem/readFile", { uri: uri.toString() })
+        return this.makeRequest<{ contentBase64: string}>("scoreboardStorageFileSystem/readFile", { uri: uri.toString() }, uri)
             .then(({ contentBase64 }) => Buffer.from(contentBase64, "base64"))
     }
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
-        return this.makeNotification("scoreboardStorageFileSystem/writeFile", { uri: uri.toString(), content: Buffer.from(content).toString("base64"), options })
+        return this.makeNotification("scoreboardStorageFileSystem/writeFile", { uri: uri.toString(), content: Buffer.from(content).toString("base64"), options }, uri)
     }
     delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> { }
     rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> { }
 
-    private makeRequest<T>(request: string, args: any): Promise<T> {
-        return this.scoreboardStorageViewer.languageClient
-            ?.sendRequest(request, args)
-            ?? Promise.reject(new DynamicDataFileSystemRequestError(
-                `Error sending request '${request}' to scoreboard/storage file system `, request)
-            )
+    private makeRequest<T>(request: string, args: any, errorMsg: vscode.Uri | string): Promise<T> {
+        var promise = this.scoreboardStorageViewer.languageClient
+            ?.sendRequest<T>(request, args)
+        if(!promise)
+            throw vscode.FileSystemError.FileNotFound(errorMsg)
+        return promise.catch(_ => {
+            throw vscode.FileSystemError.FileNotFound(errorMsg)
+        })
     }
 
-    private makeNotification(notification: string, args: any): Promise<void> {
-        return this.scoreboardStorageViewer.languageClient
+    private makeNotification(notification: string, args: any, errorMsg: vscode.Uri | string): Promise<void> {
+        var promise = this.scoreboardStorageViewer.languageClient
             ?.sendNotification(notification, args)
-            ?? Promise.reject(new DynamicDataFileSystemRequestError(
-                `Error sending notification '${notification}' to scoreboard/storage file system `, notification)
-            )
-    }
-}
-
-class DynamicDataFileSystemRequestError extends Error {
-    constructor(message: string, public readonly request: string) {
-        super(message)
+        if(!promise)
+            throw vscode.FileSystemError.FileNotFound(errorMsg)
+        return promise.catch(_ => {
+            throw vscode.FileSystemError.FileNotFound(errorMsg)
+        })
     }
 }
