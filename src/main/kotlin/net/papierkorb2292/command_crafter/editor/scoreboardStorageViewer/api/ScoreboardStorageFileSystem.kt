@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.jsonrpc.services.JsonSegment
@@ -15,23 +16,26 @@ interface ScoreboardStorageFileSystem {
     fun removeWatch(params: FileSystemRemoveWatchParams)
 
     @JsonRequest
-    fun stat(params: UriParams): CompletableFuture<FileStat>
+    fun stat(params: UriParams): CompletableFuture<FileSystemResult<FileStat>>
 
     @JsonRequest
-    fun readDirectory(params: UriParams): CompletableFuture<Array<ReadDirectoryResultEntry>>
-
-    @JsonNotification
-    fun createDirectory(params: UriParams)
+    fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>>
 
     @JsonRequest
-    fun readFile(params: UriParams): CompletableFuture<ReadFileResult>
+    fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void>>
 
-    @JsonNotification
-    fun writeFile(params: WriteFileParams)
+    @JsonRequest
+    fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>>
 
-    @JsonNotification
-    fun delete(params: DeleteParams)
+    @JsonRequest
+    fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void>>
 
-    @JsonNotification
-    fun rename(params: RenameParams)
+    @JsonRequest
+    fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void>>
+
+    @JsonRequest
+    fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void>>
 }
+
+class FileNotFoundError(val fileNotFoundErrorMessage: String)
+typealias FileSystemResult<TReturnType> = Either<FileNotFoundError, TReturnType>

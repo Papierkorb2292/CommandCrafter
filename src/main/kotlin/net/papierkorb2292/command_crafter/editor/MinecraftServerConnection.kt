@@ -7,6 +7,7 @@ import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 
 interface MinecraftServerConnection {
     val commandDispatcher: CommandDispatcher<CommandSource>
@@ -16,4 +17,5 @@ interface MinecraftServerConnection {
     val debugService: ServerDebugConnectionService?
     val contextCompletionProvider: ContextCompletionProvider?
     val dynamicRegistryManager: DynamicRegistryManager
+    val scoreboardStorageFileSystem: ScoreboardStorageFileSystem?
 }

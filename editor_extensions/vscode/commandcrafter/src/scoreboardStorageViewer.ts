@@ -182,29 +182,34 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
         return this.makeRequest("scoreboardStorageFileSystem/readDirectory", { uri: uri.toString() }, uri)
     }
     createDirectory(uri: vscode.Uri): void | Thenable<void> {
-        return this.makeNotification("scoreboardStorageFileSystem/createDirectory", { uri: uri.toString() }, uri)
+        return this.makeRequest("scoreboardStorageFileSystem/createDirectory", { uri: uri.toString() }, uri)
     }
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
         return this.makeRequest<{ contentBase64: string}>("scoreboardStorageFileSystem/readFile", { uri: uri.toString() }, uri)
             .then(({ contentBase64 }) => Buffer.from(contentBase64, "base64"))
     }
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
-        return this.makeNotification("scoreboardStorageFileSystem/writeFile", { uri: uri.toString(), contentBase64: Buffer.from(content).toString("base64"), ...options }, uri)
+        return this.makeRequest("scoreboardStorageFileSystem/writeFile", { uri: uri.toString(), contentBase64: Buffer.from(content).toString("base64"), ...options }, uri)
     }
     delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> {
-        return this.makeNotification("scoreboardStorageFileSystem/delete", { uri: uri.toString(), ...options }, uri)
+        return this.makeRequest("scoreboardStorageFileSystem/delete", { uri: uri.toString(), ...options }, uri)
     }
     rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
-        return this.makeNotification("scoreboardStorageFileSystem/rename", { uldUri: oldUri.toString(), newUri: newUri.toString(), ...options }, oldUri)
+        return this.makeRequest("scoreboardStorageFileSystem/rename", { uldUri: oldUri.toString(), newUri: newUri.toString(), ...options }, oldUri)
     }
 
     private makeRequest<T>(request: string, args: any, errorMsg: vscode.Uri | string): Promise<T> {
         var promise = this.scoreboardStorageViewer.languageClient
-            ?.sendRequest<T>(request, args)
+            ?.sendRequest<T | { fileNotFoundErrorMessage: string }>(request, args)
         if(!promise)
             throw vscode.FileSystemError.FileNotFound(errorMsg)
         return promise.catch(_ => {
             throw vscode.FileSystemError.FileNotFound(errorMsg)
+        }).then(result => {
+            if(result && typeof result === 'object' && 'fileNotFoundErrorMessage' in result) {
+                throw vscode.FileSystemError.FileNotFound(result.fileNotFoundErrorMessage)
+            }
+            return result
         })
     }
 

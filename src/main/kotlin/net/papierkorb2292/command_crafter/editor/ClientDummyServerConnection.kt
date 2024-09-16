@@ -8,6 +8,7 @@ import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 
 class ClientDummyServerConnection(
     override val commandDispatcher: CommandDispatcher<CommandSource>,
@@ -16,7 +17,8 @@ class ClientDummyServerConnection(
     override val commandExecutor: CommandExecutor? = null,
     override val debugService: ServerDebugConnectionService? = null,
     override val contextCompletionProvider: ContextCompletionProvider? = null,
-    val dynamicRegistryManagerGetter: () -> DynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager }
+    val dynamicRegistryManagerGetter: () -> DynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager },
+    override val scoreboardStorageFileSystem: ScoreboardStorageFileSystem? = null
 ) : MinecraftServerConnection {
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = dynamicRegistryManagerGetter()
