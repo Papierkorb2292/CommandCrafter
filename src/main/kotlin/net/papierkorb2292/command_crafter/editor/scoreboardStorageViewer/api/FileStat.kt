@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
-import java.io.FilePermission
 
 class FileStat(
     /**
