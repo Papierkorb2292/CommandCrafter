@@ -11,6 +11,8 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import org.eclipse.lsp4j.*
@@ -251,6 +253,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 }
             }
         }
+    }
+
+    fun getScoreboardStorageFileSystem() = object : ScoreboardStorageFileSystem {
+
     }
 
     override fun getWorkspaceService(): WorkspaceService {

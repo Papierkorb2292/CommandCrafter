@@ -1,5 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
+import io.netty.buffer.ByteBuf
+import net.minecraft.network.codec.PacketCodec
+import net.minecraft.network.codec.PacketCodecs
+import net.papierkorb2292.command_crafter.networking.nullable
 
 class FileStat(
     /**
@@ -35,4 +39,20 @@ class FileStat(
      * *Note:* This value might be a bitmask, e.g. `FilePermission.Readonly | FilePermission.Other`.
      */
     var permissions: FilePermission? = null
-)
+) {
+    companion object {
+        val PACKET_CODEC: PacketCodec<ByteBuf, FileStat> = PacketCodec.tuple(
+            FileType.PACKET_CODEC,
+            FileStat::type,
+            PacketCodecs.INTEGER,
+            FileStat::ctime,
+            PacketCodecs.INTEGER,
+            FileStat::mtime,
+            PacketCodecs.INTEGER,
+            FileStat::size,
+            FilePermission.PACKET_CODEC.nullable(),
+            FileStat::permissions,
+            ::FileStat
+        )
+    }
+}
