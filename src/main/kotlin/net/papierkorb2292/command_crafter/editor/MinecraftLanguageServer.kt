@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAcce
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
 import org.eclipse.lsp4j.jsonrpc.messages.Either
+import org.eclipse.lsp4j.jsonrpc.services.JsonDelegate
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
@@ -255,8 +256,52 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         }
     }
 
+    @JsonDelegate
     fun getScoreboardStorageFileSystem() = object : ScoreboardStorageFileSystem {
+        private val NO_SERVER_SUPPORT_ERROR: FileSystemResult<Nothing> = Either.forLeft(FileNotFoundError("Server does not support scoreboard storage file system"))
 
+        override fun watch(params: FileSystemWatchParams) {
+            minecraftServer.scoreboardStorageFileSystem?.watch(params)
+        }
+
+        override fun removeWatch(params: FileSystemRemoveWatchParams) {
+            minecraftServer.scoreboardStorageFileSystem?.removeWatch(params)
+        }
+
+        override fun stat(params: UriParams): CompletableFuture<FileSystemResult<FileStat>> {
+            return minecraftServer.scoreboardStorageFileSystem?.stat(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        override fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>> {
+            return minecraftServer.scoreboardStorageFileSystem?.readDirectory(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void>> {
+            return minecraftServer.scoreboardStorageFileSystem?.createDirectory(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {
+            return minecraftServer.scoreboardStorageFileSystem?.readFile(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void>> {
+            return minecraftServer.scoreboardStorageFileSystem?.writeFile(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void>> {
+            return minecraftServer.scoreboardStorageFileSystem?.delete(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void>> {
+            return minecraftServer.scoreboardStorageFileSystem?.rename(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
     }
 
     override fun getWorkspaceService(): WorkspaceService {

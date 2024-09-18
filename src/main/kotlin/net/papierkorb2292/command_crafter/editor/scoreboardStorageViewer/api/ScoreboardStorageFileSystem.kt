@@ -38,4 +38,4 @@ interface ScoreboardStorageFileSystem {
 }
 
 class FileNotFoundError(val fileNotFoundErrorMessage: String)
-typealias FileSystemResult<TReturnType> = Either<FileNotFoundError, TReturnType>
+typealias FileSystemResult<TReturnType> = Either<FileNotFoundError, out TReturnType>
