@@ -278,7 +278,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void>> {
+        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>> {
             return minecraftServer.scoreboardStorageFileSystem?.createDirectory(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
@@ -288,17 +288,17 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void>> {
+        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>> {
             return minecraftServer.scoreboardStorageFileSystem?.writeFile(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void>> {
+        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>> {
             return minecraftServer.scoreboardStorageFileSystem?.delete(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void>> {
+        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>> {
             return minecraftServer.scoreboardStorageFileSystem?.rename(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
