@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
+import org.eclipse.lsp4j.FileEvent
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
@@ -8,6 +9,8 @@ import java.util.concurrent.CompletableFuture
 
 @JsonSegment("scoreboardStorageFileSystem")
 interface ScoreboardStorageFileSystem {
+
+    fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit)
 
     @JsonNotification
     fun watch(params: FileSystemWatchParams)

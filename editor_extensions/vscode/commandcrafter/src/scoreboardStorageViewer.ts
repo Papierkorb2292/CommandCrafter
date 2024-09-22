@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { FileChangeType, LanguageClient } from 'vscode-languageclient/node';
 import { assert } from 'console';
 
 function hasNbtEditor() {
@@ -166,7 +166,11 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
 
     private nextWatcherId = 0;
 
-    constructor(private readonly scoreboardStorageViewer: ScoreboardStorageViewer) { }
+    constructor(private readonly scoreboardStorageViewer: ScoreboardStorageViewer) {
+        scoreboardStorageViewer.languageClient?.onNotification("scoreboardStorageFileSystem/obDidChangeFile", (args: { uri: string, type: FileChangeType }) => {
+            this.onDidChangeFileEmitter.fire([{ type: args.type, uri: vscode.Uri.parse(args.uri) }])
+        })
+    }
     
     watch(uri: vscode.Uri, options: { readonly recursive: boolean; readonly excludes: readonly string[]; }): vscode.Disposable {
         const watcherId = this.nextWatcherId++
