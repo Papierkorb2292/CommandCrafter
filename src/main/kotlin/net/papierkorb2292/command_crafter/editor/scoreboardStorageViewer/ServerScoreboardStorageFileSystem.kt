@@ -32,6 +32,8 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
     private var onDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
 
+    private val queuedFileUpdates = mutableListOf<FileEvent>()
+
     override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
         onDidChangeFileCallback = callback
     }
@@ -225,13 +227,19 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         return content
     }
 
-    private fun onFileUpdate(directory: Directory, fileName: String, updateType: FileChangeType) {
-        val callback = onDidChangeFileCallback ?: return
+    fun onFileUpdate(directory: Directory, fileName: String, updateType: FileChangeType) {
         val fileUri = "scoreboardStorage:///${directory.toFolderName()}/$fileName"
         for(watch in watches.values) {
             if(watch.matches(fileUri))
-                callback.invoke(arrayOf(FileEvent(fileUri, updateType)))
+                queuedFileUpdates += FileEvent(fileUri, updateType)
         }
+    }
+
+    fun flushQueuedFileUpdates() {
+        if(queuedFileUpdates.isEmpty())
+            return
+        onDidChangeFileCallback?.invoke(queuedFileUpdates.toTypedArray())
+        queuedFileUpdates.clear()
     }
 
     enum class Directory {
