@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import java.net.URLDecoder
+import java.util.regex.Pattern
 
 /**
  * This class represents URIs send by the editor.
@@ -80,5 +81,18 @@ class EditorURI private constructor(
                     else path
                 else -> path
             }
+    }
+
+    fun toPatternMatch(): String {
+        val segments = path.split("/")
+        val pathRegex = segments.joinToString("/") { segment ->
+            if(segment == "**")
+                return@joinToString ".+"
+            val literalParts = segment.split("*")
+            literalParts.joinToString("[^/]+") { Pattern.quote(it) }
+        }
+        val scheme = Pattern.quote(scheme)
+        val authority = Pattern.quote(authority)
+        return "$scheme://$authority/$pathRegex"
     }
 }
