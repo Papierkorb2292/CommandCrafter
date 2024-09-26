@@ -52,36 +52,4 @@ public class ExecuteIfUnlessRedirectorMixin implements PotentialDebugFrameInitia
             return true;
         }
     }
-
-    @Inject(
-            method = "method_54269",
-            at = @At("HEAD")
-    )
-    private static void command_crafter$initiateTagDebugFrame(CommandContext<ServerCommandSource> context, CallbackInfoReturnable<Collection<CommandFunction<ServerCommandSource>>> cir) {
-        var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
-        if(pauseContext != null)
-            FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag(context,
-                    "name",
-                    pauseContext,
-                    null,
-                    new CommandExecutionContextContinueCallback(CommandManagerAccessor.getCURRENT_CONTEXT().get())
-            );
-    }
-
-    @Inject(
-            method = "execute(Lnet/minecraft/server/command/ServerCommandSource;Ljava/util/List;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
-            at = @At("RETURN")
-    )
-    private void command_crafter$enqueueExitTagDebugFrame(ServerCommandSource serverCommandSource, List<ServerCommandSource> list, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, CallbackInfo ci) {
-        var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
-        if(pauseContext == null || !(pauseContext.peekDebugFrame() instanceof FunctionTagDebugFrame)) return;
-        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
-        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
-        executionControl.enqueueAction(new ExitDebugFrameCommandAction(
-                pauseContext.getDebugFrameDepth() - 1,
-                FunctionDebugFrame.Companion.getCommandResult(),
-                !executionFlags.isInsideReturnRun(),
-                null
-        ));
-    }
 }
