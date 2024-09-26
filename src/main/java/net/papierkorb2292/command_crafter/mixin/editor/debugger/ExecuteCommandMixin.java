@@ -99,7 +99,7 @@ public abstract class ExecuteCommandMixin {
 
             //noinspection unchecked
             var isTag = FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag((
-                    CommandContext<ServerCommandSource>) contextChain.getTopContext(),
+                    CommandContext<ServerCommandSource>) contextChain.getTopContext().copyFor(source),
                     "name",
                     debugFrame.getPauseContext(),
                     null,
