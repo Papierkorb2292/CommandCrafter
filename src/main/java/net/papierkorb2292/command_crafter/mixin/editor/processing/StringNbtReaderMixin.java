@@ -27,7 +27,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 
 @Mixin(StringNbtReader.class)
 public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> {
@@ -72,6 +71,12 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             element = NbtIntAccessor.callInit(nbtInt.intValue());
         } else if(element instanceof NbtShort nbtShort) {
             element = NbtShortAccessor.callInit(nbtShort.shortValue());
+        } else if(element instanceof NbtFloat nbtFloat) {
+            element = NbtFloatAccessor.callInit(nbtFloat.floatValue());
+        } else if(element instanceof NbtDouble nbtDouble) {
+            element = NbtDoubleAccessor.callInit(nbtDouble.doubleValue());
+        } else if(element instanceof NbtString nbtString && nbtString.asString().isEmpty()) {
+            element = NbtStringAccessor.callInit("");
         }
 
         command_crafter$stringRangeTreeBuilder.addNode(element, new StringRange(startCursor, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
