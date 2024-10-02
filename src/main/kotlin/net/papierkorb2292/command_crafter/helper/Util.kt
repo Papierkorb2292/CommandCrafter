@@ -65,6 +65,8 @@ fun <P, R> ((P) -> R).memoizeLast() = object : (P) -> R {
         @Suppress("UNCHECKED_CAST")
         return lastResult as R
     }
+
+    override fun toString() = "MemoizeLastFun(delegate=${this@memoizeLast}, initialized=$initialized, lastParam=$lastParam, lastResult=$lastResult)"
 }
 
 fun <P1, P2, R> ((P1, P2) -> R).memoizeLast() = object : (P1, P2) -> R {
