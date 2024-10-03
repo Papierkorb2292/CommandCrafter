@@ -14,7 +14,6 @@ import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import org.eclipse.lsp4j.FileChangeType
 import org.eclipse.lsp4j.FileEvent
-import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.regex.Pattern
@@ -56,25 +55,26 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
     override fun stat(params: UriParams): CompletableFuture<FileSystemResult<FileStat>> {
         val resolvedPathResult = resolveUri(params.uri)
-        if(resolvedPathResult.isLeft)
-            return CompletableFuture.completedFuture(Either.forLeft(resolvedPathResult.left))
-        val resolvedPath = resolvedPathResult.right
+        val resolvedPath = resolvedPathResult.handleErrorAndGetResult {
+            return CompletableFuture.completedFuture(it)
+        }
         if(resolvedPath.fileName == null)
-            return CompletableFuture.completedFuture(Either.forLeft(FileNotFoundError("stat can only be called on files")))
+            return CompletableFuture.completedFuture(FileSystemResult(FileNotFoundError("stat can only be called on files")))
         val contentResult = getFileContent(resolvedPath.directory, resolvedPath.fileName)
-        if(contentResult.isLeft)
-            return CompletableFuture.completedFuture(Either.forLeft(contentResult.left))
-        val contentSize = contentResult.right.size
-        return CompletableFuture.completedFuture(Either.forRight(FileStat(FileType.FILE, 0, Util.getEpochTimeMs().toInt(), contentSize)))
+        val content = contentResult.handleErrorAndGetResult {
+            return CompletableFuture.completedFuture(it)
+        }
+        val contentSize = content.size
+        return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.FILE, 0, Util.getEpochTimeMs().toInt(), contentSize)))
     }
 
     override fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>> {
         val resolvedPathResult = resolveUri(params.uri)
-        if(resolvedPathResult.isLeft)
-            return CompletableFuture.completedFuture(Either.forLeft(resolvedPathResult.left))
-        val resolvedPath = resolvedPathResult.right
+        val resolvedPath = resolvedPathResult.handleErrorAndGetResult {
+            return CompletableFuture.completedFuture(it)
+        }
         if(resolvedPath.fileName != null)
-            return CompletableFuture.completedFuture(Either.forLeft(FileNotFoundError("readDirectory can only be called on directories")))
+            return CompletableFuture.completedFuture(FileSystemResult(FileNotFoundError("readDirectory can only be called on directories")))
 
         val entries = when(resolvedPath.directory) {
             Directory.ROOT -> arrayOf(
@@ -88,44 +88,44 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 ReadDirectoryResultEntry(it.toString(), FileType.FILE)
             }.toArray(::arrayOfNulls)
         }
-        return CompletableFuture.completedFuture(Either.forRight(entries))
+        return CompletableFuture.completedFuture(FileSystemResult(entries))
     }
 
     override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>> {
         // Directories can't be created
-        return CompletableFuture.completedFuture(Either.forRight(null))
+        return CompletableFuture.completedFuture(FileSystemResult(null))
     }
 
     override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {
         val resolvedPathResult = resolveUri(params.uri)
-        if(resolvedPathResult.isLeft)
-            return CompletableFuture.completedFuture(Either.forLeft(resolvedPathResult.left))
-        val resolvedPath = resolvedPathResult.right
+        val resolvedPath = resolvedPathResult.handleErrorAndGetResult {
+            return CompletableFuture.completedFuture(it)
+        }
         if(resolvedPath.fileName == null)
-            return CompletableFuture.completedFuture(Either.forLeft(FileNotFoundError("readFile can only be called on files")))
+            return CompletableFuture.completedFuture(FileSystemResult(FileNotFoundError("readFile can only be called on files")))
         val contentResult = getFileContent(resolvedPath.directory, resolvedPath.fileName)
-        if(contentResult.isLeft)
-            return CompletableFuture.completedFuture(Either.forLeft(contentResult.left))
-        val content = contentResult.right
+        val content = contentResult.handleErrorAndGetResult {
+            return CompletableFuture.completedFuture(it)
+        }
         val base64Content = Base64.getEncoder().encode(content).decodeToString()
-        return CompletableFuture.completedFuture(Either.forRight(ReadFileResult(base64Content)))
+        return CompletableFuture.completedFuture(FileSystemResult(ReadFileResult(base64Content)))
     }
 
     override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>> {
         val resolvedPathResult = resolveUri(params.uri)
-        if(resolvedPathResult.isLeft)
-            return CompletableFuture.completedFuture(Either.forLeft(resolvedPathResult.left))
-        val resolvedPath = resolvedPathResult.right
+        val resolvedPath = resolvedPathResult.handleErrorAndGetResult {
+            return CompletableFuture.completedFuture(it)
+        }
         if(resolvedPath.fileName == null)
-            return CompletableFuture.completedFuture(Either.forLeft(FileNotFoundError("writeFile can only be called on files")))
+            return CompletableFuture.completedFuture(FileSystemResult(FileNotFoundError("writeFile can only be called on files")))
         val content = Base64.getDecoder().decode(params.contentBase64)
         //TODO IMPORTANT: Update data synchronously
         val result = when(resolvedPath.directory) {
             Directory.SCOREBOARDS -> updateScoreboardData(resolvedPath, content)
             Directory.STORAGES -> updateStorageData(resolvedPath, content)
-            else -> Either.forLeft(FileNotFoundError("No files outside of scoreboard/storage directories"))
+            else -> FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
         }
-        if(result.isRight && lastFileCacheId == Pair(resolvedPath.directory, resolvedPath.fileName))
+        if(result.type == FileSystemResult.ResultType.SUCCESS && lastFileCacheId == Pair(resolvedPath.directory, resolvedPath.fileName))
             lastFileCacheId = null
         return CompletableFuture.completedFuture(result)
     }
@@ -134,12 +134,12 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         val jsonRoot = try {
             GSON.fromJson(content.decodeToString(), JsonObject::class.java)
         } catch(e: Exception) {
-            return Either.forRight(null)
+            return FileSystemResult(null)
         }
         val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName)
-            ?: return Either.forLeft(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
+            ?: return FileSystemResult(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
         if(objective.criterion.isReadOnly)
-            return Either.forRight(null)
+            return FileSystemResult(null)
         for((owner, value) in jsonRoot.entrySet()) {
             if(!value.isJsonPrimitive || !value.asJsonPrimitive.isNumber)
                 continue
@@ -149,81 +149,83 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             if(!jsonRoot.has(entry.owner))
                 server.scoreboard.removeScore(ScoreHolder.fromName(entry.owner), objective)
         }
-        return Either.forRight(null)
+        return FileSystemResult(null)
     }
 
     private fun updateStorageData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Void?> {
         val id = Identifier.tryParse(resolvedPath.fileName)
-            ?: return Either.forLeft(FileNotFoundError("Storage ${resolvedPath.fileName} not found"))
+            ?: return FileSystemResult(FileNotFoundError("Storage ${resolvedPath.fileName} not found"))
         val nbtCompound = try {
             NbtIo.readCompound(ByteStreams.newDataInput(content))
         } catch(e: Exception) {
-            return Either.forLeft(FileNotFoundError("Invalid NBT content"))
+            return FileSystemResult(FileNotFoundError("Invalid NBT content"))
         }
         server.dataCommandStorage.set(id, nbtCompound)
-        return Either.forRight(null)
+        return FileSystemResult(null)
     }
 
     override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>> {
         // Deleting files isn't implemented
-        return CompletableFuture.completedFuture(Either.forRight(null))
+        return CompletableFuture.completedFuture(FileSystemResult(null))
     }
 
     override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>> {
         // Renaming files isn't implemented
-        return CompletableFuture.completedFuture(Either.forRight(null))
+        return CompletableFuture.completedFuture(FileSystemResult(null))
     }
 
     private fun resolveUri(uri: String): FileSystemResult<ResolvedPath> {
         val path = EditorURI.parseURI(uri).path
         if(path.isEmpty())
-            return Either.forRight(ResolvedPath(Directory.ROOT, null))
+            return FileSystemResult(ResolvedPath(Directory.ROOT, null))
         val parts = path.split('/')
         if(parts.size == 1) {
             return when(parts[0]) {
-                SCOREBOARDS_DIRECTORY -> Either.forRight(ResolvedPath(Directory.SCOREBOARDS, null))
-                STORAGES_DIRECTORY -> Either.forRight(ResolvedPath(Directory.STORAGES, null))
-                else -> Either.forLeft(FileNotFoundError("No files outside of scoreboard/storage directories"))
+                SCOREBOARDS_DIRECTORY -> FileSystemResult(ResolvedPath(Directory.SCOREBOARDS, null))
+                STORAGES_DIRECTORY -> FileSystemResult(ResolvedPath(Directory.STORAGES, null))
+                else -> FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
             }
         }
         if(parts.size != 2)
-            return Either.forLeft(FileNotFoundError("No files outside of scoreboard/storage directories"))
+            return FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
         val directory = when(parts[0]) {
             SCOREBOARDS_DIRECTORY -> Directory.SCOREBOARDS
             STORAGES_DIRECTORY -> Directory.STORAGES
-            else -> return Either.forLeft(FileNotFoundError("No directories besides scoreboards and storages"))
+            else -> return FileSystemResult(FileNotFoundError("No directories besides scoreboards and storages"))
         }
         val fileName = parts[1]
-        return Either.forRight(ResolvedPath(directory, if(fileName.isEmpty()) null else fileName))
+        return FileSystemResult(ResolvedPath(directory, if(fileName.isEmpty()) null else fileName))
     }
 
     private fun getFileContent(directory: Directory, fileName: String): FileSystemResult<ByteArray> {
         val fileId = Pair(directory, fileName)
         if(fileId == lastFileCacheId)
-            return Either.forRight(lastFileCacheContent!!)
+            return FileSystemResult(lastFileCacheContent!!)
         val content: FileSystemResult<ByteArray> = when(directory) {
             Directory.SCOREBOARDS -> {
                 val objective = server.scoreboard.getNullableObjective(fileName)
-                    ?: return Either.forLeft(FileNotFoundError("Objective $fileName not found"))
+                    ?: return FileSystemResult(FileNotFoundError("Objective $fileName not found"))
                 val jsonRoot = JsonObject()
                 for(entry in server.scoreboard.getScoreboardEntries(objective)) {
                     jsonRoot.addProperty(entry.owner, entry.value)
                 }
-                Either.forRight(jsonRoot.toString().encodeToByteArray())
+                FileSystemResult(jsonRoot.toString().encodeToByteArray())
             }
             Directory.STORAGES -> {
                 val id = Identifier.tryParse(fileName)
-                    ?: return Either.forLeft(FileNotFoundError("Storage $fileName not found"))
+                    ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
                 val nbtCompound = server.dataCommandStorage.get(id)
-                    ?: return Either.forLeft(FileNotFoundError("Storage $fileName not found"))
+                    ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
                 val dataOutput = ByteStreams.newDataOutput()
                 NbtIo.writeCompound(nbtCompound, dataOutput)
-                Either.forRight(dataOutput.toByteArray())
+                FileSystemResult(dataOutput.toByteArray())
             }
-            else -> return Either.forLeft(FileNotFoundError("No files outside of scoreboard/storage directories"))
+            else -> return FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
         }
-        lastFileCacheId = fileId
-        lastFileCacheContent = content.right
+        if(content.type == FileSystemResult.ResultType.SUCCESS) {
+            lastFileCacheId = fileId
+            lastFileCacheContent = content.result!!
+        }
         return content
     }
 

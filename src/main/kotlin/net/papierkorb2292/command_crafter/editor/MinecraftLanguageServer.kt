@@ -260,7 +260,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
     @JsonDelegate
     fun getScoreboardStorageFileSystem() = object : ScoreboardStorageFileSystem {
-        private val NO_SERVER_SUPPORT_ERROR: FileSystemResult<Nothing> = Either.forLeft(FileNotFoundError("Server does not support scoreboard storage file system"))
+        private val NO_SERVER_SUPPORT_ERROR: FileSystemResult<Nothing> = FileSystemResult(FileNotFoundError("Server does not support scoreboard storage file system"))
 
         override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
             minecraftServer.scoreboardStorageFileSystem?.setOnDidChangeFileCallback(callback)

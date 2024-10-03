@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
 import org.eclipse.lsp4j.FileEvent
-import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.jsonrpc.services.JsonSegment
@@ -39,6 +38,3 @@ interface ScoreboardStorageFileSystem {
     @JsonRequest
     fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>>
 }
-
-class FileNotFoundError(val fileNotFoundErrorMessage: String)
-typealias FileSystemResult<TReturnType> = Either<FileNotFoundError, out TReturnType>
