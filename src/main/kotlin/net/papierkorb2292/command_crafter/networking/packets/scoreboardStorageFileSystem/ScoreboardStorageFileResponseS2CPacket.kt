@@ -1,19 +1,29 @@
 package net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem
 
-import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
+import net.minecraft.network.PacketByteBuf
 import net.minecraft.network.codec.PacketCodec
 import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
+import net.papierkorb2292.command_crafter.networking.array
 import java.util.*
 
 class ScoreboardStorageFileResponseS2CPacket<TParams>(private val packetId: CustomPayload.Id<ScoreboardStorageFileResponseS2CPacket<TParams>>, val requestId: UUID, val params: TParams) : CustomPayload {
     companion object {
+        val STAT_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_stat_response"), FileSystemResult.createCodec(FileStat.PACKET_CODEC))
+        val READ_DIRECTORY_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_directory_response"), FileSystemResult.createCodec(ReadDirectoryResultEntry.PACKET_CODEC.array()))
+        val CREATE_DIRECTORY_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_create_directory_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val READ_FILE_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_file_response"), FileSystemResult.createCodec(ReadFileResult.PACKET_CODEC))
+        val WRITE_FILE_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val DELETE_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_delete_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val RENAME_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_rename_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        
         fun <TParams : Any> createType(
             packetId: Identifier,
-            paramsCodec: PacketCodec<ByteBuf, TParams>,
-        ): (UUID, TParams) -> ScoreboardStorageFileResponseS2CPacket<TParams> {
+            paramsCodec: PacketCodec<PacketByteBuf, TParams>,
+        ): Type<TParams> {
             val payloadId = CustomPayload.Id<ScoreboardStorageFileResponseS2CPacket<TParams>>(packetId)
             val codec = PacketCodec.tuple(
                 Uuids.PACKET_CODEC,
@@ -28,9 +38,11 @@ class ScoreboardStorageFileResponseS2CPacket<TParams>(private val packetId: Cust
                 )
             }
             PayloadTypeRegistry.playS2C().register(payloadId, codec)
-            return { requestId, params -> ScoreboardStorageFileResponseS2CPacket(payloadId, requestId, params) }
+            return Type(payloadId) { requestId, params -> ScoreboardStorageFileResponseS2CPacket(payloadId, requestId, params) }
         }
     }
 
     override fun getId() = packetId
+    
+    class Type<TParams>(val id: CustomPayload.Id<ScoreboardStorageFileResponseS2CPacket<TParams>>, val factory: (requestId: UUID, TParams) -> ScoreboardStorageFileResponseS2CPacket<TParams>)
 }
