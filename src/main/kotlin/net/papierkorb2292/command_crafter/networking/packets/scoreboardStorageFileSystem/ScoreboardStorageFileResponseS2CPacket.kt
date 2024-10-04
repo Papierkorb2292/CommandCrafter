@@ -12,13 +12,13 @@ import java.util.*
 
 class ScoreboardStorageFileResponseS2CPacket<TParams>(private val packetId: CustomPayload.Id<ScoreboardStorageFileResponseS2CPacket<TParams>>, val requestId: UUID, val params: TParams) : CustomPayload {
     companion object {
-        val STAT_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_stat_response"), FileSystemResult.createCodec(FileStat.PACKET_CODEC))
-        val READ_DIRECTORY_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_directory_response"), FileSystemResult.createCodec(ReadDirectoryResultEntry.PACKET_CODEC.array()))
-        val CREATE_DIRECTORY_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_create_directory_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
-        val READ_FILE_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_file_response"), FileSystemResult.createCodec(ReadFileResult.PACKET_CODEC))
-        val WRITE_FILE_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
-        val DELETE_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_delete_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
-        val RENAME_RESPONSE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_rename_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val STAT_RESPONSE_PACKET: Type<FileSystemResult<FileStat>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_stat_response"), FileSystemResult.createCodec(FileStat.PACKET_CODEC))
+        val READ_DIRECTORY_RESPONSE_PACKET: Type<FileSystemResult<Array<ReadDirectoryResultEntry>>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_directory_response"), FileSystemResult.createCodec(ReadDirectoryResultEntry.PACKET_CODEC.array()))
+        val CREATE_DIRECTORY_RESPONSE_PACKET: Type<FileSystemResult<Void?>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_create_directory_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val READ_FILE_RESPONSE_PACKET: Type<FileSystemResult<ReadFileResult>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_file_response"), FileSystemResult.createCodec(ReadFileResult.PACKET_CODEC))
+        val WRITE_FILE_RESPONSE_PACKET: Type<FileSystemResult<Void?>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val DELETE_RESPONSE_PACKET: Type<FileSystemResult<Void?>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_delete_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
+        val RENAME_RESPONSE_PACKET: Type<FileSystemResult<Void?>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_rename_response"), FileSystemResult.createCodec(PacketCodec.unit(null)))
         
         fun <TParams : Any> createType(
             packetId: Identifier,

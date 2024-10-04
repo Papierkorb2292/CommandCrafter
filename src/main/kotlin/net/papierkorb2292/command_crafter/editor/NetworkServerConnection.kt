@@ -63,6 +63,7 @@ import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileRequestC2SPacket
+import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileResponseS2CPacket
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
@@ -231,10 +232,50 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ClientPlayNetworking.registerGlobalReceiver(ContextCompletionResponseS2CPacket.ID) { payload, _ ->
                 currentContextCompletionRequests.remove(payload.requestId)?.complete(payload.asSuggestions())
             }
+            ClientPlayNetworking.registerGlobalReceiver(ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.id) { payload, _ ->
+                clientScoreboardStorageFileSystems[payload.fileSystemId]?.onDidChangeFileCallback?.invoke(payload.params)
+            }
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.STAT_RESPONSE_PACKET,
+                currentScoreboardStorageStatRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.READ_DIRECTORY_RESPONSE_PACKET,
+                currentScoreboardStorageReadDirectoryRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.CREATE_DIRECTORY_RESPONSE_PACKET,
+                currentScoreboardStorageCreateDirectoryRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET,
+                currentScoreboardStorageReadFileRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.WRITE_FILE_RESPONSE_PACKET,
+                currentScoreboardStorageWriteFileRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.DELETE_RESPONSE_PACKET,
+                currentScoreboardStorageDeleteRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.RENAME_RESPONSE_PACKET,
+                currentScoreboardStorageRenameRequests
+            )
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 clientEditorDebugConnections.clear()
                 clientScoreboardStorageFileSystems.clear()
                 currentConnections.clear()
+            }
+        }
+
+        private fun <TResponse> registerScoreboardStorageResponseHandler(
+            responseType: ScoreboardStorageFileResponseS2CPacket.Type<TResponse>,
+            responseFutureMap: MutableMap<UUID, CompletableFuture<TResponse>>,
+        ) {
+            ClientPlayNetworking.registerGlobalReceiver(responseType.id) { payload, _ ->
+                responseFutureMap.remove(payload.requestId)?.complete(payload.params)
             }
         }
 
@@ -343,6 +384,51 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 serverEditorDebugConnections.putIfAbsent(payload.debugConnectionId, debugConnection)
                 debugConnection.setupOneTimeDebugTarget(context.player.server)
             }
+            registerAsyncServerPacketHandler(ScoreboardStorageFileNotificationC2SPacket.ADD_WATCH_PACKET.id) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+                val fileSystem = serverScoreboardStorageFileSystems[payload.fileSystemId] ?: return@registerAsyncServerPacketHandler
+                fileSystem.watch(payload.params)
+            }
+            registerAsyncServerPacketHandler(ScoreboardStorageFileNotificationC2SPacket.REMOVE_WATCH_PACKET.id) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+                val fileSystem = serverScoreboardStorageFileSystems[payload.fileSystemId] ?: return@registerAsyncServerPacketHandler
+                fileSystem.removeWatch(payload.params)
+            }
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.STAT_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.STAT_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::stat
+            )
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.READ_DIRECTORY_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.READ_DIRECTORY_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::readDirectory
+            )
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.CREATE_DIRECTORY_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.CREATE_DIRECTORY_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::createDirectory
+            )
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.READ_FILE_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::readFile
+            )
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.WRITE_FILE_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::writeFile
+            )
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.DELETE_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.DELETE_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::delete
+            )
+            registerScoreboardStorageRequestHandler(
+                ScoreboardStorageFileRequestC2SPacket.RENAME_PACKET,
+                ScoreboardStorageFileResponseS2CPacket.RENAME_RESPONSE_PACKET,
+                ScoreboardStorageFileSystem::rename
+            )
             ServerPlayNetworking.registerGlobalReceiver(ContextCompletionRequestC2SPacket.ID) { payload, context ->
                 if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
                 val server = context.player().server
@@ -370,6 +456,20 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     return@removeIf false
                 }
             }}
+        }
+
+        private fun <TParams, TResult> registerScoreboardStorageRequestHandler(
+            requestType: ScoreboardStorageFileRequestC2SPacket.Type<TParams>,
+            responseType: ScoreboardStorageFileResponseS2CPacket.Type<TResult>,
+            handler: (ScoreboardStorageFileSystem, TParams) -> CompletableFuture<TResult>
+        ) {
+            registerAsyncServerPacketHandler(requestType.id) { payload, context ->
+                if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+                val fileSystem = serverScoreboardStorageFileSystems[payload.fileSystemId] ?: return@registerAsyncServerPacketHandler
+                handler(fileSystem, payload.params).thenAccept {
+                    context.sendPacket(responseType.factory(payload.requestId, it))
+                }
+            }
         }
 
         private fun startSendingLogMessages(
