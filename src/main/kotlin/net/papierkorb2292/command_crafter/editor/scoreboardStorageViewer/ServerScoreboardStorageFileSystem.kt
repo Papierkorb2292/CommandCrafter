@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.nbt.NbtIo
+import net.minecraft.nbt.StringNbtReader
 import net.minecraft.scoreboard.ScoreHolder
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Identifier
@@ -131,12 +132,14 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     private fun updateScoreboardData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Void?> {
+        if(!resolvedPath.fileName!!.endsWith(".json"))
+            return FileSystemResult(FileNotFoundError("Only JSON files in scoreboards directory"))
         val jsonRoot = try {
             GSON.fromJson(content.decodeToString(), JsonObject::class.java)
         } catch(e: Exception) {
             return FileSystemResult(null)
         }
-        val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName)
+        val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - 5))
             ?: return FileSystemResult(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
         if(objective.criterion.isReadOnly)
             return FileSystemResult(null)
@@ -153,10 +156,16 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     private fun updateStorageData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Void?> {
-        val id = Identifier.tryParse(resolvedPath.fileName)
+        val isNbt = resolvedPath.fileName!!.endsWith(".nbt")
+        if(!isNbt && !resolvedPath.fileName.endsWith(".snbt"))
+            return FileSystemResult(FileNotFoundError("Only NBT/SNBT files in storages directory"))
+        val id = Identifier.tryParse(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - if(isNbt) 4 else 5))
             ?: return FileSystemResult(FileNotFoundError("Storage ${resolvedPath.fileName} not found"))
         val nbtCompound = try {
-            NbtIo.readCompound(ByteStreams.newDataInput(content))
+            if(!isNbt)
+                StringNbtReader.parse(content.decodeToString())
+            else
+                NbtIo.readCompound(ByteStreams.newDataInput(content))
         } catch(e: Exception) {
             return FileSystemResult(FileNotFoundError("Invalid NBT content"))
         }
@@ -203,7 +212,9 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             return FileSystemResult(lastFileCacheContent!!)
         val content: FileSystemResult<ByteArray> = when(directory) {
             Directory.SCOREBOARDS -> {
-                val objective = server.scoreboard.getNullableObjective(fileName)
+                if(!fileName.endsWith(".json"))
+                    return FileSystemResult(FileNotFoundError("Only JSON files in scoreboards directory"))
+                val objective = server.scoreboard.getNullableObjective(fileName.substring(0, fileName.length - 5))
                     ?: return FileSystemResult(FileNotFoundError("Objective $fileName not found"))
                 val jsonRoot = JsonObject()
                 for(entry in server.scoreboard.getScoreboardEntries(objective)) {
@@ -212,10 +223,17 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 FileSystemResult(jsonRoot.toString().encodeToByteArray())
             }
             Directory.STORAGES -> {
+                val isNbt = fileName.endsWith(".nbt")
+                if(!isNbt && !fileName.endsWith(".snbt"))
+                    return FileSystemResult(FileNotFoundError("Only NBT/SNBT files in storages directory"))
                 val id = Identifier.tryParse(fileName)
                     ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
                 val nbtCompound = server.dataCommandStorage.get(id)
                     ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
+                if(!isNbt) {
+                    val snbt = nbtCompound.toString()
+                    FileSystemResult(snbt.encodeToByteArray())
+                }
                 val dataOutput = ByteStreams.newDataOutput()
                 NbtIo.writeCompound(nbtCompound, dataOutput)
                 FileSystemResult(dataOutput.toByteArray())
