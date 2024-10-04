@@ -9,12 +9,14 @@ import net.minecraft.network.packet.CustomPayload
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
+import net.papierkorb2292.command_crafter.networking.nullable
 import java.util.*
 
 class InitializeNetworkServerConnectionS2CPacket(
     val successful: Boolean,
     val commandTree: CommandTreeS2CPacket,
     val functionPermissionLevel: Int,
+    val scoreboardStorageFileSystemId: UUID?,
     val requestId: UUID,
 ) : CustomPayload {
     companion object {
@@ -28,6 +30,8 @@ class InitializeNetworkServerConnectionS2CPacket(
             InitializeNetworkServerConnectionS2CPacket::commandTree,
             PacketCodecs.VAR_INT,
             InitializeNetworkServerConnectionS2CPacket::functionPermissionLevel,
+            Uuids.PACKET_CODEC.nullable(),
+            InitializeNetworkServerConnectionS2CPacket::scoreboardStorageFileSystemId,
             Uuids.PACKET_CODEC,
             InitializeNetworkServerConnectionS2CPacket::requestId,
             ::InitializeNetworkServerConnectionS2CPacket

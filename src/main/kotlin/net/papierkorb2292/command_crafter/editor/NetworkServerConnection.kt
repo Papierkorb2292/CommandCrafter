@@ -53,15 +53,21 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
+import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
+import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
+import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileRequestC2SPacket
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
+import org.eclipse.lsp4j.FileEvent
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.*
@@ -95,12 +101,22 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
         val currentContextCompletionRequests: MutableMap<UUID, CompletableFuture<Suggestions>> = mutableMapOf()
 
+        val currentScoreboardStorageStatRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<FileStat>>>()
+        val currentScoreboardStorageReadDirectoryRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>>>()
+        val currentScoreboardStorageCreateDirectoryRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
+        val currentScoreboardStorageReadFileRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<ReadFileResult>>>()
+        val currentScoreboardStorageWriteFileRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
+        val currentScoreboardStorageDeleteRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
+        val currentScoreboardStorageRenameRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
+
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
 
         private val clientEditorDebugConnections: BiMap<EditorDebugConnection, UUID> = HashBiMap.create()
         private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = ConcurrentHashMap()
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
+        private val serverScoreboardStorageFileSystems: MutableMap<UUID, ScoreboardStorageFileSystem> = mutableMapOf()
+        private val clientScoreboardStorageFileSystems: MutableMap<UUID, NetworkScoreboardStorageFileSystem> = mutableMapOf()
 
         private val receivedRegistries = mutableMapOf<RegistryKey<out Registry<*>>, List<SerializableRegistries.SerializedRegistryEntry>>()
         private var receivedRegistryManager: DynamicRegistryManager? = null
@@ -131,6 +147,8 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
                 val connection = NetworkServerConnection(context.client(), payload)
                 currentConnections += connection
+                if(payload.scoreboardStorageFileSystemId != null)
+                    clientScoreboardStorageFileSystems[payload.scoreboardStorageFileSystemId] = connection.scoreboardStorageFileSystem!!
                 currentRequest.second.complete(connection)
             }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
@@ -215,6 +233,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 clientEditorDebugConnections.clear()
+                clientScoreboardStorageFileSystems.clear()
                 currentConnections.clear()
             }
         }
@@ -227,6 +246,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                             false,
                             CommandTreeS2CPacket(RootCommandNode()),
                             0,
+                            null,
                             payload.requestId
                         )
                     )
@@ -385,10 +405,20 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 null
             ))
 
+            val scoreboardStorageFileSystemId = UUID.randomUUID()
+            val scoreboardStorageFileSystem = ServerScoreboardStorageFileSystem(server)
+            serverScoreboardStorageFileSystems[scoreboardStorageFileSystemId] = scoreboardStorageFileSystem
+            scoreboardStorageFileSystem.setOnDidChangeFileCallback {
+                packetSender.sendPacket(
+                    ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.factory(scoreboardStorageFileSystemId, it)
+                )
+            }
+
             val responsePacket = InitializeNetworkServerConnectionS2CPacket(
                 true,
                 CommandTreeS2CPacket(rootCommandNode),
                 server.functionPermissionLevel,
+                scoreboardStorageFileSystemId,
                 requestPacket.requestId,
             )
 
@@ -449,6 +479,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = receivedRegistryManager ?: CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager
+    override val scoreboardStorageFileSystem = initializePacket.scoreboardStorageFileSystemId?.let {
+        NetworkScoreboardStorageFileSystem(it)
+    }
     override val commandDispatcher
         get() = commandDispatcherFactory(dynamicRegistryManager)
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
@@ -544,6 +577,77 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         override fun executeCommand(command: String) {
             client.inGameHud.chatHud.addToMessageHistory("/$command") //TODO: Test how multiple lines work in chat screen
             client.networkHandler?.sendChatCommand(command)
+        }
+    }
+
+    inner class NetworkScoreboardStorageFileSystem(val fileSystemId: UUID) : ScoreboardStorageFileSystem {
+        var onDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
+        override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
+            onDidChangeFileCallback = callback
+        }
+
+        override fun watch(params: FileSystemWatchParams) {
+            ClientPlayNetworking.send(ScoreboardStorageFileNotificationC2SPacket.ADD_WATCH_PACKET.factory(fileSystemId, params))
+        }
+
+        override fun removeWatch(params: FileSystemRemoveWatchParams) {
+            ClientPlayNetworking.send(ScoreboardStorageFileNotificationC2SPacket.REMOVE_WATCH_PACKET.factory(fileSystemId, params))
+        }
+
+        override fun stat(params: UriParams): CompletableFuture<FileSystemResult<FileStat>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<FileStat>>()
+            currentScoreboardStorageStatRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.STAT_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>>()
+            currentScoreboardStorageReadDirectoryRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.READ_DIRECTORY_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<Void?>>()
+            currentScoreboardStorageCreateDirectoryRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.CREATE_DIRECTORY_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<ReadFileResult>>()
+            currentScoreboardStorageReadFileRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.READ_FILE_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<Void?>>()
+            currentScoreboardStorageWriteFileRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<Void?>>()
+            currentScoreboardStorageDeleteRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.DELETE_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<FileSystemResult<Void?>>()
+            currentScoreboardStorageRenameRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.RENAME_PACKET.factory(fileSystemId, requestId, params))
+            return future
         }
     }
 
