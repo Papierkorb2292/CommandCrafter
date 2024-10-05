@@ -93,7 +93,7 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
                 command: "vscode.open",
                 title: "Open Scoreboard",
                 arguments: [
-                    vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}://scoreboards/${element.scoreboardName}.json`)
+                    vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///scoreboards/${element.scoreboardName}.json`)
                 ]
             }
             return treeItem
@@ -105,7 +105,7 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
             command: "vscode.open",
             title: "Open Storage",
             arguments: [
-                vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}://storages/${element.storageName}.${this.scoreboardStorageViewer.foundNbtEditor ? "nbt" : "snbt"}`)
+                vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///storages/${element.storageName}.${this.scoreboardStorageViewer.foundNbtEditor ? "nbt" : "snbt"}`)
             ]
         }
         return treeItem
@@ -115,19 +115,33 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
             return []
 
         return Promise.all([
-            vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}://scoreboards/`)),
-            vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}://storages/`))
+            vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///scoreboards/`)),
+            vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///storages/`))
         ]).then(([scoreboards, storages]) => {
-            const scoreboardItems: ScoreboardTreeItem[] = scoreboards.map(([name]) => ({ type: "scoreboard", scoreboardName: name.slice(0, -5)}))
+            const scoreboardItems: ScoreboardTreeItem[] = scoreboards.map(([name]) => ({
+                type: "scoreboard",
+                scoreboardName: name.slice(
+                    this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///scoreboards/'.length,
+                    -5
+                )
+            }))
             let storageItems: StorageTreeItem[]
             if(this.scoreboardStorageViewer.foundNbtEditor) {
                 storageItems = storages
                     .filter(([name]) => name.endsWith(".nbt"))
-                    .map(([name]) => ({ type: "storage", storageName: name.slice(0, -4) }))
+                    .map(([name]) => ({ type: "storage", storageName: name.slice(
+                        this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
+                        -4
+                    )
+                }))
             } else {
                 storageItems = storages
                     .filter(([name]) => name.endsWith(".snbt"))
-                    .map(([name]) => ({ type: "storage", storageName: name.slice(0, -5) }))
+                    .map(([name]) => ({ type: "storage", storageName: name.slice(
+                        this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
+                        -5
+                    )
+                }))
             }
             return [...scoreboardItems, ...storageItems]
         })
@@ -157,8 +171,8 @@ interface StorageTreeItem {
 /**
  * This file system contains the scoreboards and storages of the connected Minecraft instance.
  * 
- * The scoreboards can be accessed through the path `scoreboard/<scoreboardName>.json`
- * and the storages can be accessed through the path `storage/<storageName>.snbt` or `storage/<storageName>.nbt`.
+ * The scoreboards can be accessed through the path `/scoreboard/<scoreboardName>.json`
+ * and the storages can be accessed through the path `/storage/<storageName>.snbt` or `/storage/<storageName>.nbt`.
  */
 class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEmitter: vscode.EventEmitter<vscode.FileChangeEvent[]> = new vscode.EventEmitter();

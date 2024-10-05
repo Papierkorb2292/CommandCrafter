@@ -20,6 +20,7 @@ import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.regex.Pattern
+import java.util.stream.Stream
 
 class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : ScoreboardStorageFileSystem {
     companion object {
@@ -85,11 +86,14 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 ReadDirectoryResultEntry(STORAGES_DIRECTORY, FileType.DIRECTORY)
             )
             Directory.SCOREBOARDS -> server.scoreboard.objectives.map {
-                ReadDirectoryResultEntry(it.name, FileType.FILE)
+                ReadDirectoryResultEntry(createUrl(Directory.SCOREBOARDS, it.name, ".json"), FileType.FILE)
             }.toTypedArray()
-            Directory.STORAGES -> server.dataCommandStorage.ids.map {
-                ReadDirectoryResultEntry(it.toString(), FileType.FILE)
-            }.toArray(::arrayOfNulls)
+            Directory.STORAGES -> server.dataCommandStorage.ids.flatMap {
+                Stream.of(
+                    ReadDirectoryResultEntry(createUrl(Directory.STORAGES, it.toString(), ".nbt"), FileType.FILE),
+                    ReadDirectoryResultEntry(createUrl(Directory.STORAGES, it.toString(), ".snbt"), FileType.FILE)
+                )
+            }.toList().toTypedArray()
         }
         return CompletableFuture.completedFuture(FileSystemResult(entries))
     }
@@ -186,7 +190,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     private fun resolveUri(uri: String): FileSystemResult<ResolvedPath> {
-        val path = EditorURI.parseURI(uri).path
+        val path = EditorURI.parseURI(uri).path.removePrefix("/")
         if(path.isEmpty())
             return FileSystemResult(ResolvedPath(Directory.ROOT, null))
         val parts = path.split('/')
@@ -206,6 +210,10 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         }
         val fileName = parts[1]
         return FileSystemResult(ResolvedPath(directory, if(fileName.isEmpty()) null else fileName))
+    }
+
+    private fun createUrl(directory: Directory, fileName: String, fileExtension: String): String {
+        return "scoreboardStorage:///${directory.toFolderName()}/$fileName$fileExtension"
     }
 
     private fun getFileContent(directory: Directory, fileName: String): FileSystemResult<ByteArray> {
@@ -232,7 +240,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 val isNbt = fileName.endsWith(".nbt")
                 if(!isNbt && !fileName.endsWith(".snbt"))
                     return FileSystemResult(FileNotFoundError("Only NBT/SNBT files in storages directory"))
-                val id = Identifier.tryParse(fileName)
+                val id = Identifier.tryParse(fileName.substring(0, fileName.length - if(isNbt) 4 else 5))
                     ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
                 val nbtCompound = server.dataCommandStorage.get(id)
                     ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
@@ -254,10 +262,19 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     fun onFileUpdate(directory: Directory, fileName: String, updateType: FileChangeType) {
-        val fileUri = "scoreboardStorage:///${directory.toFolderName()}/$fileName"
-        for(watch in watches.values) {
-            if(watch.matches(fileUri))
-                queuedFileUpdates += FileEvent(fileUri, updateType)
+        val fileUris = if(directory == Directory.SCOREBOARDS) {
+            arrayOf(createUrl(Directory.SCOREBOARDS, fileName, ".json"),)
+        } else {
+            arrayOf(
+                createUrl(Directory.STORAGES, fileName, ".nbt"),
+                createUrl(Directory.STORAGES, fileName, ".snbt")
+            )
+        }
+        for(fileUri in fileUris) {
+            for(watch in watches.values) {
+                if(watch.matches(fileUri))
+                    queuedFileUpdates += FileEvent(fileUri, updateType)
+            }
         }
     }
 
