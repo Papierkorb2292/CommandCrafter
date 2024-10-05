@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer
 import com.google.common.io.ByteStreams
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.stream.JsonWriter
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.nbt.NbtIo
@@ -15,6 +16,7 @@ import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import org.eclipse.lsp4j.FileChangeType
 import org.eclipse.lsp4j.FileEvent
+import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.regex.Pattern
@@ -220,7 +222,11 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 for(entry in server.scoreboard.getScoreboardEntries(objective)) {
                     jsonRoot.addProperty(entry.owner, entry.value)
                 }
-                FileSystemResult(jsonRoot.toString().encodeToByteArray())
+                val stringWriter = StringWriter()
+                val jsonWriter = JsonWriter(stringWriter)
+                jsonWriter.setIndent("  ")
+                GSON.toJson(jsonRoot, jsonWriter)
+                FileSystemResult(stringWriter.toString().encodeToByteArray())
             }
             Directory.STORAGES -> {
                 val isNbt = fileName.endsWith(".nbt")
