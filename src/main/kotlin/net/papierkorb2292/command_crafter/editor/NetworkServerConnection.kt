@@ -233,7 +233,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 currentContextCompletionRequests.remove(payload.requestId)?.complete(payload.asSuggestions())
             }
             ClientPlayNetworking.registerGlobalReceiver(ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.id) { payload, _ ->
-                clientScoreboardStorageFileSystems[payload.fileSystemId]?.onDidChangeFileCallback?.invoke(payload.params)
+                clientScoreboardStorageFileSystems[payload.fileSystemId]?.currentOnDidChangeFileCallback?.invoke(payload.params)
             }
             registerScoreboardStorageResponseHandler(
                 ScoreboardStorageFileResponseS2CPacket.STAT_RESPONSE_PACKET,
@@ -681,9 +681,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }
 
     inner class NetworkScoreboardStorageFileSystem(val fileSystemId: UUID) : ScoreboardStorageFileSystem {
-        var onDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
+        var currentOnDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
         override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
-            onDidChangeFileCallback = callback
+            currentOnDidChangeFileCallback = callback
         }
 
         override fun watch(params: FileSystemWatchParams) {
