@@ -29,7 +29,7 @@ class FileSystemResult<out TResultType> private constructor(
                 override fun encode(buf: PacketByteBuf, value: FileSystemResult<TResultType>) {
                     buf.writeByte(value.type.ordinal)
                     when(value.type) {
-                        ResultType.SUCCESS -> resultCodec.encode(buf, value.result!!)
+                        ResultType.SUCCESS -> resultCodec.encode(buf, value.result)
                         ResultType.FILE_NOT_FOUND_ERROR -> buf.writeString(value.fileNotFoundError!!.fileNotFoundErrorMessage)
                     }
                 }
@@ -37,19 +37,21 @@ class FileSystemResult<out TResultType> private constructor(
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     inline fun <TNewResultType> map(
         resultMapper: (TResultType) -> TNewResultType,
         fileNotFoundMapper: (FileNotFoundError) -> FileNotFoundError = { it },
     ): FileSystemResult<TNewResultType> = when(type) {
-        ResultType.SUCCESS -> FileSystemResult(resultMapper(result!!))
+        ResultType.SUCCESS -> FileSystemResult(resultMapper(result as TResultType))
         ResultType.FILE_NOT_FOUND_ERROR -> FileSystemResult(fileNotFoundMapper(fileNotFoundError!!))
     }
 
+    @Suppress("UNCHECKED_CAST")
     inline fun <TNewResultType> flatMap(
         resultMapper: (TResultType) -> FileSystemResult<TNewResultType>,
         fileNotFoundMapper: (FileNotFoundError) -> FileSystemResult<TNewResultType> = { FileSystemResult(it) },
     ): FileSystemResult<TNewResultType> = when(type) {
-        ResultType.SUCCESS -> resultMapper(result!!)
+        ResultType.SUCCESS -> resultMapper(result as TResultType)
         ResultType.FILE_NOT_FOUND_ERROR -> fileNotFoundMapper(fileNotFoundError!!)
     }
 
@@ -57,7 +59,8 @@ class FileSystemResult<out TResultType> private constructor(
         if(type != ResultType.SUCCESS)
             @Suppress("UNCHECKED_CAST")
             block(this as FileSystemResult<Nothing>)
-        return result!!
+        @Suppress("UNCHECKED_CAST")
+        return result as TResultType
     }
 
     enum class ResultType {
