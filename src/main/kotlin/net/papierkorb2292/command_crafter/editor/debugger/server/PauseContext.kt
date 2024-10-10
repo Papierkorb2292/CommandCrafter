@@ -10,6 +10,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonNetworkHandlerAccessor
 import org.eclipse.lsp4j.debug.*
@@ -259,6 +260,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
             for(player in server.playerManager.playerList.toList())
                 (player.networkHandler as ServerCommonNetworkHandlerAccessor).callBaseTick()
+            ServerScoreboardStorageFileSystem.runDataUpdates()
         }
 
         for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)

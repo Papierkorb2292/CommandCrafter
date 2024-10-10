@@ -6,6 +6,7 @@ import com.google.gson.JsonObject
 import com.google.gson.stream.JsonWriter
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.StringNbtReader
 import net.minecraft.scoreboard.ScoreHolder
@@ -27,6 +28,28 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         private const val SCOREBOARDS_DIRECTORY = "scoreboards"
         private const val STORAGES_DIRECTORY = "storages"
         private val GSON = Gson()
+
+        private val DATA_UPDATE_QUEUE = mutableListOf<() -> Unit>()
+
+        fun runDataUpdates() {
+            synchronized(DATA_UPDATE_QUEUE) {
+                for(update in DATA_UPDATE_QUEUE)
+                    update()
+                DATA_UPDATE_QUEUE.clear()
+            }
+        }
+
+        fun queueDataUpdate(update: () -> Unit) {
+            synchronized(DATA_UPDATE_QUEUE) {
+                DATA_UPDATE_QUEUE += update
+            }
+        }
+
+        fun registerTickDataUpdateRunner() {
+            ServerTickEvents.END_SERVER_TICK.register {
+                runDataUpdates()
+            }
+        }
     }
 
     private val watches: Int2ObjectMap<Watch> = Int2ObjectArrayMap()
@@ -126,15 +149,18 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         if(resolvedPath.fileName == null)
             return CompletableFuture.completedFuture(FileSystemResult(FileNotFoundError("writeFile can only be called on files")))
         val content = Base64.getDecoder().decode(params.contentBase64)
-        //TODO IMPORTANT: Update data synchronously
-        val result = when(resolvedPath.directory) {
-            Directory.SCOREBOARDS -> updateScoreboardData(resolvedPath, content)
-            Directory.STORAGES -> updateStorageData(resolvedPath, content)
-            else -> FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
+        val future = CompletableFuture<FileSystemResult<Unit>>()
+        queueDataUpdate {
+            val result = when(resolvedPath.directory) {
+                Directory.SCOREBOARDS -> updateScoreboardData(resolvedPath, content)
+                Directory.STORAGES -> updateStorageData(resolvedPath, content)
+                else -> FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
+            }
+            if(result.type == FileSystemResult.ResultType.SUCCESS && lastFileCacheId == Pair(resolvedPath.directory, resolvedPath.fileName))
+                lastFileCacheId = null
+            future.complete(result)
         }
-        if(result.type == FileSystemResult.ResultType.SUCCESS && lastFileCacheId == Pair(resolvedPath.directory, resolvedPath.fileName))
-            lastFileCacheId = null
-        return CompletableFuture.completedFuture(result)
+        return future
     }
 
     private fun updateScoreboardData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Unit> {
