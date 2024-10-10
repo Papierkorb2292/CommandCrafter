@@ -98,9 +98,9 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         return CompletableFuture.completedFuture(FileSystemResult(entries))
     }
 
-    override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>> {
+    override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Unit>> {
         // Directories can't be created
-        return CompletableFuture.completedFuture(FileSystemResult(null))
+        return CompletableFuture.completedFuture(FileSystemResult(Unit))
     }
 
     override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {
@@ -118,7 +118,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         return CompletableFuture.completedFuture(FileSystemResult(ReadFileResult(base64Content)))
     }
 
-    override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>> {
+    override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Unit>> {
         val resolvedPathResult = resolveUri(params.uri)
         val resolvedPath = resolvedPathResult.handleErrorAndGetResult {
             return CompletableFuture.completedFuture(it)
@@ -137,18 +137,18 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         return CompletableFuture.completedFuture(result)
     }
 
-    private fun updateScoreboardData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Void?> {
+    private fun updateScoreboardData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Unit> {
         if(!resolvedPath.fileName!!.endsWith(".json"))
             return FileSystemResult(FileNotFoundError("Only JSON files in scoreboards directory"))
         val jsonRoot = try {
             GSON.fromJson(content.decodeToString(), JsonObject::class.java)
         } catch(e: Exception) {
-            return FileSystemResult(null)
+            return FileSystemResult(Unit)
         }
         val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - 5))
             ?: return FileSystemResult(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
         if(objective.criterion.isReadOnly)
-            return FileSystemResult(null)
+            return FileSystemResult(Unit)
         for((owner, value) in jsonRoot.entrySet()) {
             if(!value.isJsonPrimitive || !value.asJsonPrimitive.isNumber)
                 continue
@@ -158,10 +158,10 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             if(!jsonRoot.has(entry.owner))
                 server.scoreboard.removeScore(ScoreHolder.fromName(entry.owner), objective)
         }
-        return FileSystemResult(null)
+        return FileSystemResult(Unit)
     }
 
-    private fun updateStorageData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Void?> {
+    private fun updateStorageData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Unit> {
         val isNbt = resolvedPath.fileName!!.endsWith(".nbt")
         if(!isNbt && !resolvedPath.fileName.endsWith(".snbt"))
             return FileSystemResult(FileNotFoundError("Only NBT/SNBT files in storages directory"))
@@ -176,17 +176,17 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             return FileSystemResult(FileNotFoundError("Invalid NBT content"))
         }
         server.dataCommandStorage.set(id, nbtCompound)
-        return FileSystemResult(null)
+        return FileSystemResult(Unit)
     }
 
-    override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>> {
+    override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Unit>> {
         // Deleting files isn't implemented
-        return CompletableFuture.completedFuture(FileSystemResult(null))
+        return CompletableFuture.completedFuture(FileSystemResult(Unit))
     }
 
-    override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>> {
+    override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Unit>> {
         // Renaming files isn't implemented
-        return CompletableFuture.completedFuture(FileSystemResult(null))
+        return CompletableFuture.completedFuture(FileSystemResult(Unit))
     }
 
     private fun resolveUri(uri: String): FileSystemResult<ResolvedPath> {

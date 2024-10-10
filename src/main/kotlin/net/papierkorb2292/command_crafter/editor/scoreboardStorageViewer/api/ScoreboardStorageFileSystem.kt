@@ -24,17 +24,17 @@ interface ScoreboardStorageFileSystem {
     fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>>
 
     @JsonRequest
-    fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>>
+    fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Unit>>
 
     @JsonRequest
     fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>>
 
     @JsonRequest
-    fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>>
+    fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Unit>>
 
     @JsonRequest
-    fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>>
+    fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Unit>>
 
     @JsonRequest
-    fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>>
+    fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Unit>>
 }

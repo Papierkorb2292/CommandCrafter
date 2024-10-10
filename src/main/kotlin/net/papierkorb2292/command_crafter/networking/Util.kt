@@ -46,6 +46,8 @@ fun <T: Enum<T>> enumConstantCodec(enumClass: Class<T>): PacketCodec<ByteBuf, T>
     return PacketCodecs.VAR_INT.xmap(values::get) { it.ordinal }
 }
 
+val UNIT_CODEC = PacketCodec.unit<ByteBuf, Unit>(Unit)
+
 val NULLABLE_STRING_PACKET_CODEC = PacketCodecs.STRING.nullable()
 val NULLABLE_BOOL_PACKET_CODEC = PacketCodecs.BOOL.nullable()
 val NULLABLE_VAR_INT_PACKET_CODEC = PacketCodecs.VAR_INT.nullable()

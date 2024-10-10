@@ -104,11 +104,11 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
         val currentScoreboardStorageStatRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<FileStat>>>()
         val currentScoreboardStorageReadDirectoryRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>>>()
-        val currentScoreboardStorageCreateDirectoryRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
+        val currentScoreboardStorageCreateDirectoryRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
         val currentScoreboardStorageReadFileRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<ReadFileResult>>>()
-        val currentScoreboardStorageWriteFileRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
-        val currentScoreboardStorageDeleteRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
-        val currentScoreboardStorageRenameRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Void?>>>()
+        val currentScoreboardStorageWriteFileRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
+        val currentScoreboardStorageDeleteRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
+        val currentScoreboardStorageRenameRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
 
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
@@ -710,9 +710,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             return future
         }
 
-        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>> {
+        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Unit>> {
             val requestId = UUID.randomUUID()
-            val future = CompletableFuture<FileSystemResult<Void?>>()
+            val future = CompletableFuture<FileSystemResult<Unit>>()
             currentScoreboardStorageCreateDirectoryRequests[requestId] = future
             ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.CREATE_DIRECTORY_PACKET.factory(fileSystemId, requestId, params))
             return future
@@ -726,25 +726,25 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             return future
         }
 
-        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>> {
+        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Unit>> {
             val requestId = UUID.randomUUID()
-            val future = CompletableFuture<FileSystemResult<Void?>>()
+            val future = CompletableFuture<FileSystemResult<Unit>>()
             currentScoreboardStorageWriteFileRequests[requestId] = future
             ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET.factory(fileSystemId, requestId, params))
             return future
         }
 
-        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>> {
+        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Unit>> {
             val requestId = UUID.randomUUID()
-            val future = CompletableFuture<FileSystemResult<Void?>>()
+            val future = CompletableFuture<FileSystemResult<Unit>>()
             currentScoreboardStorageDeleteRequests[requestId] = future
             ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.DELETE_PACKET.factory(fileSystemId, requestId, params))
             return future
         }
 
-        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>> {
+        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Unit>> {
             val requestId = UUID.randomUUID()
-            val future = CompletableFuture<FileSystemResult<Void?>>()
+            val future = CompletableFuture<FileSystemResult<Unit>>()
             currentScoreboardStorageRenameRequests[requestId] = future
             ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.RENAME_PACKET.factory(fileSystemId, requestId, params))
             return future

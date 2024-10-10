@@ -21,6 +21,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ReadDirectoryResultEntry
+import net.papierkorb2292.command_crafter.helper.UnitTypeAdapter
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
@@ -60,6 +61,7 @@ object ClientCommandCrafter : ClientModInitializer {
                         }
                         .configureGson {
                             it.registerTypeAdapter(ReadDirectoryResultEntry::class.java, ReadDirectoryResultEntry.TypeAdapter)
+                            it.registerTypeAdapter(Unit::class.java, UnitTypeAdapter)
                             it.registerTypeAdapterFactory(FileSystemResult.TypeAdapterFactory)
                         }
                         .create();
