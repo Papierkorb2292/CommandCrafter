@@ -29,5 +29,7 @@ interface CommandCrafterLanguageClient : LanguageClient, EditorClientFileFinder 
     override fun findFiles(pattern: String): CompletableFuture<Array<String>>
 
     @JsonNotification("scoreboardStorageFileSystem/onDidChangeFile")
-    fun onDidChangeScoreboardStorage(fileEvents: Array<FileEvent>)
+    fun onDidChangeScoreboardStorage(params: OnDidChangeScoreboardStorageParams)
+
+    class OnDidChangeScoreboardStorageParams(val events: Array<FileEvent>)
 }

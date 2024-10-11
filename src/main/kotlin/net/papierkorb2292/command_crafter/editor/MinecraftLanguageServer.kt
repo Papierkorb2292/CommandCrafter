@@ -71,7 +71,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
         minecraftServer = connection
 
-        getScoreboardStorageFileSystem().setOnDidChangeFileCallback(client::onDidChangeScoreboardStorage)
+        scoreboardStorageFileSystem.setOnDidChangeFileCallback {
+            client.onDidChangeScoreboardStorage(CommandCrafterLanguageClient.OnDidChangeScoreboardStorageParams(it))
+        }
 
         connectServerConsole()
         analyzeAllFiles()
