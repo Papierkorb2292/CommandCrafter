@@ -272,7 +272,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         private val watches: Int2ObjectMap<FileSystemWatchParams> = Int2ObjectArrayMap()
         private var onDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
 
-        private var delegateFileSystem: ScoreboardStorageFileSystem? = null
+        private var delegateFileSystem: ScoreboardStorageFileSystem? = minecraftServer.createScoreboardStorageFileSystem()
 
         override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
             onDidChangeFileCallback = callback
