@@ -273,10 +273,11 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 if(!isNbt) {
                     val snbt = nbtCompound.toString()
                     FileSystemResult(snbt.encodeToByteArray())
+                } else {
+                    val dataOutput = ByteStreams.newDataOutput()
+                    NbtIo.writeCompound(nbtCompound, dataOutput)
+                    FileSystemResult(dataOutput.toByteArray())
                 }
-                val dataOutput = ByteStreams.newDataOutput()
-                NbtIo.writeCompound(nbtCompound, dataOutput)
-                FileSystemResult(dataOutput.toByteArray())
             }
             else -> return FileSystemResult(FileNotFoundError("No files outside of scoreboard/storage directories"))
         }
