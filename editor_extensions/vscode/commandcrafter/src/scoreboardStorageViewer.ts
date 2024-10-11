@@ -81,7 +81,8 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
             )
         )
         this.fileSystemWatcher.onDidChange(uri => {
-            this.refresh()
+            if(uri.scheme === scoreboardStorageViewer.scoreboardStorageFileSystemScheme)
+                this.refresh()
         })
     }
     
