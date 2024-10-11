@@ -42,13 +42,6 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
     onLanguageClientStart(languageClient: LanguageClient): void { }
     onLanguageClientReady(languageClient: LanguageClient): void {
         this.languageClient = languageClient
-        this.viewProvider = new ScoreboardStorageTreeDataProvider(this)
-        const viewDisposable = vscode.window.registerTreeDataProvider(
-            this.scoreboardStorageViewerId,
-            this.viewProvider
-        )
-        this.viewProviderDisposable = viewDisposable
-        this.context.subscriptions.push(viewDisposable)
         this.documentProvider = new ScoreboardStorageFileSystemProvider(this)
         const contentProviderDisposable = vscode.workspace.registerFileSystemProvider(
             this.scoreboardStorageFileSystemScheme,
@@ -56,6 +49,13 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
         )
         this.documentProviderDisposable = contentProviderDisposable
         this.context.subscriptions.push(contentProviderDisposable)
+        this.viewProvider = new ScoreboardStorageTreeDataProvider(this)
+        const viewDisposable = vscode.window.registerTreeDataProvider(
+            this.scoreboardStorageViewerId,
+            this.viewProvider
+        )
+        this.viewProviderDisposable = viewDisposable
+        this.context.subscriptions.push(viewDisposable)
     }
     onLanguageClientStop(): void {
         this.viewProvider?.dispose()
