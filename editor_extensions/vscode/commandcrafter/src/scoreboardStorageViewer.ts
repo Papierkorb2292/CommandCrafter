@@ -74,7 +74,12 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
     private readonly fileSystemWatcher: vscode.FileSystemWatcher
     
     constructor(private readonly scoreboardStorageViewer: ScoreboardStorageViewer) {
-        this.fileSystemWatcher = vscode.workspace.createFileSystemWatcher(`${scoreboardStorageViewer.scoreboardStorageFileSystemScheme}://**`)
+        this.fileSystemWatcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(
+                vscode.Uri.parse(`${scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///`),
+                "**"
+            )
+        )
         this.fileSystemWatcher.onDidChange(uri => {
             this.refresh()
         })
