@@ -86,7 +86,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             return CompletableFuture.completedFuture(it)
         }
         if(resolvedPath.fileName == null)
-            return CompletableFuture.completedFuture(FileSystemResult(FileNotFoundError("stat can only be called on files")))
+            return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.DIRECTORY, 0, Util.getEpochTimeMs().toInt(), 1)))
         val contentResult = getFileContent(resolvedPath.directory, resolvedPath.fileName)
         val content = contentResult.handleErrorAndGetResult {
             return CompletableFuture.completedFuture(it)
