@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.MinecraftLanguageServerExtension
 import net.papierkorb2292.command_crafter.editor.console.*
@@ -74,6 +76,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
         scoreboardStorageFileSystem.setOnDidChangeFileCallback {
             client.onDidChangeScoreboardStorage(CommandCrafterLanguageClient.OnDidChangeScoreboardStorageParams(it))
         }
+        scoreboardStorageFileSystem.onChangeServerConnection()
 
         connectServerConsole()
         analyzeAllFiles()
@@ -261,54 +264,86 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
     }
 
     @JsonDelegate
-    fun getScoreboardStorageFileSystem() = object : ScoreboardStorageFileSystem {
+    fun getScoreboardStorageFileSystem() = scoreboardStorageFileSystem
+
+    private val scoreboardStorageFileSystem = object : ScoreboardStorageFileSystem {
         private val NO_SERVER_SUPPORT_ERROR: FileSystemResult<Nothing> = FileSystemResult(FileNotFoundError("Server does not support scoreboard storage file system"))
 
+        private val watches: Int2ObjectMap<FileSystemWatchParams> = Int2ObjectArrayMap()
+        private var onDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
+
+        private var delegateFileSystem: ScoreboardStorageFileSystem? = null
+
         override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
-            minecraftServer.scoreboardStorageFileSystem?.setOnDidChangeFileCallback(callback)
+            onDidChangeFileCallback = callback
+            delegateFileSystem?.setOnDidChangeFileCallback(callback)
         }
 
         override fun watch(params: FileSystemWatchParams) {
-            minecraftServer.scoreboardStorageFileSystem?.watch(params)
+            watches[params.watcherId] = params
+            delegateFileSystem?.watch(params)
         }
 
         override fun removeWatch(params: FileSystemRemoveWatchParams) {
-            minecraftServer.scoreboardStorageFileSystem?.removeWatch(params)
+            watches.remove(params.watcherId)
+            delegateFileSystem?.removeWatch(params)
         }
 
         override fun stat(params: UriParams): CompletableFuture<FileSystemResult<FileStat>> {
-            return minecraftServer.scoreboardStorageFileSystem?.stat(params)
+            return delegateFileSystem?.stat(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
         override fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>> {
-            return minecraftServer.scoreboardStorageFileSystem?.readDirectory(params)
+            return delegateFileSystem?.readDirectory(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Void?>> {
-            return minecraftServer.scoreboardStorageFileSystem?.createDirectory(params)
+        override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Unit>> {
+            return delegateFileSystem?.createDirectory(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
         override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {
-            return minecraftServer.scoreboardStorageFileSystem?.readFile(params)
+            return delegateFileSystem?.readFile(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Void?>> {
-            return minecraftServer.scoreboardStorageFileSystem?.writeFile(params)
+        override fun writeFile(params: WriteFileParams): CompletableFuture<FileSystemResult<Unit>> {
+            return delegateFileSystem?.writeFile(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Void?>> {
-            return minecraftServer.scoreboardStorageFileSystem?.delete(params)
+        override fun delete(params: DeleteParams): CompletableFuture<FileSystemResult<Unit>> {
+            return delegateFileSystem?.delete(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
-        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Void?>> {
-            return minecraftServer.scoreboardStorageFileSystem?.rename(params)
+        override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Unit>> {
+            return delegateFileSystem?.rename(params)
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+        }
+
+        fun onChangeServerConnection() {
+            val fileSystem = this@MinecraftLanguageServer.minecraftServer.createScoreboardStorageFileSystem()
+            delegateFileSystem = fileSystem
+            val onDidChangeFileCallback = onDidChangeFileCallback
+            if(onDidChangeFileCallback != null) {
+                if(!watches.isEmpty()) {
+                    // Technically a file system should send events for all deleted and created files according
+                    // to the watches, but the current way requires significantly less computation (and I'm lazy)
+                    onDidChangeFileCallback(arrayOf(
+                        FileEvent("scoreboardStorage:///", FileChangeType.Deleted),
+                        FileEvent("scoreboardStorage:///", FileChangeType.Created)
+                    ))
+                }
+                fileSystem?.setOnDidChangeFileCallback(onDidChangeFileCallback)
+            }
+            if(fileSystem != null) {
+                for(watch in watches.values) {
+                    fileSystem.watch(watch)
+                }
+            }
         }
     }
 

@@ -18,8 +18,10 @@ class ClientDummyServerConnection(
     override val debugService: ServerDebugConnectionService? = null,
     override val contextCompletionProvider: ContextCompletionProvider? = null,
     val dynamicRegistryManagerGetter: () -> DynamicRegistryManager = { CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager },
-    override val scoreboardStorageFileSystem: ScoreboardStorageFileSystem? = null
+    val scoreboardStorageFileSystemGetter: () -> ScoreboardStorageFileSystem? = { null }
 ) : MinecraftServerConnection {
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = dynamicRegistryManagerGetter()
+
+    override fun createScoreboardStorageFileSystem() = scoreboardStorageFileSystemGetter()
 }

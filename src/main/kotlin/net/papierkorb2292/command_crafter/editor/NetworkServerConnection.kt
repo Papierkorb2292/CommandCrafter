@@ -116,7 +116,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val clientEditorDebugConnections: BiMap<EditorDebugConnection, UUID> = HashBiMap.create()
         private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = ConcurrentHashMap()
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
-        private val serverScoreboardStorageFileSystems: MutableMap<UUID, ScoreboardStorageFileSystem> = mutableMapOf()
+        private val serverScoreboardStorageFileSystems: MutableMap<ServerPlayNetworkHandler, MutableMap<UUID, ScoreboardStorageFileSystem>> = mutableMapOf()
         private val clientScoreboardStorageFileSystems: MutableMap<UUID, NetworkScoreboardStorageFileSystem> = mutableMapOf()
 
         private val receivedRegistries = mutableMapOf<RegistryKey<out Registry<*>>, List<SerializableRegistries.SerializedRegistryEntry>>()
@@ -148,8 +148,6 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 }
                 val connection = NetworkServerConnection(context.client(), payload)
                 currentConnections += connection
-                if(payload.scoreboardStorageFileSystemId != null)
-                    clientScoreboardStorageFileSystems[payload.scoreboardStorageFileSystemId] = connection.scoreboardStorageFileSystem!!
                 currentRequest.second.complete(connection)
             }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
@@ -287,7 +285,6 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                             false,
                             CommandTreeS2CPacket(RootCommandNode()),
                             0,
-                            null,
                             payload.requestId
                         )
                     )
@@ -386,12 +383,12 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             }
             registerAsyncServerPacketHandler(ScoreboardStorageFileNotificationC2SPacket.ADD_WATCH_PACKET.id) { payload, context ->
                 if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-                val fileSystem = serverScoreboardStorageFileSystems[payload.fileSystemId] ?: return@registerAsyncServerPacketHandler
+                val fileSystem = getServerScoreboardStorageFileSystem(context.player, payload.fileSystemId)
                 fileSystem.watch(payload.params)
             }
             registerAsyncServerPacketHandler(ScoreboardStorageFileNotificationC2SPacket.REMOVE_WATCH_PACKET.id) { payload, context ->
                 if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-                val fileSystem = serverScoreboardStorageFileSystems[payload.fileSystemId] ?: return@registerAsyncServerPacketHandler
+                val fileSystem = getServerScoreboardStorageFileSystem(context.player, payload.fileSystemId)
                 fileSystem.removeWatch(payload.params)
             }
             registerScoreboardStorageRequestHandler(
@@ -455,6 +452,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     }
                     return@removeIf false
                 }
+                serverScoreboardStorageFileSystems.remove(networkHandler)
             }}
         }
 
@@ -465,12 +463,23 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         ) {
             registerAsyncServerPacketHandler(requestType.id) { payload, context ->
                 if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-                val fileSystem = serverScoreboardStorageFileSystems[payload.fileSystemId] ?: return@registerAsyncServerPacketHandler
+                val fileSystem = getServerScoreboardStorageFileSystem(context.player, payload.fileSystemId)
                 handler(fileSystem, payload.params).thenAccept {
                     context.sendPacket(responseType.factory(payload.requestId, it))
                 }
             }
         }
+
+        private fun getServerScoreboardStorageFileSystem(player: ServerPlayerEntity, id: UUID) =
+            serverScoreboardStorageFileSystems.getOrPut(player.networkHandler, ::mutableMapOf).getOrPut(id) {
+                val fileSystem = ServerScoreboardStorageFileSystem(player.server)
+                fileSystem.setOnDidChangeFileCallback {
+                    player.networkHandler.sendPacket(
+                        CustomPayloadS2CPacket(ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.factory(id, it))
+                    )
+                }
+                fileSystem
+            }
 
         private fun startSendingLogMessages(
             packetSender: PacketSender,
@@ -505,21 +514,11 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 null
             ))
 
-            val scoreboardStorageFileSystemId = UUID.randomUUID()
-            val scoreboardStorageFileSystem = ServerScoreboardStorageFileSystem(server)
-            serverScoreboardStorageFileSystems[scoreboardStorageFileSystemId] = scoreboardStorageFileSystem
-            scoreboardStorageFileSystem.setOnDidChangeFileCallback {
-                packetSender.sendPacket(
-                    ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.factory(scoreboardStorageFileSystemId, it)
-                )
-            }
-
             val responsePacket = InitializeNetworkServerConnectionS2CPacket(
                 true,
                 CommandTreeS2CPacket(rootCommandNode),
                 server.functionPermissionLevel,
-                scoreboardStorageFileSystemId,
-                requestPacket.requestId,
+                requestPacket.requestId
             )
 
             try {
@@ -579,9 +578,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = receivedRegistryManager ?: CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager
-    override val scoreboardStorageFileSystem = initializePacket.scoreboardStorageFileSystemId?.let {
-        NetworkScoreboardStorageFileSystem(it)
-    }
+
     override val commandDispatcher
         get() = commandDispatcherFactory(dynamicRegistryManager)
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
@@ -662,6 +659,12 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             )
             return future
         }
+    }
+
+    override fun createScoreboardStorageFileSystem(): NetworkScoreboardStorageFileSystem {
+        val fileSystem = NetworkScoreboardStorageFileSystem(UUID.randomUUID())
+        clientScoreboardStorageFileSystems[fileSystem.fileSystemId] = fileSystem
+        return fileSystem
     }
 
     class NetworkServerLog : Log {
