@@ -186,7 +186,7 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
     private nextWatcherId = 0;
 
     constructor(private readonly scoreboardStorageViewer: ScoreboardStorageViewer) {
-        scoreboardStorageViewer.languageClient?.onNotification("scoreboardStorageFileSystem/obDidChangeFile", (args: { uri: string, type: FileChangeType }) => {
+        scoreboardStorageViewer.languageClient?.onNotification("scoreboardStorageFileSystem/onDidChangeFile", (args: { uri: string, type: FileChangeType }) => {
             this.onDidChangeFileEmitter.fire([{ type: args.type, uri: vscode.Uri.parse(args.uri) }])
         })
     }
