@@ -29,13 +29,21 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
     private viewProviderDisposable: vscode.Disposable | null = null;
     private documentProvider: vscode.FileSystemProvider | null = null;
     private documentProviderDisposable: vscode.Disposable | null = null;
-    readonly foundNbtEditor: boolean;
+    foundNbtEditor: boolean = false;
     languageClient: LanguageClient | null = null
 
     scoreboards: string[] = []
     storages: string[] = []
 
     constructor(private readonly context: vscode.ExtensionContext, private readonly scoreboardStorageViewerId: string, readonly scoreboardStorageFileSystemScheme: string) {
+        this.refreshForeignExtensionData()
+        vscode.extensions.onDidChange(() => {
+            this.refreshForeignExtensionData()
+            this.viewProvider?.refresh()
+        })
+    }
+
+    private refreshForeignExtensionData() {
         this.foundNbtEditor = hasNbtEditor()
     }
 
