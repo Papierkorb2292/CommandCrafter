@@ -100,6 +100,11 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
 
     getTreeItem(element: ScoreboardStorageTreeItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
         //TODO: Add icons to entries
+        if(element.type === "folder") {
+            const treeItem = new vscode.TreeItem(element.folderName)
+            treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed
+            return treeItem
+        }
         if(element.type === "scoreboard") {
             const treeItem = new vscode.TreeItem(element.scoreboardName)
             treeItem.contextValue = "scoreboard"
@@ -125,40 +130,38 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
         return treeItem
     }
     getChildren(element?: ScoreboardStorageTreeItem | undefined): vscode.ProviderResult<ScoreboardStorageTreeItem[]> {
-        if(element !== undefined)
-            return []
+        if(element === undefined)
+            return [
+                { type: "folder", folderName: "scoreboard" },
+                { type: "folder", folderName: "storage" }
+            ]
 
-        return Promise.all([
-            vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///scoreboards/`)),
-            vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///storages/`))
-        ]).then(([scoreboards, storages]) => {
-            const scoreboardItems: ScoreboardTreeItem[] = scoreboards.map(([name]) => ({
-                type: "scoreboard",
-                scoreboardName: name.slice(
-                    this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///scoreboards/'.length,
-                    -5
-                )
-            }))
-            let storageItems: StorageTreeItem[]
-            if(this.scoreboardStorageViewer.foundNbtEditor) {
-                storageItems = storages
-                    .filter(([name]) => name.endsWith(".nbt"))
-                    .map(([name]) => ({ type: "storage", storageName: name.slice(
-                        this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
-                        -4
-                    )
-                }))
-            } else {
-                storageItems = storages
-                    .filter(([name]) => name.endsWith(".snbt"))
-                    .map(([name]) => ({ type: "storage", storageName: name.slice(
-                        this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
-                        -5
-                    )
-                }))
-            }
-            return [...scoreboardItems, ...storageItems]
-        })
+        if(element.type !== "folder")
+            return []
+        
+        switch(element.folderName) {
+            case "scoreboard":
+                return vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///scoreboards/`))
+                    .then(scoreboards => scoreboards.map(([name]) => ({
+                        type: "scoreboard",
+                        scoreboardName: name.slice(
+                            this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///scoreboards/'.length,
+                            -5
+                        )
+                    })))
+            case "storage":
+                return vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///storages/`))
+                    .then(storages => {
+                        const fileExtension = this.scoreboardStorageViewer.foundNbtEditor ? ".nbt" : ".snbt"
+                        return storages
+                            .filter(([name]) => name.endsWith(fileExtension))
+                            .map(([name]) => ({ type: "storage", storageName: name.slice(
+                                this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
+                                -fileExtension.length
+                            )
+                        }))
+                    })
+        }
     }
 
     refresh(): void {
@@ -170,7 +173,7 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
     }
 }
 
-type ScoreboardStorageTreeItem = ScoreboardTreeItem | StorageTreeItem
+type ScoreboardStorageTreeItem = ScoreboardTreeItem | StorageTreeItem | ScoreboardStorageTreeFolder
 
 interface ScoreboardTreeItem {
     type: "scoreboard",
@@ -180,6 +183,11 @@ interface ScoreboardTreeItem {
 interface StorageTreeItem {
     type: "storage",
     storageName: string
+}
+
+interface ScoreboardStorageTreeFolder {
+    type: "folder",
+    folderName: "scoreboard" | "storage"
 }
 
 /**
