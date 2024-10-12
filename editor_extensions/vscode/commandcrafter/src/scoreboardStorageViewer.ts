@@ -99,7 +99,6 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
     readonly onDidChangeTreeData: vscode.Event<ScoreboardStorageTreeItem | undefined> = this.onDidChangeTreeDataEmitter.event;
 
     getTreeItem(element: ScoreboardStorageTreeItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
-        //TODO: Add icons to entries
         if(element.type === "folder") {
             const treeItem = new vscode.TreeItem(element.folderName)
             treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed
@@ -108,6 +107,9 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
         if(element.type === "scoreboard") {
             const treeItem = new vscode.TreeItem(element.scoreboardName)
             treeItem.contextValue = "scoreboard"
+            // Used for icon, which is supposed to be the txt icon due to looking like a list
+            treeItem.resourceUri = vscode.Uri.parse(".txt")
+            treeItem.iconPath = vscode.ThemeIcon.File
             treeItem.command = {
                 command: "vscode.open",
                 title: "Open Scoreboard",
@@ -120,6 +122,9 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
         assert(element.type === "storage")
         const treeItem = new vscode.TreeItem(element.storageName)
         treeItem.contextValue = "storage"
+        // Used for icon, which is supposed to be the json icon due to the similarity to nbt
+        treeItem.resourceUri = vscode.Uri.parse(".json")
+        treeItem.iconPath = vscode.ThemeIcon.File
         treeItem.command = {
             command: "vscode.open",
             title: "Open Storage",
