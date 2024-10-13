@@ -280,7 +280,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 val objective = server.scoreboard.getNullableObjective(fileName.substring(0, fileName.length - 5))
                     ?: return FileSystemResult(FileNotFoundError("Objective $fileName not found"))
                 val jsonRoot = JsonObject()
-                for(entry in server.scoreboard.getScoreboardEntries(objective)) {
+                for(entry in server.scoreboard.getScoreboardEntries(objective).sortedBy { it.owner }) {
                     jsonRoot.addProperty(entry.owner, entry.value)
                 }
                 val stringWriter = StringWriter()
