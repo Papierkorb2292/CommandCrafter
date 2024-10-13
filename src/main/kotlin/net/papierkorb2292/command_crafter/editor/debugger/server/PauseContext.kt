@@ -260,7 +260,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
             for(player in server.playerManager.playerList.toList())
                 (player.networkHandler as ServerCommonNetworkHandlerAccessor).callBaseTick()
-            ServerScoreboardStorageFileSystem.runDataUpdates()
+            ServerScoreboardStorageFileSystem.runUpdates()
         }
 
         for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)

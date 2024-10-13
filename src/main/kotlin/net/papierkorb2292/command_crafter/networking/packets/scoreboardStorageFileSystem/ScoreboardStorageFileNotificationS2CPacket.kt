@@ -7,12 +7,13 @@ import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FILE_EVENT_ARRAY_PACKET_CODEC
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import java.util.*
 
 class ScoreboardStorageFileNotificationS2CPacket<TParams>(private val packetId: CustomPayload.Id<ScoreboardStorageFileNotificationS2CPacket<TParams>>, val fileSystemId: UUID, val params: TParams) :
     CustomPayload {
     companion object {
-        val DID_CHANGE_FILE_PACKET = createType(
+        val DID_CHANGE_FILE_PACKET: Type<Array<FileEvent>> = createType(
             Identifier.of("command_crafter", "scoreboard_storage_file_did_change"),
             FILE_EVENT_ARRAY_PACKET_CODEC
         )

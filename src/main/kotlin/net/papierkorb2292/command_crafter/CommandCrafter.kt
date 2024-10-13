@@ -156,7 +156,7 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_FILE_TYPE, Enchantment.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE, EnchantmentProvider.CODEC)
 
-        ServerScoreboardStorageFileSystem.registerTickDataUpdateRunner()
+        ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
     }
 
     private fun initializeParser() {

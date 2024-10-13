@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
-import org.eclipse.lsp4j.FileEvent
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.jsonrpc.services.JsonSegment

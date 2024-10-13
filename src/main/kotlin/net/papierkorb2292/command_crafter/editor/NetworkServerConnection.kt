@@ -68,7 +68,6 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
-import org.eclipse.lsp4j.FileEvent
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.*
@@ -116,7 +115,6 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val clientEditorDebugConnections: BiMap<EditorDebugConnection, UUID> = HashBiMap.create()
         private val serverEditorDebugConnections: MutableMap<UUID, ServerNetworkDebugConnection> = ConcurrentHashMap()
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
-        private val serverScoreboardStorageFileSystems: MutableMap<ServerPlayNetworkHandler, MutableMap<UUID, ScoreboardStorageFileSystem>> = mutableMapOf()
         private val clientScoreboardStorageFileSystems: MutableMap<UUID, NetworkScoreboardStorageFileSystem> = mutableMapOf()
 
         private val receivedRegistries = mutableMapOf<RegistryKey<out Registry<*>>, List<SerializableRegistries.SerializedRegistryEntry>>()
@@ -452,7 +450,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     }
                     return@removeIf false
                 }
-                serverScoreboardStorageFileSystems.remove(networkHandler)
+                ServerScoreboardStorageFileSystem.createdFileSystems.remove(networkHandler)
             }}
         }
 
@@ -471,7 +469,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
 
         private fun getServerScoreboardStorageFileSystem(player: ServerPlayerEntity, id: UUID) =
-            serverScoreboardStorageFileSystems.getOrPut(player.networkHandler, ::mutableMapOf).getOrPut(id) {
+            ServerScoreboardStorageFileSystem.createdFileSystems.getOrPut(player.networkHandler, ::mutableMapOf).getOrPut(id) {
                 val fileSystem = ServerScoreboardStorageFileSystem(player.server)
                 fileSystem.setOnDidChangeFileCallback {
                     player.networkHandler.sendPacket(

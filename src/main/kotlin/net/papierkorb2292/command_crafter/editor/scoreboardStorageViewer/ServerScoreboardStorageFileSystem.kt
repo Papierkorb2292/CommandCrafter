@@ -11,12 +11,11 @@ import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.StringNbtReader
 import net.minecraft.scoreboard.ScoreHolder
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
-import org.eclipse.lsp4j.FileChangeType
-import org.eclipse.lsp4j.FileEvent
 import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -31,11 +30,33 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
         private val DATA_UPDATE_QUEUE = mutableListOf<() -> Unit>()
 
-        fun runDataUpdates() {
+        private var lastFileUpdateTimeMs = 0L
+
+        val createdFileSystems: MutableMap<ServerPlayNetworkHandler, MutableMap<UUID, ServerScoreboardStorageFileSystem>> = mutableMapOf()
+
+        fun runUpdates() {
             synchronized(DATA_UPDATE_QUEUE) {
                 for(update in DATA_UPDATE_QUEUE)
                     update()
                 DATA_UPDATE_QUEUE.clear()
+            }
+
+            val timeMs = Util.getEpochTimeMs()
+            if(timeMs - lastFileUpdateTimeMs < 2000)
+                return
+            lastFileUpdateTimeMs = timeMs
+            for(playerFileSystems in createdFileSystems.values) {
+                for(fileSystem in playerFileSystems.values) {
+                    fileSystem.flushQueuedFileUpdates()
+                }
+            }
+        }
+
+        fun onFileUpdate(directory: Directory, objectName: String, updateType: FileChangeType) {
+            for(playerFileSystems in createdFileSystems.values) {
+                for(fileSystem in playerFileSystems.values) {
+                    fileSystem.onFileUpdate(directory, objectName, updateType)
+                }
             }
         }
 
@@ -45,9 +66,9 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             }
         }
 
-        fun registerTickDataUpdateRunner() {
+        fun registerTickUpdateRunner() {
             ServerTickEvents.END_SERVER_TICK.register {
-                runDataUpdates()
+                runUpdates()
             }
         }
     }
@@ -58,7 +79,8 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
     private var onDidChangeFileCallback: ((Array<FileEvent>) -> Unit)? = null
 
-    private val queuedFileUpdates = mutableListOf<FileEvent>()
+    // This is a set because the same file can be updated multiple times in a single tick
+    private val queuedFileUpdates = mutableSetOf<FileUpdate>()
 
     override fun setOnDidChangeFileCallback(callback: (Array<FileEvent>) -> Unit) {
         onDidChangeFileCallback = callback
@@ -288,27 +310,54 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         return content
     }
 
-    fun onFileUpdate(directory: Directory, fileName: String, updateType: FileChangeType) {
-        val fileUris = if(directory == Directory.SCOREBOARDS) {
-            arrayOf(createUrl(Directory.SCOREBOARDS, fileName, ".json"),)
-        } else {
-            arrayOf(
-                createUrl(Directory.STORAGES, fileName, ".nbt"),
-                createUrl(Directory.STORAGES, fileName, ".snbt")
-            )
-        }
-        for(fileUri in fileUris) {
-            for(watch in watches.values) {
-                if(watch.matches(fileUri))
-                    queuedFileUpdates += FileEvent(fileUri, updateType)
-            }
-        }
+    fun onFileUpdate(directory: Directory, objectName: String, updateType: FileChangeType) {
+        queuedFileUpdates += FileUpdate(directory, objectName, updateType)
     }
 
     fun flushQueuedFileUpdates() {
         if(queuedFileUpdates.isEmpty())
             return
-        onDidChangeFileCallback?.invoke(queuedFileUpdates.toTypedArray())
+        val lastFileCacheId = lastFileCacheId
+        for(update in queuedFileUpdates) {
+            if(lastFileCacheId?.first == Directory.SCOREBOARDS
+                && update.directory == Directory.SCOREBOARDS
+                && lastFileCacheId.second == update.objectName + ".json"
+                ) {
+                this.lastFileCacheId = null
+                break
+            }
+            if(lastFileCacheId?.first == Directory.STORAGES
+                && update.directory == Directory.STORAGES
+                && (lastFileCacheId.second == update.objectName + ".nbt" || lastFileCacheId.second == update.objectName + ".snbt")
+                ) {
+                this.lastFileCacheId = null
+                break
+            }
+        }
+        val onDidChangeFileCallback = onDidChangeFileCallback
+        if(onDidChangeFileCallback == null) {
+            queuedFileUpdates.clear()
+            return
+        }
+
+        val fileEvents = queuedFileUpdates.flatMap {
+            val fileUris = if(it.directory == Directory.SCOREBOARDS) {
+                arrayOf(createUrl(Directory.SCOREBOARDS, it.objectName, ".json"),)
+            } else {
+                arrayOf(
+                    createUrl(Directory.STORAGES, it.objectName, ".nbt"),
+                    createUrl(Directory.STORAGES, it.objectName, ".snbt")
+                )
+            }
+
+            fileUris.mapNotNull { uri ->
+                if(watches.values.any { watch -> watch.matches(uri) })
+                    FileEvent(uri, it.updateType)
+                else null
+            }
+        }
+
+        onDidChangeFileCallback.invoke(fileEvents.toTypedArray())
         queuedFileUpdates.clear()
     }
 
@@ -335,9 +384,11 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
      */
     class Watch(private val uriPattern: Pattern, private val excludeUriPatterns: List<Pattern>) {
         fun matches(uri: String): Boolean {
-            if(!uriPattern.matcher(uri).matches())
+            if(!uriPattern.matcher(uri).find())
                 return false
-            return excludeUriPatterns.all { !it.matcher(uri).matches() }
+            return excludeUriPatterns.all { !it.matcher(uri).find() }
         }
     }
+
+    data class FileUpdate(val directory: Directory, val objectName: String, val updateType: FileChangeType)
 }

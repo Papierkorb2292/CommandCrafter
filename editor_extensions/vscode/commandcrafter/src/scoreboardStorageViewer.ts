@@ -27,8 +27,7 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
 
     private viewProvider: ScoreboardStorageTreeDataProvider | null = null;
     private viewProviderDisposable: vscode.Disposable | null = null;
-    private documentProvider: vscode.FileSystemProvider | null = null;
-    private documentProviderDisposable: vscode.Disposable | null = null;
+    private documentProvider: ScoreboardStorageFileSystemProvider;
     foundNbtEditor: boolean = false;
     languageClient: LanguageClient | null = null
 
@@ -41,6 +40,13 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
             this.refreshForeignExtensionData()
             this.viewProvider?.refresh()
         })
+
+        this.documentProvider = new ScoreboardStorageFileSystemProvider(this)
+        const contentProviderDisposable = vscode.workspace.registerFileSystemProvider(
+            this.scoreboardStorageFileSystemScheme,
+            this.documentProvider
+        )
+        this.context.subscriptions.push(contentProviderDisposable)
     }
 
     private refreshForeignExtensionData() {
@@ -50,13 +56,7 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
     onLanguageClientStart(languageClient: LanguageClient): void { }
     onLanguageClientReady(languageClient: LanguageClient): void {
         this.languageClient = languageClient
-        this.documentProvider = new ScoreboardStorageFileSystemProvider(this)
-        const contentProviderDisposable = vscode.workspace.registerFileSystemProvider(
-            this.scoreboardStorageFileSystemScheme,
-            this.documentProvider
-        )
-        this.documentProviderDisposable = contentProviderDisposable
-        this.context.subscriptions.push(contentProviderDisposable)
+        this.documentProvider.onChangeLanguageClient(languageClient)
         this.viewProvider = new ScoreboardStorageTreeDataProvider(this)
         const viewDisposable = vscode.window.registerTreeDataProvider(
             this.scoreboardStorageViewerId,
@@ -68,8 +68,6 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
     onLanguageClientStop(): void {
         this.viewProvider?.dispose()
         this.viewProviderDisposable?.dispose()
-        this.documentProviderDisposable?.dispose()
-        this.documentProviderDisposable = null
         this.viewProviderDisposable = null
         this.languageClient = null
     }
@@ -88,10 +86,14 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
                 "**"
             )
         )
-        this.fileSystemWatcher.onDidChange(uri => {
+
+        const fileSystemRefreshCallback = (uri: vscode.Uri) => {
             if(uri.scheme === scoreboardStorageViewer.scoreboardStorageFileSystemScheme)
                 this.refresh()
-        })
+        }
+
+        this.fileSystemWatcher.onDidCreate(fileSystemRefreshCallback)
+        this.fileSystemWatcher.onDidDelete(fileSystemRefreshCallback)
     }
     
     private onDidChangeTreeDataEmitter: vscode.EventEmitter<ScoreboardStorageTreeItem | undefined> = new vscode.EventEmitter();
@@ -207,8 +209,10 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
 
     private nextWatcherId = 0;
 
-    constructor(private readonly scoreboardStorageViewer: ScoreboardStorageViewer) {
-        scoreboardStorageViewer.languageClient?.onNotification("scoreboardStorageFileSystem/onDidChangeFile", (args: { events: { uri: string, type: FileChangeType }[]}) => {
+    constructor(private readonly scoreboardStorageViewer: ScoreboardStorageViewer) { }
+
+    onChangeLanguageClient(languageClient: LanguageClient) {
+        languageClient.onNotification("scoreboardStorageFileSystem/onDidChangeFile", (args: { events: { uri: string, type: FileChangeType }[]}) => {
             this.onDidChangeFileEmitter.fire(args.events.map(event => ({ type: event.type, uri: vscode.Uri.parse(event.uri)})))
         })
     }
@@ -247,7 +251,7 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
         var promise = this.scoreboardStorageViewer.languageClient
             ?.sendRequest<T | { fileNotFoundErrorMessage: string }>(request, args)
         if(!promise)
-            throw vscode.FileSystemError.FileNotFound(errorMsg)
+            throw vscode.FileSystemError.FileNotFound("Not connected to a Minecraft instance")
         return promise.catch(_ => {
             throw vscode.FileSystemError.FileNotFound(errorMsg)
         }).then(result => {
@@ -262,7 +266,7 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
         var promise = this.scoreboardStorageViewer.languageClient
             ?.sendNotification(notification, args)
         if(!promise)
-            throw vscode.FileSystemError.FileNotFound(errorMsg)
+            throw vscode.FileSystemError.FileNotFound("Not connected to a Minecraft instance")
         return promise.catch(_ => {
             throw vscode.FileSystemError.FileNotFound(errorMsg)
         })

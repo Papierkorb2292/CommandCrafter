@@ -93,6 +93,6 @@ class EditorURI private constructor(
         }
         val scheme = Pattern.quote(scheme)
         val authority = Pattern.quote(authority)
-        return "$scheme://$authority/$pathRegex"
+        return "$scheme://$authority$pathRegex"
     }
 }

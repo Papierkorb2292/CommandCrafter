@@ -14,6 +14,8 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
@@ -73,9 +75,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
         minecraftServer = connection
 
-        scoreboardStorageFileSystem.setOnDidChangeFileCallback {
-            client.onDidChangeScoreboardStorage(CommandCrafterLanguageClient.OnDidChangeScoreboardStorageParams(it))
-        }
         scoreboardStorageFileSystem.onChangeServerConnection()
 
         connectServerConsole()
@@ -373,6 +372,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
 
     override fun connect(client: CommandCrafterLanguageClient) {
         this.client = client
+        scoreboardStorageFileSystem.setOnDidChangeFileCallback {
+            client.onDidChangeScoreboardStorage(CommandCrafterLanguageClient.OnDidChangeScoreboardStorageParams(it))
+        }
     }
 
     fun getOpenFile(uri: String) = openFiles[uri]

@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.editor
 import net.papierkorb2292.command_crafter.editor.console.Channel
 import net.papierkorb2292.command_crafter.editor.console.ConsoleMessage
 import net.papierkorb2292.command_crafter.editor.console.RemoveChannelNotification
-import org.eclipse.lsp4j.FileEvent
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.LanguageClient
