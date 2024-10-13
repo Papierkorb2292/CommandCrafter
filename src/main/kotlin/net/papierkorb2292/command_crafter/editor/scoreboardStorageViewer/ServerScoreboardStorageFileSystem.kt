@@ -130,10 +130,15 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 ReadDirectoryResultEntry(SCOREBOARDS_DIRECTORY, FileType.DIRECTORY),
                 ReadDirectoryResultEntry(STORAGES_DIRECTORY, FileType.DIRECTORY)
             )
-            Directory.SCOREBOARDS -> server.scoreboard.objectives.map {
+            Directory.SCOREBOARDS -> server.scoreboard.objectives.sortedBy { it.name }.map {
                 ReadDirectoryResultEntry(createUrl(Directory.SCOREBOARDS, it.name, ".json"), FileType.FILE)
             }.toTypedArray()
-            Directory.STORAGES -> server.dataCommandStorage.ids.flatMap {
+            Directory.STORAGES -> server.dataCommandStorage.ids.sorted { id1, id2 ->
+                val namespaceCmp = id1.namespace.compareTo(id2.namespace)
+                if(namespaceCmp != 0)
+                    return@sorted namespaceCmp
+                id1.path.compareTo(id2.path)
+            }.flatMap {
                 Stream.of(
                     ReadDirectoryResultEntry(createUrl(Directory.STORAGES, it.toString(), ".nbt"), FileType.FILE),
                     ReadDirectoryResultEntry(createUrl(Directory.STORAGES, it.toString(), ".snbt"), FileType.FILE)
