@@ -112,6 +112,8 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
             // Used for icon, which is supposed to be the txt icon due to looking like a list
             treeItem.resourceUri = vscode.Uri.parse(".txt")
             treeItem.iconPath = vscode.ThemeIcon.File
+            // Set tooltip, because resourceUri is used as the default
+            treeItem.tooltip = "Open Scoreboard"
             treeItem.command = {
                 command: "vscode.open",
                 title: "Open Scoreboard",
@@ -127,6 +129,8 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
         // Used for icon, which is supposed to be the json icon due to the similarity to nbt
         treeItem.resourceUri = vscode.Uri.parse(".json")
         treeItem.iconPath = vscode.ThemeIcon.File
+        // Set tooltip, because resourceUri is used as the default
+        treeItem.tooltip = "Open Storage"
         treeItem.command = {
             command: "vscode.open",
             title: "Open Storage",
