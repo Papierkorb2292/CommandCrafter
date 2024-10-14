@@ -47,10 +47,40 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
             this.documentProvider
         )
         this.context.subscriptions.push(contentProviderDisposable)
+
+        this.registerOpenCommands(context)
     }
 
     private refreshForeignExtensionData() {
         this.foundNbtEditor = hasNbtEditor()
+    }
+
+    private registerOpenCommands(context: vscode.ExtensionContext) {
+        context.subscriptions.push(
+            vscode.commands.registerCommand("commandcrafter.openScoreboard", async (name?: string) => {
+                if(!name) {
+                    name = await vscode.window.showInputBox({
+                        prompt: "Scoreboard name",
+                    })
+                    if(!name)
+                        return
+                }
+                const uri = vscode.Uri.parse(`${this.scoreboardStorageFileSystemScheme}:///scoreboards/${name}.json`)
+                vscode.commands.executeCommand("vscode.open", uri)
+            }),
+            vscode.commands.registerCommand("commandcrafter.openStorage", async (name?: string) => {
+                if(!name) {
+                    name = await vscode.window.showInputBox({
+                        prompt: "Storage name",
+                    })
+                    if(!name)
+                        return
+                }
+                const uri = vscode.Uri.parse(`${this.scoreboardStorageFileSystemScheme}:///storages/${name}.${this.foundNbtEditor ? "nbt" : "snbt"}`)
+                vscode.commands.executeCommand("vscode.open", uri)
+            })
+        )
+
     }
 
     onLanguageClientStart(languageClient: LanguageClient): void { }

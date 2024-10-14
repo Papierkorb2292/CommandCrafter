@@ -31,6 +31,14 @@
       {
         "command": "commandcrafter.toggleLanguageClient",
         "title": "Toggle CommandCrafter"
+      },
+      {
+        "command": "commandcrafter.openScoreboard",
+        "title": "Open Scoreboard"
+      },
+      {
+        "command": "commandcrafter.openStorage",
+        "title": "Open Storage"
       }
     ],
     "languages": [
