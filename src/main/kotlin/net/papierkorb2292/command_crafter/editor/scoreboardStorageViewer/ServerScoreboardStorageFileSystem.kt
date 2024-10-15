@@ -270,11 +270,14 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             val json = GSON.fromJson(content.decodeToString(), JsonObject::class.java)
             OBJECTIVE_CODEC.decode(JsonOps.INSTANCE, json).orThrow.first
         } catch(e: Exception) {
+            onFileUpdate(Directory.SCOREBOARDS, objective.name, FileChangeType.Changed)
             return FileSystemResult(Unit)
         }
 
-        if(objective.criterion.isReadOnly)
+        if(objective.criterion.isReadOnly) {
+            onFileUpdate(Directory.SCOREBOARDS, objective.name, FileChangeType.Changed)
             return FileSystemResult(Unit)
+        }
         for((owner, value) in objectiveFile.scores.entries) {
             server.scoreboard.getOrCreateScore(ScoreHolder.fromName(owner), objective).score = value
         }
