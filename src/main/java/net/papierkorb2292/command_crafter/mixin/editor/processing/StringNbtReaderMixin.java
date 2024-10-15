@@ -71,6 +71,12 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
             element = NbtIntAccessor.callInit(nbtInt.intValue());
         } else if(element instanceof NbtShort nbtShort) {
             element = NbtShortAccessor.callInit(nbtShort.shortValue());
+        } else if(element instanceof NbtFloat nbtFloat) {
+            element = NbtFloatAccessor.callInit(nbtFloat.floatValue());
+        } else if(element instanceof NbtDouble nbtDouble) {
+            element = NbtDoubleAccessor.callInit(nbtDouble.doubleValue());
+        } else if(element instanceof NbtString nbtString && nbtString.asString().isEmpty()) {
+            element = NbtStringAccessor.callInit("");
         }
 
         command_crafter$stringRangeTreeBuilder.addNode(element, new StringRange(startCursor, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
@@ -289,6 +295,16 @@ public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> 
         if(nbtArray == null) return op.call(content);
         for(var b : content) nbtArray.add(NbtLong.of(b));
         return nbtArray;
+    }
+
+    @ModifyReturnValue(
+            method = "parseElementPrimitiveArray",
+            at = @At("RETURN")
+    )
+    private NbtElement command_crafter$addArrayToStringRangeTree(NbtElement array, @Local int startCursor) {
+        if(command_crafter$stringRangeTreeBuilder == null) return array;
+        command_crafter$stringRangeTreeBuilder.addNode(array, new StringRange(startCursor - 1, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
+        return array;
     }
 
     @ModifyVariable(

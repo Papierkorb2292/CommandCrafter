@@ -577,8 +577,11 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = receivedRegistryManager ?: CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager
 
+    @Suppress("USELESS_ELVIS")
     override val commandDispatcher
         get() = commandDispatcherFactory(dynamicRegistryManager)
+            // I don't know why this would be null, but it happens. Waiting for more info when it happens again...
+            ?: throw IllegalStateException("NetworkServerConnection.commandDispatcher is null somehow, please report this bug. Debug Info: ReceivedRegistryManager: $receivedRegistryManager, DefaultCombinedRegistryManager: ${CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager}, DispatcherFactory: $commandDispatcherFactory")
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {

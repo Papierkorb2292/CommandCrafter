@@ -134,7 +134,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                 if(dotIndex == -1 || dotIndex < id.path.lastIndexOf('/')) "${id.path}.*"
                 else id.path
             return editorClientFileFinder
-                .findFiles("${packagedId.packPath}/${id.namespace}/**/$fileExtensionPath")
+                .findFiles("${packagedId.packPath}/${id.namespace}/*/**/$fileExtensionPath") // Uses /*/**/ to guarantee that there's at least one folder between namespace and path to determine the file type
                 .thenApply { uris ->
                     uris.mapNotNull { uri ->
                         val idPathStart = uri.lastIndexOf(id.path)

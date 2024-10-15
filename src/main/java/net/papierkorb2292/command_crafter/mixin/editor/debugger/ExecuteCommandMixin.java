@@ -99,7 +99,7 @@ public abstract class ExecuteCommandMixin {
 
             //noinspection unchecked
             var isTag = FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag((
-                    CommandContext<ServerCommandSource>) contextChain.getTopContext(),
+                    CommandContext<ServerCommandSource>) contextChain.getTopContext().copyFor(source),
                     "name",
                     debugFrame.getPauseContext(),
                     null,
@@ -116,8 +116,8 @@ public abstract class ExecuteCommandMixin {
                 //noinspection unchecked
                 control.enqueueAction((CommandAction<T>) new ExitDebugFrameCommandAction(
                         debugFrame.getPauseContext().getDebugFrameDepth() - 1,
-                        null,
-                        false,
+                        FunctionDebugFrame.Companion.getCommandResult(),
+                        true,
                         null
                 ));
             }
@@ -163,7 +163,8 @@ public abstract class ExecuteCommandMixin {
             method = "method_54852",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/ExecutionControl;enqueueAction(Lnet/minecraft/command/CommandAction;)V"
+                    target = "Lnet/minecraft/command/ExecutionControl;enqueueAction(Lnet/minecraft/command/CommandAction;)V",
+                    ordinal = 0
             )
     )
     private static <T extends AbstractServerCommandSource<T>> CommandAction<T> command_crafter$addTagPauseCheck(CommandAction<T> original, @Share("entryIndex") LocalIntRef entryIndexRef) {

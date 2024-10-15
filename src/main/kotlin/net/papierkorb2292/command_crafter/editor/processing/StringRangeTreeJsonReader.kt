@@ -94,8 +94,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                             }
                             break
                         }
-                    } catch(e: IOException) {
-                        if(!allowMalformed) {
+                    } catch(e: Throwable) {
+                        if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
                             throw e
                         }
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
@@ -127,8 +127,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         if(value == null) {
                             value = readTerminal(`in`, peeked)
                         }
-                    } catch(e: IOException) {
-                        if(!allowMalformed) {
+                    } catch(e: Throwable) {
+                        if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
                             throw e
                         }
                         @Suppress("DEPRECATION")
@@ -177,7 +177,10 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     }
                 }
             }
-        } catch(e: IOException) {
+        } catch(e: Throwable) {
+            if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
+                throw e
+            }
             for(entry in stack)
                 builder.addNode(entry.element, StringRange(entry.startPos, `in`.absolutePos), entry.allowedStartPos)
             builder.addNode(current, StringRange(nestedStartPos, `in`.absolutePos), nestedAllowedStartPos)
