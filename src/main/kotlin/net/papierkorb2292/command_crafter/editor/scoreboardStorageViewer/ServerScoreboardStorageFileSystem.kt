@@ -1,8 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer
 
+import com.google.common.collect.Lists
 import com.google.common.io.ByteStreams
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.google.gson.stream.JsonWriter
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
@@ -10,15 +12,19 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.StringNbtReader
 import net.minecraft.scoreboard.ScoreHolder
+import net.minecraft.scoreboard.ScoreboardCriterion
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardObjectiveAccessor
 import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Function
 import java.util.regex.Pattern
 import java.util.stream.Stream
 
@@ -26,6 +32,9 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     companion object {
         private const val SCOREBOARDS_DIRECTORY = "scoreboards"
         private const val STORAGES_DIRECTORY = "storages"
+        private const val SCOREBOARDS_JSON_ENTRIES_NAME = "entries"
+        private const val SCOREBOARDS_JSON_OBJECTIVE_DATA_NAME = "objective"
+        private const val SCOREBOARDS_JSON_CRITERIA_NAME = "criteria"
         private val GSON = Gson()
 
         private val DATA_UPDATE_QUEUE = mutableListOf<() -> Unit>()
@@ -193,23 +202,44 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     private fun updateScoreboardData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Unit> {
         if(!resolvedPath.fileName!!.endsWith(".json"))
             return FileSystemResult(FileNotFoundError("Only JSON files in scoreboards directory"))
+        val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - 5))
+            ?: return FileSystemResult(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
+
         val jsonRoot = try {
             GSON.fromJson(content.decodeToString(), JsonObject::class.java)
         } catch(e: Exception) {
             return FileSystemResult(Unit)
         }
-        val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - 5))
-            ?: return FileSystemResult(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
+        val entries = jsonRoot.get(SCOREBOARDS_JSON_ENTRIES_NAME)
+        if(entries !is JsonObject)
+            return FileSystemResult(Unit)
+        val objectiveData = jsonRoot.get(SCOREBOARDS_JSON_OBJECTIVE_DATA_NAME)
+        if(objectiveData !is JsonObject)
+            return FileSystemResult(Unit)
+
+        val criterionJson = objectiveData.get(SCOREBOARDS_JSON_CRITERIA_NAME)
+        val parsedCriterion =
+            if(criterionJson !is JsonPrimitive || !criterionJson.isString)
+                objective.criterion
+            else
+                ScoreboardCriterion.getOrCreateStatCriterion(criterionJson.asString).orElse(objective.criterion)
         if(objective.criterion.isReadOnly)
             return FileSystemResult(Unit)
-        for((owner, value) in jsonRoot.entrySet()) {
+        for((owner, value) in entries.entrySet()) {
             if(!value.isJsonPrimitive || !value.asJsonPrimitive.isNumber)
                 continue
             server.scoreboard.getOrCreateScore(ScoreHolder.fromName(owner), objective).score = value.asInt
         }
         for(entry in server.scoreboard.getScoreboardEntries(objective)) {
-            if(!jsonRoot.has(entry.owner))
+            if(!entries.has(entry.owner))
                 server.scoreboard.removeScore(ScoreHolder.fromName(entry.owner), objective)
+        }
+
+        if(objective.criterion != parsedCriterion) {
+            val objectivesByCriterion = (server.scoreboard as ScoreboardAccessor).objectivesByCriterion
+            objectivesByCriterion[objective.criterion]?.remove(objective)
+            objectivesByCriterion.computeIfAbsent(parsedCriterion, Function { Lists.newArrayList() }).add(objective)
+            (objective as ScoreboardObjectiveAccessor).setCriterion(parsedCriterion)
         }
         return FileSystemResult(Unit)
     }
@@ -280,9 +310,14 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 val objective = server.scoreboard.getNullableObjective(fileName.substring(0, fileName.length - 5))
                     ?: return FileSystemResult(FileNotFoundError("Objective $fileName not found"))
                 val jsonRoot = JsonObject()
+                val entriesObject = JsonObject()
                 for(entry in server.scoreboard.getScoreboardEntries(objective).sortedBy { it.owner }) {
-                    jsonRoot.addProperty(entry.owner, entry.value)
+                    entriesObject.addProperty(entry.owner, entry.value)
                 }
+                jsonRoot.add(SCOREBOARDS_JSON_ENTRIES_NAME, entriesObject)
+                val objectiveData = JsonObject()
+                objectiveData.addProperty(SCOREBOARDS_JSON_CRITERIA_NAME, objective.criterion.name)
+                jsonRoot.add(SCOREBOARDS_JSON_OBJECTIVE_DATA_NAME, objectiveData)
                 val stringWriter = StringWriter()
                 val jsonWriter = JsonWriter(stringWriter)
                 jsonWriter.setIndent("  ")
@@ -347,7 +382,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
         val fileEvents = queuedFileUpdates.flatMap {
             val fileUris = if(it.directory == Directory.SCOREBOARDS) {
-                arrayOf(createUrl(Directory.SCOREBOARDS, it.objectName, ".json"),)
+                arrayOf(createUrl(Directory.SCOREBOARDS, it.objectName, ".json"))
             } else {
                 arrayOf(
                     createUrl(Directory.STORAGES, it.objectName, ".nbt"),
