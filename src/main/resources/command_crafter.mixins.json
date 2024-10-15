@@ -106,7 +106,7 @@
     "editor.processing.TagParsingRuleMixin",
     "editor.processing.TextArgumentTypeMixin",
     "editor.scoreboardStorageViewer.DataCommandStorageMixin",
-    "editor.scoreboardStorageViewer.Scoreboard\u00241Mixin",
+    "editor.scoreboardStorageViewer.ScoreboardScoreAccessMixin",
     "editor.scoreboardStorageViewer.ScoreboardAccessor",
     "editor.scoreboardStorageViewer.ScoreboardMixin",
     "editor.scoreboardStorageViewer.ScoreboardObjectiveAccessor",

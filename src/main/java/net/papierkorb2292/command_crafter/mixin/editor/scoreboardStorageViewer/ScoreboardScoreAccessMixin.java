@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(targets = "net.minecraft.scoreboard.Scoreboard$1")
-public class Scoreboard$1Mixin {
+public class ScoreboardScoreAccessMixin {
 
     @Shadow @Final
     Scoreboard field_47548;
