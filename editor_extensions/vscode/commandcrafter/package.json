@@ -26,11 +26,11 @@
     "commands": [
       {
         "command": "commandcrafter.activate",
-        "title": "Activate Command Crafter"
+        "title": "CommandCrafter: Activate"
       },
       {
         "command": "commandcrafter.toggleLanguageClient",
-        "title": "Toggle CommandCrafter"
+        "title": "CommandCrafter: Toggle"
       }
     ],
     "languages": [
