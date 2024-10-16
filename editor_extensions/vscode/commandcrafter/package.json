@@ -34,7 +34,7 @@
       },
       {
         "command": "commandcrafter.openScoreboard",
-        "title": "CommandCrafter: Scoreboard"
+        "title": "CommandCrafter: Open Scoreboard"
       },
       {
         "command": "commandcrafter.openStorage",
