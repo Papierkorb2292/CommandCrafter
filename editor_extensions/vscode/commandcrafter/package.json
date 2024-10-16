@@ -34,11 +34,11 @@
       },
       {
         "command": "commandcrafter.openScoreboard",
-        "title": "Open Scoreboard"
+        "title": "CommandCrafter: Scoreboard"
       },
       {
         "command": "commandcrafter.openStorage",
-        "title": "Open Storage"
+        "title": "CommandCrafter: Open Storage"
       }
     ],
     "languages": [
