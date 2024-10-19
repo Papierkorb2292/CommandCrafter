@@ -12,6 +12,7 @@ import com.mojang.brigadier.context.StringRange;
 import net.minecraft.nbt.*;
 import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,16 +30,21 @@ import java.util.LinkedList;
 import java.util.List;
 
 @Mixin(StringNbtReader.class)
-public class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement> {
+public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement>, AllowMalformedContainer {
     @Shadow @Final private StringReader reader;
 
     private @Nullable StringRangeTree.Builder<NbtElement> command_crafter$stringRangeTreeBuilder;
-    private ThreadLocal<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray = new ThreadLocal<>();
+    private boolean command_crafter$allowMalformed = false;
 
     private Deque<Integer> command_crafter$elementAllowedStartCursor = new LinkedList<>();
 
     public StringNbtReaderMixin(StringReader reader) {
         command_crafter$elementAllowedStartCursor.push(0);
+    }
+
+    @Override
+    public void command_crafter$setAllowMalformed(boolean allowMalformed) {
+        command_crafter$allowMalformed = allowMalformed;
     }
 
     @Override
