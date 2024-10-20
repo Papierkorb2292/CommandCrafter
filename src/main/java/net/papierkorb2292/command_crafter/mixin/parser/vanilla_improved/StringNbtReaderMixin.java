@@ -9,7 +9,8 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(StringNbtReader.class)
+// Uses priority 500 to ensure errors from readQuotedMultilineString are caught by processing/StringNbtReaderMixin.java
+@Mixin(value = StringNbtReader.class, priority = 500)
 public class StringNbtReaderMixin {
 
     @WrapOperation(
