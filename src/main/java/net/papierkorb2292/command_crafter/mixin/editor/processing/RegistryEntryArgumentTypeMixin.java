@@ -13,10 +13,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import net.papierkorb2292.command_crafter.editor.processing.*;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -58,6 +55,7 @@ public class RegistryEntryArgumentTypeMixin implements AnalyzingCommandNode {
         readerCopy.setCursor(range.getStart());
         var nbtReader = new StringNbtReader(readerCopy);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         var nbt = nbtReader.parseElement();
