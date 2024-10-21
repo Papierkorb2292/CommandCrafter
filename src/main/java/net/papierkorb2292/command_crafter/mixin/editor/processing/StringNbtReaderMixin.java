@@ -108,7 +108,8 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             method = "parseElementPrimitive",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;readQuotedString()Ljava/lang/String;"
+                    target = "Lcom/mojang/brigadier/StringReader;readQuotedString()Ljava/lang/String;",
+                    remap = false
             )
     )
     private String command_crafter$allowMalformedString(StringReader instance, Operation<String> original) {
@@ -469,7 +470,8 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             method = { "parseList", "readArray" },
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;setCursor(I)V"
+                    target = "Lcom/mojang/brigadier/StringReader;setCursor(I)V",
+                    remap = false
             )
     )
     private boolean command_crafter$keepCursorOnMalformedList(StringReader instance, int cursor) {
@@ -491,6 +493,27 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             command_crafter$skipFirstNestedChar = true;
             return parseList();
         }
+    }
+
+    @ModifyExpressionValue(
+            method = "readArray",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/google/common/collect/Lists;newArrayList()Ljava/util/ArrayList;",
+                    remap = false
+            )
+    )
+    private <T> ArrayList<T> command_crafter$initPrimitiveArray(ArrayList<T> value) {
+        if(command_crafter$allowMalformed && command_crafter$currentParsingPrimitiveArray != null) {
+            //noinspection unchecked
+            value = (ArrayList<T>) command_crafter$currentParsingPrimitiveArray;
+            // Don't use the same compound when parsing children
+            command_crafter$currentParsingPrimitiveArray = null;
+        }
+        if(command_crafter$stringRangeTreeBuilder != null) {
+            command_crafter$elementAllowedStartCursor.push(command_crafter$elementAllowedStartCursor.peek());
+        }
+        return value;
     }
 
     @WrapMethod(
@@ -531,26 +554,6 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             }
         }
         return resultArray;
-    }
-
-    @ModifyExpressionValue(
-            method = "readArray",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lcom/google/common/collect/Lists;newArrayList()Ljava/util/ArrayList;"
-            )
-    )
-    private <T> ArrayList<T> command_crafter$initPrimitiveArray(ArrayList<T> value) {
-        if(command_crafter$allowMalformed && command_crafter$currentParsingPrimitiveArray != null) {
-            //noinspection unchecked
-            value = (ArrayList<T>) command_crafter$currentParsingPrimitiveArray;
-            // Don't use the same compound when parsing children
-            command_crafter$currentParsingPrimitiveArray = null;
-        }
-        if(command_crafter$stringRangeTreeBuilder != null) {
-            command_crafter$elementAllowedStartCursor.push(command_crafter$elementAllowedStartCursor.peek());
-        }
-        return value;
     }
 
     @WrapWithCondition(
