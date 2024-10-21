@@ -123,21 +123,23 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         }
     }
 
-    @ModifyVariable(
+    @WrapOperation(
             method = "parseCompound",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
-                    remap = false
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readComma()Z"
             )
     )
-    private NbtCompound command_crafter$addCompoundRangeBetweenEntriesToStringRangeTree(NbtCompound compound) {
-        if (command_crafter$stringRangeTreeBuilder != null) {
-            var entryEnd = reader.getCursor();
-            reader.skipWhitespace();
+    private boolean command_crafter$addCompoundRangeBetweenEntriesToStringRangeTree(StringNbtReader instance, Operation<Boolean> original, @Local NbtCompound compound) {
+        if(command_crafter$stringRangeTreeBuilder == null)
+            return original.call(instance);
+        reader.skipWhitespace();
+        var entryEnd = reader.getCursor() + 1;
+        if(original.call(instance)) {
             command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(compound, new StringRange(entryEnd, reader.getCursor()));
+            return true;
         }
-        return compound;
+        return false;
     }
 
     @ModifyVariable(
@@ -376,6 +378,9 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         }
         if(command_crafter$stringRangeTreeBuilder != null) {
             command_crafter$stringRangeTreeBuilder.addNodeOrder(value);
+            final var rangeBetweenInternalNodeEntriesStart = reader.getCursor();
+            reader.skipWhitespace();
+            command_crafter$stringRangeTreeBuilder.addRangeBetweenInternalNodeEntries(value, new StringRange(rangeBetweenInternalNodeEntriesStart, reader.getCursor()));
             command_crafter$elementAllowedStartCursor.push(command_crafter$elementAllowedStartCursor.peek());
         }
         return value;
