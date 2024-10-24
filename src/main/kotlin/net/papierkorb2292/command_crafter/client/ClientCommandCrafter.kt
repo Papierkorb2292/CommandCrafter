@@ -100,6 +100,16 @@ object ClientCommandCrafter : ClientModInitializer {
         )
     )
 
+    private var loadedClientsideRegistries: LoadedClientsideRegistries? = null
+    fun getLoadedClientsideRegistries(): LoadedClientsideRegistries {
+        var loadedClientsideRegistries = loadedClientsideRegistries
+        if(loadedClientsideRegistries == null) {
+            loadedClientsideRegistries = LoadedClientsideRegistries.load()
+            this.loadedClientsideRegistries = loadedClientsideRegistries
+        }
+        return loadedClientsideRegistries
+    }
+
     private fun initializeEditor() {
         addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
         addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
@@ -143,6 +153,8 @@ object ClientCommandCrafter : ClientModInitializer {
         }
         ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
             setDefaultServerConnection()
+            // Remove tags that were received from the server and apply the tags known to the client
+            loadedClientsideRegistries?.applyTags()
         }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             editorConnectionManager.leave()

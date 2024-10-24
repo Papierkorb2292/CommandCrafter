@@ -48,7 +48,7 @@ public abstract class BlockArgumentParserMixin {
     )
     private void command_crafter$parseInlineTag(CallbackInfo ci) throws CommandSyntaxException {
         if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
-            tagId = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>)reader, Registries.BLOCK.getReadOnlyWrapper());
+            tagId = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>)reader, Registries.BLOCK);
             if (this.reader.canRead() && this.reader.peek() == '[') {
                 parseTagProperties();
                 suggestions = this::suggestSnbt;

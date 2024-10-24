@@ -27,12 +27,12 @@ public abstract class TextArgumentTypeMixin implements StringifiableArgumentType
         throw new AssertionError();
     }
 
-    @Shadow @Final private RegistryWrapper.WrapperLookup registryLookup;
+    @Shadow @Final private RegistryWrapper.WrapperLookup registries;
 
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
-        return List.of(Either.left(Text.Serialization.toJsonString(getTextArgument(context, name), registryLookup)));
+        return List.of(Either.left(Text.Serialization.toJsonString(getTextArgument(context, name), registries)));
     }
 }
 

@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.client.MinecraftClient
+import net.minecraft.client.network.ClientRegistries
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.CommandSource
 import net.minecraft.nbt.NbtOps
@@ -24,7 +25,11 @@ import net.minecraft.network.packet.Packet
 import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
 import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
-import net.minecraft.registry.*
+import net.minecraft.registry.DynamicRegistryManager
+import net.minecraft.registry.Registry
+import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryLoader
+import net.minecraft.registry.tag.TagPacketSerializer
 import net.minecraft.resource.ResourceFactory
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.MinecraftServer
@@ -35,6 +40,7 @@ import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener
@@ -94,6 +100,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             return true
         }
 
+        private val SYNCED_REGISTRIES = RegistryLoader.DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES
+        private val SYNCED_REGISTRY_KEYS = SYNCED_REGISTRIES.mapTo(mutableSetOf()) { it.key }
+
         val currentGetVariablesRequests: MutableMap<UUID, CompletableFuture<Array<Variable>>> = mutableMapOf()
         val currentSetVariableRequests: MutableMap<UUID, CompletableFuture<VariablesReferencer.SetVariableResult?>> = mutableMapOf()
         val currentStepInTargetsRequests: MutableMap<UUID, CompletableFuture<StepInTargetsResponse>> = mutableMapOf()
@@ -117,7 +126,8 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
         private val clientScoreboardStorageFileSystems: MutableMap<UUID, NetworkScoreboardStorageFileSystem> = mutableMapOf()
 
-        private val receivedRegistries = mutableMapOf<RegistryKey<out Registry<*>>, List<SerializableRegistries.SerializedRegistryEntry>>()
+        private var receivedClientRegistries = ClientRegistries()
+        private val receivedRegistryKeys = mutableSetOf<RegistryKey<out Registry<*>>>()
         private var receivedRegistryManager: DynamicRegistryManager? = null
 
         private val currentConnections = mutableListOf<NetworkServerConnection>()
@@ -149,22 +159,20 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 currentRequest.second.complete(connection)
             }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
-                receivedRegistries[payload.dynamicRegistry.registry] = payload.dynamicRegistry.entries
-                if(RegistryLoader.DYNAMIC_REGISTRIES.all { receivedRegistries.containsKey(it.key) }
-                    && RegistryLoader.DIMENSION_REGISTRIES.all { receivedRegistries.containsKey(it.key) }) {
+                if(payload.dynamicRegistry.registry in SYNCED_REGISTRY_KEYS)
+                    receivedClientRegistries.putDynamicRegistry(payload.dynamicRegistry.registry, payload.dynamicRegistry.entries)
+                if(payload.tags != null)
+                    receivedClientRegistries.putTags(mapOf(payload.dynamicRegistry.registry to payload.tags))
+                receivedRegistryKeys += payload.dynamicRegistry.registry
+                if(SYNCED_REGISTRY_KEYS.all { it in receivedRegistryKeys }) {
                     //All registries have been received
-                    val dynamicRegistries = RegistryLoader.loadFromNetwork(
-                        receivedRegistries,
-                        ResourceFactory.MISSING, //No resource loading is required, because no common packs were specified
-                        CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager,
-                        RegistryLoader.DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES
+                    receivedRegistryManager = receivedClientRegistries.createRegistryManager(
+                        ResourceFactory.MISSING, //No resource loading is required, because no common packs were specified,
+                        ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager,
+                        MinecraftClient.getInstance().isConnectedToLocalServer
                     )
-                    val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries();
-                    receivedRegistryManager = initialRegistries.with(
-                        ServerDynamicRegistryType.RELOADABLE,
-                        dynamicRegistries
-                    ).combinedRegistryManager
-                    receivedRegistries.clear()
+                    receivedRegistryKeys.clear()
+                    receivedClientRegistries = ClientRegistries()
                 }
             }
             ClientPlayNetworking.registerGlobalReceiver(LogMessageS2CPacket.ID) handler@{ payload, _ ->
@@ -531,18 +539,27 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             server: MinecraftServer,
             networkHandler: ServerPlayNetworkHandler
         ) {
-            RegistryLoader.DYNAMIC_REGISTRIES.forEach {
-                sendDynamicRegistry(server, it, networkHandler)
+            val serializedRegistriesTags = TagPacketSerializer.serializeTags(server.combinedDynamicRegistries)
+            // Sync tags of non-dynamic registries first, because
+            // client builds registry manager once all SYNCED_REGISTRIES have been received
+            server.registryManager.streamAllRegistryKeys().forEach {
+                val registryTags = serializedRegistriesTags[it] ?: return@forEach
+                networkHandler.sendPacket(
+                    CustomPayloadS2CPacket(
+                        CommandCrafterDynamicRegistryS2CPacket(DynamicRegistriesS2CPacket(it, emptyList()), registryTags)
+                    )
+                )
             }
-            RegistryLoader.DIMENSION_REGISTRIES.forEach {
-                sendDynamicRegistry(server, it, networkHandler)
+            SYNCED_REGISTRIES.forEach {
+                sendDynamicRegistry(server, it, networkHandler, serializedRegistriesTags[it.key])
             }
         }
 
         private fun sendDynamicRegistry(
             server: MinecraftServer,
             registry: RegistryLoader.Entry<*>,
-            networkHandler: ServerPlayNetworkHandler
+            networkHandler: ServerPlayNetworkHandler,
+            registryTags: TagPacketSerializer.Serialized?
         ) {
             SerializableRegistriesAccessor.callSerialize(
                 server.registryManager.getOps(NbtOps.INSTANCE),
@@ -552,7 +569,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ) { registryKey, entries ->
                 networkHandler.sendPacket(
                     CustomPayloadS2CPacket(
-                        CommandCrafterDynamicRegistryS2CPacket(DynamicRegistriesS2CPacket(registryKey, entries))
+                        CommandCrafterDynamicRegistryS2CPacket(DynamicRegistriesS2CPacket(registryKey, entries), registryTags)
                     )
                 )
             }
@@ -575,13 +592,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }.memoizeLast()
 
     override val dynamicRegistryManager: DynamicRegistryManager
-        get() = receivedRegistryManager ?: CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager
-
-    @Suppress("USELESS_ELVIS")
+        get() = receivedRegistryManager ?: ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
     override val commandDispatcher
         get() = commandDispatcherFactory(dynamicRegistryManager)
-            // I don't know why this would be null, but it happens. Waiting for more info when it happens again...
-            ?: throw IllegalStateException("NetworkServerConnection.commandDispatcher is null somehow, please report this bug. Debug Info: ReceivedRegistryManager: $receivedRegistryManager, DefaultCombinedRegistryManager: ${CommandCrafter.defaultDynamicRegistryManager.combinedRegistryManager}, DispatcherFactory: $commandDispatcherFactory")
     override val functionPermissionLevel = initializePacket.functionPermissionLevel
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {

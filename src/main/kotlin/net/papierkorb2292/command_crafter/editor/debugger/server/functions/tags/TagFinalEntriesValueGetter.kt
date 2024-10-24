@@ -24,7 +24,7 @@ class TagFinalEntriesValueGetter(
         }
     }
 
-    override fun direct(id: Identifier): FinalEntry = FinalEntry(tagId, currentEntry, null)
+    override fun direct(id: Identifier, required: Boolean): FinalEntry = FinalEntry(tagId, currentEntry, null)
 
     override fun tag(id: Identifier): Collection<FinalEntry> {
         return getOrCreateFinalEntriesForTag(id, parsedTags, finalEntries).map { FinalEntry(tagId, currentEntry, it) }

@@ -16,7 +16,7 @@ import java.util.stream.Stream
 class GeneratedRegistryEntryList<T>(val registry: RegistryWrapper.Impl<T>): RegistryEntryList<T> {
     @Suppress("UNCHECKED_CAST")
     val idSetter: (Identifier) -> Unit = {
-        delegate = registry.getOrThrow(TagKey.of(registry.registryKey as RegistryKey<out Registry<T>>, it))
+        delegate = registry.getOrThrow(TagKey.of(registry.key as RegistryKey<out Registry<T>>, it))
     }
     private var delegate: RegistryEntryList<T>? = null
     private fun getNonNullDelegate(): RegistryEntryList<T> = delegate ?: throw IllegalStateException("Generated registry entry list was used before the id was set")
@@ -24,6 +24,8 @@ class GeneratedRegistryEntryList<T>(val registry: RegistryWrapper.Impl<T>): Regi
     override fun iterator(): MutableIterator<RegistryEntry<T>> = getNonNullDelegate().iterator()
     override fun stream(): Stream<RegistryEntry<T>> = getNonNullDelegate().stream()
     override fun size(): Int = getNonNullDelegate().size()
+    override fun isBound(): Boolean = getNonNullDelegate().isBound
+
     override fun getStorage(): Either<TagKey<T>, MutableList<RegistryEntry<T>>> = getNonNullDelegate().storage
     override fun getRandom(random: Random?): Optional<RegistryEntry<T>> = getNonNullDelegate().getRandom(random)
     override fun get(index: Int): RegistryEntry<T> = getNonNullDelegate().get(index)

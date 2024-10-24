@@ -28,7 +28,7 @@ public class BlockPredicateArgumentTypeMixin implements StringifiableArgumentTyp
         if(reader.peek() != '(' || !VanillaLanguage.Companion.isReaderInlineResources(reader)) {
             return null;
         }
-        var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.BLOCK.getReadOnlyWrapper());
+        var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.BLOCK);
         List<Either<String, RawResource>> result = new ArrayList<>();
         result.add(Either.left("#"));
         result.add(Either.right(entryList.getResource()));
