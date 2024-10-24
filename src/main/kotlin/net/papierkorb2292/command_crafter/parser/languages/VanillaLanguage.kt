@@ -170,7 +170,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
                     }
-                } else if (parseResults.reader.canRead()) {
+                } else if (reader.canRead()) {
                     if(parseResults.context.range.isEmpty)
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
