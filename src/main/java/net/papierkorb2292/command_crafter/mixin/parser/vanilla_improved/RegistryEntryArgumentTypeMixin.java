@@ -28,14 +28,14 @@ import java.util.List;
 public class RegistryEntryArgumentTypeMixin<T> implements StringifiableArgumentType {
     @Shadow @Final private Codec<RegistryEntry<T>> entryCodec;
 
-    @Shadow @Final private RegistryWrapper.WrapperLookup registryLookup;
+    @Shadow @Final private RegistryWrapper.WrapperLookup registries;
 
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
         //noinspection unchecked
         var argument = (RegistryEntry<T>)context.getArgument(name, RegistryEntry.class);
-        RegistryOps<NbtElement> registryOps = registryLookup.getOps(NbtOps.INSTANCE);
+        RegistryOps<NbtElement> registryOps = registries.getOps(NbtOps.INSTANCE);
         return Collections.singletonList(Either.left(entryCodec.encode(argument, registryOps, registryOps.empty()).getOrThrow().asString()));
     }
 }

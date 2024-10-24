@@ -21,7 +21,7 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api", "fabric-api", project.extra["fabric_version"] as String)
     modImplementation("net.fabricmc", "fabric-language-kotlin", project.extra["fabric_language_kotlin_version"] as String)
 
-    modImplementation("com.terraformersmc:modmenu:${project.extra["modmenu_version"]}")
+    modCompileOnly("com.terraformersmc:modmenu:${project.extra["modmenu_version"]}")
 
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")

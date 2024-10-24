@@ -20,6 +20,11 @@ class AnalyzedRegistryEntryList<T>(val analyzingResult: AnalyzingResult) : Regis
     override fun size(): Int {
         throwOnUsage()
     }
+
+    override fun isBound(): Boolean {
+        throwOnUsage()
+    }
+
     override fun getStorage(): Either<TagKey<T>, MutableList<RegistryEntry<T>>> {
         throwOnUsage()
     }
