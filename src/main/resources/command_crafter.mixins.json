@@ -9,6 +9,7 @@
     "CommandContextAccessor",
     "MinecraftServerAccessor",
     "NbtTextFormatterMixin",
+    "TagGroupLoaderMixin",
     "WorldSavePathAccessor",
     "editor.ClientConnectionAccessor",
     "editor.CommandManagerAccessor",
@@ -168,6 +169,7 @@
     "parser.vanilla_improved.TextArgumentTypeMixin"
   ],
   "client": [
+    "ClientRegistriesMixin",
     "SimpleOptionAccessor",
     "editor.MinecraftClientAccessor",
     "editor.processing.ClientCommandSourceAccessor"

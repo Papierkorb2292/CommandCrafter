@@ -41,8 +41,6 @@ class AnalyzingClientCommandSource(
     override fun getEntitySuggestions(): MutableCollection<String> = clientCommandSource.entitySuggestions
     override fun getSoundIds(): Stream<Identifier> =
         clientCommandSource.soundIds
-    override fun getRecipeIds(): Stream<Identifier> =
-        if(hasNetworkHandler) clientCommandSource.recipeIds else Stream.empty()
     override fun getWorldKeys(): MutableSet<RegistryKey<World>> = clientCommandSource.worldKeys
     override fun getRegistryManager(): DynamicRegistryManager =
         if(hasNetworkHandler) clientCommandSource.registryManager else DynamicRegistryManager.of(Registries.REGISTRIES)

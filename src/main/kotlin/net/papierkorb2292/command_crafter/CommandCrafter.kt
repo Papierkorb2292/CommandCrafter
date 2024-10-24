@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.CommandNode
+import com.mojang.serialization.Lifecycle
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
@@ -16,18 +17,16 @@ import net.minecraft.enchantment.provider.EnchantmentProvider
 import net.minecraft.entity.damage.DamageType
 import net.minecraft.entity.decoration.painting.PaintingVariant
 import net.minecraft.entity.passive.WolfVariant
-import net.minecraft.item.trim.ArmorTrimMaterial
-import net.minecraft.item.trim.ArmorTrimPattern
+import net.minecraft.item.equipment.trim.ArmorTrimMaterial
+import net.minecraft.item.equipment.trim.ArmorTrimPattern
 import net.minecraft.loot.LootTable
 import net.minecraft.loot.condition.LootCondition
 import net.minecraft.loot.function.LootFunctionTypes
 import net.minecraft.network.message.MessageType
 import net.minecraft.recipe.Recipe
-import net.minecraft.registry.CombinedDynamicRegistries
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryLoader
-import net.minecraft.registry.ServerDynamicRegistryType
+import net.minecraft.registry.*
 import net.minecraft.registry.tag.TagFile
+import net.minecraft.registry.tag.TagGroupLoader
 import net.minecraft.resource.LifecycledResourceManagerImpl
 import net.minecraft.resource.ResourceType
 import net.minecraft.resource.VanillaDataPackProvider
@@ -71,6 +70,7 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.Position
 import java.io.BufferedReader
+import java.util.stream.Stream
 
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"
@@ -94,7 +94,7 @@ object CommandCrafter: ModInitializer {
 
             override fun analyze(
                 file: OpenFile,
-                languageServer: MinecraftLanguageServer
+                languageServer: MinecraftLanguageServer,
             ): AnalyzingResult {
                 val reader = DirectiveStringReader(FileMappingInfo(file.stringifyLines()), languageServer.minecraftServer.commandDispatcher, AnalyzingResourceCreator(languageServer, file.uri))
                 val result = AnalyzingResult(reader.fileMappingInfo, Position())
@@ -204,19 +204,6 @@ object CommandCrafter: ModInitializer {
         GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
 
         config = CommandCrafterConfig.fromFile(CommandCrafterConfig.DEFAULT_CONFIG_PATH)
-    }
-
-    val defaultDynamicRegistryManager: CombinedDynamicRegistries<ServerDynamicRegistryType> by lazy {
-        val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries();
-        val precedingWorldgen = initialRegistries.getPrecedingRegistryManagers(ServerDynamicRegistryType.WORLDGEN);
-        return@lazy initialRegistries.with(
-            ServerDynamicRegistryType.RELOADABLE,
-            RegistryLoader.loadFromResource(
-                LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, listOf(VanillaDataPackProvider.createDefaultPack())),
-                precedingWorldgen,
-                RegistryLoader.DYNAMIC_REGISTRIES
-            )
-        )
     }
 
     fun <S> removeLiteralsStartingWithForwardsSlash(node: CommandNode<S>) {

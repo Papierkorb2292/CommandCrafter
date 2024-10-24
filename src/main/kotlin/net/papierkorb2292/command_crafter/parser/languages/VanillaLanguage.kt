@@ -778,7 +778,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader: DirectiveStringReader<RawZipResourceCreator>,
             registry: RegistryWrapper.Impl<T>,
         ): RawResourceRegistryEntryList<T>
-                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(RegistryKeys.getTagPath(registry.registryKey), "json")) {
+                = RawResourceRegistryEntryList(parseRawTagTupleEntries(reader, RawResource.RawResourceType(RegistryKeys.getTagPath(registry.key), "json")) {
                 entryReader -> Either.left(parseRawTagEntry(entryReader))
         })
 
@@ -790,7 +790,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return GeneratedRegistryEntryList(registry).apply {
                 reader.resourceCreator.registryTags += ParsedResourceCreator.AutomaticResource(
                     idSetter,
-                    ParsedResourceCreator.ParsedTag(registry.registryKey, entries)
+                    ParsedResourceCreator.ParsedTag(registry.key, entries)
                 )
             }
         }
@@ -806,9 +806,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 try {
                     val entry = parseTagEntry(entryReader)
                     if(!entry.resolve(object: TagEntry.ValueGetter<Unit> {
-                            override fun direct(id: Identifier): Unit? {
+                            override fun direct(id: Identifier, required: Boolean): Unit? {
                                 @Suppress("UNCHECKED_CAST")
-                                if(registry.getOptional(RegistryKey.of(registry.registryKey as RegistryKey<out Registry<T>>, id)).isPresent) return Unit
+                                if(registry.getOptional(RegistryKey.of(registry.key as RegistryKey<out Registry<T>>, id)).isPresent) return Unit
                                 entryAnalyzingResult.diagnostics += Diagnostic(
                                     Range(pos, pos.advance(reader.cursor - startCursor)),
                                     "Unknown id '$id'"
