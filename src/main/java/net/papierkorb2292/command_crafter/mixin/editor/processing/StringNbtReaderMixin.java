@@ -13,6 +13,8 @@ import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import kotlin.Unit;
+import kotlin.jvm.functions.Function1;
 import net.minecraft.nbt.*;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
@@ -27,7 +29,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
@@ -182,113 +183,21 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             method = "parseElementPrimitiveArray",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;",
-                    ordinal = 0
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "intValue=66" //char = 'B'
-                    )
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;"
             )
     )
-    private void command_crafter$preInstantiateByteArray(CallbackInfoReturnable<NbtElement> cir, @Share("preInstantiatedNbtArray") LocalRef<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray) {
+    private void command_crafter$registerArrayPlaceholder(CallbackInfoReturnable<NbtElement> cir, @Share("nbtArrayPlaceholderReplacer") LocalRef<Function1<NbtElement, Unit>> nbtArrayPlaceholderReplacer) {
         if(command_crafter$stringRangeTreeBuilder == null) return;
-        var array = new NbtByteArray(new byte[0]);
-        command_crafter$stringRangeTreeBuilder.addNodeOrder(array);
-        command_crafter$preInstantiatedNbtArray.set(array);
-    }
-
-    @Inject(
-            method = "parseElementPrimitiveArray",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;",
-                    ordinal = 0
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "intValue=76" //char = 'L'
-                    )
-            )
-    )
-    private void command_crafter$preInstantiateLongArray(CallbackInfoReturnable<NbtElement> cir, @Share("preInstantiatedNbtArray") LocalRef<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray) {
-        if(command_crafter$stringRangeTreeBuilder == null) return;
-        var array = new NbtLongArray(new long[0]);
-        command_crafter$stringRangeTreeBuilder.addNodeOrder(array);
-        command_crafter$preInstantiatedNbtArray.set(array);
-    }
-
-    @Inject(
-            method = "parseElementPrimitiveArray",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;readArray(Lnet/minecraft/nbt/NbtType;Lnet/minecraft/nbt/NbtType;)Ljava/util/List;",
-                    ordinal = 0
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "intValue=73" //char = 'I'
-                    )
-            )
-    )
-    private void command_crafter$preInstantiateIntArray(CallbackInfoReturnable<NbtElement> cir, @Share("preInstantiatedNbtArray") LocalRef<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray) {
-        if(command_crafter$stringRangeTreeBuilder == null) return;
-        var array = new NbtIntArray(new int[0]);
-        command_crafter$stringRangeTreeBuilder.addNodeOrder(array);
-        command_crafter$preInstantiatedNbtArray.set(array);
-    }
-
-    @WrapOperation(
-            method = "parseElementPrimitiveArray",
-            at = @At(
-                    value = "NEW",
-                    target = "(Ljava/util/List;)Lnet/minecraft/nbt/NbtByteArray;"
-            )
-    )
-    private NbtByteArray command_crafter$fillPreInstantiatedByteArray(List<Byte> content, Operation<NbtByteArray> op, @Share("preInstantiatedNbtArray") LocalRef<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray) {
-        var nbtArray = (NbtByteArray) command_crafter$preInstantiatedNbtArray.get();
-        if(nbtArray == null) return op.call(content);
-        for(var b : content) nbtArray.add(NbtByte.of(b));
-        return nbtArray;
-    }
-
-    @WrapOperation(
-            method = "parseElementPrimitiveArray",
-            at = @At(
-                    value = "NEW",
-                    target = "(Ljava/util/List;)Lnet/minecraft/nbt/NbtIntArray;"
-            )
-    )
-    private NbtIntArray command_crafter$fillPreInstantiatedIntArray(List<Integer> content, Operation<NbtIntArray> op, @Share("preInstantiatedNbtArray") LocalRef<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray) {
-        var nbtArray = (NbtIntArray) command_crafter$preInstantiatedNbtArray.get();
-        if(nbtArray == null) return op.call(content);
-        for(var b : content) nbtArray.add(NbtInt.of(b));
-        return nbtArray;
-    }
-
-    @WrapOperation(
-            method = "parseElementPrimitiveArray",
-            at = @At(
-                    value = "NEW",
-                    target = "(Ljava/util/List;)Lnet/minecraft/nbt/NbtLongArray;"
-            )
-    )
-    private NbtLongArray command_crafter$fillPreInstantiatedLongArray(List<Long> content, Operation<NbtLongArray> op, @Share("preInstantiatedNbtArray") LocalRef<AbstractNbtList<?>> command_crafter$preInstantiatedNbtArray) {
-        var nbtArray = (NbtLongArray) command_crafter$preInstantiatedNbtArray.get();
-        if(nbtArray == null) return op.call(content);
-        for(var b : content) nbtArray.add(NbtLong.of(b));
-        return nbtArray;
+        nbtArrayPlaceholderReplacer.set(command_crafter$stringRangeTreeBuilder.registerNodeOrderPlaceholder());
     }
 
     @ModifyReturnValue(
             method = "parseElementPrimitiveArray",
             at = @At("RETURN")
     )
-    private NbtElement command_crafter$addArrayToStringRangeTree(NbtElement array, @Local int startCursor) {
+    private NbtElement command_crafter$addArrayToStringRangeTree(NbtElement array, @Local int startCursor, @Share("nbtArrayPlaceholderReplacer") LocalRef<Function1<NbtElement, Unit>> nbtArrayPlaceholderReplacer) {
         if(command_crafter$stringRangeTreeBuilder == null) return array;
+        nbtArrayPlaceholderReplacer.get().invoke(array);
         command_crafter$stringRangeTreeBuilder.addNode(array, new StringRange(startCursor - 1, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
         return array;
     }

@@ -420,7 +420,8 @@ class StringRangeTree<TNode: Any>(
 
     class Builder<TNode: Any> {
         private val nodesSet = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
-        private val orderedNodes = mutableListOf<TNode>()
+        private val nodeOrderPlaceholders = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
+        private val orderedNodes = mutableListOf<TNode?>()
         private val nodeRanges = IdentityHashMap<TNode, StringRange>()
         private val nodeAllowedStartRanges = IdentityHashMap<TNode, StringRange>()
         private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<StringRange>>()
@@ -434,6 +435,21 @@ class StringRangeTree<TNode: Any>(
             if(node in nodesSet) return
             nodesSet.add(node)
             orderedNodes.add(node)
+        }
+
+        /**
+         * Lets you delay adding the order for a node at the current position. This is useful when the
+         * node instance is only available after its children have already been added.
+         *
+         * Note that the placeholder must be replaced by calling the returned function before [addNode] is called for the node.
+         */
+        fun registerNodeOrderPlaceholder(): (replacement: TNode) -> Unit {
+            val index = orderedNodes.size
+            orderedNodes.add(null)
+            return {
+                if(nodesSet.add(it))
+                    orderedNodes[index] = it
+            }
         }
 
         fun addNode(node: TNode, range: StringRange, nodeAllowedStart: Int? = null) {
@@ -462,10 +478,13 @@ class StringRangeTree<TNode: Any>(
                     throw NodeWithoutRangeError("No range specified for node $node")
                 }
             }
-            return StringRangeTree(root, orderedNodes, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries)
+            return StringRangeTree(root, orderedNodes.mapIndexed { index, it ->
+                it ?: throw UnresolvedPlaceholderError("Node order placeholder not resolved at order index $index")
+            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries)
         }
 
         class NodeWithoutRangeError(message: String) : Error(message)
+        class UnresolvedPlaceholderError(message: String): Error(message)
     }
 
     /**
