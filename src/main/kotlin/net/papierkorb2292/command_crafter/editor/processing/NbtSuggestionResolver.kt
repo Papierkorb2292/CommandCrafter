@@ -1,11 +1,41 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.NbtString
+import net.minecraft.nbt.StringNbtReader
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
+import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import java.util.regex.Pattern
 
-object NbtSuggestionResolver : StringRangeTree.SuggestionResolver<NbtElement> {
+class NbtSuggestionResolver(private val directiveReader: DirectiveStringReader<*>) : StringRangeTree.SuggestionResolver<NbtElement> {
+    private val SIMPLE_NAME = Pattern.compile("[A-Za-z0-9._+-]+")
+
+    private val valueEndParser = { suggestionRange: StringRange ->
+        val reader = directiveReader.copy()
+        reader.cursor = suggestionRange.end
+        reader.skipWhitespace()
+        val nbtReader = StringNbtReader(reader)
+        @Suppress("KotlinConstantConditions")
+        (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
+        try {
+            nbtReader.parseElement()
+        } catch(ignored: CommandSyntaxException) { }
+        reader.cursor
+    }.memoizeLast()
+
+    private val keyEndParser = { suggestionRange: StringRange ->
+        val reader = directiveReader.copy()
+        reader.cursor = suggestionRange.end
+        reader.skipWhitespace()
+        reader.readString()
+        reader.cursor
+    }.memoizeLast()
+
     override fun resolveSuggestion(
         suggestion: StringRangeTree.Suggestion<NbtElement>,
         suggestionType: StringRangeTree.SuggestionType,
@@ -16,17 +46,21 @@ object NbtSuggestionResolver : StringRangeTree.SuggestionResolver<NbtElement> {
         when(suggestionType) {
             StringRangeTree.SuggestionType.NODE_START -> {
                 val elementString = suggestion.element.toString()
+                val valueEnd = valueEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
-                    suggestionRange.end,
-                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { suggestionRange.end /*TODO*/ }, mappingInfo, languageServer)
+                    valueEnd,
+                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer)
                 )
             }
             StringRangeTree.SuggestionType.MAP_KEY -> {
                 val key = suggestion.element.asString()
-                val keySuggestion = "\"$key\": "
+                // Similar to StringNbtWriter.escapeName
+                val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
+                val keySuggestion = "$escapedKey: "
+                val keyEnd = keyEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
-                    suggestionRange.end,
-                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { suggestionRange.end /*TODO*/ }, mappingInfo, languageServer, key)
+                    keyEnd,
+                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key)
                 )
             }
         }

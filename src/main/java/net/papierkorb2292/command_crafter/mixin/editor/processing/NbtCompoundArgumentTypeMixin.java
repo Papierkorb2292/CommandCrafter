@@ -29,6 +29,6 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode {
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         var nbt = nbtReader.parseCompound();
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), result.getSemanticTokens());
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, readerCopy.getString()), result.getSemanticTokens());
     }
 }

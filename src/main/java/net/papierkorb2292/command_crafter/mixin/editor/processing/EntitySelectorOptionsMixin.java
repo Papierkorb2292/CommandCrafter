@@ -430,7 +430,7 @@ public class EntitySelectorOptionsMixin {
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         var nbt = op.call(nbtReader);
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), analyzingResult.getSemanticTokens());
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, selectorReader.getReader().getString()), analyzingResult.getSemanticTokens());
         return nbt;
     }
 

@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
-import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
@@ -20,7 +19,6 @@ import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
@@ -100,7 +98,7 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
                     target = "Lnet/minecraft/nbt/StringNbtReader;parseCompound()Lnet/minecraft/nbt/NbtCompound;"
             )
     )
-    private static NbtCompound command_crafter$highlightCompounds(StringNbtReader reader, Operation<NbtCompound> op) {
+    private static NbtCompound command_crafter$highlightCompounds(StringNbtReader reader, Operation<NbtCompound> op, StringReader stringReader) {
         var analyzingResult = command_crafter$analyzingResult.get();
         if(analyzingResult == null) return op.call(reader);
 
@@ -109,7 +107,7 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
         ((StringRangeTreeCreator<NbtElement>)reader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         var nbt = op.call(reader);
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), analyzingResult.getSemanticTokens());
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, stringReader.getString()), analyzingResult.getSemanticTokens());
         return nbt;
     }
 

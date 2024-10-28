@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.NbtElementArgumentType;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
@@ -29,8 +30,14 @@ public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode {
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = nbtReader.parseElement();
+        NbtElement nbt;
+        try {
+            nbt = nbtReader.parseElement();
+        } catch(CommandSyntaxException e) {
+            nbt = NbtEnd.INSTANCE;
+            treeBuilder.addNode(nbt, range, range.getStart());
+        }
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), result.getSemanticTokens());
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, readerCopy.getString()), result.getSemanticTokens());
     }
 }

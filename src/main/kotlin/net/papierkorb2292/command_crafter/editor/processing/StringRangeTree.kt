@@ -362,7 +362,7 @@ class StringRangeTree<TNode: Any>(
     ) : (Int) -> CompletionItem {
         override fun invoke(offset: Int): CompletionItem {
             // Adjusting the insert start if the cursor is before the insert start
-            val adjustedInsertStart = min(insertStart, offset)
+            val adjustedInsertStart = min(insertStart + mappingInfo.readSkippingChars, offset)
             val insertStartPos = AnalyzingResult.getPositionFromCursor(
                 mappingInfo.cursorMapper.mapToSource(adjustedInsertStart),
                 mappingInfo
@@ -385,7 +385,7 @@ class StringRangeTree<TNode: Any>(
                 }
             }
             val replaceEndPos = AnalyzingResult.getPositionFromCursor(
-                mappingInfo.cursorMapper.mapToSource(replaceEndProvider()),
+                mappingInfo.cursorMapper.mapToSource(replaceEndProvider() + mappingInfo.readSkippingChars),
                 mappingInfo
             )
             val clampedReplaceEndPos = if(replaceEndPos.line > insertEndPos.line) {
