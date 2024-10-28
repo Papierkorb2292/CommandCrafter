@@ -271,6 +271,10 @@ class StringRangeTree<TNode: Any>(
                 }
             } }
         }
+        override fun getStringValue(input: TNode): DataResult<String> {
+            getNodeStartSuggestions(input).add(Suggestion(delegate.createString("")))
+            return delegate.getStringValue(input)
+        }
 
         private val placeholders = mutableSetOf<TNode>()
 
@@ -343,7 +347,6 @@ class StringRangeTree<TNode: Any>(
         override fun compressMaps(): Boolean = delegate.compressMaps()
         override fun listBuilder(): ListBuilder<TNode> = ListBuilder.Builder(this)
         override fun mapBuilder(): RecordBuilder<TNode> = RecordBuilder.MapBuilder(this)
-        override fun getStringValue(input: TNode): DataResult<String> = delegate.getStringValue(input)
     }
 
     data class Suggestion<TNode>(val element: TNode)
