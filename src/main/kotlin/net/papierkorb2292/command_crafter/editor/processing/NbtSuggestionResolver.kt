@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.nbt.NbtElement
@@ -12,11 +13,14 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import java.util.regex.Pattern
 
-class NbtSuggestionResolver(private val directiveReader: DirectiveStringReader<*>) : StringRangeTree.SuggestionResolver<NbtElement> {
+class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader) : StringRangeTree.SuggestionResolver<NbtElement> {
     private val SIMPLE_NAME = Pattern.compile("[A-Za-z0-9._+-]+")
 
+    constructor(directiveReader: DirectiveStringReader<*>): this(directiveReader::copy)
+    constructor(inputString: String): this({ StringReader(inputString) })
+
     private val valueEndParser = { suggestionRange: StringRange ->
-        val reader = directiveReader.copy()
+        val reader = stringReaderProvider()
         reader.cursor = suggestionRange.end
         reader.skipWhitespace()
         val nbtReader = StringNbtReader(reader)
@@ -29,7 +33,7 @@ class NbtSuggestionResolver(private val directiveReader: DirectiveStringReader<*
     }.memoizeLast()
 
     private val keyEndParser = { suggestionRange: StringRange ->
-        val reader = directiveReader.copy()
+        val reader = stringReaderProvider()
         reader.cursor = suggestionRange.end
         reader.skipWhitespace()
         reader.readString()
