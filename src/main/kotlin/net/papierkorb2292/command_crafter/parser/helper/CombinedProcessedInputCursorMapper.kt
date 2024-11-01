@@ -31,14 +31,6 @@ class CombinedProcessedInputCursorMapper(entries: List<Entry>) : ProcessedInputC
         return entry.mapper.mapToTarget(sourceCursor - entry.sourceRange.start, clampInGaps) + entry.targetRange.start
     }
 
-    override fun mapToTargetNoGaps(sourceCursor: Int): Int? {
-        val entryIndex = entries.binarySearch { it.sourceRange.start.compareTo(sourceCursor) }
-        if(entryIndex < 0) return null
-        val entry = entries[entryIndex]
-        val mappedCursor = entry.mapper.mapToTargetNoGaps(sourceCursor - entry.sourceRange.start) ?: return null
-        return mappedCursor + entry.targetRange.start
-    }
-
     override fun mapToSource(targetCursor: Int, clampInGaps: Boolean): Int {
         val entryIndex = entries.binarySearch { it.targetRange.start.compareTo(targetCursor) }
         val entry = if(entryIndex < 0) {
@@ -53,14 +45,6 @@ class CombinedProcessedInputCursorMapper(entries: List<Entry>) : ProcessedInputC
             entries[entryIndex]
         }
         return entry.mapper.mapToSource(targetCursor - entry.targetRange.start, clampInGaps) + entry.sourceRange.start
-    }
-
-    override fun mapToSourceNoGaps(targetCursor: Int): Int? {
-        val entryIndex = entries.binarySearch { it.targetRange.start.compareTo(targetCursor) }
-        if(entryIndex < 0) return null
-        val entry = entries[entryIndex]
-        val mappedCursor = entry.mapper.mapToTargetNoGaps(targetCursor - entry.targetRange.start) ?: return null
-        return mappedCursor + entry.sourceRange.start
     }
 
     class Entry(val sourceRange: StringRange, val targetRange: StringRange, val mapper: ProcessedInputCursorMapper)
