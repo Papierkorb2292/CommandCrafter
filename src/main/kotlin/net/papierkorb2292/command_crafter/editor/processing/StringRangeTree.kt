@@ -423,7 +423,6 @@ class StringRangeTree<TNode: Any>(
 
     class Builder<TNode: Any> {
         private val nodesSet = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
-        private val nodeOrderPlaceholders = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
         private val orderedNodes = mutableListOf<TNode?>()
         private val nodeRanges = IdentityHashMap<TNode, StringRange>()
         private val nodeAllowedStartRanges = IdentityHashMap<TNode, StringRange>()
