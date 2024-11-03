@@ -26,10 +26,6 @@ import net.minecraft.network.message.MessageType
 import net.minecraft.recipe.Recipe
 import net.minecraft.registry.*
 import net.minecraft.registry.tag.TagFile
-import net.minecraft.registry.tag.TagGroupLoader
-import net.minecraft.resource.LifecycledResourceManagerImpl
-import net.minecraft.resource.ResourceType
-import net.minecraft.resource.VanillaDataPackProvider
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
@@ -72,7 +68,6 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.Position
 import java.io.BufferedReader
-import java.util.stream.Stream
 
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"

@@ -37,15 +37,9 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     override fun mapToTarget(sourceCursor: Int, clampInGaps: Boolean): Int {
         return map(sourceCursors, targetCursors, sourceCursor, clampInGaps)
     }
-    override fun mapToTargetNoGaps(sourceCursor: Int): Int? {
-        return mapNoGaps(sourceCursors, targetCursors, sourceCursor)
-    }
 
     override fun mapToSource(targetCursor: Int, clampInGaps: Boolean): Int {
         return map(targetCursors, sourceCursors, targetCursor, clampInGaps)
-    }
-    override fun mapToSourceNoGaps(targetCursor: Int): Int? {
-        return mapNoGaps(targetCursors, sourceCursors, targetCursor)
     }
 
     private fun map(inputCursors: IntList, outputCursors: IntList, inputCursor: Int, clampInGaps: Boolean): Int {
@@ -63,19 +57,6 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
                 return outputCursors[mappingIndex] + lengths[mappingIndex]
             }
         }
-        val startInputCursor = inputCursors[mappingIndex]
-        val relativeCursor = inputCursor - startInputCursor
-        return outputCursors[mappingIndex] + relativeCursor
-    }
-
-    private fun mapNoGaps(inputCursors: IntList, outputCursors: IntList, inputCursor: Int): Int? {
-        val mappingIndex = inputCursors.binarySearch { index ->
-            if(inputCursors[index] > inputCursor) 1
-            else if (inputCursors[index] + lengths[index] < inputCursor) -1
-            else 0
-        }
-        if(mappingIndex < 0)
-            return null
         val startInputCursor = inputCursors[mappingIndex]
         val relativeCursor = inputCursor - startInputCursor
         return outputCursors[mappingIndex] + relativeCursor

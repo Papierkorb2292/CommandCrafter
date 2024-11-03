@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.font.FontManager
 import net.minecraft.client.texture.atlas.AtlasSourceManager
-import net.minecraft.registry.BuiltinRegistries
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandOutput
@@ -34,7 +33,10 @@ import java.util.concurrent.ExecutorService
 
 object ClientCommandCrafter : ClientModInitializer {
     override fun onInitializeClient() {
-        initializeEditor()
+        ClientLifecycleEvents.CLIENT_STARTED.register {
+            // Delay initialization to ensure that the game is fully loaded when the dynamicRegistryManager is created
+            initializeEditor()
+        }
     }
 
     var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
@@ -114,7 +116,7 @@ object ClientCommandCrafter : ClientModInitializer {
         addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
         addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
 
-        val registryWrapperLookup = BuiltinRegistries.createWrapperLookup()
+        val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
         fun setDefaultServerConnection() {
             val rootNode = limitCommandTreeForSource(
                 CommandManager(

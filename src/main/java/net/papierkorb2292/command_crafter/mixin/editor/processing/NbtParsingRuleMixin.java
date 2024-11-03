@@ -1,14 +1,18 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
-import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.context.StringRange;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.packrat.NbtParsingRule;
+import net.minecraft.command.argument.packrat.ParsingState;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
+import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,16 +30,23 @@ public class NbtParsingRuleMixin {
                     target = "Lnet/minecraft/nbt/StringNbtReader;parseElement()Lnet/minecraft/nbt/NbtElement;"
             )
     )
-    private NbtElement command_crafter$analyzeNbt(StringNbtReader stringNbtReader, Operation<NbtElement> op) {
+    private NbtElement command_crafter$analyzeNbt(StringNbtReader stringNbtReader, Operation<NbtElement> op, ParsingState<StringReader> state) {
         var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
         if (analyzingResult == null)
             return op.call(stringNbtReader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)stringNbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = op.call(stringNbtReader);
+        final var startCursor = state.getReader().getCursor();
+        NbtElement nbt;
+        try {
+            nbt = MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(op, stringNbtReader);
+        } catch(CommandSyntaxException e) {
+            nbt = NbtEnd.INSTANCE;
+            treeBuilder.addNode(nbt, new StringRange(startCursor, state.getReader().getCursor()), startCursor);
+        }
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree), analyzingResult.getSemanticTokens());
+        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, state.getReader().getString()), analyzingResult.getSemanticTokens());
         return nbt;
     }
 }

@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.serialization.Lifecycle
+import net.minecraft.loot.LootDataType
 import net.minecraft.registry.*
 import net.minecraft.registry.Registry.PendingTagLoad
 import net.minecraft.registry.tag.TagGroupLoader
@@ -23,7 +24,13 @@ class LoadedClientsideRegistries(
             )
             val precedingWorldgen = initialRegistries.getPrecedingRegistryManagers(ServerDynamicRegistryType.WORLDGEN)
             val tagRegistries = TagGroupLoader.collectRegistries(precedingWorldgen, pendingTagLoads)
-            val dynamicRegistries = RegistryLoader.loadFromResource(resourceManager, tagRegistries, RegistryLoader.DYNAMIC_REGISTRIES)
+            val dynamicRegistries = RegistryLoader.loadFromResource(
+                resourceManager,
+                tagRegistries,
+                RegistryLoader.DYNAMIC_REGISTRIES + LootDataType.stream()
+                    .map { createRegistryLoaderEntryForLootDataType(it) }
+                    .toList()
+            )
             val tagAndDynamicRegistries = Stream.concat(tagRegistries.stream(), dynamicRegistries.stream()).toList()
             val dimensionRegistries = RegistryLoader.loadFromResource(resourceManager, tagAndDynamicRegistries, RegistryLoader.DIMENSION_REGISTRIES)
             val finalRegistries = initialRegistries.with(
@@ -40,6 +47,9 @@ class LoadedClientsideRegistries(
             registryLoader.applyTags()
             return registryLoader
         }
+
+        private fun <T> createRegistryLoaderEntryForLootDataType(type: LootDataType<T>) =
+            RegistryLoader.Entry(type.registryKey, type.codec, false)
 
         private fun getCopiedInitialRegistries(): CombinedDynamicRegistries<ServerDynamicRegistryType> {
             val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries()
