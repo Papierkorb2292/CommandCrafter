@@ -4,8 +4,10 @@ import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
@@ -258,6 +260,16 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     )
                 }
             }
+        }
+    }
+
+    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): (JsonElement) -> Pair<String, SplitProcessedInputCursorMapper>? {
+        override fun invoke(p1: JsonElement): Pair<String, SplitProcessedInputCursorMapper>? {
+            if(p1 !is JsonPrimitive || !p1.isString)
+                return null
+            val range = tree.ranges[p1]!!
+            val sourceString = input.substring(range.start + 1, range.end - 1)
+            return Pair(p1.asString, createCursorMapperForEscapedCharacters(sourceString, range.start + 1))
         }
     }
 }

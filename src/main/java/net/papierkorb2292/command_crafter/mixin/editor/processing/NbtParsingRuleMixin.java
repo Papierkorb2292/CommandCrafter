@@ -11,10 +11,11 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.MixinUtil;
-import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -34,6 +35,10 @@ public class NbtParsingRuleMixin {
         var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
         if (analyzingResult == null)
             return op.call(stringNbtReader);
+        //noinspection unchecked
+        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.getReader();
+        if(directiveReader.getResourceCreator().getLanguageServer() == null)
+            return op.call(stringNbtReader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)stringNbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -46,7 +51,10 @@ public class NbtParsingRuleMixin {
             treeBuilder.addNode(nbt, new StringRange(startCursor, state.getReader().getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, state.getReader().getString()), analyzingResult.getSemanticTokens());
+        StringRangeTree.TreeOperations.Companion.forNbt(
+                tree,
+                directiveReader
+        ).analyzeFull(analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
         return nbt;
     }
 }

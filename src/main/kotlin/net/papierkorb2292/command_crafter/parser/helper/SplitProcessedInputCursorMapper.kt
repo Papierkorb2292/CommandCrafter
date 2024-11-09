@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.parser.helper
 
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * This class is used to map between cursor positions,
@@ -22,7 +24,7 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     var prevTargetEnd: Int = 0
 
     fun addMapping(sourceCursor: Int, targetCursor: Int, length: Int) {
-        require(sourceCursor >= prevSourceEnd && targetCursor >= prevTargetEnd) { "Mappings must be added in order" }
+        require(sourceCursors.isEmpty() || sourceCursor >= prevSourceEnd && targetCursor >= prevTargetEnd) { "Mappings must be added in order" }
         sourceCursors.add(sourceCursor)
         targetCursors.add(targetCursor)
         lengths.add(length)
@@ -60,5 +62,52 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         val startInputCursor = inputCursors[mappingIndex]
         val relativeCursor = inputCursor - startInputCursor
         return outputCursors[mappingIndex] + relativeCursor
+    }
+
+    fun combineWith(targetMapper: OffsetProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
+        val result = SplitProcessedInputCursorMapper()
+        for(i in 0 until sourceCursors.size) {
+            result.addMapping(sourceCursors[i], targetCursors[i] + targetMapper.offset, lengths[i])
+        }
+        return result
+    }
+
+    fun combineWith(targetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
+        val result = SplitProcessedInputCursorMapper()
+        val otherIndices = (0 until targetMapper.sourceCursors.size).iterator()
+        var currentOtherIndex = if(otherIndices.hasNext()) otherIndices.nextInt() else -1
+        for(i in 0 until sourceCursors.size) {
+            val sourceCursor = sourceCursors[i]
+            val targetCursor = targetCursors[i]
+            // Skip targetMapper mappings that are before the range of mapping i
+            while(currentOtherIndex != -1 && targetMapper.sourceCursors[currentOtherIndex] + targetMapper.lengths[currentOtherIndex] < targetCursor) {
+                currentOtherIndex = if(otherIndices.hasNext()) otherIndices.nextInt() else -1
+            }
+            if(currentOtherIndex == -1 || targetMapper.sourceCursors[currentOtherIndex] > targetCursor) {
+                // targetMapper has no mapping at the start of this range
+                // Thus, a mapping of length=0 is added at the start,
+                // such that all cursors up until the next mapping are part of a gap but are still translated correctly
+                if(targetMapper.sourceCursors.isEmpty() || currentOtherIndex == 0) {
+                    result.addMapping(sourceCursor, targetCursor, 0)
+                } else {
+                    val prevOtherIndex = if(currentOtherIndex == -1) targetMapper.sourceCursors.size - 1 else currentOtherIndex - 1
+                    val translation = targetMapper.targetCursors[prevOtherIndex] - targetMapper.sourceCursors[prevOtherIndex]
+                    result.addMapping(sourceCursor, targetCursor + translation, 0)
+                }
+                if(currentOtherIndex == -1)
+                    continue
+            }
+            var nextMappingMinSourceStart = sourceCursor
+            // Go through targetMapper mappings that intersect with mapping i
+            while(currentOtherIndex != -1 && targetMapper.sourceCursors[currentOtherIndex] < targetCursor + lengths[i]) {
+                val mappedOtherStart = targetMapper.sourceCursors[currentOtherIndex] - targetCursor + sourceCursor
+                val sourceStart = max(mappedOtherStart, sourceCursor)
+                val mappingLength = min(min(mappedOtherStart - sourceCursor, 0) + targetMapper.lengths[currentOtherIndex], sourceCursor + lengths[i] - nextMappingMinSourceStart)
+                result.addMapping(sourceStart, targetMapper.targetCursors[currentOtherIndex] - mappedOtherStart + sourceStart, mappingLength)
+                nextMappingMinSourceStart = sourceStart + mappingLength
+                currentOtherIndex = if(otherIndices.hasNext()) otherIndices.nextInt() else -1
+            }
+        }
+        return result
     }
 }

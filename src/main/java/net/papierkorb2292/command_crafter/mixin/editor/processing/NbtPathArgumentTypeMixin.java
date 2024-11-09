@@ -14,7 +14,6 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
@@ -101,13 +100,19 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
     private static NbtCompound command_crafter$highlightCompounds(StringNbtReader reader, Operation<NbtCompound> op, StringReader stringReader) {
         var analyzingResult = command_crafter$analyzingResult.get();
         if(analyzingResult == null) return op.call(reader);
-
+        //noinspection unchecked
+        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)stringReader;
+        if(directiveReader.getResourceCreator().getLanguageServer() == null)
+            return op.call(reader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)reader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         var nbt = op.call(reader);
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, stringReader.getString()), analyzingResult.getSemanticTokens());
+        StringRangeTree.TreeOperations.Companion.forNbt(
+                tree,
+                directiveReader
+        ).analyzeFull(analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
         return nbt;
     }
 

@@ -14,11 +14,15 @@ import net.papierkorb2292.command_crafter.string_range_gson.Strictness;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 
+import java.util.Collections;
+
 @Mixin(TextArgumentType.class)
 public class TextArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
+        if(reader.getResourceCreator().getLanguageServer() == null)
+            return;
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
         var stringRangeTreeReader = new StringRangeTreeJsonReader(readerCopy.asReader());
@@ -26,7 +30,7 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
         try {
             result.getMappingInfo().setReadCharacters(prevReadCharacters + range.getStart());
             var stringRangeTree = stringRangeTreeReader.read(Strictness.LENIENT, true);
-            stringRangeTree.generateSemanticTokens(StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider.INSTANCE, result.getSemanticTokens());
+            stringRangeTree.generateSemanticTokens(StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider.INSTANCE, result.getSemanticTokens(), Collections.emptyIterator());
         } finally {
             result.getMappingInfo().setReadCharacters(prevReadCharacters);
         }

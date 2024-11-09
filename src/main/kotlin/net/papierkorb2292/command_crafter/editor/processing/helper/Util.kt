@@ -4,6 +4,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
@@ -72,4 +73,30 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
             TextEdit(insertRange, text)
         )
     }
+}
+
+fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCursor: Int): SplitProcessedInputCursorMapper {
+    val cursorMapper = SplitProcessedInputCursorMapper()
+    var sourceIndex = 0
+    var consumedEscapedCharacterCount = 0
+    while(sourceIndex < sourceString.length) {
+        if(sourceString[sourceIndex] != '\\') {
+            sourceIndex++
+            continue
+        }
+        val escapedCharacterCount =
+            if(sourceString[sourceIndex + 1] == 'u') 5
+            else 1
+        cursorMapper.addFollowingMapping(
+            cursorMapper.prevTargetEnd + consumedEscapedCharacterCount + startSourceCursor,
+            sourceIndex - consumedEscapedCharacterCount + 1 - cursorMapper.prevTargetEnd
+        )
+        consumedEscapedCharacterCount += escapedCharacterCount
+        sourceIndex += escapedCharacterCount + 1
+    }
+    cursorMapper.addFollowingMapping(
+        cursorMapper.prevTargetEnd + consumedEscapedCharacterCount  + startSourceCursor,
+        sourceString.length - cursorMapper.prevTargetEnd
+    )
+    return cursorMapper
 }
