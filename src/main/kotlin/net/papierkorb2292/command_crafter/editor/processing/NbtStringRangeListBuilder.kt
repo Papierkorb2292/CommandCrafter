@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.NbtEnd
 import net.minecraft.nbt.NbtOps
 
 class NbtStringRangeListBuilder(private val stringRangeTreeBuilder: StringRangeTree.Builder<NbtElement>?, private val resultConsumer: ((NbtElement) -> Unit)?) {
@@ -15,11 +16,12 @@ class NbtStringRangeListBuilder(private val stringRangeTreeBuilder: StringRangeT
         }
     }
 
-    private var merger: NbtOps.Merger = NbtOps.BasicMerger.EMPTY
+    private var entries = mutableListOf<NbtElement>()
+
     private val rangesBetweenEntries = mutableListOf<StringRange>()
 
     fun addElement(element: NbtElement) {
-        merger = merger.merge(element)
+        entries += element
     }
 
     fun addRangeBetweenEntries(range: StringRange) {
@@ -27,7 +29,11 @@ class NbtStringRangeListBuilder(private val stringRangeTreeBuilder: StringRangeT
     }
 
     fun build(listStringRange: StringRange, allowedStartCursor: Int? = null): NbtElement {
-        val list = merger.result
+        val list = if(entries.any { it is NbtEnd }) {
+            NbtOps.CompoundListMerger().merge(entries).result
+        } else {
+            NbtOps.INSTANCE.createList(entries.stream())
+        }
         resultConsumer?.invoke(list)
         if(stringRangeTreeBuilder != null) {
             stringRangeTreeBuilder.addNode(list, listStringRange, allowedStartCursor)
