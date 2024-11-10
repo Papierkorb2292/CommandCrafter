@@ -10,7 +10,12 @@ class NbtStringContentGetter(val tree: StringRangeTree<NbtElement>, val input: S
         if(p1 !is NbtString)
             return null
         val range = tree.ranges[p1]!!
-        val sourceString = input.substring(range.start + 1, range.end - 1)
+        val firstChar = input[range.start]
+        val sourceString =
+            if(firstChar == '"' || firstChar == '\'')
+                input.substring(range.start + 1, range.end - 1)
+            else
+                input.substring(range.start, range.end)
         return Pair(p1.asString(), createCursorMapperForEscapedCharacters(sourceString, range.start + 1))
     }
 }

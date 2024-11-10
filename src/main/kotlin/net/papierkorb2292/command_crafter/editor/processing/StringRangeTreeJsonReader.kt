@@ -146,9 +146,6 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         (current as JsonObject).add(name, value)
                     }
 
-                    // Range isn't accurate for nested elements, but it's replaced later.
-                    // It is important to add it here to keep the correct order.
-
                     if(isNesting) {
                         stack.addLast(ReaderStackEntry(current, nestedStartPos, nestedAllowedStartPos))
                         nestedStartPos = `in`.absoluteValueStartPos
@@ -268,7 +265,12 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
             if(p1 !is JsonPrimitive || !p1.isString)
                 return null
             val range = tree.ranges[p1]!!
-            val sourceString = input.substring(range.start + 1, range.end - 1)
+            val firstChar = input[range.start]
+            val sourceString =
+                if(firstChar == '"' || firstChar == '\'')
+                    input.substring(range.start + 1, range.end - 1)
+                else
+                    input.substring(range.start, range.end)
             return Pair(p1.asString, createCursorMapperForEscapedCharacters(sourceString, range.start + 1))
         }
     }
