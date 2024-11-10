@@ -85,7 +85,6 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     }
 
     fun combineWith(targetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
-        // TODO: Map expandedChars
         val result = SplitProcessedInputCursorMapper()
         val otherIndices = (0 until targetMapper.sourceCursors.size).iterator()
         var currentOtherIndex = if(otherIndices.hasNext()) otherIndices.nextInt() else -1
