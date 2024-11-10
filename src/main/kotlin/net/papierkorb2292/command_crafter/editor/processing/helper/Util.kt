@@ -91,6 +91,7 @@ fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCurs
             cursorMapper.prevTargetEnd + consumedEscapedCharacterCount + startSourceCursor,
             sourceIndex - consumedEscapedCharacterCount + 1 - cursorMapper.prevTargetEnd
         )
+        cursorMapper.addExpandedChar(sourceIndex + startSourceCursor, sourceIndex + escapedCharacterCount + startSourceCursor)
         consumedEscapedCharacterCount += escapedCharacterCount
         sourceIndex += escapedCharacterCount + 1
     }

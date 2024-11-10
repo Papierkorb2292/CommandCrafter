@@ -92,6 +92,13 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             }
             remainingLineLength -= cursorDelta
 
+            val mappingAbsoluteEndExclusive = mappingAbsoluteStart + remainingLengthCoveredByMapping
+            val mappingAbsoluteEndInclusive = mappingAbsoluteEndExclusive - 1
+            if(cursorMapper.expandedCharEnds.containsKey(mappingAbsoluteEndInclusive)) {
+                val expandedCharEndInclusive = cursorMapper.expandedCharEnds[mappingAbsoluteEndInclusive]
+                remainingLengthCoveredByMapping = expandedCharEndInclusive + 1 - mappingAbsoluteStart
+            }
+
             // Go through the lines that the mapping covers and add semantic tokens
             while(remainingLengthCoveredByMapping > 0) {
                 lastLineCursor += cursorDelta

@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import kotlin.math.max
@@ -20,6 +21,13 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     val targetCursors = IntList()
     val lengths = IntList()
 
+    /**
+     * Maps source cursor position to the last cursor position that can be regarded as belonging to the same character in the target string.
+     *
+     * This can be used to represent escaped characters in the source string that are resolved in the target string.
+     */
+    val expandedCharEnds = Int2IntOpenHashMap()
+
     var prevSourceEnd: Int = 0
     var prevTargetEnd: Int = 0
 
@@ -34,6 +42,10 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
 
     fun addFollowingMapping(sourceCursor: Int, length: Int) {
         addMapping(sourceCursor, prevTargetEnd, length)
+    }
+
+    fun addExpandedChar(startCursor: Int, endCursor: Int) {
+        this.expandedCharEnds[startCursor] = endCursor
     }
 
     override fun mapToTarget(sourceCursor: Int, clampInGaps: Boolean): Int {
@@ -73,6 +85,7 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     }
 
     fun combineWith(targetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
+        // TODO: Map expandedChars
         val result = SplitProcessedInputCursorMapper()
         val otherIndices = (0 until targetMapper.sourceCursors.size).iterator()
         var currentOtherIndex = if(otherIndices.hasNext()) otherIndices.nextInt() else -1
@@ -107,6 +120,14 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
                 nextMappingMinSourceStart = sourceStart + mappingLength
                 currentOtherIndex = if(otherIndices.hasNext()) otherIndices.nextInt() else -1
             }
+        }
+        val expandedCharCursors = targetMapper.expandedCharEnds.keys.iterator()
+        while(expandedCharCursors.hasNext()) {
+            val startCursor = expandedCharCursors.nextInt()
+            val endCursor = targetMapper.expandedCharEnds[startCursor]
+            val mappedStart = mapToSource(startCursor, false)
+            val mappedEnd = mapToSource(endCursor, false)
+            result.addExpandedChar(mappedStart, mappedEnd)
         }
         return result
     }
