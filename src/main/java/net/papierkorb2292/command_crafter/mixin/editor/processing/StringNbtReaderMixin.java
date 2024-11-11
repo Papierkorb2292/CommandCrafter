@@ -118,7 +118,21 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         try {
             return MixinUtil.<String, CommandSyntaxException>callWithThrows(original, instance);
         } catch(CommandSyntaxException e) {
-            return reader.getString().substring(startChar, reader.getCursor());
+            // Read string (with escaped characters) like in StringReader.readStringUntil,
+            // but throw no errors
+            instance.setCursor(startChar + 1);
+            final StringBuilder result = new StringBuilder();
+            boolean escaped = false;
+            while (instance.canRead()) {
+                final char c = instance.read();
+                if(c == '\\' && !escaped) {
+                    escaped = true;
+                    continue;
+                }
+                result.append(c);
+                escaped = false;
+            }
+            return result.toString();
         }
     }
 
