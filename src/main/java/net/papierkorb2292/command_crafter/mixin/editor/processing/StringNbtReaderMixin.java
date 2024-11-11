@@ -150,6 +150,8 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
     )
     private NbtCompound command_crafter$addCompoundTagToStringRangeTree(NbtCompound compound, @Local int startCursor) {
         if (command_crafter$stringRangeTreeBuilder != null) {
+            while(Character.isWhitespace(reader.getString().charAt(startCursor)))
+                startCursor++;
             // startCursor has skipped whitespaces before the name because of addCompoundRangeBetweenRangeToStringRangeTree
             command_crafter$stringRangeTreeBuilder.addMapKeyRange(compound, new StringRange(startCursor, reader.getCursor()));
             command_crafter$elementAllowedStartCursor.pop();
