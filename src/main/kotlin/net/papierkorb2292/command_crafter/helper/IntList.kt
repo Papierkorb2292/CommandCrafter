@@ -15,6 +15,11 @@ class IntList(capacity: Int) {
         return entries[index]
     }
 
+    operator fun set(index: Int, element: Int) {
+        Objects.checkIndex(index, size)
+        entries[index] = element
+    }
+
     operator fun plus(element: Int) = copy().apply { this += element }
     operator fun plusAssign(element: Int) = add(element)
 

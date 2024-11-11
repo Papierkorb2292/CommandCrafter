@@ -7,10 +7,7 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
-import net.minecraft.nbt.NbtElement
-import net.minecraft.nbt.NbtEnd
-import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.StringNbtReader
+import net.minecraft.nbt.*
 import net.minecraft.registry.RegistryOps
 import net.minecraft.registry.RegistryWrapper
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
@@ -231,16 +228,42 @@ class StringRangeTree<TNode: Any>(
             val jsonTree = StringRangeTreeJsonReader(java.io.StringReader(content)).read(Strictness.LENIENT, true)
             val jsonElementCount = jsonTree.orderedNodes.count { it !is JsonNull }
 
+            val nbtArrayCount = nbtTree.orderedNodes.count {
+                if(it !is AbstractNbtList<*>)
+                    return@count false
+                val startCursor = nbtTree.getNodeRangeOrThrow(it).start
+                if(content.length <= startCursor + 2 || content[startCursor + 2] != ';')
+                    return@count false
+                val arrayTypeChar = content[startCursor + 1]
+                arrayTypeChar == 'B' || arrayTypeChar == 'I' || arrayTypeChar == 'L'
+            }
+
+            val allKeysQuoted = nbtTree.mapKeyRanges.values.flatten().all {
+                val startChar = content[it.start]
+                startChar == '"' || startChar == '\''
+            }
+
+            /*
+            Select the data type that was able to parse more elements.
+
+            Because NBT arrays are of the form [T;...], the JSON parser reads an
+            additional unquoted string for them that has to be accounted for when comparing element counts.
+
+            Since many inputs can be interpreted as both NBT or lenient JSON, all keys being quoted
+            (a requirement for proper JSON), is one plus point for json, meaning that if both element counts
+            are the same, JSON is chosen (otherwise, when not all keys are quoted, NBT is chosen).
+            */
             val fittingParsedContent =
-                if(nbtElementCount > jsonElementCount)
+                if(nbtElementCount + nbtArrayCount >= jsonElementCount + if(allKeysQuoted) 1 else 0)
                     TreeOperations.forNbt(nbtTree, content)
                 else
                     TreeOperations.forJson(jsonTree, content)
+            val offsetBaseMapper = baseAnalyzingResult.mappingInfo.cursorMapper
+                .combineWith(OffsetProcessedInputCursorMapper(-baseAnalyzingResult.mappingInfo.readSkippingChars))
+            offsetBaseMapper.removeNegativeTargetCursors()
             val stringMappingInfo = FileMappingInfo(
                 baseAnalyzingResult.mappingInfo.lines,
-                baseAnalyzingResult.mappingInfo.cursorMapper
-                    .combineWith(OffsetProcessedInputCursorMapper(-baseAnalyzingResult.mappingInfo.readSkippingChars))
-                    .combineWith(cursorMapper)
+                offsetBaseMapper.combineWith(cursorMapper)
             )
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
             val hasModifiedAnalyzingResult = fittingParsedContent.analyzeFull(stringAnalyzingResult, languageServer, !fittingParsedContent.isRootEmpty)

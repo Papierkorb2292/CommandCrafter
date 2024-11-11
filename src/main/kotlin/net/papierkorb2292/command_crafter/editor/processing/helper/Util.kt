@@ -77,6 +77,10 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
 
 fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCursor: Int): SplitProcessedInputCursorMapper {
     val cursorMapper = SplitProcessedInputCursorMapper()
+    // Map cursors before the start to negative values such that there are no problems
+    // when combining the cursor mappers (otherwise mappings for previous cursors could
+    // end up within the string range and cause the mappings to be out of order)
+    cursorMapper.addMapping(0, -startSourceCursor, startSourceCursor)
     var sourceIndex = 0
     var consumedEscapedCharacterCount = 0
     while(sourceIndex < sourceString.length) {

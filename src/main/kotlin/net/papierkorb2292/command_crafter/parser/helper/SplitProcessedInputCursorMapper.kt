@@ -48,6 +48,25 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         this.expandedCharEnds[startCursor] = endCursor
     }
 
+    fun removeNegativeTargetCursors() {
+        while(true) {
+            val targetCursor = targetCursors[0]
+            val length = lengths[0]
+            if(targetCursor + length >= 0) {
+                if(targetCursor >= 0)
+                    break
+                val newLength = length + targetCursor
+                lengths[0] = newLength
+                sourceCursors[0] -= targetCursor
+                targetCursors[0] = 0
+                break
+            }
+            sourceCursors.remove(0)
+            targetCursors.remove(0)
+            lengths.remove(0)
+        }
+    }
+
     override fun mapToTarget(sourceCursor: Int, clampInGaps: Boolean): Int {
         return map(sourceCursors, targetCursors, sourceCursor, clampInGaps)
     }
