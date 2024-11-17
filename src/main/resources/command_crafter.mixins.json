@@ -13,6 +13,7 @@
     "WorldSavePathAccessor",
     "editor.ClientConnectionAccessor",
     "editor.CommandManagerAccessor",
+    "editor.CommandManagerMixin",
     "editor.ServerPlayNetworkHandlerMixin",
     "editor.debugger.CommandExecutionContextMixin",
     "editor.debugger.CommandFunctionActionMixin",

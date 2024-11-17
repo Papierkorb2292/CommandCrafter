@@ -63,7 +63,6 @@ import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor a
 import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
 
 data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources: Boolean = false) : Language {
-
     override fun parseToVanilla(
         reader: DirectiveStringReader<RawZipResourceCreator>,
         source: ServerCommandSource,
@@ -561,7 +560,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 // so the suggestions are at the correct location
                 val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
                 val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
-                AnalyzingClientCommandSource.suggestionsFullInput.set(completionReader.copy().apply {
+                SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
                     this.cursor = endCursor
                 })
                 val suggestionFutures = completionParentNode.children.map { child ->
@@ -579,10 +578,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     }
                 }.toTypedArray()
                 CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
-                    AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                    SUGGESTIONS_FULL_INPUT.remove()
                     CompletableFuture.failedFuture(it)
                 }.thenApply {
-                    AnalyzingClientCommandSource.suggestionsFullInput.remove()
+                    SUGGESTIONS_FULL_INPUT.remove()
                     val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
                         it.toCompletionItem(completionReader)
                     } + suggestionFutures.flatMap {
@@ -739,6 +738,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     companion object {
         const val ID = "vanilla"
+
+        val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))

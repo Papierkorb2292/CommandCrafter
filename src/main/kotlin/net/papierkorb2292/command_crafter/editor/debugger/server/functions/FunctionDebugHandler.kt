@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
@@ -74,7 +73,6 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
     override fun setBreakpoints(
         sourceBreakpoints: Array<UnparsedServerBreakpoint>,
         id: PackagedId,
-        player: ServerPlayerEntity,
         debugConnection: EditorDebugConnection,
         sourceReference: Int?
     ): Array<Breakpoint> = breakpointManager.onBreakpointUpdate(

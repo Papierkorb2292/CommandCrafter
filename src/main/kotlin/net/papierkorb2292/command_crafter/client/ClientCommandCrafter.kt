@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.FontManager
 import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.screen.ScreenTexts
@@ -14,22 +15,21 @@ import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.*
-import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
-import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
-import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult
-import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ReadDirectoryResultEntry
-import net.papierkorb2292.command_crafter.helper.UnitTypeAdapter
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import net.papierkorb2292.command_crafter.parser.Language
+import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.jsonrpc.Launcher
-import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
-import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.ExecutorService
+import org.eclipse.lsp4j.Position
 
 object ClientCommandCrafter : ClientModInitializer {
     override fun onInitializeClient() {
@@ -44,62 +44,7 @@ object ClientCommandCrafter : ClientModInitializer {
         ClientDummyServerConnection(
             CommandDispatcher(), 0
         ),
-        mapOf(
-            "languageServer" to object : EditorConnectionManager.ServiceLauncher {
-                override fun launch(
-                    serverConnection: MinecraftServerConnection,
-                    editorConnection: EditorConnection,
-                    executorService: ExecutorService
-                ): EditorConnectionManager.LaunchedService {
-                    val server = MinecraftLanguageServer(serverConnection)
-                    val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
-                        .setLocalService(server)
-                        .setRemoteInterface(CommandCrafterLanguageClient::class.java)
-                        .setInput(editorConnection.inputStream)
-                        .setOutput(editorConnection.outputStream)
-                        .setExecutorService(executorService)
-                        .setExceptionHandler {
-                            handleEditorServiceException("languageServer", it)
-                        }
-                        .configureGson {
-                            it.registerTypeAdapter(ReadDirectoryResultEntry::class.java, ReadDirectoryResultEntry.TypeAdapter)
-                            it.registerTypeAdapter(Unit::class.java, UnitTypeAdapter)
-                            it.registerTypeAdapterFactory(FileSystemResult.TypeAdapterFactory)
-                        }
-                        .create();
-                    val launched = launcher.startListening()
-                    server.connect(launcher.remoteProxy)
-                    launcher.remoteProxy.showMessage(MessageParams(MessageType.Info, "Connected to Minecraft"))
-                    return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
-                }
-            },
-            "debugger" to object : EditorConnectionManager.ServiceLauncher {
-                override fun launch(
-                    serverConnection: MinecraftServerConnection,
-                    editorConnection: EditorConnection,
-                    executorService: ExecutorService,
-                ): EditorConnectionManager.LaunchedService {
-                    val server = MinecraftDebuggerServer(serverConnection)
-                    val messageWrapper = InitializedEventEmittingMessageWrapper()
-                    val launcher = DebugLauncher.Builder<CommandCrafterDebugClient>()
-                        .setLocalService(server)
-                        .setRemoteInterface(CommandCrafterDebugClient::class.java)
-                        .setInput(editorConnection.inputStream)
-                        .setOutput(editorConnection.outputStream)
-                        .setExecutorService(executorService)
-                        .wrapMessages(messageWrapper)
-                        .setExceptionHandler {
-                            handleEditorServiceException("debugger", it)
-                        }
-                        .create();
-                    messageWrapper.client = launcher.remoteProxy
-                    val launched = launcher.startListening()
-                    server.connect(launcher.remoteProxy)
-                    return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
-                }
-
-            }
-        )
+        CommandCrafter.serviceLaunchers
     )
 
     private var loadedClientsideRegistries: LoadedClientsideRegistries? = null
@@ -113,6 +58,25 @@ object ClientCommandCrafter : ClientModInitializer {
     }
 
     private fun initializeEditor() {
+        MinecraftLanguageServer.addAnalyzer(object : FileAnalyseHandler {
+            override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
+
+            override fun analyze(
+                file: OpenFile,
+                languageServer: MinecraftLanguageServer,
+            ): AnalyzingResult {
+                val reader = DirectiveStringReader(
+                    FileMappingInfo(file.stringifyLines()),
+                    languageServer.minecraftServer.commandDispatcher,
+                    AnalyzingResourceCreator(languageServer, file.uri)
+                )
+                val result = AnalyzingResult(reader.fileMappingInfo, Position())
+                reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
+                val source = AnalyzingClientCommandSource(MinecraftClient.getInstance())
+                LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
+                return result
+            }
+        })
         addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
         addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
 
@@ -141,7 +105,7 @@ object ClientCommandCrafter : ClientModInitializer {
             )
         }
 
-        NetworkServerConnection.registerClientPacketHandlers()
+        NetworkServerConnection.registerPacketHandlers()
         setDefaultServerConnection()
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
@@ -169,15 +133,5 @@ object ClientCommandCrafter : ClientModInitializer {
             editorConnectionManager = editorConnectionManager.copyForNewConnectionAcceptor(SocketEditorConnectionType(it))
             editorConnectionManager.startServer()
         }
-    }
-
-    private fun handleEditorServiceException(serviceName: String, e: Throwable): ResponseError {
-        CommandCrafter.LOGGER.error("Error thrown by $serviceName", e)
-        var coreException = e;
-        if(coreException is RuntimeException)
-            coreException = coreException.cause ?: coreException
-        if(coreException is InvocationTargetException)
-            coreException = coreException.targetException
-        return ResponseError(ResponseErrorCode.UnknownErrorCode, coreException.message, null)
     }
 }
