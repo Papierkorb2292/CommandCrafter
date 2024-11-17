@@ -12,6 +12,7 @@ import kotlin.io.path.writer
 
 class CommandCrafterConfig private constructor(
     servicesPort: Int,
+    val runDedicatedServerServices: Boolean,
     val configPath: Path
 ) {
     var servicesPort = servicesPort
@@ -28,9 +29,12 @@ class CommandCrafterConfig private constructor(
 
         val SERVICES_PORT_NAME = "services-port"
         private val DEFAULT_SERVICES_PORT = 52853
+        val RUN_DEDICATED_SERVER_SERVICES_NAME = "run-dedicated-server-services"
+        private val DEFAULT_RUN_DEDICATED_SERVER_SERVICES = false
 
         private val CONFIG_DEFAULTS = Properties().apply {
             setProperty(SERVICES_PORT_NAME, DEFAULT_SERVICES_PORT.toString())
+            setProperty(RUN_DEDICATED_SERVER_SERVICES_NAME, DEFAULT_RUN_DEDICATED_SERVER_SERVICES.toString())
         }
 
         fun fromProperties(properties: Properties, configPath: Path, configVersion: String): CommandCrafterConfig {
@@ -39,13 +43,23 @@ class CommandCrafterConfig private constructor(
                 servicesPort = DEFAULT_SERVICES_PORT
                 CommandCrafter.LOGGER.warn("Encountered invalid services port in config file, using default value $servicesPort")
             }
-            return CommandCrafterConfig(servicesPort, configPath)
+            var runServersideServices = properties.getProperty(RUN_DEDICATED_SERVER_SERVICES_NAME).toBooleanStrictOrNull()
+            if(runServersideServices == null) {
+                runServersideServices = DEFAULT_RUN_DEDICATED_SERVER_SERVICES
+                CommandCrafter.LOGGER.warn("Encountered invalid run-serverside-services value in config file, using default value $DEFAULT_RUN_DEDICATED_SERVER_SERVICES")
+            }
+            val config = CommandCrafterConfig(servicesPort, runServersideServices, configPath)
+            if(configVersion != CommandCrafter.VERSION) {
+                CommandCrafter.LOGGER.info("Updating old config file to new version: ${CommandCrafter.VERSION}")
+                config.saveToFile()
+            }
+            return config
         }
 
         fun fromFile(configPath: Path): CommandCrafterConfig {
             val properties = Properties(CONFIG_DEFAULTS)
             if(configPath.notExists()) {
-                val config = CommandCrafterConfig(DEFAULT_SERVICES_PORT, configPath)
+                val config = CommandCrafterConfig(DEFAULT_SERVICES_PORT, DEFAULT_RUN_DEDICATED_SERVER_SERVICES, configPath)
                 config.saveToFile()
                 return config
             }
@@ -74,9 +88,9 @@ class CommandCrafterConfig private constructor(
             val writer = configPath.writer()
             writer.append("v${CommandCrafter.VERSION}\n")
             val properties = Properties()
-            if(FabricLoader.getInstance().environmentType == EnvType.CLIENT) {
-                // Services are currently only run on the client, so there's no need to save the port on the server
-                properties.setProperty(SERVICES_PORT_NAME, servicesPort.toString())
+            properties.setProperty(SERVICES_PORT_NAME, servicesPort.toString())
+            if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
+                properties.setProperty(RUN_DEDICATED_SERVER_SERVICES_NAME, runDedicatedServerServices.toString())
             }
             properties.store(writer, "CommandCrafter Config")
         } catch(e: IOException) {

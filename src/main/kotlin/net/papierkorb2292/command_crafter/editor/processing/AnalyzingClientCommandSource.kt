@@ -16,7 +16,6 @@ import net.minecraft.util.Identifier
 import net.minecraft.world.World
 import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -26,9 +25,6 @@ class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientCommandSource,
     private val hasNetworkHandler: Boolean
 ) : CommandSource {
-    companion object {
-        val suggestionsFullInput = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
-    }
 
     constructor(minecraftClient: MinecraftClient): this(
         minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient),
@@ -62,7 +58,7 @@ class AnalyzingClientCommandSource(
             getCompletions(context)
 
     override fun getCompletions(context: CommandContext<*>): CompletableFuture<Suggestions> {
-        val fullInput = suggestionsFullInput.getOrNull()
+        val fullInput = VanillaLanguage.SUGGESTIONS_FULL_INPUT.getOrNull()
         if(!hasNetworkHandler || fullInput == null)
             return Suggestions.empty()
 
