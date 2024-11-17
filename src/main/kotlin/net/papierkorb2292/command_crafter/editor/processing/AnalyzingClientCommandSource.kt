@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.client.MinecraftClient
@@ -13,6 +14,7 @@ import net.minecraft.registry.RegistryKey
 import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.util.Identifier
 import net.minecraft.world.World
+import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -66,7 +68,12 @@ class AnalyzingClientCommandSource(
 
         val contextCompletionProvider = fullInput.resourceCreator.languageServer?.minecraftServer?.contextCompletionProvider
         if(contextCompletionProvider != null)
-            return contextCompletionProvider.getCompletions(context, fullInput)
+            return contextCompletionProvider.getCompletions(fullInput).thenApply {
+                Suggestions(StringRange.at(0), emptyList()).apply {
+                    @Suppress("KotlinConstantConditions")
+                    (this as CompletionItemsContainer).`command_crafter$setCompletionItem`(it)
+                }
+            }
         if(!VanillaLanguage.isReaderEasyNextLine(fullInput) && !VanillaLanguage.isReaderInlineResources(fullInput))
             return clientCommandSource.getCompletions(context)
         return Suggestions.empty()

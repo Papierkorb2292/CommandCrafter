@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.editor.debugger.server
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
-import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
@@ -23,12 +23,13 @@ class ServerNetworkDebugConnection(
     override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null,
     override var nextSourceReference: Int = 1,
     override val suspendServer: Boolean = true
-) : NetworkIdentifiedDebugConnection {
-    override val networkHandler: ServerPlayNetworkHandler = player.networkHandler
+) : EditorDebugConnection {
     override val lifecycle = EditorDebugConnection.Lifecycle()
 
     var currentPauseId: UUID? = null
         private set
+
+    val networkHandler: ServerPlayNetworkHandler = player.networkHandler
 
     private val packetSender = ServerPlayNetworking.getSender(player)
     private val playerName = player.name.string
@@ -40,7 +41,7 @@ class ServerNetworkDebugConnection(
     }
 
     override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
-        val pauseId = NetworkServerConnection.addServerDebugPause(DebugPauseInformation(actions, variables, clientEditorDebugConnection))
+        val pauseId = NetworkServerConnectionHandler.addServerDebugPause(DebugPauseInformation(actions, variables, clientEditorDebugConnection))
         currentPauseId = pauseId
         packetSender.sendPacket(
             PausedUpdateS2CPacket(clientEditorDebugConnection, pauseId to args)
@@ -49,7 +50,7 @@ class ServerNetworkDebugConnection(
 
     override fun pauseEnded() {
         currentPauseId?.run {
-            NetworkServerConnection.removeServerDebugPauseHandler(this)
+            NetworkServerConnectionHandler.removeServerDebugPauseHandler(this)
         }
         currentPauseId = null
         packetSender.sendPacket(
@@ -67,7 +68,7 @@ class ServerNetworkDebugConnection(
         val requestId = UUID.randomUUID()
         val future = CompletableFuture<ReservedBreakpointIdStart>()
         packetSender.sendPacket(ReserveBreakpointIdsRequestS2CPacket(count, clientEditorDebugConnection, requestId))
-        NetworkServerConnection.currentBreakpointIdsRequests[requestId] = future
+        NetworkServerConnectionHandler.currentBreakpointIdsRequests[requestId] = future
         return future
     }
 

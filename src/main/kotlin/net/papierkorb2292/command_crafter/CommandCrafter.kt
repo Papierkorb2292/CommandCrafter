@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.CommandNode
-import com.mojang.serialization.Lifecycle
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
@@ -24,7 +23,7 @@ import net.minecraft.loot.condition.LootCondition
 import net.minecraft.loot.function.LootFunctionTypes
 import net.minecraft.network.message.MessageType
 import net.minecraft.recipe.Recipe
-import net.minecraft.registry.*
+import net.minecraft.registry.Registry
 import net.minecraft.registry.tag.TagFile
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandOutput
@@ -50,7 +49,7 @@ import net.minecraft.world.gen.feature.PlacedFeature
 import net.minecraft.world.gen.structure.JigsawStructure
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -79,7 +78,7 @@ object CommandCrafter: ModInitializer {
     override fun onInitialize() {
         initializeConfig()
         initializeEditor()
-        NetworkServerConnection.registerServerPacketHandlers()
+        NetworkServerConnectionHandler.registerPacketHandlers()
         initializeParser()
 
         LOGGER.info("Loaded CommandCrafter!")

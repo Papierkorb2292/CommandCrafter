@@ -141,7 +141,7 @@ object ClientCommandCrafter : ClientModInitializer {
             )
         }
 
-        NetworkServerConnection.registerClientPacketHandlers()
+        NetworkServerConnection.registerPacketHandlers()
         setDefaultServerConnection()
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->

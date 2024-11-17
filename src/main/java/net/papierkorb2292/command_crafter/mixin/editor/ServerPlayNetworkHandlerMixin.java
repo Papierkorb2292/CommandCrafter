@@ -1,15 +1,13 @@
 package net.papierkorb2292.command_crafter.mixin.editor;
 
-import kotlin.Unit;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.packet.c2s.common.CustomPayloadC2SPacket;
-import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerCommonNetworkHandler;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.papierkorb2292.command_crafter.editor.NetworkServerConnection;
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,9 +28,9 @@ public abstract class ServerPlayNetworkHandlerMixin extends ServerCommonNetworkH
             cancellable = true
     )
     private void command_crafter$callNetworkServerConnectionAsyncHandlers(CustomPayloadC2SPacket packet, CallbackInfo ci) {
-        if(NetworkServerConnection.Companion.callPacketHandler(
+        if(NetworkServerConnectionHandler.INSTANCE.callPacketHandler(
                 packet.payload(),
-                new NetworkServerConnection.AsyncC2SPacketContext(
+                new NetworkServerConnectionHandler.AsyncC2SPacketContext(
                         player,
                         connection
                 )

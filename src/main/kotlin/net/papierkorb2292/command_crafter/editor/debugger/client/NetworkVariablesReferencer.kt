@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.client
 
 import net.fabricmc.fabric.api.networking.v1.PacketSender
-import net.papierkorb2292.command_crafter.editor.NetworkServerConnection
+import net.papierkorb2292.command_crafter.client.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.networking.packets.GetVariablesRequestC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.SetVariableRequestC2SPacket

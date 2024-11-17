@@ -10,6 +10,8 @@ import org.eclipse.lsp4j.debug.SourceResponse
 import java.util.concurrent.CompletableFuture
 
 interface ServerDebugConnectionService {
+    fun setupEditorDebugConnection(editorDebugConnection: EditorDebugConnection)
+
     fun setBreakpoints(
         breakpoints: Array<UnparsedServerBreakpoint>,
         source: Source,

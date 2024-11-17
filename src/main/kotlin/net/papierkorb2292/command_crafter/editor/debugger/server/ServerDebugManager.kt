@@ -4,7 +4,6 @@ import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ReferenceMap
 import it.unimi.dsi.fastutil.ints.Int2ReferenceOpenHashMap
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayerEntity
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
@@ -58,8 +57,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
         breakpoints: Array<UnparsedServerBreakpoint>,
         fileType: PackContentFileType,
         id: PackagedId,
-        player: ServerPlayerEntity,
-        debuggerConnector: ServerNetworkDebugConnection,
+        debuggerConnector: EditorDebugConnection,
         sourceReference: Int? = null
     ): Array<Breakpoint> {
 
@@ -68,7 +66,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
                 breakpoints,
                 MinecraftDebuggerServer.FILE_TYPE_NOT_SUPPORTED_REJECTION_REASON
             )
-        return debugHandler.setBreakpoints(breakpoints, id, player, debuggerConnector, sourceReference)
+        return debugHandler.setBreakpoints(breakpoints, id, debuggerConnector, sourceReference)
     }
 
     fun removeDebugConnection(debugConnection: EditorDebugConnection) {

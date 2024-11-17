@@ -214,6 +214,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     override fun initialize(args: InitializeRequestArguments): CompletableFuture<Capabilities> {
         initializeArgs = args
+        minecraftServer.debugService?.setupEditorDebugConnection(editorDebugConnection)
         return CompletableFuture.completedFuture(Capabilities().apply {
             supportsConfigurationDoneRequest = true
             supportsSteppingGranularity = true
@@ -428,6 +429,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             return
         }
         minecraftServer = connection
+        connection.debugService?.setupEditorDebugConnection(editorDebugConnection)
         stackTraceLock.withAcquired {
             stackTrace.clear()
         }
