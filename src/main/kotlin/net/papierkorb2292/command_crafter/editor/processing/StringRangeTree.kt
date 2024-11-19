@@ -8,12 +8,11 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.nbt.*
-import net.minecraft.registry.RegistryOps
 import net.minecraft.registry.RegistryWrapper
+import net.minecraft.text.TextCodecs
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.runWithValue
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
@@ -26,6 +25,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.function.BiConsumer
 import java.util.function.Consumer
+import java.util.stream.Collectors
 import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
@@ -159,7 +159,7 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, languageServer: MinecraftLanguageServer, suggestionResolver: SuggestionResolver<TNode>) {
+    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, languageServer: MinecraftLanguageServer, suggestionResolver: SuggestionResolver<TNode>, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, List<ResolvedSuggestion>>>()
@@ -180,6 +180,14 @@ class StringRangeTree<TNode: Any>(
             nodeSuggestions
         }
 
+        var nextSuggestionInsertRange: StringRange? = null
+        var nextSuggestionInsert: AnalyzingResult? = null
+        if(suggestionInserts != null && suggestionInserts.hasNext()) {
+            val insert = suggestionInserts.next()
+            nextSuggestionInsertRange = insert.first
+            nextSuggestionInsert = insert.second
+        }
+
         val sorted = flattenSorted(
             resolvedSuggestions,
             Comparator.comparing(kotlin.Pair<StringRange, *>::first, StringRange::compareToExclusive)
@@ -190,14 +198,35 @@ class StringRangeTree<TNode: Any>(
             val extendedEndCursor = suggestions.maxOf { it.suggestionEnd }
 
             // Make sure to not overlap with the next entry
-            val newEndCursor = if(i + 1 < sorted.size) {
+            var newEndCursor = if(i + 1 < sorted.size) {
                 val nextRange = sorted[i + 1].first
                 min(extendedEndCursor, nextRange.start)
             } else extendedEndCursor
 
+            while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= range.end) {
+                if(range.start <= nextSuggestionInsertRange.start)
+                    newEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
+                result.combineWithCompletionProviders(nextSuggestionInsert)
+                if(suggestionInserts!!.hasNext()) {
+                    val insert = suggestionInserts.next()
+                    nextSuggestionInsertRange = insert.first
+                    nextSuggestionInsert = insert.second
+                } else {
+                    nextSuggestionInsertRange = null
+                    nextSuggestionInsert = null
+                }
+            }
+
             result.addCompletionProvider(AnalyzingResult.RangedDataProvider(StringRange(range.start, newEndCursor)) { offset ->
                 CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
             }, true)
+        }
+
+        while(nextSuggestionInsert != null) {
+            result.combineWithCompletionProviders(nextSuggestionInsert)
+            nextSuggestionInsert =
+                if(suggestionInserts!!.hasNext()) suggestionInserts.next().second
+                else null
         }
     }
 
@@ -253,8 +282,8 @@ class StringRangeTree<TNode: Any>(
             (a requirement for proper JSON), is one plus point for json, meaning that if both element counts
             are the same, JSON is chosen (otherwise, when not all keys are quoted, NBT is chosen).
             */
-            val fittingParsedContent =
-                if(nbtElementCount + nbtArrayCount >= jsonElementCount + if(allKeysQuoted) 1 else 0)
+            val treeOperations =
+                if(nbtElementCount + nbtArrayCount >= jsonElementCount + if(allKeysQuoted && nbtArrayCount == 0) 1 else 0)
                     TreeOperations.forNbt(nbtTree, content)
                 else
                     TreeOperations.forJson(jsonTree, content)
@@ -265,12 +294,46 @@ class StringRangeTree<TNode: Any>(
                 baseAnalyzingResult.mappingInfo.lines,
                 offsetBaseMapper.combineWith(cursorMapper)
             )
+
+            val isContentJsonText = isJsonText(treeOperations)
+
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
-            val hasModifiedAnalyzingResult = fittingParsedContent.analyzeFull(stringAnalyzingResult, languageServer, !fittingParsedContent.isRootEmpty)
-            if(hasModifiedAnalyzingResult)
-                results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
+            treeOperations.analyzeFull(
+                stringAnalyzingResult,
+                languageServer,
+                true,
+                if(isContentJsonText) TextCodecs.CODEC else null
+            )
+            results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
         }
         return results
+    }
+
+    private fun <TNode: Any> isJsonText(treeOperations: TreeOperations<TNode>): Boolean {
+        val (accessedKeysWatcherDynamicOps, wrappedOps) = wrapDynamicOps(treeOperations.ops, ::AccessedKeysWatcherDynamicOps)
+        val wrappedTreeOperations = treeOperations.copy(ops = wrappedOps)
+        TextCodecs.CODEC.decode(wrappedTreeOperations.ops, treeOperations.stringRangeTree.root)
+
+        val textComponents = mutableListOf(treeOperations.stringRangeTree.root)
+        while(textComponents.isNotEmpty()) {
+            val textComponent = textComponents.removeAt(0)
+            val tryAsList = treeOperations.ops.getList(textComponent)
+            if(tryAsList.result().isPresent) {
+                tryAsList.result().get().accept(textComponents::add)
+                continue
+            }
+            val tryAsMap = treeOperations.ops.getMap(textComponent)
+            if(tryAsMap.result().isEmpty) continue
+            val map = tryAsMap.result().get()
+            val accessedKeys = accessedKeysWatcherDynamicOps.accessedKeys[textComponent] ?: continue
+            val existingKeys = map.entries().map { it.first }.collect(Collectors.toSet())
+
+            if(existingKeys.isNotEmpty() && !existingKeys.any(accessedKeys::contains))
+                // The map resembles no text component
+                return false
+        }
+        // All contents resemble a text component
+        return true
     }
 
     data class TreeOperations<TNode: Any>(val stringRangeTree: StringRangeTree<TNode>, val ops: DynamicOps<TNode>, val semanticTokenProvider: SemanticTokenProvider<TNode>, val suggestionResolver: SuggestionResolver<TNode>, val stringGetter: (TNode) -> kotlin.Pair<String, SplitProcessedInputCursorMapper>?) {
@@ -305,22 +368,29 @@ class StringRangeTree<TNode: Any>(
                     NbtStringContentGetter(nbtTree, reader.string)
                 )
         }
-        
+
         fun withRegistry(wrapperLookup: RegistryWrapper.WrapperLookup)
             = copy(ops = wrapperLookup.getOps(ops))
 
         fun analyzeFull(analyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult, languageServer)
             if(shouldGenerateSemanticTokens) {
-                generateSemanticTokens(analyzingResult.semanticTokens, analyzedStrings.values.asSequence().map { it.first to it.second.semanticTokens }.iterator())
+                generateSemanticTokens(
+                    analyzingResult.semanticTokens,
+                    analyzedStrings.values
+                        .asSequence()
+                        .map { it.first to it.second.semanticTokens }
+                        .filter { !it.second.isEmpty() }
+                        .iterator()
+                )
             }
-            val (wrappedOps, analyzingDynamicOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, ops)
+            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, ops)
             if(contentDecoder != null) {
                 AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
                     contentDecoder.decode(wrappedOps, stringRangeTree.root)
                 }
             }
-            stringRangeTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver)
+            stringRangeTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, analyzedStrings.values.iterator())
             return shouldGenerateSemanticTokens || contentDecoder != null || analyzedStrings.isNotEmpty()
         }
 
@@ -337,33 +407,17 @@ class StringRangeTree<TNode: Any>(
             val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
 
             /**
-             * Creates an AnalyzingDynamicOps wrapper for the given DynamicOps and StringRangeTree.
-             *
-             * The returned pair contains:
-             * 1. A DynamicOps instance that contains the AnalyzingDynamicOps (this DynamicOps instance can be used for decoding)
-             * 2. The created AnalyzingDynamicOps instance that contains the necessary data for filling the AnalyzingResult
-             *
-             * Those two values are separate, because Minecraft sometimes expects an instance of RegistryOps (a DynamicOps wrapper),
-             * so when such an instance is wrapped, the AnalyzingDynamicOps is added as a delegate of the RegistryOps instead and
-             * the newly formed RegistryOps has to be used for decoding. This way, Minecraft still has access to the RegistryOps
-             * and the DynamicOps method calls still go through the AnalyzingDynamicOps instance.
+             * Wraps the given dynamic ops with AnalyzingDynamicOps.
+             * @see [wrapDynamicOps]
              */
-            fun <TNode: Any> createAnalyzingOps(tree: StringRangeTree<TNode>, delegate: DynamicOps<TNode>): kotlin.Pair<DynamicOps<TNode>, AnalyzingDynamicOps<TNode>> =
-                when {
-                    delegate is RegistryOps -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val analyzingDynamicOps = AnalyzingDynamicOps((delegate as ForwardingDynamicOpsAccessor).delegate as DynamicOps<TNode>, tree)
-                        delegate.withDelegate(analyzingDynamicOps) to analyzingDynamicOps
-                    }
-                    delegate is AnalyzingDynamicOps && delegate.tree === tree -> delegate to delegate
-                    else -> {
-                        val analyzingDynamicOps = AnalyzingDynamicOps(delegate, tree)
-                        analyzingDynamicOps to analyzingDynamicOps
-                    }
+            fun <TNode: Any> createAnalyzingOps(tree: StringRangeTree<TNode>, delegate: DynamicOps<TNode>): kotlin.Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> =
+                wrapDynamicOps(delegate) {
+                    if(it is AnalyzingDynamicOps && it.tree === tree) it
+                    else AnalyzingDynamicOps(it, tree)
                 }
 
             fun <TNode: Any, TEncoded> decodeWithAnalyzingOps(delegate: DynamicOps<TNode>, input: StringRangeTree<TNode>, decoder: Decoder<TEncoded>): kotlin.Pair<StringRangeTree<TNode>, AnalyzingDynamicOps<TNode>> {
-                val (wrappedOps, analyzingDynamicOps) = createAnalyzingOps(input, delegate)
+                val (analyzingDynamicOps, wrappedOps) = createAnalyzingOps(input, delegate)
                 CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
                     decoder.decode(wrappedOps, input.root)
                 }

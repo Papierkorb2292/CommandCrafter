@@ -71,7 +71,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         var lastLineCursor = 0
         while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size) {
             var remainingLengthCoveredByMapping =
-                if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
+                if(mappingIndex >= 0 && mappingRelativeCursor < cursorMapper.lengths[mappingIndex])
                     min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
                 else
                     remainingLength
@@ -168,6 +168,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastLine = other.lastLine
         lastCursor = other.lastCursor
     }
+
+    fun isEmpty() = data.isEmpty()
 
     fun build() = SemanticTokens(data)
 }

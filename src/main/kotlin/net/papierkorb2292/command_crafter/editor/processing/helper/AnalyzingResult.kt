@@ -24,6 +24,10 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         addRangedDataProviders(definitionProviders, other.definitionProviders)
     }
 
+    fun combineWithCompletionProviders(other: AnalyzingResult) {
+        addRangedDataProviders(completionProviders, other.completionProviders)
+    }
+
     fun addCompletionProvider(provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>, shouldMap: Boolean) {
         if(shouldMap) {
             addMappedRangedDataProvider(completionProviders, provider)
@@ -79,8 +83,8 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         val cursorMapper = mappingInfo.cursorMapper
 
         var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
-            if(cursorMapper.targetCursors[index] <= startCursor) -1
-            else if (cursorMapper.targetCursors[index] + cursorMapper.lengths[index] > startCursor) 1
+            if(cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= startCursor) -1
+            else if (cursorMapper.targetCursors[index] > startCursor) 1
             else 0
         }
         if(mappingIndex < 0) {
@@ -94,7 +98,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         var remainingLength = unmappedProvider.cursorRange.length
         while(mappingIndex < cursorMapper.targetCursors.size) {
             val remainingLengthCoveredByMapping =
-                if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
+                if(mappingIndex >= 0 && mappingRelativeCursor < cursorMapper.lengths[mappingIndex])
                     min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
                 else
                     remainingLength

@@ -61,6 +61,9 @@ class IntList(capacity: Int) {
 
     fun isEmpty() = size == 0
 
+    fun first() = get(0)
+    fun last() = get(size - 1)
+
     fun lastIndexOf(element: Int): Int {
         for (i in size - 1 downTo 0) {
             if (entries[i] == element) {

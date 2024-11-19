@@ -9,16 +9,13 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(NbtCompoundArgumentType.class)
-public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode {
+public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode, CustomCompletionsCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
@@ -37,5 +34,10 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode {
                 tree,
                 readerCopy
         ).analyzeFull(result, reader.getResourceCreator().getLanguageServer(), true, null);
+    }
+
+    @Override
+    public boolean command_crafter$hasCustomCompletions(@NotNull CommandContext<CommandSource> context, @NotNull String name) {
+        return true;
     }
 }

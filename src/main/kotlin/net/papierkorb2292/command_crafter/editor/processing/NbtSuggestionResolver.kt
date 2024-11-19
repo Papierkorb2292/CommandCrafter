@@ -37,6 +37,10 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         reader.cursor = suggestionRange.end
         reader.skipWhitespace()
         reader.readString()
+        if(reader.canRead() && reader.peek() == ':') {
+            reader.skip()
+            reader.skipWhitespace()
+        }
         reader.cursor
     }.memoizeLast()
 
