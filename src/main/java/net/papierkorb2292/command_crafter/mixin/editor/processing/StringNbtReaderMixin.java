@@ -339,8 +339,10 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         } catch(CommandSyntaxException e) {
             final var entry = NbtEndAccessor.callInit();
             compound.put(tag, entry);
-            if(command_crafter$stringRangeTreeBuilder != null)
+            if(command_crafter$stringRangeTreeBuilder != null) {
                 command_crafter$stringRangeTreeBuilder.addNode(entry, new StringRange(startChar, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
+                command_crafter$stringRangeTreeBuilder.addPlaceholderNode(entry);
+            }
             throw e;
         }
     }
@@ -493,8 +495,10 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             final var entry = NbtEndAccessor.callInit();
             if (listBuilder != null) {
                 listBuilder.addElement(entry);
-                if(command_crafter$stringRangeTreeBuilder != null)
+                if(command_crafter$stringRangeTreeBuilder != null) {
                     command_crafter$stringRangeTreeBuilder.addNode(entry, new StringRange(startChar, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
+                    command_crafter$stringRangeTreeBuilder.addPlaceholderNode(entry);
+                }
             } else {
                 list.add(entry);
             }

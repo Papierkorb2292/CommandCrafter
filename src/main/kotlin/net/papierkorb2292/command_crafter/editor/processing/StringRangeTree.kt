@@ -59,6 +59,11 @@ class StringRangeTree<TNode: Any>(
      * The ranges between entries of a node with children. Can be used for suggesting key names or list entries.
      */
     val internalNodeRangesBetweenEntries: Map<TNode, Collection<StringRange>>,
+    /**
+     * A set of all nodes that were inserted into the tree because a value could not be read,
+     * but a representing node is needed for further processing.
+     */
+    val placeholderNodes: Set<TNode>
 ) {
     /**
      * Flattens the list and sorts it. The lists contained in the input must already be sorted.
@@ -539,7 +544,8 @@ class StringRangeTree<TNode: Any>(
                 ranges,
                 nodeAllowedStartRanges,
                 tree.mapKeyRanges,
-                tree.internalNodeRangesBetweenEntries
+                tree.internalNodeRangesBetweenEntries,
+                tree.placeholderNodes + placeholder
             )
             return true
         }
@@ -666,6 +672,7 @@ class StringRangeTree<TNode: Any>(
         private val nodeAllowedStartRanges = IdentityHashMap<TNode, StringRange>()
         private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<StringRange>>()
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
+        private val placeholderNodes = mutableSetOf<TNode>()
 
         /**
          * Only adds a node into the node ordering, but doesn't add a string range for it.
@@ -712,6 +719,10 @@ class StringRangeTree<TNode: Any>(
             mapKeyRanges.computeIfAbsent(node) { mutableListOf() }.add(range)
         }
 
+        fun addPlaceholderNode(node: TNode) {
+            placeholderNodes += node
+        }
+
         fun build(root: TNode): StringRangeTree<TNode> {
             for(node in orderedNodes) {
                 if(node !in nodeRanges) {
@@ -720,7 +731,7 @@ class StringRangeTree<TNode: Any>(
             }
             return StringRangeTree(root, orderedNodes.mapIndexed { index, it ->
                 it ?: throw UnresolvedPlaceholderError("Node order placeholder not resolved at order index $index")
-            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries)
+            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries, placeholderNodes)
         }
 
         class NodeWithoutRangeError(message: String) : Error(message)

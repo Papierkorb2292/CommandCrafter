@@ -135,6 +135,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         }
                         @Suppress("DEPRECATION")
                         value = JsonNull()
+                        builder.addPlaceholderNode(value)
                         isNesting = false
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
                         `in`.skipEntry()
