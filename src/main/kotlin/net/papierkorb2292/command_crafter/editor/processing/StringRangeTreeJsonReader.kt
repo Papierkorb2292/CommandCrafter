@@ -121,6 +121,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     var isNesting: Boolean
                     var value: JsonElement?
 
+                    var valueEndPos: Int
                     try {
                         peeked = `in`.peek()
                         value = tryBeginNesting(`in`, peeked)
@@ -129,6 +130,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         if(value == null) {
                             value = readTerminal(`in`, peeked)
                         }
+
+                        valueEndPos = `in`.absolutePos
                     } catch(e: Throwable) {
                         if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
                             throw e
@@ -138,6 +141,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         builder.addPlaceholderNode(value)
                         isNesting = false
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
+                        valueEndPos = `in`.absolutePos
                         `in`.skipEntry()
                     }
 
@@ -154,7 +158,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         current = value!!
                         builder.addNodeOrder(current)
                     } else {
-                        builder.addNode(value!!, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos), `in`.absoluteValueStartPosBeforeWhitespace)
+                        builder.addNode(value!!, StringRange(`in`.absoluteValueStartPos, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
                     }
                 }
 

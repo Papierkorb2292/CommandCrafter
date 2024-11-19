@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.google.common.collect.Streams
 import com.google.gson.JsonElement
-import com.google.gson.JsonNull
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
@@ -258,9 +257,9 @@ class StringRangeTree<TNode: Any>(
             // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
             val nbtRoot = nbtReader.parseElement()
             val nbtTree = nbtTreeBuilder.build(nbtRoot)
-            val nbtElementCount = nbtTree.orderedNodes.count { it !is NbtEnd }
+            val nbtElementCount = nbtTree.orderedNodes.count { it !in nbtTree.placeholderNodes }
             val jsonTree = StringRangeTreeJsonReader(java.io.StringReader(content)).read(Strictness.LENIENT, true)
-            val jsonElementCount = jsonTree.orderedNodes.count { it !is JsonNull }
+            val jsonElementCount = jsonTree.orderedNodes.count { it !in jsonTree.placeholderNodes }
 
             val nbtArrayCount = nbtTree.orderedNodes.count {
                 if(it !is AbstractNbtList<*>)
