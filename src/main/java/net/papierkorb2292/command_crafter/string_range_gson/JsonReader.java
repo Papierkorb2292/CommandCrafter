@@ -885,7 +885,7 @@ public class JsonReader implements Closeable {
       case JsonScope.NONEMPTY_OBJECT:
       case JsonScope.DANGLING_NAME:
         while(true) {
-          switch(nextNonWhitespace(true)) {
+          switch(nextNonWhitespace(false)) {
             case '}':
               absoluteEntryEndPos = getAbsolutePos() - 1;
               peeked = PEEKED_END_OBJECT;
@@ -897,12 +897,16 @@ public class JsonReader implements Closeable {
               pos--;
               stack[stackSize - 1] = JsonScope.NONEMPTY_OBJECT;
               return;
+            case -1:
+              stack[stackSize - 1] = JsonScope.NONEMPTY_DOCUMENT;
+              peeked = PEEKED_EOF;
+              return;
           }
         }
       case JsonScope.EMPTY_ARRAY:
       case JsonScope.NONEMPTY_ARRAY:
         while(true) {
-          switch(nextNonWhitespace(true)) {
+          switch(nextNonWhitespace(false)) {
             case ']':
               absoluteEntryEndPos = getAbsolutePos() - 1;
               peeked = PEEKED_END_ARRAY;
@@ -913,6 +917,10 @@ public class JsonReader implements Closeable {
             case ',':
               pos--;
               stack[stackSize - 1] = JsonScope.NONEMPTY_ARRAY;
+              return;
+            case -1:
+              stack[stackSize - 1] = JsonScope.NONEMPTY_DOCUMENT;
+              peeked = PEEKED_EOF;
               return;
           }
         }

@@ -158,7 +158,9 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         current = value!!
                         builder.addNodeOrder(current)
                     } else {
-                        builder.addNode(value!!, StringRange(`in`.absoluteValueStartPos, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
+                        // There could have been an error thrown between assigning the two, which would cause the latter to be ahead of the former
+                        val start = max(`in`.absoluteValueStartPos, `in`.absoluteValueStartPosBeforeWhitespace)
+                        builder.addNode(value!!, StringRange(start, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
                     }
                 }
 
