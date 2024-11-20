@@ -273,7 +273,11 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
             val firstChar = input[range.start]
             val sourceString =
                 if(firstChar == '"' || firstChar == '\'')
-                    input.substring(range.start + 1, range.end - 1)
+                    // If the string is missing content and end quotes, end-1 will be before start+1
+                    if(range.end - 1 > range.start)
+                        input.substring(range.start + 1, range.end - 1)
+                    else
+                        input.substring(range.start + 1, range.end)
                 else
                     input.substring(range.start, range.end)
             return Pair(p1.asString, createCursorMapperForEscapedCharacters(sourceString, range.start + 1))
