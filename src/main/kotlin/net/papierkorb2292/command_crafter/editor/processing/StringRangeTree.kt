@@ -363,8 +363,17 @@ class StringRangeTree<TNode: Any>(
                     jsonTree,
                     JsonOps.INSTANCE,
                     StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider,
-                    StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver,
+                    StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(content),
                     StringRangeTreeJsonReader.StringContentGetter(jsonTree, content)
+                )
+
+            fun forJson(jsonTree: StringRangeTree<JsonElement>, reader: DirectiveStringReader<*>) =
+                TreeOperations(
+                    jsonTree,
+                    JsonOps.INSTANCE,
+                    StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider,
+                    StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(reader),
+                    StringRangeTreeJsonReader.StringContentGetter(jsonTree, reader.string)
                 )
 
             fun forNbt(nbtTree: StringRangeTree<NbtElement>, content: String) =

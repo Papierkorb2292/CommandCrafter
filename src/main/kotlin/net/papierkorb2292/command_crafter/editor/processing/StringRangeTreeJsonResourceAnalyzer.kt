@@ -31,7 +31,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
             val result = AnalyzingResult(FileMappingInfo(lines), Position())
-            val reader = StringReader(lines.joinToString("\n"))
+            val concatenatedLines = lines.joinToString("\n")
+            val reader = StringReader(concatenatedLines)
             val parsedStringRangeTree = try {
                 StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
             } catch(e: IOException) {
@@ -47,7 +48,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                 analyzingDynamicOps,
                 result,
                 languageServer,
-                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver
+                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(concatenatedLines)
             )
 
             // Create error diagnostics

@@ -6,6 +6,7 @@ import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
@@ -14,6 +15,7 @@ import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.CompletionItemKind
 import java.io.IOException
 import java.io.Reader
+import java.io.StringReader
 import java.util.*
 import kotlin.math.max
 
@@ -214,19 +216,26 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         override fun getAdditionalTokens(node: JsonElement) = emptyList<StringRangeTree.AdditionalToken>()
     }
 
-    object StringRangeTreeSuggestionResolver : StringRangeTree.SuggestionResolver<JsonElement> {
+    class StringRangeTreeSuggestionResolver(private val readerProvider: () -> Reader) : StringRangeTree.SuggestionResolver<JsonElement> {
 
-        private val valueEndParser = { mappingInfo: FileMappingInfo, suggestionRange: StringRange ->
+        constructor(directiveReader: DirectiveStringReader<*>): this(directiveReader::asReader)
+        constructor(inputString: String): this({ StringReader(inputString) })
+
+        private val valueEndParser = { suggestionRange: StringRange ->
             suggestionRange.end + try {
-                val childStringRangeTree = StringRangeTreeJsonReader(mappingInfo.getReader(suggestionRange.end)).read(Strictness.LENIENT, true)
+                val inputReader = readerProvider()
+                inputReader.skip(suggestionRange.end.toLong())
+                val childStringRangeTree = StringRangeTreeJsonReader(inputReader).read(Strictness.LENIENT, true)
                 childStringRangeTree.ranges[childStringRangeTree.root]!!.end
             } catch(ignored: Exception) {
                 0
             }
         }.memoizeLast()
 
-        private val keyEndParser = { mappingInfo: FileMappingInfo, suggestionRange: StringRange ->
-            val jsonReader = JsonReader(mappingInfo.getReader(suggestionRange.end))
+        private val keyEndParser = { suggestionRange: StringRange ->
+            val inputReader = readerProvider()
+            inputReader.skip(suggestionRange.end.toLong())
+            val jsonReader = JsonReader(inputReader)
             jsonReader.strictness = Strictness.LENIENT
             jsonReader.stack[0] = 3 // EMPTY_OBJECT
             try {
@@ -247,7 +256,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
             when(suggestionType) {
                 StringRangeTree.SuggestionType.NODE_START -> {
                     val elementString = suggestion.element.toString()
-                    val replaceEnd = valueEndParser(mappingInfo, suggestionRange)
+                    val replaceEnd = valueEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
                         StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
@@ -257,7 +266,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     val element = suggestion.element
                     val key = if(element.isJsonPrimitive) element.asString else element.toString()
                     val keySuggestion = "\"$key\": "
-                    val replaceEnd = keyEndParser(mappingInfo, suggestionRange)
+                    val replaceEnd = keyEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
                         StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
