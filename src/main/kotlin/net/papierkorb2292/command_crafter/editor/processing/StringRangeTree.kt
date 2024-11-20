@@ -62,7 +62,7 @@ class StringRangeTree<TNode: Any>(
      * A set of all nodes that were inserted into the tree because a value could not be read,
      * but a representing node is needed for further processing.
      */
-    val placeholderNodes: Set<TNode>
+    val placeholderNodes: Set<TNode>,
 ) {
     /**
      * Flattens the list and sorts it. The lists contained in the input must already be sorted.
@@ -272,8 +272,18 @@ class StringRangeTree<TNode: Any>(
             }
 
             val allKeysQuoted = nbtTree.mapKeyRanges.values.flatten().all {
+                // Only check keys with a colon, so completions can be typed out without quotes
+                var nextCursor = it.end + 1
+                while(nextCursor < content.length && Character.isWhitespace(content[nextCursor]))
+                    nextCursor++
+                if(nextCursor >= content.length || content[nextCursor] != ':')
+                    return@all true
+                
+                // Check quotes
                 val startChar = content[it.start]
-                startChar == '"' || startChar == '\''
+                if(startChar != '"' && startChar != '\'')
+                    return@all false
+                true
             }
 
             /*
@@ -330,7 +340,10 @@ class StringRangeTree<TNode: Any>(
             if(tryAsMap.result().isEmpty) continue
             val map = tryAsMap.result().get()
             val accessedKeys = accessedKeysWatcherDynamicOps.accessedKeys[textComponent] ?: continue
-            val existingKeys = map.entries().map { it.first }.collect(Collectors.toSet())
+            val existingKeys = map.entries()
+                .filter { it.second !in treeOperations.stringRangeTree.placeholderNodes }
+                .map { it.first }
+                .collect(Collectors.toSet())
 
             if(existingKeys.isNotEmpty() && !existingKeys.any(accessedKeys::contains))
                 // The map resembles no text component
@@ -604,7 +617,7 @@ class StringRangeTree<TNode: Any>(
         private val mappingInfo: FileMappingInfo,
         private val languageServer: MinecraftLanguageServer,
         private val label: String = text,
-        private val kind: CompletionItemKind? = null
+        private val kind: CompletionItemKind? = null,
     ) : (Int) -> CompletionItem {
         override fun invoke(offset: Int): CompletionItem {
             // Adjusting the insert start if the cursor is before the insert start
