@@ -77,8 +77,8 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
 
     private fun map(inputCursors: IntList, outputCursors: IntList, inputCursor: Int, clampInGaps: Boolean): Int {
         var mappingIndex = inputCursors.binarySearch { index ->
-            if(inputCursors[index] + lengths[index] > inputCursor) 1
-            else if (inputCursors[index] <= inputCursor) -1
+            if(inputCursors[index] > inputCursor) 1
+            else if (inputCursors[index] + lengths[index] <= inputCursor) -1
             else 0
         }
         if(mappingIndex < 0) {
