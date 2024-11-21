@@ -128,6 +128,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     var isNesting: Boolean
                     var value: JsonElement?
 
+                    var valueStartPos: Int
                     var valueEndPos: Int
                     try {
                         peeked = `in`.peek()
@@ -138,6 +139,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                             value = readTerminal(`in`, peeked)
                         }
 
+                        valueStartPos = `in`.absoluteValueStartPos
                         valueEndPos = `in`.absolutePos
                     } catch(e: Throwable) {
                         if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
@@ -148,6 +150,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         builder.addPlaceholderNode(value)
                         isNesting = false
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
+                        valueStartPos = `in`.absolutePos
                         valueEndPos = `in`.absolutePos
                         `in`.skipEntry()
                     }
@@ -166,8 +169,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         builder.addNodeOrder(current)
                     } else {
                         // There could have been an error thrown between assigning the two, which would cause the latter to be ahead of the former
-                        val start = max(`in`.absoluteValueStartPos, `in`.absoluteValueStartPosBeforeWhitespace)
-                        builder.addNode(value!!, StringRange(start, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
+                        builder.addNode(value!!, StringRange(valueStartPos, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
                     }
                 }
 
