@@ -19,7 +19,10 @@ import java.io.StringReader
 import java.util.*
 import kotlin.math.max
 
-class StringRangeTreeJsonReader(private val stringReader: Reader) {
+class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader) {
+
+    constructor(stringReader: Reader): this({ JsonReader(stringReader) })
+
     @Throws(IOException::class)
     private fun tryBeginNesting(`in`: JsonReader, peeked: JsonToken): JsonElement? {
         return when(peeked) {
@@ -70,7 +73,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
     }
 
     fun read(strictness: Strictness = Strictness.STRICT, allowMalformed: Boolean = false): StringRangeTree<JsonElement> {
-        val `in` = JsonReader(stringReader)
+        val `in` = jsonReaderProvider()
         `in`.strictness = strictness
         val builder = StringRangeTree.Builder<JsonElement>()
 
@@ -105,6 +108,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
                         val entryEnd = `in`.absoluteEntryEndPos
                         `in`.skipEntry()
+                        if(`in`.peek() == JsonToken.END_DOCUMENT)
+                            continue
                         val rangeEnd =
                             if(`in`.peek() == JsonToken.END_ARRAY || `in`.peek() == JsonToken.END_OBJECT) `in`.absolutePos - 1
                             else `in`.absolutePos
@@ -222,13 +227,14 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         constructor(inputString: String): this({ StringReader(inputString) })
 
         private val valueEndParser = { suggestionRange: StringRange ->
+            val inputReader = readerProvider()
+            inputReader.skip(suggestionRange.end.toLong())
+            val jsonReader = JsonReader(inputReader)
             suggestionRange.end + try {
-                val inputReader = readerProvider()
-                inputReader.skip(suggestionRange.end.toLong())
-                val childStringRangeTree = StringRangeTreeJsonReader(inputReader).read(Strictness.LENIENT, true)
+                val childStringRangeTree = StringRangeTreeJsonReader { jsonReader }.read(Strictness.LENIENT, true)
                 childStringRangeTree.ranges[childStringRangeTree.root]!!.end
             } catch(ignored: Exception) {
-                0
+                jsonReader.absolutePos
             }
         }.memoizeLast()
 
@@ -243,7 +249,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                 jsonReader.pos++
                 jsonReader.nextNonWhitespace(true)
             } catch(ignored: Exception) { }
-            suggestionRange.end + jsonReader.absolutePos - 1
+            suggestionRange.end + max(jsonReader.absolutePos - 1, 0)
         }.memoizeLast()
 
         override fun resolveSuggestion(
