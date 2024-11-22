@@ -151,8 +151,10 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         isNesting = false
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
                         valueStartPos = `in`.absolutePos
-                        valueEndPos = `in`.absolutePos
                         `in`.skipEntry()
+                        if(`in`.absolutePos > valueStartPos)
+                            valueStartPos = `in`.absolutePos - 1
+                        valueEndPos = valueStartPos
                     }
 
                     if(current is JsonArray) {
