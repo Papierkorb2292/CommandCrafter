@@ -48,7 +48,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                 analyzingDynamicOps,
                 result,
                 languageServer,
-                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(concatenatedLines)
+                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(concatenatedLines),
+                StringRangeTree.StringEscaper.Identity
             )
 
             // Create error diagnostics

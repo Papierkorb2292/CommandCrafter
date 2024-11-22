@@ -10,6 +10,8 @@ import net.minecraft.nbt.*
 import net.minecraft.registry.RegistryWrapper
 import net.minecraft.text.TextCodecs
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -163,21 +165,21 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, languageServer: MinecraftLanguageServer, suggestionResolver: SuggestionResolver<TNode>, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
+    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, languageServer: MinecraftLanguageServer, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, List<ResolvedSuggestion>>>()
             analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestions ->
                 val range = nodeAllowedStartRanges[node] ?: StringRange.at(getNodeRangeOrThrow(node).start)
                 nodeSuggestions += range to suggestions.map { suggestion ->
-                    suggestionResolver.resolveSuggestion(suggestion, SuggestionType.NODE_START, languageServer, range, copiedMappingInfo)
+                    suggestionResolver.resolveSuggestion(suggestion, SuggestionType.NODE_START, languageServer, range, copiedMappingInfo, completionEscaper)
                 }
             }
             analyzingDynamicOps.mapKeySuggestions[node]?.let { suggestions ->
                 val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
                 nodeSuggestions += ranges.map { range ->
                     range to suggestions.map { suggestion ->
-                        suggestionResolver.resolveSuggestion(suggestion, SuggestionType.MAP_KEY, languageServer, range, copiedMappingInfo)
+                        suggestionResolver.resolveSuggestion(suggestion, SuggestionType.MAP_KEY, languageServer, range, copiedMappingInfo, completionEscaper)
                     }
                 }
             }
@@ -244,10 +246,10 @@ class StringRangeTree<TNode: Any>(
      * @param baseAnalyzingResult The base analyzing result whose base data is copied for each string node and filled with the analyzed data for each node.
      * @return A map of the nodes that were analyzed as strings to the analyzing results for each node as well as the range of the string content in the original input. The oder of this list is the same as the order of the nodes in the tree.
      */
-    fun tryAnalyzeStrings(stringGetter: (TNode) -> kotlin.Pair<String, SplitProcessedInputCursorMapper>?, baseAnalyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> {
+    fun tryAnalyzeStrings(stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?, baseAnalyzingResult: AnalyzingResult, parentOps: TreeOperations<TNode>?, languageServer: MinecraftLanguageServer): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> {
         val results = LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>>()
         for(node in orderedNodes) {
-            val (content, cursorMapper) = stringGetter(node) ?: continue
+            val (content, cursorMapper, stringEscaper) = stringGetter(node) ?: continue
             if(!content.startsWith('{') && !content.startsWith('[')) continue
             val nbtReader = StringNbtReader(StringReader(content))
             val nbtTreeBuilder = Builder<NbtElement>()
@@ -296,11 +298,15 @@ class StringRangeTree<TNode: Any>(
             (a requirement for proper JSON), is one plus point for json, meaning that if both element counts
             are the same, JSON is chosen (otherwise, when not all keys are quoted, NBT is chosen).
             */
-            val treeOperations =
+            var treeOperations =
                 if(nbtElementCount + nbtArrayCount >= jsonElementCount + if(allKeysQuoted && nbtArrayCount == 0) 1 else 0)
                     TreeOperations.forNbt(nbtTree, content)
                 else
                     TreeOperations.forJson(jsonTree, content)
+            if(parentOps != null)
+                treeOperations = treeOperations
+                    .withRegistry(parentOps.registryWrapper)
+                    .withCompletionEscaper(parentOps.completionEscaper.andThen(stringEscaper))
             val offsetBaseMapper = baseAnalyzingResult.mappingInfo.cursorMapper
                 .combineWith(OffsetProcessedInputCursorMapper(-baseAnalyzingResult.mappingInfo.readSkippingChars))
             offsetBaseMapper.removeNegativeTargetCursors()
@@ -353,11 +359,21 @@ class StringRangeTree<TNode: Any>(
         return true
     }
 
-    data class TreeOperations<TNode: Any>(val stringRangeTree: StringRangeTree<TNode>, val ops: DynamicOps<TNode>, val semanticTokenProvider: SemanticTokenProvider<TNode>, val suggestionResolver: SuggestionResolver<TNode>, val stringGetter: (TNode) -> kotlin.Pair<String, SplitProcessedInputCursorMapper>?) {
+    data class TreeOperations<TNode: Any>(
+        val stringRangeTree: StringRangeTree<TNode>,
+        val ops: DynamicOps<TNode>,
+        val semanticTokenProvider: SemanticTokenProvider<TNode>,
+        val suggestionResolver: SuggestionResolver<TNode>,
+        val stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
+        var completionEscaper: StringEscaper = StringEscaper.Identity,
+        val registryWrapper: RegistryWrapper.WrapperLookup? = null,
+    ) {
         // Size should never be 0, because a root element has to be present. If it is 1, there are no child elements.
         val isRootEmpty = stringRangeTree.orderedNodes.size == 1
 
         companion object {
+            private val IDENTITY_ESCAPER: (String) -> String = { it }
+
             fun forJson(jsonTree: StringRangeTree<JsonElement>, content: String) =
                 TreeOperations(
                     jsonTree,
@@ -395,8 +411,10 @@ class StringRangeTree<TNode: Any>(
                 )
         }
 
-        fun withRegistry(wrapperLookup: RegistryWrapper.WrapperLookup)
-            = copy(ops = wrapperLookup.getOps(ops))
+        fun withRegistry(wrapperLookup: RegistryWrapper.WrapperLookup?)
+            = copy(registryWrapper = wrapperLookup)
+
+        fun withCompletionEscaper(escaper: StringEscaper) = copy(completionEscaper = escaper)
 
         fun analyzeFull(analyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult, languageServer)
@@ -410,13 +428,13 @@ class StringRangeTree<TNode: Any>(
                         .iterator()
                 )
             }
-            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, ops)
+            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.getOps(ops) ?: ops)
             if(contentDecoder != null) {
                 AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
                     contentDecoder.decode(wrappedOps, stringRangeTree.root)
                 }
             }
-            stringRangeTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, analyzedStrings.values.iterator())
+            stringRangeTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
             return shouldGenerateSemanticTokens || contentDecoder != null || analyzedStrings.isNotEmpty()
         }
 
@@ -425,7 +443,7 @@ class StringRangeTree<TNode: Any>(
         }
 
         fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
-            stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, languageServer)
+            stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this, languageServer)
     }
 
     class AnalyzingDynamicOps<TNode: Any> private constructor(private val delegate: DynamicOps<TNode>, private var tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
@@ -678,7 +696,23 @@ class StringRangeTree<TNode: Any>(
     }
 
     interface SuggestionResolver<TNode> {
-        fun resolveSuggestion(suggestion: Suggestion<TNode>, suggestionType: SuggestionType, languageServer: MinecraftLanguageServer, suggestionRange: StringRange, mappingInfo: FileMappingInfo): ResolvedSuggestion
+        fun resolveSuggestion(suggestion: Suggestion<TNode>, suggestionType: SuggestionType, languageServer: MinecraftLanguageServer, suggestionRange: StringRange, mappingInfo: FileMappingInfo, stringEscaper: StringEscaper): ResolvedSuggestion
+    }
+
+    fun interface StringEscaper {
+        companion object {
+            fun StringEscaper.andThen(other: StringEscaper) =
+                if(other == Identity) this
+                else if(this == Identity) other
+                else StringEscaper { string -> other.escape(this@andThen.escape(string)) }
+
+            fun escapeForQuotes(quotes: String) =
+                StringEscaper { string -> string.replace("\\", "\\\\").replace(quotes, "\\$quotes") }
+        }
+        object Identity : StringEscaper {
+            override fun escape(string: String) = string
+        }
+        fun escape(string: String): String
     }
 
     enum class SuggestionType {

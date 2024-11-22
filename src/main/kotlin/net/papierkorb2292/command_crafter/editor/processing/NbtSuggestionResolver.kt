@@ -50,10 +50,11 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         languageServer: MinecraftLanguageServer,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
+        stringEscaper: StringRangeTree.StringEscaper
     ): StringRangeTree.ResolvedSuggestion {
         when(suggestionType) {
             StringRangeTree.SuggestionType.NODE_START -> {
-                val elementString = suggestion.element.toString()
+                val elementString = stringEscaper.escape(suggestion.element.toString())
                 val valueEnd = valueEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
                     valueEnd,
@@ -64,7 +65,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                 val key = suggestion.element.asString()
                 // Similar to StringNbtWriter.escapeName
                 val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
-                val keySuggestion = "$escapedKey: "
+                val keySuggestion = stringEscaper.escape("$escapedKey: ")
                 val keyEnd = keyEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
                     keyEnd,

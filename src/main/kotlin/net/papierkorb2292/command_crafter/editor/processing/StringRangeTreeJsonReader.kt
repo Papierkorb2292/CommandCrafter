@@ -262,10 +262,11 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
+            stringEscaper: StringRangeTree.StringEscaper
         ): StringRangeTree.ResolvedSuggestion {
             when(suggestionType) {
                 StringRangeTree.SuggestionType.NODE_START -> {
-                    val elementString = suggestion.element.toString()
+                    val elementString = stringEscaper.escape(suggestion.element.toString())
                     val replaceEnd = valueEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
@@ -275,7 +276,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                 StringRangeTree.SuggestionType.MAP_KEY -> {
                     val element = suggestion.element
                     val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                    val keySuggestion = "\"$key\": "
+                    val keySuggestion = stringEscaper.escape("\"$key\": ")
                     val replaceEnd = keyEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
@@ -286,14 +287,15 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }
     }
 
-    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): (JsonElement) -> Pair<String, SplitProcessedInputCursorMapper>? {
-        override fun invoke(p1: JsonElement): Pair<String, SplitProcessedInputCursorMapper>? {
+    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): (JsonElement) -> Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
+        override fun invoke(p1: JsonElement): Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
             if(p1 !is JsonPrimitive || !p1.isString)
                 return null
             val range = tree.ranges[p1]!!
             val firstChar = input[range.start]
+            val isQuoted = firstChar == '"' || firstChar == '\''
             val sourceString =
-                if(firstChar == '"' || firstChar == '\'')
+                if(isQuoted)
                     // If the string is missing content and end quotes, end-1 will be before start+1
                     if(range.end - 1 > range.start)
                         input.substring(range.start + 1, range.end - 1)
@@ -301,7 +303,11 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         input.substring(range.start + 1, range.end)
                 else
                     input.substring(range.start, range.end)
-            return Pair(p1.asString, createCursorMapperForEscapedCharacters(sourceString, range.start + 1))
+            return Triple(
+                p1.asString,
+                createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
+                if(isQuoted) StringRangeTree.StringEscaper.escapeForQuotes(firstChar.toString()) else StringRangeTree.StringEscaper.Identity
+            )
         }
     }
 }
