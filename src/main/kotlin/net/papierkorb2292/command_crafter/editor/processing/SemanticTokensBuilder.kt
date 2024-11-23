@@ -49,8 +49,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         val cursorMapper = mappingInfo.cursorMapper
         // Map the command cursor to an absolute cursor
         var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
-            if(cursorMapper.targetCursors[index] <= offsetCursor) -1
-            else if (cursorMapper.targetCursors[index] + cursorMapper.lengths[index] > offsetCursor) 1
+            if(cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= offsetCursor) -1
+            else if (cursorMapper.targetCursors[index] > offsetCursor) 1
             else 0
         }
         if(mappingIndex < 0) {
@@ -68,12 +68,19 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         // Distribute the length over the mapped regions and convert the regions that are covered by the length to semantic tokens (a region might include multiple lines)
         var remainingLength = length
         var prevMappingAbsoluteStart = 0
+        var lastLineCursor = 0
         while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size) {
             var remainingLengthCoveredByMapping =
-                if(mappingIndex >= 0 && mappingRelativeCursor <= cursorMapper.lengths[mappingIndex])
-                    min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
-                else
+                if(mappingIndex < 0)
                     remainingLength
+                else if(mappingRelativeCursor < cursorMapper.lengths[mappingIndex])
+                    min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
+                else if(mappingIndex == cursorMapper.targetCursors.size - 1)
+                    remainingLength
+                else {
+                    // Distance to start of next mapping
+                    min(remainingLength, cursorMapper.targetCursors[mappingIndex + 1] - cursorMapper.targetCursors[mappingIndex] - mappingRelativeCursor)
+                }
             remainingLength -= remainingLengthCoveredByMapping
 
             val mappingAbsoluteStart =
@@ -87,22 +94,32 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
                 if(++lineNumber >= lines.size)
                     return
                 remainingLineLength = lines[lineNumber].length + 1
+                lastLineCursor = 0
             }
             remainingLineLength -= cursorDelta
 
+            val mappingAbsoluteEndExclusive = mappingAbsoluteStart + remainingLengthCoveredByMapping
+            val mappingAbsoluteEndInclusive = mappingAbsoluteEndExclusive - 1
+            if(cursorMapper.expandedCharEnds.containsKey(mappingAbsoluteEndInclusive)) {
+                val expandedCharEndInclusive = cursorMapper.expandedCharEnds[mappingAbsoluteEndInclusive]
+                remainingLengthCoveredByMapping = expandedCharEndInclusive + 1 - mappingAbsoluteStart
+            }
+
             // Go through the lines that the mapping covers and add semantic tokens
             while(remainingLengthCoveredByMapping > 0) {
+                lastLineCursor += cursorDelta
                 if(remainingLengthCoveredByMapping <= remainingLineLength) {
-                    add(lineNumber, cursorDelta, remainingLengthCoveredByMapping, type, modifiers)
+                    add(lineNumber, lastLineCursor, remainingLengthCoveredByMapping, type, modifiers)
                     //remainingLineLength -= remainingLengthCoveredByMapping
                     break
                 }
                 val sectionLength = remainingLineLength
-                add(lineNumber, cursorDelta, sectionLength, type, modifiers)
+                add(lineNumber, lastLineCursor, sectionLength, type, modifiers)
 
                 if(++lineNumber >= lines.size) return
                 remainingLineLength = lines[lineNumber].length + 1
                 remainingLengthCoveredByMapping -= sectionLength
+                lastLineCursor = 0
                 cursorDelta = 0
             }
 
@@ -164,6 +181,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastLine = 0
         lastCursor = 0
     }
+
+    fun isEmpty() = data.isEmpty()
 
     fun build() = SemanticTokens(data)
 }

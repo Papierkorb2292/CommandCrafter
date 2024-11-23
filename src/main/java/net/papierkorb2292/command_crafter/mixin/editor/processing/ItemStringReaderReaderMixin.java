@@ -13,12 +13,13 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.MixinUtil;
-import net.papierkorb2292.command_crafter.editor.processing.NbtSemanticTokenProvider;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -85,6 +86,10 @@ public class ItemStringReaderReaderMixin {
         if (command_crafter$analyzingResult == null) {
             return op.call(nbtReader);
         }
+        //noinspection unchecked
+        final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
+        if(directiveReader.getResourceCreator().getLanguageServer() == null)
+            return op.call(nbtReader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -97,7 +102,10 @@ public class ItemStringReaderReaderMixin {
             treeBuilder.addNode(nbt, new StringRange(startCursor, reader.getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, reader.getString()), command_crafter$analyzingResult.getSemanticTokens());
+        StringRangeTree.TreeOperations.Companion.forNbt(
+                tree,
+                directiveReader
+        ).analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
         return nbt;
     }
 }

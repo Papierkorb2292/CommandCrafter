@@ -2,8 +2,12 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
+import com.mojang.serialization.DynamicOps
+import net.minecraft.registry.RegistryOps
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
@@ -72,4 +76,58 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
             TextEdit(insertRange, text)
         )
     }
+}
+
+fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCursor: Int): SplitProcessedInputCursorMapper {
+    val cursorMapper = SplitProcessedInputCursorMapper()
+    // Map cursors before the start to negative values such that there are no problems
+    // when combining the cursor mappers (otherwise mappings for previous cursors could
+    // end up within the string range and cause the mappings to be out of order)
+    cursorMapper.addMapping(0, -startSourceCursor, startSourceCursor)
+    var sourceIndex = 0
+    var consumedEscapedCharacterCount = 0
+    while(sourceIndex < sourceString.length) {
+        if(sourceString[sourceIndex] != '\\') {
+            sourceIndex++
+            continue
+        }
+        val escapedCharacterCount =
+            if(sourceString[sourceIndex + 1] == 'u') 5
+            else 1
+        cursorMapper.addFollowingMapping(
+            cursorMapper.prevTargetEnd + consumedEscapedCharacterCount + startSourceCursor,
+            sourceIndex - consumedEscapedCharacterCount + 1 - cursorMapper.prevTargetEnd
+        )
+        cursorMapper.addExpandedChar(sourceIndex + startSourceCursor, sourceIndex + escapedCharacterCount + startSourceCursor)
+        consumedEscapedCharacterCount += escapedCharacterCount
+        sourceIndex += escapedCharacterCount + 1
+    }
+    cursorMapper.addFollowingMapping(
+        cursorMapper.prevTargetEnd + consumedEscapedCharacterCount  + startSourceCursor,
+        sourceString.length - cursorMapper.prevTargetEnd
+    )
+    return cursorMapper
+}
+
+/**
+ * Wraps the given dynamic ops with the given wrapper function and returns the wrapped ops.
+ *
+ * Since Minecraft sometimes does an *instanceof* check for RegistryOps,
+ * it needs to be preserved as the outermost wrapper. Because of that,
+ * the wrapped ops are returned alongside another DynamicOps instance
+ * that should be used for en-/decoding. This second instance will still be a RegistryOps
+ * instance if the input is one, but the delegate of the RegistryOps will be exchanged for
+ * the new wrapped ops.
+ */
+inline fun <TData, TWrappedOps: DynamicOps<TData>> wrapDynamicOps(
+    delegate: DynamicOps<TData>,
+    wrapper: (DynamicOps<TData>) -> TWrappedOps,
+): Pair<TWrappedOps, DynamicOps<TData>> {
+    if(delegate is RegistryOps) {
+        @Suppress("UNCHECKED_CAST")
+        val wrappedOps = wrapper((delegate as ForwardingDynamicOpsAccessor).delegate as DynamicOps<TData>)
+        return wrappedOps to delegate.withDelegate(wrappedOps)
+    }
+    val wrappedOps = wrapper(delegate)
+    return wrappedOps to wrappedOps
 }

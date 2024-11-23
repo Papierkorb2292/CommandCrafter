@@ -4,18 +4,26 @@ import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.CompletionItemKind
+import java.io.EOFException
 import java.io.IOException
 import java.io.Reader
+import java.io.StringReader
 import java.util.*
 import kotlin.math.max
 
-class StringRangeTreeJsonReader(private val stringReader: Reader) {
+class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader) {
+
+    constructor(stringReader: Reader): this({ JsonReader(stringReader) })
+
     @Throws(IOException::class)
     private fun tryBeginNesting(`in`: JsonReader, peeked: JsonToken): JsonElement? {
         return when(peeked) {
@@ -66,7 +74,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
     }
 
     fun read(strictness: Strictness = Strictness.STRICT, allowMalformed: Boolean = false): StringRangeTree<JsonElement> {
-        val `in` = JsonReader(stringReader)
+        val `in` = jsonReaderProvider()
         `in`.strictness = strictness
         val builder = StringRangeTree.Builder<JsonElement>()
 
@@ -90,7 +98,7 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     try {
                         if(!`in`.hasNext()) {
                             if(current is JsonArray && current.size() == 0 || current is JsonObject && current.size() == 0) {
-                                builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absoluteValueStartPos))
+                                builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, max(`in`.absoluteValueStartPos, `in`.absoluteEntryEndPos)))
                             }
                             break
                         }
@@ -101,6 +109,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}'
                         val entryEnd = `in`.absoluteEntryEndPos
                         `in`.skipEntry()
+                        if(`in`.peek() == JsonToken.END_DOCUMENT)
+                            continue
                         val rangeEnd =
                             if(`in`.peek() == JsonToken.END_ARRAY || `in`.peek() == JsonToken.END_OBJECT) `in`.absolutePos - 1
                             else `in`.absolutePos
@@ -119,6 +129,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                     var isNesting: Boolean
                     var value: JsonElement?
 
+                    var valueStartPos: Int
+                    var valueEndPos: Int
                     try {
                         peeked = `in`.peek()
                         value = tryBeginNesting(`in`, peeked)
@@ -127,15 +139,23 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         if(value == null) {
                             value = readTerminal(`in`, peeked)
                         }
+
+                        valueStartPos = `in`.absoluteValueStartPos
+                        valueEndPos = `in`.absolutePos
                     } catch(e: Throwable) {
                         if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
                             throw e
                         }
                         @Suppress("DEPRECATION")
                         value = JsonNull()
+                        builder.addPlaceholderNode(value)
                         isNesting = false
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
+                        valueStartPos = `in`.absolutePos
                         `in`.skipEntry()
+                        if(`in`.absolutePos > valueStartPos)
+                            valueStartPos = `in`.absolutePos - 1
+                        valueEndPos = valueStartPos
                     }
 
                     if(current is JsonArray) {
@@ -144,9 +164,6 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         (current as JsonObject).add(name, value)
                     }
 
-                    // Range isn't accurate for nested elements, but it's replaced later.
-                    // It is important to add it here to keep the correct order.
-
                     if(isNesting) {
                         stack.addLast(ReaderStackEntry(current, nestedStartPos, nestedAllowedStartPos))
                         nestedStartPos = `in`.absoluteValueStartPos
@@ -154,7 +171,8 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                         current = value!!
                         builder.addNodeOrder(current)
                     } else {
-                        builder.addNode(value!!, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos), `in`.absoluteValueStartPosBeforeWhitespace)
+                        // There could have been an error thrown between assigning the two, which would cause the latter to be ahead of the former
+                        builder.addNode(value!!, StringRange(valueStartPos, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
                     }
                 }
 
@@ -208,27 +226,44 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
         override fun getAdditionalTokens(node: JsonElement) = emptyList<StringRangeTree.AdditionalToken>()
     }
 
-    object StringRangeTreeSuggestionResolver : StringRangeTree.SuggestionResolver<JsonElement> {
+    class StringRangeTreeSuggestionResolver(private val readerProvider: () -> Reader) : StringRangeTree.SuggestionResolver<JsonElement> {
 
-        private val valueEndParser = { mappingInfo: FileMappingInfo, suggestionRange: StringRange ->
+        constructor(directiveReader: DirectiveStringReader<*>): this({ directiveReader.copy().asReader() })
+        constructor(inputString: String): this({ StringReader(inputString) })
+
+        private val valueEndParser = { suggestionRange: StringRange ->
+            val inputReader = readerProvider()
+            inputReader.skip(suggestionRange.end.toLong())
+            val jsonReader = JsonReader(inputReader)
             suggestionRange.end + try {
-                val childStringRangeTree = StringRangeTreeJsonReader(mappingInfo.getReader(suggestionRange.end)).read(Strictness.LENIENT, true)
+                val childStringRangeTree = StringRangeTreeJsonReader { jsonReader }.read(Strictness.LENIENT, true)
                 childStringRangeTree.ranges[childStringRangeTree.root]!!.end
-            } catch(ignored: Exception) {
-                0
+            } catch(e: EOFException) {
+                jsonReader.absolutePos
+            } catch(e: Exception) {
+                max(jsonReader.absolutePos - 1, 0)
             }
         }.memoizeLast()
 
-        private val keyEndParser = { mappingInfo: FileMappingInfo, suggestionRange: StringRange ->
-            val jsonReader = JsonReader(mappingInfo.getReader(suggestionRange.end))
+        private val keyEndParser = { suggestionRange: StringRange ->
+            val inputReader = readerProvider()
+            inputReader.skip(suggestionRange.end.toLong())
+            val jsonReader = JsonReader(inputReader)
             jsonReader.strictness = Strictness.LENIENT
             jsonReader.stack[0] = 3 // EMPTY_OBJECT
             try {
                 jsonReader.nextName()
-                jsonReader.pos++
-                jsonReader.nextNonWhitespace(true)
-            } catch(ignored: Exception) { }
-            suggestionRange.end + jsonReader.absolutePos - 1
+                try {
+                    // Skip ':'
+                    jsonReader.nextNonWhitespace(true)
+                    // Skip whitespace after ':'
+                    jsonReader.nextNonWhitespace(true)
+                    jsonReader.pos--
+                } catch(ignored: Exception) { }
+            } catch(e: Exception) {
+                jsonReader.pos--
+            }
+            suggestionRange.end + max(jsonReader.absolutePos, 0)
         }.memoizeLast()
 
         override fun resolveSuggestion(
@@ -237,11 +272,12 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
             languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
+            stringEscaper: StringRangeTree.StringEscaper
         ): StringRangeTree.ResolvedSuggestion {
             when(suggestionType) {
                 StringRangeTree.SuggestionType.NODE_START -> {
-                    val elementString = suggestion.element.toString()
-                    val replaceEnd = valueEndParser(mappingInfo, suggestionRange)
+                    val elementString = stringEscaper.escape(suggestion.element.toString())
+                    val replaceEnd = valueEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
                         StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
@@ -250,14 +286,38 @@ class StringRangeTreeJsonReader(private val stringReader: Reader) {
                 StringRangeTree.SuggestionType.MAP_KEY -> {
                     val element = suggestion.element
                     val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                    val keySuggestion = "\"$key\": "
-                    val replaceEnd = keyEndParser(mappingInfo, suggestionRange)
+                    val keySuggestion = stringEscaper.escape("\"$key\": ")
+                    val replaceEnd = keyEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
                         StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
                     )
                 }
             }
+        }
+    }
+
+    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): (JsonElement) -> Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
+        override fun invoke(p1: JsonElement): Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
+            if(p1 !is JsonPrimitive || !p1.isString)
+                return null
+            val range = tree.ranges[p1]!!
+            val firstChar = input[range.start]
+            val isQuoted = firstChar == '"' || firstChar == '\''
+            val sourceString =
+                if(isQuoted)
+                    // If the string is missing content and end quotes, end-1 will be before start+1
+                    if(range.end - 1 > range.start)
+                        input.substring(range.start + 1, range.end - 1)
+                    else
+                        input.substring(range.start + 1, range.end)
+                else
+                    input.substring(range.start, range.end)
+            return Triple(
+                p1.asString,
+                createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
+                if(isQuoted) StringRangeTree.StringEscaper.escapeForQuotes(firstChar.toString()) else StringRangeTree.StringEscaper.Identity
+            )
         }
     }
 }

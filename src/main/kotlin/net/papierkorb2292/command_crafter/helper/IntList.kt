@@ -15,6 +15,11 @@ class IntList(capacity: Int) {
         return entries[index]
     }
 
+    operator fun set(index: Int, element: Int) {
+        Objects.checkIndex(index, size)
+        entries[index] = element
+    }
+
     operator fun plus(element: Int) = copy().apply { this += element }
     operator fun plusAssign(element: Int) = add(element)
 
@@ -55,6 +60,9 @@ class IntList(capacity: Int) {
     }
 
     fun isEmpty() = size == 0
+
+    fun first() = get(0)
+    fun last() = get(size - 1)
 
     fun lastIndexOf(element: Int): Int {
         for (i in size - 1 downTo 0) {

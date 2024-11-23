@@ -42,7 +42,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
@@ -504,6 +503,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
             val completionReader = reader.copy()
             try {
+                val nodeAnalyzingResult = analyzingResult.copyInput()
                 try {
                     node.`command_crafter$analyze`(
                         context,
@@ -512,7 +512,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
                         ),
                         reader,
-                        analyzingResult,
+                        nodeAnalyzingResult,
                         node.name
                     )
                 } catch(e: Exception) {
@@ -523,13 +523,17 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         node.name
                     )
                 ) {
+                    analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
                     addNodeSuggestions(
                         parentNode,
                         analyzingResult,
                         parsedNode.range,
                         completionReader,
-                        contextBuilder
+                        contextBuilder,
+                        nodeAnalyzingResult
                     )
+                } else {
+                    analyzingResult.combineWith(nodeAnalyzingResult)
                 }
             } finally {
                 reader.readCharacters = initialReadCharacters
@@ -544,6 +548,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         parsedNodeRange: StringRange,
         completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
         contextBuilder: CommandContextBuilder<CommandSource>,
+        additionalCompletions: AnalyzingResult? = null
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
         analyzingResult.addCompletionProvider(
@@ -577,7 +582,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         Suggestions.empty()
                     }
                 }.toTypedArray()
-                CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
+                val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                     SUGGESTIONS_FULL_INPUT.remove()
                     CompletableFuture.failedFuture(it)
                 }.thenApply {
@@ -588,13 +593,20 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                             ?: emptyList()
                     }
-                    if(contextBuilder.source !is AnalyzingClientCommandSource)
-                        completionItems
-                    else
-                        CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
-                            completionItems,
-                            completionReader.string.substring(min(parsedNodeRange.start, completionReader.string.length))
-                        )
+                    CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
+                        completionItems,
+                        completionReader.string.substring(min(parsedNodeRange.start, completionReader.string.length))
+                    )
+                }
+                if(additionalCompletions == null)
+                    return@RangedDataProvider commandCompletionsFuture
+                val sourceCursor = analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor)
+                val additionalCompletionsProvider = additionalCompletions.getCompletionProviderForCursor(sourceCursor)
+                    ?: return@RangedDataProvider commandCompletionsFuture
+                commandCompletionsFuture.thenCombine(
+                    additionalCompletionsProvider.dataProvider(sourceCursor)
+                ) { commandCompletions, additionalCompletions ->
+                    commandCompletions + additionalCompletions
                 }
             },
             true

@@ -1,9 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import com.google.gson.JsonElement
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
-import com.mojang.serialization.JsonOps
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -38,29 +36,19 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
             val result = AnalyzingResult(FileMappingInfo(lines), Position())
-            val reader = StringReader(lines.joinToString("\n"))
+            val concatenatedLines = lines.joinToString("\n")
+            val reader = StringReader(concatenatedLines)
             val parsedStringRangeTree = try {
                 StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
             } catch(e: IOException) {
                 return result
             }
-            val registryOps = languageServer.dynamicRegistryManager.getOps(JsonOps.INSTANCE)
-            val (analyzedStringRangeTree, analyzingDynamicOps) = StringRangeTree.AnalyzingDynamicOps.decodeWithAnalyzingOps(
-                registryOps,
+            val treeOperations = StringRangeTree.TreeOperations.forJson(
                 parsedStringRangeTree,
-                fileDecoder
-            )
-            analyzedStringRangeTree.suggestFromAnalyzingOps(
-                analyzingDynamicOps,
-                result,
-                languageServer,
-                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver
-            )
-
-            // Create error diagnostics
-            val errorCallback = parsedStringRangeTree.DecoderErrorLeafRangesCallback(JsonElement::class)
-            PreLaunchDecoderOutputTracker.decodeWithCallback(fileDecoder, registryOps, parsedStringRangeTree.root, errorCallback)
-            result.diagnostics += errorCallback.generateDiagnostics(result.mappingInfo)
+                concatenatedLines
+            ).withRegistry(languageServer.dynamicRegistryManager)
+            treeOperations.analyzeFull(result, languageServer, false, fileDecoder)
+            treeOperations.generateDiagnostics(result, fileDecoder)
             return result
         }
     }

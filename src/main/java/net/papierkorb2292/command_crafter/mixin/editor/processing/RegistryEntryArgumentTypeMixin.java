@@ -9,11 +9,9 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.RegistryEntryArgumentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryOps;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
@@ -61,6 +59,8 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             result.getSemanticTokens().addMultiline(range, TokenType.Companion.getPARAMETER(), 0);
             return;
         } catch(CommandSyntaxException ignored) { }
+        if(reader.getResourceCreator().getLanguageServer() == null)
+            return;
         readerCopy.setCursor(range.getStart());
         var nbtReader = new StringNbtReader(readerCopy);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
@@ -75,20 +75,12 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             treeBuilder.addNode(nbt, range, range.getStart());
         }
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, readerCopy.getString()), result.getSemanticTokens());
-        final var languageServer = reader.getResourceCreator().getLanguageServer();
-        if(languageServer != null) {
-            final var decodingResult = StringRangeTree.AnalyzingDynamicOps.Companion.decodeWithAnalyzingOps(RegistryOps.of(NbtOps.INSTANCE, registries), tree, entryCodec);
-            // Copy the input to ignore changes to the mapping info
-            final var nbtAnalyzingResult = result.copyInput();
-            decodingResult.getFirst().suggestFromAnalyzingOps(
-                    decodingResult.getSecond(),
-                    nbtAnalyzingResult,
-                    reader.getResourceCreator().getLanguageServer(),
-                    new NbtSuggestionResolver(reader)
-            );
-            result.combineWith(nbtAnalyzingResult);
-        }
+        StringRangeTree.TreeOperations.Companion.forNbt(
+                tree,
+                readerCopy
+        )
+                .withRegistry(registries)
+                .analyzeFull(result, reader.getResourceCreator().getLanguageServer(), true, entryCodec);
     }
 
     @Override

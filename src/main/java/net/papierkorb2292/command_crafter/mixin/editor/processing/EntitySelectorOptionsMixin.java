@@ -423,14 +423,21 @@ public class EntitySelectorOptionsMixin {
     )
     private static NbtCompound command_crafter$highlightNbtOption(StringNbtReader nbtReader, Operation<NbtCompound> op, EntitySelectorReader selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
-        if (analyzingResult == null)
+        if(analyzingResult == null)
+            return op.call(nbtReader);
+        //noinspection unchecked
+        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>) selectorReader.getReader();
+        if(directiveReader.getResourceCreator().getLanguageServer() == null)
             return op.call(nbtReader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         var nbt = op.call(nbtReader);
         var tree = treeBuilder.build(nbt);
-        tree.generateSemanticTokens(new NbtSemanticTokenProvider(tree, selectorReader.getReader().getString()), analyzingResult.getSemanticTokens());
+        StringRangeTree.TreeOperations.Companion.forNbt(
+                tree,
+                directiveReader
+        ).analyzeFull(analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
         return nbt;
     }
 

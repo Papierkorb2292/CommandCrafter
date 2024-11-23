@@ -1,10 +1,11 @@
 package net.papierkorb2292.command_crafter.parser
 
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLine
 import net.papierkorb2292.command_crafter.helper.IntList
+import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
-import org.eclipse.lsp4j.Position
 import java.io.IOException
 import java.io.Reader
 import java.util.*
@@ -30,27 +31,64 @@ class FileMappingInfo(
     fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars)
 
 
-    //TODO: Use cursorMapper
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false
-        private var pos = Position()
-
+        private var currentCursor = startCursor
+        private var currentMappingIndex = cursorMapper.targetCursors.binarySearch { index ->
+            if(cursorMapper.targetCursors[index] > startCursor) 1
+            else if (cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= startCursor) -1
+            else 0
+        }
         init {
-            for(i in 0 until startCursor)
-                readChar()
+            if(currentMappingIndex < 0) {
+                currentMappingIndex = -currentMappingIndex - 2
+            }
+        }
+        private var pos = AnalyzingResult.getPositionFromCursor(startCursor - cursorMapper.targetCursors[currentMappingIndex] + cursorMapper.sourceCursors[currentMappingIndex], this@FileMappingInfo)
+
+        private val endCursor = cursorMapper.mapToTarget(accumulatedLineLengths.last())
+
+        fun canRead() = currentCursor < endCursor
+
+        private fun readChar(): Char {
+            if(!canRead()) throw IOException("End of stream reached")
+            val line = lines[pos.line]
+            val char =
+                if(pos.character >= line.length) '\n'
+                else line[pos.character]
+            currentCursor++
+            if(currentCursor == endCursor) {
+                return char
+            }
+            if(currentMappingIndex + 1 >= cursorMapper.targetCursors.size) {
+                skipSourceChars(1)
+                return char
+            }
+            val nextMappingStart = cursorMapper.targetCursors[currentMappingIndex + 1]
+            if(currentCursor == nextMappingStart) {
+                val currentSourceCursor = if(currentMappingIndex >= 0) {
+                    val relativeCursor = currentCursor - 1 - cursorMapper.targetCursors[currentMappingIndex]
+                    cursorMapper.sourceCursors[currentMappingIndex] + relativeCursor
+                } else currentCursor
+                skipSourceChars(cursorMapper.sourceCursors[currentMappingIndex + 1] - currentSourceCursor)
+                currentMappingIndex++
+            } else {
+                skipSourceChars(1)
+            }
+            return char
         }
 
-        fun canRead() = pos.line < lines.size && (pos.line + 1 < lines.size || pos.character < lines.last().length)
-
-        fun readChar(): Char {
-            val line = lines[pos.line]
-            return if(pos.character >= line.length) {
+        private fun skipSourceChars(sourceCharCount: Int) {
+            var remainingChars = sourceCharCount
+            while(true) {
+                val line = lines[pos.line]
+                val remainingLineChars = line.length - pos.character
+                if(remainingLineChars >= remainingChars) {
+                    pos = pos.advance(remainingChars)
+                    return
+                }
                 pos = pos.advanceLine()
-                '\n'
-            } else {
-                val char = line[pos.character]
-                pos = pos.advance()
-                char
+                remainingChars -= remainingLineChars + 1 // Account for skipped '\n'
             }
         }
 

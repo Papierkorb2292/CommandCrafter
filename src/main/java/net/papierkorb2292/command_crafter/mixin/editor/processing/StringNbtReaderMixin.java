@@ -118,7 +118,21 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         try {
             return MixinUtil.<String, CommandSyntaxException>callWithThrows(original, instance);
         } catch(CommandSyntaxException e) {
-            return reader.getString().substring(startChar, reader.getCursor());
+            // Read string (with escaped characters) like in StringReader.readStringUntil,
+            // but throw no errors
+            instance.setCursor(startChar + 1);
+            final StringBuilder result = new StringBuilder();
+            boolean escaped = false;
+            while (instance.canRead()) {
+                final char c = instance.read();
+                if(c == '\\' && !escaped) {
+                    escaped = true;
+                    continue;
+                }
+                result.append(c);
+                escaped = false;
+            }
+            return result.toString();
         }
     }
 
@@ -150,6 +164,8 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
     )
     private NbtCompound command_crafter$addCompoundTagToStringRangeTree(NbtCompound compound, @Local int startCursor) {
         if (command_crafter$stringRangeTreeBuilder != null) {
+            while(Character.isWhitespace(reader.getString().charAt(startCursor)))
+                startCursor++;
             // startCursor has skipped whitespaces before the name because of addCompoundRangeBetweenRangeToStringRangeTree
             command_crafter$stringRangeTreeBuilder.addMapKeyRange(compound, new StringRange(startCursor, reader.getCursor()));
             command_crafter$elementAllowedStartCursor.pop();
@@ -317,14 +333,18 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         if (!command_crafter$allowMalformed) {
             return original.call(instance);
         }
-        final var startChar = reader.getCursor();
+        var startChar = reader.getCursor();
         try {
             return MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(original, instance);
         } catch(CommandSyntaxException e) {
             final var entry = NbtEndAccessor.callInit();
             compound.put(tag, entry);
-            if(command_crafter$stringRangeTreeBuilder != null)
+            if(command_crafter$stringRangeTreeBuilder != null) {
+                while(startChar < reader.getString().length() && Character.isWhitespace(reader.getString().charAt(startChar)))
+                    startChar++;
                 command_crafter$stringRangeTreeBuilder.addNode(entry, new StringRange(startChar, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
+                command_crafter$stringRangeTreeBuilder.addPlaceholderNode(entry);
+            }
             throw e;
         }
     }
@@ -469,7 +489,7 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         if (!command_crafter$allowMalformed) {
             return original.call(instance);
         }
-        final var startChar = reader.getCursor();
+        var startChar = reader.getCursor();
         try {
             return MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(original, instance);
         } catch(CommandSyntaxException e) {
@@ -477,8 +497,12 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             final var entry = NbtEndAccessor.callInit();
             if (listBuilder != null) {
                 listBuilder.addElement(entry);
-                if(command_crafter$stringRangeTreeBuilder != null)
+                if(command_crafter$stringRangeTreeBuilder != null) {
+                    while(startChar < reader.getString().length() && Character.isWhitespace(reader.getString().charAt(startChar)))
+                        startChar++;
                     command_crafter$stringRangeTreeBuilder.addNode(entry, new StringRange(startChar, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
+                    command_crafter$stringRangeTreeBuilder.addPlaceholderNode(entry);
+                }
             } else {
                 list.add(entry);
             }
