@@ -205,15 +205,22 @@ class StringRangeTree<TNode: Any>(
             val extendedEndCursor = suggestions.maxOf { it.suggestionEnd }
 
             // Make sure to not overlap with the next entry
-            var newEndCursor = if(i + 1 < sorted.size) {
+            val newEndCursor = if(i + 1 < sorted.size) {
                 val nextRange = sorted[i + 1].first
                 min(extendedEndCursor, nextRange.start)
             } else extendedEndCursor
 
-            while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= range.end) {
-                if(range.start <= nextSuggestionInsertRange.start)
-                    newEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
+            var suggestionStart = range.start
+
+            while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= newEndCursor) {
+                if(suggestionStart <= nextSuggestionInsertRange.start) {
+                    val preInsertEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
+                    result.addCompletionProvider(AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, preInsertEndCursor)) { offset ->
+                        CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
+                    }, true)
+                }
                 result.combineWithCompletionProviders(nextSuggestionInsert)
+                suggestionStart = nextSuggestionInsertRange.end
                 if(suggestionInserts!!.hasNext()) {
                     val insert = suggestionInserts.next()
                     nextSuggestionInsertRange = insert.first
@@ -224,7 +231,7 @@ class StringRangeTree<TNode: Any>(
                 }
             }
 
-            result.addCompletionProvider(AnalyzingResult.RangedDataProvider(StringRange(range.start, newEndCursor)) { offset ->
+            result.addCompletionProvider(AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, newEndCursor)) { offset ->
                 CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
             }, true)
         }

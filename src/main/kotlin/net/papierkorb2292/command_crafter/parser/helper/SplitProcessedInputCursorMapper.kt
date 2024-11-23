@@ -49,7 +49,7 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     }
 
     fun removeNegativeTargetCursors() {
-        while(true) {
+        while(!lengths.isEmpty()) {
             val targetCursor = targetCursors[0]
             val length = lengths[0]
             if(targetCursor + length >= 0) {
@@ -105,6 +105,15 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
 
     fun combineWith(targetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
         val result = SplitProcessedInputCursorMapper()
+        if(sourceCursors.isEmpty()) {
+            for(i in 0 until targetMapper.sourceCursors.size) {
+                result.addMapping(targetMapper.sourceCursors[i], targetMapper.targetCursors[i], 0)
+            }
+            for((start, end) in targetMapper.expandedCharEnds) {
+                result.addExpandedChar(start, end)
+            }
+            return result
+        }
         var currentOtherIndex = if(targetMapper.lengths.isEmpty()) -1 else 0
         for(i in 0 until sourceCursors.size) {
             val sourceCursor = sourceCursors[i]

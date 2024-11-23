@@ -1,9 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import com.google.gson.JsonElement
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
-import com.mojang.serialization.JsonOps
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -38,25 +36,12 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
-            val registryOps = languageServer.dynamicRegistryManager.getOps(JsonOps.INSTANCE)
-            val (analyzedStringRangeTree, analyzingDynamicOps) = StringRangeTree.AnalyzingDynamicOps.decodeWithAnalyzingOps(
-                registryOps,
+            val treeOperations = StringRangeTree.TreeOperations.forJson(
                 parsedStringRangeTree,
-                fileDecoder
-            )
-            analyzedStringRangeTree.suggestFromAnalyzingOps(
-                analyzingDynamicOps,
-                result,
-                languageServer,
-                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(concatenatedLines),
-                StringRangeTree.StringEscaper.Identity
-            )
-
-            // Create error diagnostics
-            val errorCallback = parsedStringRangeTree.DecoderErrorLeafRangesCallback(JsonElement::class)
-            PreLaunchDecoderOutputTracker.decodeWithCallback(fileDecoder, registryOps, parsedStringRangeTree.root, errorCallback)
-            result.diagnostics += errorCallback.generateDiagnostics(result.mappingInfo)
-
+                concatenatedLines
+            ).withRegistry(languageServer.dynamicRegistryManager)
+            treeOperations.analyzeFull(result, languageServer, false, fileDecoder)
+            treeOperations.generateDiagnostics(result, fileDecoder)
             return result
         }
     }
