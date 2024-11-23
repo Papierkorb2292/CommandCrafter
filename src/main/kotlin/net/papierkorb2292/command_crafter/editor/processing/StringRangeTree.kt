@@ -276,7 +276,7 @@ class StringRangeTree<TNode: Any>(
 
             val allKeysQuoted = nbtTree.mapKeyRanges.values.flatten().all {
                 // Only check keys with a colon, so completions can be typed out without quotes
-                var nextCursor = it.end + 1
+                var nextCursor = it.end
                 while(nextCursor < content.length && Character.isWhitespace(content[nextCursor]))
                     nextCursor++
                 if(nextCursor >= content.length || content[nextCursor] != ':')
