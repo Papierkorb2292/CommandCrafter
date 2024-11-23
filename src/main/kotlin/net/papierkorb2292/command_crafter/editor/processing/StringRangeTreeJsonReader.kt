@@ -241,7 +241,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             } catch(e: EOFException) {
                 jsonReader.absolutePos
             } catch(e: Exception) {
-                jsonReader.absolutePos - 1
+                max(jsonReader.absolutePos - 1, 0)
             }
         }.memoizeLast()
 
