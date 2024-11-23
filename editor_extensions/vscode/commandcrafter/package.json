@@ -93,6 +93,15 @@
           "type": "string",
           "default": "localhost:52853",
           "description": "The address of the Minecraft instance that provides the language server and debugger"
+        },
+        "CommandCrafter.FeatureConfig": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["enable", "disable"]
+          },
+          "default": { },
+          "description": "Features to opt-in or opt-out of"
         }
       }
     },

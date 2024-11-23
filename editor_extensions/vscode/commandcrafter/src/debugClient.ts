@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LanguageClientRunner, findFiles } from './extension';
+import { LanguageClientRunner, findFiles, getFeatureConfig } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
 import { MinecraftConsole } from './minecraftConsole';
@@ -95,7 +95,10 @@ export class DebugClient implements ConnectionFeature {
             "seq": 1,
             "type": "request",
             "command": "connectToService",
-            "arguments": "debugger"
+            "arguments": {
+                "service": "debugger",
+                "featureConfig": getFeatureConfig()
+            }
         });
         return new vscode.DebugAdapterInlineImplementation(debugAdapter);
     }

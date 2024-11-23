@@ -7,7 +7,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
-import { LanguageClientRunner, checkUpdateMinecraftAddress, findFiles } from './extension';
+import { LanguageClientRunner, checkUpdateMinecraftAddress, findFiles, getFeatureConfig } from './extension';
 import { DebugClient } from './debugClient';
 import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
 
@@ -107,7 +107,10 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 "seq": 1,
                 "type": "request",
                 "command": "connectToService",
-                "arguments": "languageServer"
+                "arguments": {
+                    "service": "languageServer",
+                    "featureConfig": getFeatureConfig()
+                }
             });
             streamInfo.writer.write(
                 `Content-Length:${Buffer.byteLength(serviceRequest, 'utf-8')}\r\n\r\n${serviceRequest}`, 'utf-8'

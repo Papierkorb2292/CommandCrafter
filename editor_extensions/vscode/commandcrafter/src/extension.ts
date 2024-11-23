@@ -52,3 +52,9 @@ export function findFiles(filePattern: string): Thenable<string[]> {
 		return uris.map(uri => uri.toString());
 	});
 }
+
+export function getFeatureConfig(): FeatureConfig | undefined {
+	return vscode.workspace.getConfiguration("CommandCrafter").get<FeatureConfig>("FeatureConfig")
+}
+
+export type FeatureConfig = { [key: string]: string }
