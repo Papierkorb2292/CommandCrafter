@@ -356,7 +356,7 @@ class StringRangeTree<TNode: Any>(
                 }
             }
 
-            if(isContentJsonText) {
+            if(isContentJsonText && !treeOperations.isRootEmpty) {
                 treeOperations.generateDiagnostics(stringAnalyzingResult, TextCodecs.CODEC, DiagnosticSeverity.Warning)
             }
             results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
