@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.CompletionItemKind
+import java.io.EOFException
 import java.io.IOException
 import java.io.Reader
 import java.io.StringReader
@@ -237,8 +238,10 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             suggestionRange.end + try {
                 val childStringRangeTree = StringRangeTreeJsonReader { jsonReader }.read(Strictness.LENIENT, true)
                 childStringRangeTree.ranges[childStringRangeTree.root]!!.end
-            } catch(ignored: Exception) {
+            } catch(e: EOFException) {
                 jsonReader.absolutePos
+            } catch(e: Exception) {
+                jsonReader.absolutePos - 1
             }
         }.memoizeLast()
 
@@ -250,10 +253,17 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             jsonReader.stack[0] = 3 // EMPTY_OBJECT
             try {
                 jsonReader.nextName()
-                jsonReader.pos++
-                jsonReader.nextNonWhitespace(true)
-            } catch(ignored: Exception) { }
-            suggestionRange.end + max(jsonReader.absolutePos - 1, 0)
+                try {
+                    // Skip ':'
+                    jsonReader.nextNonWhitespace(true)
+                    // Skip whitespace after ':'
+                    jsonReader.nextNonWhitespace(true)
+                    jsonReader.pos--
+                } catch(ignored: Exception) { }
+            } catch(e: Exception) {
+                jsonReader.pos--
+            }
+            suggestionRange.end + max(jsonReader.absolutePos, 0)
         }.memoizeLast()
 
         override fun resolveSuggestion(
