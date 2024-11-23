@@ -474,7 +474,7 @@ class StringRangeTree<TNode: Any>(
                     contentDecoder.decode(wrappedOps, stringRangeTree.root)
                 }
             }
-            stringRangeTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
+            analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
             analyzingResult.diagnostics += analyzedStrings.values.flatMap { it.second.diagnostics }
             return shouldGenerateSemanticTokens || contentDecoder != null || analyzedStrings.isNotEmpty()
         }
@@ -493,7 +493,9 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    class AnalyzingDynamicOps<TNode: Any> private constructor(private val delegate: DynamicOps<TNode>, private var tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
+    class AnalyzingDynamicOps<TNode: Any> private constructor(private val delegate: DynamicOps<TNode>, tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
+        var tree = tree
+            private set
         companion object {
             val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
 
