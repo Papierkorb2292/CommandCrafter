@@ -52,10 +52,10 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         while(!lengths.isEmpty()) {
             val targetCursor = targetCursors[0]
             val length = lengths[0]
-            if(targetCursor + length >= 0) {
+            if(lengths.size == 1 || targetCursors[1] >= 0 || targetCursor + length >= 0) {
                 if(targetCursor >= 0)
                     break
-                val newLength = length + targetCursor
+                val newLength = max(length + targetCursor, 0)
                 lengths[0] = newLength
                 sourceCursors[0] -= targetCursor
                 targetCursors[0] = 0
@@ -97,6 +97,8 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
 
     fun combineWith(targetMapper: OffsetProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
         val result = SplitProcessedInputCursorMapper()
+        if(sourceCursors.isEmpty() || sourceCursors[0] > 0)
+            result.addMapping(0, targetMapper.offset, 0)
         for(i in 0 until sourceCursors.size) {
             result.addMapping(sourceCursors[i], targetCursors[i] + targetMapper.offset, lengths[i])
         }
@@ -138,10 +140,10 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
                 continue
             var nextMappingMinSourceStart = sourceCursor
             // Go through targetMapper mappings that intersect with mapping i
-            while(currentOtherIndex != -1 && targetMapper.sourceCursors[currentOtherIndex] < targetCursor + lengths[i]) {
+            while(currentOtherIndex != -1 && (targetMapper.sourceCursors[currentOtherIndex] <= targetCursor + lengths[i] || i == sourceCursors.size - 1)) {
                 val mappedOtherStart = targetMapper.sourceCursors[currentOtherIndex] - targetCursor + sourceCursor
                 val sourceStart = max(mappedOtherStart, sourceCursor)
-                val mappingLength = min(min(mappedOtherStart - sourceCursor, 0) + targetMapper.lengths[currentOtherIndex], sourceCursor + lengths[i] - nextMappingMinSourceStart)
+                val mappingLength = min(min(mappedOtherStart - sourceCursor, 0) + targetMapper.lengths[currentOtherIndex], max(sourceCursor + lengths[i] - nextMappingMinSourceStart, 0))
                 result.addMapping(sourceStart, targetMapper.targetCursors[currentOtherIndex] - mappedOtherStart + sourceStart, mappingLength)
                 nextMappingMinSourceStart = sourceStart + mappingLength
                 currentOtherIndex = if(targetMapper.lengths.size > currentOtherIndex + 1) currentOtherIndex + 1 else -1

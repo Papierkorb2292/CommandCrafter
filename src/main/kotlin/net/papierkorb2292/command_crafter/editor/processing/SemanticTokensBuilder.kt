@@ -71,10 +71,16 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         var lastLineCursor = 0
         while(remainingLength > 0 && mappingIndex < cursorMapper.targetCursors.size) {
             var remainingLengthCoveredByMapping =
-                if(mappingIndex >= 0 && mappingRelativeCursor < cursorMapper.lengths[mappingIndex])
-                    min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
-                else
+                if(mappingIndex < 0)
                     remainingLength
+                else if(mappingRelativeCursor < cursorMapper.lengths[mappingIndex])
+                    min(remainingLength, cursorMapper.lengths[mappingIndex] - mappingRelativeCursor)
+                else if(mappingIndex == cursorMapper.targetCursors.size - 1)
+                    remainingLength
+                else {
+                    // Distance to start of next mapping
+                    min(remainingLength, cursorMapper.targetCursors[mappingIndex + 1] - cursorMapper.targetCursors[mappingIndex] - mappingRelativeCursor)
+                }
             remainingLength -= remainingLengthCoveredByMapping
 
             val mappingAbsoluteStart =
