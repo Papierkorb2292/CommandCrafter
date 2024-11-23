@@ -333,13 +333,15 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         if (!command_crafter$allowMalformed) {
             return original.call(instance);
         }
-        final var startChar = reader.getCursor();
+        var startChar = reader.getCursor();
         try {
             return MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(original, instance);
         } catch(CommandSyntaxException e) {
             final var entry = NbtEndAccessor.callInit();
             compound.put(tag, entry);
             if(command_crafter$stringRangeTreeBuilder != null) {
+                while(startChar < reader.getString().length() && Character.isWhitespace(reader.getString().charAt(startChar)))
+                    startChar++;
                 command_crafter$stringRangeTreeBuilder.addNode(entry, new StringRange(startChar, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
                 command_crafter$stringRangeTreeBuilder.addPlaceholderNode(entry);
             }
@@ -487,7 +489,7 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         if (!command_crafter$allowMalformed) {
             return original.call(instance);
         }
-        final var startChar = reader.getCursor();
+        var startChar = reader.getCursor();
         try {
             return MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(original, instance);
         } catch(CommandSyntaxException e) {
@@ -496,6 +498,8 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
             if (listBuilder != null) {
                 listBuilder.addElement(entry);
                 if(command_crafter$stringRangeTreeBuilder != null) {
+                    while(startChar < reader.getString().length() && Character.isWhitespace(reader.getString().charAt(startChar)))
+                        startChar++;
                     command_crafter$stringRangeTreeBuilder.addNode(entry, new StringRange(startChar, reader.getCursor()), command_crafter$elementAllowedStartCursor.peek());
                     command_crafter$stringRangeTreeBuilder.addPlaceholderNode(entry);
                 }
