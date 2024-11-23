@@ -65,7 +65,10 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     fun getDefinitionProviderForCursor(cursor: Int) =
         getRangedDataProviderForCursor(definitionProviders, cursor) ?: getRangedDataProviderForCursor(definitionProviders, cursor - 1)
 
-    fun copyInput() = AnalyzingResult(mappingInfo.copy(), SemanticTokensBuilder(mappingInfo), mutableListOf(), filePosition, documentation)
+    fun copyInput(): AnalyzingResult {
+        val newMappingInfo = mappingInfo.copy()
+        return AnalyzingResult(newMappingInfo, SemanticTokensBuilder(newMappingInfo), mutableListOf(), filePosition, documentation)
+    }
     fun copy() = copyInput().also {
         it.combineWith(this)
     }

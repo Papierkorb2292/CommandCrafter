@@ -228,7 +228,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
 
     class StringRangeTreeSuggestionResolver(private val readerProvider: () -> Reader) : StringRangeTree.SuggestionResolver<JsonElement> {
 
-        constructor(directiveReader: DirectiveStringReader<*>): this(directiveReader::asReader)
+        constructor(directiveReader: DirectiveStringReader<*>): this({ directiveReader.copy().asReader() })
         constructor(inputString: String): this({ StringReader(inputString) })
 
         private val valueEndParser = { suggestionRange: StringRange ->
