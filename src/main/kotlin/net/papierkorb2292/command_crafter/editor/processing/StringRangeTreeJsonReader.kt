@@ -98,7 +98,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     try {
                         if(!`in`.hasNext()) {
                             if(current is JsonArray && current.size() == 0 || current is JsonObject && current.size() == 0) {
-                                builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, `in`.absoluteValueStartPos))
+                                builder.addRangeBetweenInternalNodeEntries(current, StringRange(`in`.absoluteEntryEndPos, max(`in`.absoluteValueStartPos, `in`.absoluteEntryEndPos)))
                             }
                             break
                         }
