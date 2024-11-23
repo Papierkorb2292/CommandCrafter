@@ -2,11 +2,13 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.CallbackExecutorService
+import net.papierkorb2292.command_crafter.helper.getType
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.jsonrpc.debug.json.DebugMessageJsonHandler
 import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugRequestMessage
 import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod
 import org.eclipse.lsp4j.jsonrpc.json.StreamMessageProducer
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.services.LanguageClient
 import java.util.concurrent.*
 
@@ -50,23 +52,26 @@ class EditorConnectionManager(
                 mapOf(
                     "connectToService" to JsonRpcMethod.notification(
                         "connectToService",
-                        String::class.java
+                        getType<Either<String, ConnectToServiceArgs>>()
                     )
                 )
             )
         )
-        connectorMessageReader.listen {
-            if(it !is DebugRequestMessage) {
+        connectorMessageReader.listen { msg ->
+            if(msg !is DebugRequestMessage) {
                 return@listen
             }
-            if(it.method != "connectToService") {
+            if(msg.method != "connectToService") {
                 return@listen
             }
-            val serviceName = it.params as String
+            @Suppress("UNCHECKED_CAST")
+            val serviceArgs = msg.params as Either<String, ConnectToServiceArgs>
+            val serviceName = serviceArgs.map({ it }, { it.service })
+            val featureConfig = FeatureConfig(serviceArgs.right?.featureConfig ?: emptyMap())
             val serviceCreator = serviceLaunchers[serviceName]
             if(serviceCreator != null) {
                 connectorMessageReader.close()
-                startService(editorConnection, serviceCreator)
+                startService(editorConnection, serviceCreator, featureConfig)
             }
         }
     }
@@ -81,7 +86,7 @@ class EditorConnectionManager(
         connectionAcceptor.stop()
     }
 
-    private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher) {
+    private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher, featureConfig: FeatureConfig) {
         val serviceRemover = ServiceRemover(runningServices, null)
         val launchedService = serviceLauncher.launch(
             minecraftServerConnection,
@@ -89,7 +94,8 @@ class EditorConnectionManager(
             CallbackExecutorService(
                 Executors.newCachedThreadPool(),
                 serviceRemover
-            )
+            ),
+            featureConfig
         )
         serviceRemover.service = launchedService.server
         runningServices[launchedService.server] = launchedService.client to launchedService.process
@@ -116,7 +122,7 @@ class EditorConnectionManager(
     }
 
     interface ServiceLauncher {
-        fun launch(serverConnection: MinecraftServerConnection, editorConnection: EditorConnection, executorService: ExecutorService): LaunchedService
+        fun launch(serverConnection: MinecraftServerConnection, editorConnection: EditorConnection, executorService: ExecutorService, featureConfig: FeatureConfig): LaunchedService
     }
 
     class ServiceClient(val client: Any)
@@ -132,5 +138,9 @@ class EditorConnectionManager(
             service?.onClosed()
             runningServices.remove(service)
         }
+    }
+
+    class ConnectToServiceArgs(var service: String, var featureConfig: Map<String, FeatureConfig.Entry>?) {
+        constructor() : this("", null)
     }
 }

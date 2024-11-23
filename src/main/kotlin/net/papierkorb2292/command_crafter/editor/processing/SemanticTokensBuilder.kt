@@ -158,5 +158,12 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastCursor = other.lastCursor
     }
 
+    fun clear() {
+        data.clear()
+        dataSize = 100
+        lastLine = 0
+        lastCursor = 0
+    }
+
     fun build() = SemanticTokens(data)
 }

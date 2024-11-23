@@ -1,5 +1,7 @@
 package net.papierkorb2292.command_crafter.helper
 
+import com.google.gson.reflect.TypeToken
+import java.lang.reflect.Type
 import java.util.concurrent.Semaphore
 
 fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
@@ -88,3 +90,5 @@ fun <P1, P2, R> ((P1, P2) -> R).memoizeLast() = object : (P1, P2) -> R {
         return lastResult as R
     }
 }
+
+inline fun <reified T> getType(): Type = object : TypeToken<T>() {}.type

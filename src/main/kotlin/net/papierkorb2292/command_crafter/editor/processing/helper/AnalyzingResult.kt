@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.context.StringRange
+import net.papierkorb2292.command_crafter.editor.FeatureConfig
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -60,6 +61,19 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     fun copyInput() = AnalyzingResult(mappingInfo.copy(), SemanticTokensBuilder(mappingInfo), mutableListOf(), filePosition, documentation)
     fun copy() = copyInput().also {
         it.combineWith(this)
+    }
+
+    fun clearDisabledFeatures(featureConfig: FeatureConfig, analyzerNameInserts: List<String>) {
+        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.completions" }, true))
+            completionProviders.clear()
+        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.hovers" }, true))
+            hoverProviders.clear()
+        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.definitions" }, true))
+            definitionProviders.clear()
+        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.diagnostics" }, true))
+            diagnostics.clear()
+        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.semanticTokens" }, true))
+            semanticTokens.clear()
     }
 
     private fun <TData> addRangedDataProviders(dest: MutableList<RangedDataProvider<TData>>, source: List<RangedDataProvider<TData>>) {

@@ -14,18 +14,25 @@ import org.eclipse.lsp4j.Position
 import java.io.IOException
 import java.io.StringReader
 
-class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>) : FileAnalyseHandler {
+class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>, private val analyzerConfigPath: String) : FileAnalyseHandler {
     override fun canHandle(file: OpenFile) =
         PackContentFileType.parsePath(file.parsedUri.path)?.type == packContentFileType
                 && (file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta"))
 
-    override fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer) =
-        Companion.analyze(file, languageServer, fileDecoder)
+    override fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer): AnalyzingResult {
+        val analyzingResult = Companion.analyze(file, languageServer, fileDecoder)
+        analyzingResult.clearDisabledFeatures(languageServer.featureConfig, listOf(
+            JSON_ANALYZER_CONFIG_PATH_PREFIX + analyzerConfigPath,
+            JSON_ANALYZER_CONFIG_PATH_PREFIX,
+            ""
+        ))
+        return analyzingResult
+    }
 
     companion object {
-
-        fun addJsonAnalyzer(packContentFileType: PackContentFileType, codec: Codec<*>) {
-            MinecraftLanguageServer.addAnalyzer(StringRangeTreeJsonResourceAnalyzer(packContentFileType, codec))
+        const val JSON_ANALYZER_CONFIG_PATH_PREFIX = ".json"
+        fun addJsonAnalyzer(packContentFileType: PackContentFileType, codec: Codec<*>, analyzerConfigPath: String = packContentFileType.contentTypePath) {
+            MinecraftLanguageServer.addAnalyzer(StringRangeTreeJsonResourceAnalyzer(packContentFileType, codec, ".$analyzerConfigPath"))
         }
 
         fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
@@ -54,7 +61,6 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             val errorCallback = parsedStringRangeTree.DecoderErrorLeafRangesCallback(JsonElement::class)
             PreLaunchDecoderOutputTracker.decodeWithCallback(fileDecoder, registryOps, parsedStringRangeTree.root, errorCallback)
             result.diagnostics += errorCallback.generateDiagnostics(result.mappingInfo)
-
             return result
         }
     }

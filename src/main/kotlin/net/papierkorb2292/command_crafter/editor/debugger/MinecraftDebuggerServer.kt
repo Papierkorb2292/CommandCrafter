@@ -17,7 +17,7 @@ import java.util.concurrent.Semaphore
 import kotlin.math.max
 import kotlin.math.min
 
-class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnection) : IDebugProtocolServer, EditorService {
+class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnection, val featureConfig: FeatureConfig) : IDebugProtocolServer, EditorService {
     companion object {
         const val BREAKPOINT_AT_NO_CODE_REJECTION_REASON = "No debuggable code at this location"
         const val SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON = "Server does not support debugging"

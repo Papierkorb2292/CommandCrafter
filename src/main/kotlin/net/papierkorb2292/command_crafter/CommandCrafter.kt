@@ -171,6 +171,7 @@ object CommandCrafter: ModInitializer {
                     reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                     val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, 2, "", ScreenTexts.EMPTY, directServerConnection.server, null)
                     LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
+                    result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
                     return result
                 }
             })
@@ -247,9 +248,10 @@ object CommandCrafter: ModInitializer {
             override fun launch(
                 serverConnection: MinecraftServerConnection,
                 editorConnection: EditorConnection,
-                executorService: ExecutorService
+                executorService: ExecutorService,
+                featureConfig: FeatureConfig
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftLanguageServer(serverConnection)
+                val server = MinecraftLanguageServer(serverConnection, featureConfig)
                 val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                     .setLocalService(server)
                     .setRemoteInterface(CommandCrafterLanguageClient::class.java)
@@ -276,8 +278,9 @@ object CommandCrafter: ModInitializer {
                 serverConnection: MinecraftServerConnection,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
+                featureConfig: FeatureConfig
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftDebuggerServer(serverConnection)
+                val server = MinecraftDebuggerServer(serverConnection, featureConfig)
                 val messageWrapper = InitializedEventEmittingMessageWrapper()
                 val launcher = DebugLauncher.Builder<CommandCrafterDebugClient>()
                     .setLocalService(server)

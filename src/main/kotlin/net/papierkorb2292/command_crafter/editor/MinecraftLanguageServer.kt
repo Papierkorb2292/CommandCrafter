@@ -27,7 +27,7 @@ import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val featureConfig: FeatureConfig)
     : MinecraftServerConnectedLanguageServer, EditorClientAware,
     MinecraftLanguageServerExtension {
     companion object {
