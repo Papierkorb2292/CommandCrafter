@@ -17,9 +17,13 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     private val definitionProviders: MutableList<RangedDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>> = mutableListOf()
 
     fun combineWith(other: AnalyzingResult) {
+        combineWithExceptCompletions(other)
+        addRangedDataProviders(completionProviders, other.completionProviders)
+    }
+
+    fun combineWithExceptCompletions(other: AnalyzingResult) {
         semanticTokens.combineWith(other.semanticTokens)
         diagnostics += other.diagnostics
-        addRangedDataProviders(completionProviders, other.completionProviders)
         addRangedDataProviders(hoverProviders, other.hoverProviders)
         addRangedDataProviders(definitionProviders, other.definitionProviders)
     }

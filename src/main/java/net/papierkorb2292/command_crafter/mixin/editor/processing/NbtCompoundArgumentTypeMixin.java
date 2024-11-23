@@ -38,6 +38,6 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode, Custo
 
     @Override
     public boolean command_crafter$hasCustomCompletions(@NotNull CommandContext<CommandSource> context, @NotNull String name) {
-        return true;
+        return false;
     }
 }
