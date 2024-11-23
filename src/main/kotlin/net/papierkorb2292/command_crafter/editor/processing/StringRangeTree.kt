@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -324,6 +325,40 @@ class StringRangeTree<TNode: Any>(
                 true,
                 if(isContentJsonText) TextCodecs.CODEC else null
             )
+            // Parse input without lenience to find syntax errors
+            if(treeOperations.stringRangeTree == jsonTree) {
+                val reader = JsonReader(java.io.StringReader(content))
+                try {
+                    StringRangeTreeJsonReader { reader }.read(Strictness.STRICT, false)
+                } catch(e: Exception) {
+                    stringAnalyzingResult.diagnostics += Diagnostic().also {
+                        it.range = Range(
+                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(reader.absolutePos), stringMappingInfo),
+                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(content.length), stringMappingInfo)
+                        )
+                        it.message = e.message
+                        it.severity = DiagnosticSeverity.Warning
+                    }
+                }
+            } else if(treeOperations.stringRangeTree == nbtTree) {
+                val reader = StringReader(content)
+                try {
+                    StringNbtReader(reader).parseElement()
+                } catch(e: Exception) {
+                    stringAnalyzingResult.diagnostics += Diagnostic().also {
+                        it.range = Range(
+                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(reader.cursor), stringMappingInfo),
+                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(content.length), stringMappingInfo)
+                        )
+                        it.message = e.message
+                        it.severity = DiagnosticSeverity.Warning
+                    }
+                }
+            }
+
+            if(isContentJsonText) {
+                treeOperations.generateDiagnostics(stringAnalyzingResult, TextCodecs.CODEC, DiagnosticSeverity.Warning)
+            }
             results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
         }
         return results
@@ -365,6 +400,7 @@ class StringRangeTree<TNode: Any>(
         val semanticTokenProvider: SemanticTokenProvider<TNode>,
         val suggestionResolver: SuggestionResolver<TNode>,
         val stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
+        val nodeClass: KClass<out TNode>,
         var completionEscaper: StringEscaper = StringEscaper.Identity,
         val registryWrapper: RegistryWrapper.WrapperLookup? = null,
     ) {
@@ -380,7 +416,8 @@ class StringRangeTree<TNode: Any>(
                     JsonOps.INSTANCE,
                     StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider,
                     StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(content),
-                    StringRangeTreeJsonReader.StringContentGetter(jsonTree, content)
+                    StringRangeTreeJsonReader.StringContentGetter(jsonTree, content),
+                    JsonElement::class
                 )
 
             fun forJson(jsonTree: StringRangeTree<JsonElement>, reader: DirectiveStringReader<*>) =
@@ -389,7 +426,8 @@ class StringRangeTree<TNode: Any>(
                     JsonOps.INSTANCE,
                     StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider,
                     StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(reader),
-                    StringRangeTreeJsonReader.StringContentGetter(jsonTree, reader.string)
+                    StringRangeTreeJsonReader.StringContentGetter(jsonTree, reader.string),
+                    JsonElement::class
                 )
 
             fun forNbt(nbtTree: StringRangeTree<NbtElement>, content: String) =
@@ -398,7 +436,8 @@ class StringRangeTree<TNode: Any>(
                     NbtOps.INSTANCE,
                     NbtSemanticTokenProvider(nbtTree, content),
                     NbtSuggestionResolver(content),
-                    NbtStringContentGetter(nbtTree, content)
+                    NbtStringContentGetter(nbtTree, content),
+                    NbtElement::class
                 )
 
             fun forNbt(nbtTree: StringRangeTree<NbtElement>, reader: DirectiveStringReader<*>) =
@@ -407,7 +446,8 @@ class StringRangeTree<TNode: Any>(
                     NbtOps.INSTANCE,
                     NbtSemanticTokenProvider(nbtTree, reader.string),
                     NbtSuggestionResolver(reader),
-                    NbtStringContentGetter(nbtTree, reader.string)
+                    NbtStringContentGetter(nbtTree, reader.string),
+                    NbtElement::class
                 )
         }
 
@@ -435,6 +475,7 @@ class StringRangeTree<TNode: Any>(
                 }
             }
             stringRangeTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
+            analyzingResult.diagnostics += analyzedStrings.values.flatMap { it.second.diagnostics }
             return shouldGenerateSemanticTokens || contentDecoder != null || analyzedStrings.isNotEmpty()
         }
 
@@ -444,6 +485,12 @@ class StringRangeTree<TNode: Any>(
 
         fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
             stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this, languageServer)
+
+        fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
+            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass)
+            PreLaunchDecoderOutputTracker.decodeWithCallback(decoder, ops, stringRangeTree.root, errorCallback)
+            analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
+        }
     }
 
     class AnalyzingDynamicOps<TNode: Any> private constructor(private val delegate: DynamicOps<TNode>, private var tree: StringRangeTree<TNode>) : DynamicOps<TNode> {
@@ -852,7 +899,7 @@ class StringRangeTree<TNode: Any>(
             }
         }
 
-        fun generateDiagnostics(fileMappingInfo: FileMappingInfo): List<Diagnostic> {
+        fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
             return errors.map { (range, message) ->
                 Diagnostic().also {
                     it.range = Range(
@@ -860,7 +907,7 @@ class StringRangeTree<TNode: Any>(
                         AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.end), fileMappingInfo)
                     )
                     it.message = message
-                    it.severity = DiagnosticSeverity.Error
+                    it.severity = severity
                 }
             }
         }
