@@ -316,14 +316,14 @@ class StringRangeTree<TNode: Any>(
                 offsetBaseMapper.combineWith(cursorMapper)
             )
 
-            val isContentJsonText = isJsonText(treeOperations)
+            val jsonTextRecognizability = tryRecognizeJsonText(treeOperations)
 
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
             treeOperations.analyzeFull(
                 stringAnalyzingResult,
                 languageServer,
                 true,
-                if(isContentJsonText) TextCodecs.CODEC else null
+                if(jsonTextRecognizability.shouldDecode()) TextCodecs.CODEC else null
             )
             // Parse input without lenience to find syntax errors
             if(treeOperations.stringRangeTree == jsonTree) {
@@ -356,7 +356,7 @@ class StringRangeTree<TNode: Any>(
                 }
             }
 
-            if(isContentJsonText && !treeOperations.isRootEmpty) {
+            if(jsonTextRecognizability.shouldGenerateDiagnostics()) {
                 treeOperations.generateDiagnostics(stringAnalyzingResult, TextCodecs.CODEC, DiagnosticSeverity.Warning)
             }
             results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
@@ -364,11 +364,11 @@ class StringRangeTree<TNode: Any>(
         return results
     }
 
-    private fun <TNode: Any> isJsonText(treeOperations: TreeOperations<TNode>): Boolean {
+    private fun <TNode: Any> tryRecognizeJsonText(treeOperations: TreeOperations<TNode>): JsonTextRecognizability {
         val (accessedKeysWatcherDynamicOps, wrappedOps) = wrapDynamicOps(treeOperations.ops, ::AccessedKeysWatcherDynamicOps)
         val wrappedTreeOperations = treeOperations.copy(ops = wrappedOps)
         TextCodecs.CODEC.decode(wrappedTreeOperations.ops, treeOperations.stringRangeTree.root)
-
+        var recognizability = JsonTextRecognizability.NOT_DETERMINABLE
         val textComponents = mutableListOf(treeOperations.stringRangeTree.root)
         while(textComponents.isNotEmpty()) {
             val textComponent = textComponents.removeAt(0)
@@ -386,12 +386,15 @@ class StringRangeTree<TNode: Any>(
                 .map { it.first }
                 .collect(Collectors.toSet())
 
-            if(existingKeys.isNotEmpty() && !existingKeys.any(accessedKeys::contains))
-                // The map resembles no text component
-                return false
+            if(existingKeys.isNotEmpty()) {
+                if(!existingKeys.any(accessedKeys::contains))
+                    // The map resembles no text component
+                    return JsonTextRecognizability.NO_JSON_TEXT
+                recognizability = JsonTextRecognizability.NOT_DETERMINABLE
+            }
         }
         // All contents resemble a text component
-        return true
+        return recognizability
     }
 
     data class TreeOperations<TNode: Any>(
@@ -913,5 +916,14 @@ class StringRangeTree<TNode: Any>(
                 }
             }
         }
+    }
+
+    private enum class JsonTextRecognizability {
+        NO_JSON_TEXT,
+        NOT_DETERMINABLE,
+        IS_JSON_TEXT;
+
+        fun shouldDecode() = this != NO_JSON_TEXT
+        fun shouldGenerateDiagnostics() = this == IS_JSON_TEXT
     }
 }
