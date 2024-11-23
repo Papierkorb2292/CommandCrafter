@@ -16,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(NbtElementArgumentType.class)
-public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode, CustomCompletionsCommandNode {
+public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode {
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         if(reader.getResourceCreator().getLanguageServer() == null)
@@ -40,10 +40,5 @@ public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode, Custom
                 tree,
                 readerCopy
         ).analyzeFull(result, reader.getResourceCreator().getLanguageServer(), true, null);
-    }
-
-    @Override
-    public boolean command_crafter$hasCustomCompletions(@NotNull CommandContext<CommandSource> context, @NotNull String name) {
-        return false;
     }
 }
