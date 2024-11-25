@@ -106,6 +106,7 @@
     "editor.processing.ScoreHolderArgumentTypeMixin",
     "editor.processing.SerializableRegistriesAccessor",
     "editor.processing.StringArgumentTypeMixin",
+    "editor.processing.StringIdentifiableBasicCodecMixin",
     "editor.processing.StringNbtReaderMixin",
     "editor.processing.SuggestionMixin",
     "editor.processing.SuggestionsMixin",
