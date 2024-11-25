@@ -18,10 +18,15 @@ import net.minecraft.nbt.StringNbtReader
 import net.minecraft.registry.Registries
 import net.minecraft.scoreboard.ScoreHolder
 import net.minecraft.scoreboard.ScoreboardCriterion
+import net.minecraft.scoreboard.ScoreboardCriterion.RenderType
+import net.minecraft.scoreboard.number.NumberFormat
+import net.minecraft.scoreboard.number.NumberFormatTypes
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.stat.Stat
 import net.minecraft.stat.StatType
+import net.minecraft.text.Text
+import net.minecraft.text.TextCodecs
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
 import net.minecraft.util.dynamic.Codecs
@@ -37,6 +42,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.function.Function
 import java.util.regex.Pattern
 import java.util.stream.Stream
+import kotlin.jvm.optionals.getOrNull
 
 class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : ScoreboardStorageFileSystem {
     companion object {
@@ -86,10 +92,51 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             }
         }
 
+        // Puts 'type' first in the map and allows 'default' type
+        private val NUMBER_FORMAT_CODEC = object : Codec<Optional<NumberFormat>> {
+            private val DEFAULT_TYPE = "default"
+            override fun <T : Any?> encode(input: Optional<NumberFormat>, ops: DynamicOps<T>, prefix: T): DataResult<T> {
+                if(input.isEmpty)
+                    return ops.mergeToMap(prefix, ops.createString("type"), ops.createString(DEFAULT_TYPE))
+                return NumberFormatTypes.CODEC.encode(input.get(), ops, prefix).flatMap { encoded ->
+                    val encodedMap = ops.getMap(encoded).result().get()
+                    val mapBuilder = ops.mapBuilder()
+                    // Add type first
+                    mapBuilder.add("type", encodedMap.get("type"))
+                    // Add rest
+                    for(entry in encodedMap.entries()) {
+                        if(ops.getStringValue(entry.first).result().get() != "type")
+                            mapBuilder.add(entry.first, entry.second)
+                    }
+                    mapBuilder.build(ops.empty())
+                }
+            }
+
+            override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<Optional<NumberFormat>, T>> {
+                val numberFormat = NumberFormatTypes.CODEC.decode(ops, input)
+                    .map { pair -> pair.mapFirst { Optional.of(it) } }
+                val type = ops.getMap(input).result().getOrNull()?.get("type")
+                    ?: return numberFormat
+                @Suppress("UNCHECKED_CAST")
+                val analyzingOps = (StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() as StringRangeTree.AnalyzingDynamicOps<T>?)
+                if(analyzingOps != null) {
+                    analyzingOps.getNodeStartSuggestions(type) += StringRangeTree.Suggestion(ops.createString(DEFAULT_TYPE))
+                }
+                val parsedType = ops.getStringValue(type).result().getOrNull()
+                if(parsedType == DEFAULT_TYPE)
+                    return DataResult.success(com.mojang.datafixers.util.Pair(Optional.empty(), input))
+                return numberFormat
+            }
+        }
+
         private val OBJECTIVE_DATA_CODEC: Codec<ObjectiveData> =
             RecordCodecBuilder.create {
                 it.group(
-                    CRITERION_CODEC.fieldOf("criterion").forGetter(ObjectiveData::criterion)
+                    CRITERION_CODEC.fieldOf("criterion").forGetter(ObjectiveData::criterion),
+                    TextCodecs.CODEC.fieldOf("displayName").forGetter(ObjectiveData::displayName),
+                    RenderType.CODEC.fieldOf("renderType").forGetter(ObjectiveData::renderType),
+                    NUMBER_FORMAT_CODEC.fieldOf("numberFormat").forGetter(ObjectiveData::numberFormat),
+                    Codec.BOOL.fieldOf("displayAutoUpdate").forGetter(ObjectiveData::displayAutoUpdate)
                 ).apply(it, ::ObjectiveData)
             }
 
@@ -292,6 +339,15 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             objectivesByCriterion.computeIfAbsent(objectiveFile.objectiveData.criterion, Function { Lists.newArrayList() }).add(objective)
             (objective as ScoreboardObjectiveAccessor).setCriterion(objectiveFile.objectiveData.criterion)
         }
+        if(objective.displayName != objectiveFile.objectiveData.displayName)
+            objective.displayName = objectiveFile.objectiveData.displayName
+        if(objective.renderType != objectiveFile.objectiveData.renderType)
+            objective.renderType = objectiveFile.objectiveData.renderType
+        val newNumberFormat = objectiveFile.objectiveData.numberFormat.orElse(null)
+        if(objective.numberFormat != newNumberFormat)
+            objective.numberFormat = newNumberFormat
+        if(objective.shouldDisplayAutoUpdate() != objectiveFile.objectiveData.displayAutoUpdate)
+            objective.setDisplayAutoUpdate(objectiveFile.objectiveData.displayAutoUpdate)
         return FileSystemResult(Unit)
     }
 
@@ -364,7 +420,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 for(entry in server.scoreboard.getScoreboardEntries(objective).sortedBy { it.owner }) {
                     scoresMap[entry.owner] = entry.value
                 }
-                val objectiveData = ObjectiveData(objective.criterion)
+                val objectiveData = ObjectiveData(objective.criterion, objective.displayName, objective.renderType, Optional.ofNullable(objective.numberFormat), objective.shouldDisplayAutoUpdate())
                 val objectiveFile = ObjectiveFile(scoresMap, objectiveData)
                 val json = OBJECTIVE_CODEC.encodeStart(JsonOps.INSTANCE, objectiveFile).orThrow
                 val stringWriter = StringWriter()
@@ -476,6 +532,12 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
     data class FileUpdate(val directory: Directory, val objectName: String, val updateType: FileChangeType)
 
-    class ObjectiveData(val criterion: ScoreboardCriterion)
+    class ObjectiveData(
+        val criterion: ScoreboardCriterion,
+        val displayName: Text,
+        val renderType: RenderType,
+        val numberFormat: Optional<NumberFormat>,
+        val displayAutoUpdate: Boolean
+    )
     class ObjectiveFile(val scores: Map<String, Int>, val objectiveData: ObjectiveData)
 }

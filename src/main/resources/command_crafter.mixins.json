@@ -115,6 +115,7 @@
     "editor.scoreboardStorageViewer.ScoreboardAccessor",
     "editor.scoreboardStorageViewer.ScoreboardMixin",
     "editor.scoreboardStorageViewer.ScoreboardObjectiveAccessor",
+    "editor.scoreboardStorageViewer.ScoreboardObjectiveMixin",
     "editor.scoreboardStorageViewer.ScoreboardScoreAccessMixin",
     "editor.scoreboardStorageViewer.ScoresAccessor",
     "parser.ArgumentCommandNodeMixin",

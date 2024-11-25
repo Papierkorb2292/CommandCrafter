@@ -531,9 +531,9 @@ class StringRangeTree<TNode: Any>(
         internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
 
         fun getNodeStartSuggestions(node: TNode) =
-            nodeStartSuggestions.computeIfAbsent(node) { mutableListOf() }
+            nodeStartSuggestions.computeIfAbsent(node) { mutableSetOf() }
         fun getMapKeySuggestions(node: TNode) =
-            mapKeySuggestions.computeIfAbsent(node) { mutableListOf() }
+            mapKeySuggestions.computeIfAbsent(node) { mutableSetOf() }
 
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
             getNodeStartSuggestions(input).run {
