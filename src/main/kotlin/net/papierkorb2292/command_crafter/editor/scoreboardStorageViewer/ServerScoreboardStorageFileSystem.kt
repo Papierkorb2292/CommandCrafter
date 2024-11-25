@@ -80,8 +80,8 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
             private inline fun <T> forEachStatName(statType: StatType<T>, action: (String) -> Unit) {
                 for(entry in statType.registry) {
-                    val name = Stat.getName(statType, entry);
-                    action(name);
+                    val name = Stat.getName(statType, entry)
+                    action(name)
                 }
             }
         }
@@ -466,11 +466,6 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
     class ResolvedPath(val directory: Directory, val fileName: String?)
 
-    /**
-     * Represents a watch on a file system
-     * @param params The parameters given by the language client
-     * @param path The resolved path of the file to watch. Null if the path is invalid
-     */
     class Watch(private val uriPattern: Pattern, private val excludeUriPatterns: List<Pattern>) {
         fun matches(uri: String): Boolean {
             if(!uriPattern.matcher(uri).find())
