@@ -12,7 +12,7 @@ class DeleteParams(
         val PACKET_CODEC: PacketCodec<ByteBuf, DeleteParams> = PacketCodec.tuple(
             PacketCodecs.STRING,
             DeleteParams::uri,
-            PacketCodecs.BOOL,
+            PacketCodecs.BOOLEAN,
             DeleteParams::recursive,
             ::DeleteParams
         )

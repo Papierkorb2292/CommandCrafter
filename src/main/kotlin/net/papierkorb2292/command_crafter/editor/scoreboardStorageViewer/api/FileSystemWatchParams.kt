@@ -17,7 +17,7 @@ class FileSystemWatchParams(
             FileSystemWatchParams::uri,
             PacketCodecs.INTEGER,
             FileSystemWatchParams::watcherId,
-            PacketCodecs.BOOL,
+            PacketCodecs.BOOLEAN,
             FileSystemWatchParams::recursive,
             PacketCodecs.STRING.array(),
             FileSystemWatchParams::excludes,

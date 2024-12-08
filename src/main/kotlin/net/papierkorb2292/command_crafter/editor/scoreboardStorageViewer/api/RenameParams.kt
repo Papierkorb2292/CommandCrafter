@@ -15,7 +15,7 @@ class RenameParams(
             RenameParams::oldUri,
             PacketCodecs.STRING,
             RenameParams::newUri,
-            PacketCodecs.BOOL,
+            PacketCodecs.BOOLEAN,
             RenameParams::overwrite,
             ::RenameParams
         )
