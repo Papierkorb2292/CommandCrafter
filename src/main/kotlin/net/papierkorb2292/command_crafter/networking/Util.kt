@@ -49,7 +49,7 @@ fun <T: Enum<T>> enumConstantCodec(enumClass: Class<T>): PacketCodec<ByteBuf, T>
 val UNIT_CODEC = PacketCodec.unit<ByteBuf, Unit>(Unit)
 
 val NULLABLE_STRING_PACKET_CODEC = PacketCodecs.STRING.nullable()
-val NULLABLE_BOOL_PACKET_CODEC = PacketCodecs.BOOL.nullable()
+val NULLABLE_BOOL_PACKET_CODEC = PacketCodecs.BOOLEAN.nullable()
 val NULLABLE_VAR_INT_PACKET_CODEC = PacketCodecs.VAR_INT.nullable()
 
 val POSITION_PACKET_CODEC: PacketCodec<ByteBuf, Position> = PacketCodec.tuple(
@@ -104,7 +104,7 @@ val NULLABLE_SOURCE_CODEC = SOURCE_PACKET_CODEC.nullable()
 val BREAKPOINT_PACKET_CODEC = object : PacketCodec<ByteBuf, Breakpoint> {
     override fun decode(buf: ByteBuf) = Breakpoint().apply {
         id = PacketCodecs.VAR_INT.decode(buf)
-        isVerified = PacketCodecs.BOOL.decode(buf)
+        isVerified = PacketCodecs.BOOLEAN.decode(buf)
         message = NULLABLE_STRING_PACKET_CODEC.decode(buf)
         source = NULLABLE_SOURCE_CODEC.decode(buf)
         line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
@@ -115,7 +115,7 @@ val BREAKPOINT_PACKET_CODEC = object : PacketCodec<ByteBuf, Breakpoint> {
 
     override fun encode(buf: ByteBuf, value: Breakpoint) {
         PacketCodecs.VAR_INT.encode(buf, value.id)
-        PacketCodecs.BOOL.encode(buf, value.isVerified)
+        PacketCodecs.BOOLEAN.encode(buf, value.isVerified)
         NULLABLE_STRING_PACKET_CODEC.encode(buf, value.message)
         NULLABLE_SOURCE_CODEC.encode(buf, value.source)
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
@@ -176,7 +176,7 @@ val SCOPE_PACKET_CODEC = object : PacketCodec<ByteBuf, Scope> {
         variablesReference = PacketCodecs.VAR_INT.decode(buf)
         namedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
         indexedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        isExpensive = PacketCodecs.BOOL.decode(buf)
+        isExpensive = PacketCodecs.BOOLEAN.decode(buf)
         source = NULLABLE_SOURCE_CODEC.decode(buf)
         line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
         column = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
@@ -190,7 +190,7 @@ val SCOPE_PACKET_CODEC = object : PacketCodec<ByteBuf, Scope> {
         PacketCodecs.VAR_INT.encode(buf, value.variablesReference)
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.namedVariables)
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.indexedVariables)
-        PacketCodecs.BOOL.encode(buf, value.isExpensive)
+        PacketCodecs.BOOLEAN.encode(buf, value.isExpensive)
         NULLABLE_SOURCE_CODEC.encode(buf, value.source)
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
         NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.column)
@@ -294,7 +294,7 @@ val STEP_IN_TARGETS_RESPONSE_PACKET_CODEC: PacketCodec<ByteBuf, StepInTargetsRes
     { it.targets }
 )
 
-val VALUE_FORMAT_PACKET_CODEC: PacketCodec<ByteBuf, ValueFormat> = PacketCodecs.BOOL.xmap(
+val VALUE_FORMAT_PACKET_CODEC: PacketCodec<ByteBuf, ValueFormat> = PacketCodecs.BOOLEAN.xmap(
     { ValueFormat().apply { hex = it }},
     ValueFormat::getHex
 )

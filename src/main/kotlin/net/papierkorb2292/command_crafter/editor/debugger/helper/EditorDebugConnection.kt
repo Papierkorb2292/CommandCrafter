@@ -34,7 +34,7 @@ interface EditorDebugConnection {
             DebugTarget::targetFileType,
             Identifier.PACKET_CODEC,
             DebugTarget::targetId,
-            PacketCodecs.BOOL,
+            PacketCodecs.BOOLEAN,
             DebugTarget::stopOnEntry,
             ::DebugTarget
         )

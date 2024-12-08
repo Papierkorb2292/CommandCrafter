@@ -58,6 +58,10 @@ object SimpleOptionIntCallbacks : SimpleOption.Callbacks<Int> {
 
                 override fun appendClickableNarrations(builder: NarrationMessageBuilder ) { }
 
+                override fun getContentsHeightWithPadding() = label.height + textInput.height
+
+                override fun getDeltaYPerScroll() = MinecraftClient.getInstance().textRenderer.fontHeight.toDouble()
+
                 override fun setX(x: Int) {
                     val deltaX = x - this.x;
                     label.x += deltaX;
