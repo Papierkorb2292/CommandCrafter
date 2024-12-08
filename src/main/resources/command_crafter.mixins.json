@@ -126,8 +126,6 @@
     "parser.LiteralCommandNodeMixin",
     "parser.MacroAndExpandedMacroMixin",
     "parser.MacroMixin",
-    "parser.PackFeatureSetMetadataAccessor",
-    "parser.PackOverlaysMetadataAccessor",
     "parser.StringReaderAccessor",
     "parser.TagEntryAccessor",
     "parser.ZipResourcePackMixin",
@@ -170,8 +168,6 @@
   ],
   "client": [
     "ClientRegistriesMixin",
-    "SimpleOptionAccessor",
-    "editor.MinecraftClientAccessor",
-    "editor.processing.ClientCommandSourceAccessor"
+    "SimpleOptionAccessor"
   ]
 }

@@ -22,7 +22,7 @@ interface VariablesReferencer {
             val PACKET_CODEC: PacketCodec<ByteBuf, SetVariableResult> = PacketCodec.tuple(
                 SET_VARIABLE_RESPONSE_PACKET_CODEC,
                 SetVariableResult::response,
-                PacketCodecs.BOOL,
+                PacketCodecs.BOOLEAN,
                 SetVariableResult::invalidateVariables,
                 ::SetVariableResult
             )

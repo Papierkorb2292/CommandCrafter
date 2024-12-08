@@ -22,7 +22,7 @@ class InitializeNetworkServerConnectionS2CPacket(
             Identifier.of("command_crafter", "initialize_network_server_connection")
         )
         val CODEC: PacketCodec<PacketByteBuf, InitializeNetworkServerConnectionS2CPacket> = PacketCodec.tuple(
-            PacketCodecs.BOOL,
+            PacketCodecs.BOOLEAN,
             InitializeNetworkServerConnectionS2CPacket::successful,
             CommandTreeS2CPacket.CODEC,
             InitializeNetworkServerConnectionS2CPacket::commandTree,

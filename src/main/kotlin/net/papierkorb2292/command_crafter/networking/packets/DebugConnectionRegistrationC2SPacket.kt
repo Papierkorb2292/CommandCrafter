@@ -21,7 +21,7 @@ class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugCo
             DebugConnectionRegistrationC2SPacket::oneTimeDebugTarget,
             PacketCodecs.VAR_INT,
             DebugConnectionRegistrationC2SPacket::nextSourceReference,
-            PacketCodecs.BOOL,
+            PacketCodecs.BOOLEAN,
             DebugConnectionRegistrationC2SPacket::suspendServer,
             Uuids.PACKET_CODEC,
             DebugConnectionRegistrationC2SPacket::debugConnectionId,
