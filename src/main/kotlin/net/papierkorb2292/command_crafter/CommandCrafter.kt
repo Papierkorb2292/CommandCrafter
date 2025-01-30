@@ -238,7 +238,10 @@ object CommandCrafter: ModInitializer {
         val shortenNbtGameRule = GameRuleFactory.createBooleanRule(true) { _, rule ->
             shortenNbt = rule.get()
         }
-        GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
+        val shortenNbtGameRuleKey = GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
+        ServerLifecycleEvents.SERVER_STARTED.register {
+            shortenNbt = it.gameRules.getBoolean(shortenNbtGameRuleKey)
+        }
 
         config = CommandCrafterConfig.fromFile(CommandCrafterConfig.DEFAULT_CONFIG_PATH)
     }
