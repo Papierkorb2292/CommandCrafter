@@ -376,18 +376,21 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: CommandSource): Boolean {
         do {
+            var isLineStart = reader.cursor == 0 || reader.peek(-1) == '\n'
             reader.cutReadChars()
             reader.saveIndentation()
             while(reader.canRead() && reader.peek() == '\n') {
+                isLineStart = true
                 reader.skip()
                 reader.saveIndentation()
             }
-            suggestRootNode(
-                reader,
-                StringRange(Int.MAX_VALUE, reader.cursor),
-                source,
-                result
-            )
+            if(isLineStart)
+                suggestRootNode(
+                    reader,
+                    StringRange(Int.MAX_VALUE, reader.cursor),
+                    source,
+                    result
+                )
         } while(reader.endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
         return reader.canRead() && reader.currentLanguage == this
     }
