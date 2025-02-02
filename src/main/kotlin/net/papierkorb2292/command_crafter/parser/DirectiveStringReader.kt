@@ -80,11 +80,11 @@ class DirectiveStringReader<out ResourceCreator>(
                 val contentEnd = line.indexOfLast { !it.isWhitespace() }
                 val hasBackslash = line[contentEnd] == '\\'
                 // Only remove ending whitespace if it is after a backslash, such that in lines without a backslash suggestions still work at the end
-                val trimmed = if(hasBackslash) line.substring(indent, contentEnd) else line.substring(indent)
+                val trimmed = if(hasBackslash) line.substring(indent, contentEnd+1) else line.substring(indent)
                 cursorMapper.addMapping(
                     readCharacters + string.length + indent + 2,
                     readSkippingChars + string.length,
-                    trimmed.length
+                    if(hasBackslash) trimmed.length - 1 else trimmed.length
                 )
                 setString(string + trimmed)
                 val skippedChars = line.length - trimmed.length + 2
