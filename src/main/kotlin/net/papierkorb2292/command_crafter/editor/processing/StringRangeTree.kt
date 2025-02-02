@@ -498,7 +498,7 @@ class StringRangeTree<TNode: Any>(
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass)
-            PreLaunchDecoderOutputTracker.decodeWithCallback(decoder, ops, stringRangeTree.root, errorCallback)
+            PreLaunchDecoderOutputTracker.decodeWithCallback(decoder, registryWrapper?.getOps(ops) ?: ops, stringRangeTree.root, errorCallback)
             analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
         }
     }
