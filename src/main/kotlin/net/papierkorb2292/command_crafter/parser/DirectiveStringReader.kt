@@ -58,7 +58,7 @@ class DirectiveStringReader<out ResourceCreator>(
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
         if(onlyReadEscapedMultiline) {
-            val firstLineMappingMissing = cursorMapper.prevSourceEnd <= absoluteCursor
+            val firstLineMappingMissing = cursorMapper.prevTargetEnd <= skippingCursor
             if(!string.endsWith('\\')) {
                 if(super.canRead(1) && firstLineMappingMissing)
                     cursorMapper.addMapping(absoluteCursor, skippingCursor, remainingLength)
@@ -78,12 +78,13 @@ class DirectiveStringReader<out ResourceCreator>(
                     break
                 }
                 val contentEnd = line.indexOfLast { !it.isWhitespace() }
-                val trimmed = line.substring(indent, contentEnd + 1)
-                val hasBackslash = trimmed.endsWith('\\')
+                val hasBackslash = line[contentEnd] == '\\'
+                // Only remove ending whitespace if it is after a backslash, such that in lines without a backslash suggestions still work at the end
+                val trimmed = if(hasBackslash) line.substring(indent, contentEnd) else line.substring(indent)
                 cursorMapper.addMapping(
                     readCharacters + string.length + indent + 2,
                     readSkippingChars + string.length,
-                    if(hasBackslash) trimmed.length - 1 else trimmed.length
+                    trimmed.length
                 )
                 setString(string + trimmed)
                 val skippedChars = line.length - trimmed.length + 2
