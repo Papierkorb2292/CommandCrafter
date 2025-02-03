@@ -9,6 +9,7 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.argument.ItemStringReader;
+import net.minecraft.component.ComponentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
@@ -83,7 +84,7 @@ public class ItemStringReaderReaderMixin {
                     target = "Lnet/minecraft/nbt/StringNbtReader;parseElement()Lnet/minecraft/nbt/NbtElement;"
             )
     )
-    private NbtElement command_crafter$analyzeComponentNbt(StringNbtReader nbtReader, Operation<NbtElement> op) {
+    private NbtElement command_crafter$analyzeComponentNbt(StringNbtReader nbtReader, Operation<NbtElement> op, ComponentType<?> type) {
         if (command_crafter$analyzingResult == null) {
             return op.call(nbtReader);
         }
@@ -107,7 +108,7 @@ public class ItemStringReaderReaderMixin {
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
+        ).analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
         return nbt;
     }
 }
