@@ -92,3 +92,9 @@ fun <P1, P2, R> ((P1, P2) -> R).memoizeLast() = object : (P1, P2) -> R {
 }
 
 inline fun <reified T> getType(): Type = object : TypeToken<T>() {}.type
+
+fun <T> Collection<T>?.concatNullable(other: Collection<T>?): Collection<T>? = when {
+    this == null -> other
+    other == null -> this
+    else -> this + other
+}

@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.helper.concatNullable
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -176,14 +177,17 @@ class StringRangeTree<TNode: Any>(
                     suggestionResolver.resolveSuggestion(suggestion, SuggestionType.NODE_START, languageServer, range, copiedMappingInfo, completionEscaper)
                 }
             }
-            analyzingDynamicOps.mapKeySuggestions[node]?.let { suggestions ->
-                val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
-                nodeSuggestions += ranges.map { range ->
-                    range to suggestions.map { suggestion ->
-                        suggestionResolver.resolveSuggestion(suggestion, SuggestionType.MAP_KEY, languageServer, range, copiedMappingInfo, completionEscaper)
+            analyzingDynamicOps.mapKeySuggestions[node]
+                .concatNullable(analyzingDynamicOps.mapKeyNodes[node]?.flatMap { mapKeyNode ->
+                    analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList()
+                })?.let { suggestions ->
+                    val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
+                    nodeSuggestions += ranges.map { range ->
+                        range to suggestions.map { suggestion ->
+                            suggestionResolver.resolveSuggestion(suggestion, SuggestionType.MAP_KEY, languageServer, range, copiedMappingInfo, completionEscaper)
+                        }
                     }
                 }
-            }
             nodeSuggestions
         }
 
@@ -466,6 +470,8 @@ class StringRangeTree<TNode: Any>(
 
         fun withCompletionEscaper(escaper: StringEscaper) = copy(completionEscaper = escaper)
 
+        fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
+
         fun analyzeFull(analyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult, languageServer)
             if(shouldGenerateSemanticTokens) {
@@ -530,10 +536,20 @@ class StringRangeTree<TNode: Any>(
         internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
         internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
 
+        /**
+         * Maps TNode instances that have keys to a collection of TNode instances that were used to represent the keys.
+         *
+         * For example, when MapLike.getEntries is used, which returns TNode instances of each key in the map, those instances are added to the collection,
+         * such that completions that are added for those nodes can be used to suggest keys.
+         */
+        internal val mapKeyNodes = IdentityHashMap<TNode, MutableCollection<TNode>>()
+
         fun getNodeStartSuggestions(node: TNode) =
             nodeStartSuggestions.computeIfAbsent(node) { mutableSetOf() }
         fun getMapKeySuggestions(node: TNode) =
             mapKeySuggestions.computeIfAbsent(node) { mutableSetOf() }
+        fun getMapKeyNodes(node: TNode) =
+            mapKeyNodes.computeIfAbsent(node) { mutableSetOf() }
 
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
             getNodeStartSuggestions(input).run {
@@ -592,7 +608,10 @@ class StringRangeTree<TNode: Any>(
                     }
 
                     override fun entries(): Stream<Pair<TNode, TNode>> {
-                        return delegateMap.entries()
+                        return delegateMap.entries().map { pair ->
+                            getMapKeyNodes(input).add(pair.first)
+                            pair
+                        }
                     }
                 }
             }
@@ -649,9 +668,19 @@ class StringRangeTree<TNode: Any>(
         }
 
         //For later: Saving the path for each node to request suggestion descriptions for keys
-        override fun getMapValues(input: TNode): DataResult<Stream<Pair<TNode, TNode>>> = delegate.getMapValues(input)
+        override fun getMapValues(input: TNode): DataResult<Stream<Pair<TNode, TNode>>> =
+            delegate.getMapValues(input).map { stream ->
+                stream.peek { pair ->
+                    getMapKeyNodes(input).add(pair.first)
+                }
+            }
         override fun getMapEntries(input: TNode): DataResult<Consumer<BiConsumer<TNode, TNode>>> =
-            delegate.getMapEntries(input)
+            delegate.getMapEntries(input).map { consumer -> Consumer{ biConsumer ->
+                  consumer.accept { key, value ->
+                      getMapKeyNodes(input).add(key)
+                      biConsumer.accept(key, value)
+                  }
+            } }
 
         //Just delegates
         override fun empty(): TNode = delegate.empty()
