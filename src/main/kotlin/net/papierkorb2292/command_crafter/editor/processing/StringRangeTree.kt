@@ -748,7 +748,7 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    interface SemanticTokenProvider<TNode> {
+    interface SemanticTokenProvider<in TNode> {
         fun getMapNameTokenInfo(map: TNode): TokenInfo?
         fun getNodeTokenInfo(node: TNode): TokenInfo?
         fun getAdditionalTokens(node: TNode): Collection<AdditionalToken>
