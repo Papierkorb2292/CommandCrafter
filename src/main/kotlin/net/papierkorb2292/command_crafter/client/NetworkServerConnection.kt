@@ -314,7 +314,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             val requestId = UUID.randomUUID()
             currentContextCompletionRequests[requestId] = future
             ClientPlayNetworking.send(
-                ContextCompletionRequestC2SPacket(requestId, fullInput.lines, fullInput.absoluteCursor)
+                ContextCompletionRequestC2SPacket(requestId, fullInput.lines, fullInput.cursorMapper.mapToSource(fullInput.skippingCursor))
             )
             return future
         }
