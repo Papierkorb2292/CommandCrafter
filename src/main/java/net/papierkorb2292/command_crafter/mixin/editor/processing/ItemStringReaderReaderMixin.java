@@ -16,6 +16,7 @@ import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
@@ -93,6 +94,7 @@ public class ItemStringReaderReaderMixin {
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         final var startCursor = reader.getCursor();
         NbtElement nbt;
         try {

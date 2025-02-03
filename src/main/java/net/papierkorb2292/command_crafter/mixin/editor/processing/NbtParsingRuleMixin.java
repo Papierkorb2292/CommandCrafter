@@ -13,6 +13,7 @@ import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
@@ -42,6 +43,7 @@ public class NbtParsingRuleMixin {
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)stringNbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((AllowMalformedContainer)stringNbtReader).command_crafter$setAllowMalformed(true);
         final var startCursor = state.getReader().getCursor();
         NbtElement nbt;
         try {
