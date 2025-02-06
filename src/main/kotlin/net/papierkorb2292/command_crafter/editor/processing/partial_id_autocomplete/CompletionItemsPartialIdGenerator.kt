@@ -12,7 +12,10 @@ import java.util.*
 
 object CompletionItemsPartialIdGenerator {
     private val partialIdGeneratorService: PartialIdGeneratorService by lazy {
-        ServiceLoader.load(PartialIdGeneratorService::class.java).first()
+        // The default class loader doesn't guarantee that both the interface and implementation are in the same class loader.
+        // If that isn't the case, an error will be thrown saying the implementation isn't a subtype of the interface.
+        // Thus, use the class loader of the interface to load the implementation
+        ServiceLoader.load(PartialIdGeneratorService::class.java, PartialIdGeneratorService::class.java.classLoader).first()
     }
 
     fun addPartialIdsToCompletionItems(completionItems: List<CompletionItem>, currentInput: String): List<CompletionItem> {

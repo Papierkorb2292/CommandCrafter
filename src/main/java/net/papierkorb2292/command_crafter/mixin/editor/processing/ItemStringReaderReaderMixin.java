@@ -108,7 +108,9 @@ public class ItemStringReaderReaderMixin {
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
+        )
+                .withOps(((ItemStringReaderAccessor)field_48970).getNbtOps())
+                .analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
         return nbt;
     }
 }

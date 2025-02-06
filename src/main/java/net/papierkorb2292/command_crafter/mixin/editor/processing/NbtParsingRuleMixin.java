@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import kotlin.Unit;
 import net.minecraft.command.argument.packrat.NbtParsingRule;
 import net.minecraft.command.argument.packrat.ParsingState;
 import net.minecraft.nbt.NbtElement;
@@ -33,13 +34,15 @@ public class NbtParsingRuleMixin {
             )
     )
     private NbtElement command_crafter$analyzeNbt(StringNbtReader stringNbtReader, Operation<NbtElement> op, ParsingState<StringReader> state) {
-        var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
-        if (analyzingResult == null)
+        // Only get analyzing result to check whether analyzing should happen. The actual analyzing result to use is only retrieved later in the callback,
+        // at which point it might be a different instance.
+        if (getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult()) == null)
             return op.call(stringNbtReader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.getReader();
         if(directiveReader.getResourceCreator().getLanguageServer() == null)
             return op.call(stringNbtReader);
+        var languageServer = directiveReader.getResourceCreator().getLanguageServer();
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)stringNbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -53,10 +56,18 @@ public class NbtParsingRuleMixin {
             treeBuilder.addNode(nbt, new StringRange(startCursor, state.getReader().getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        StringRangeTree.TreeOperations.Companion.forNbt(
+        var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
+        );
+        PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {
+            var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
+            if(analyzingResult != null) {
+                treeOps.withOps(ops)
+                        .analyzeFull(analyzingResult, languageServer, true, decoder);
+            }
+            return Unit.INSTANCE;
+        });
         return nbt;
     }
 }
