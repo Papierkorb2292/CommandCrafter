@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
@@ -155,23 +156,23 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         return false;
     }
 
-    @ModifyVariable(
+    @ModifyReceiver(
             method = "parseCompound",
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/lang/String;isEmpty()Z"
             )
     )
-    private NbtCompound command_crafter$addCompoundTagToStringRangeTree(NbtCompound compound, @Local int startCursor) {
+    private String command_crafter$addCompoundTagToStringRangeTree(String tag, @Local NbtCompound compound, @Local int startCursor) {
         if (command_crafter$stringRangeTreeBuilder != null) {
             while(Character.isWhitespace(reader.getString().charAt(startCursor)))
                 startCursor++;
-            // startCursor has skipped whitespaces before the name because of addCompoundRangeBetweenRangeToStringRangeTree
-            command_crafter$stringRangeTreeBuilder.addMapKeyRange(compound, new StringRange(startCursor, reader.getCursor()));
+            // startCursor has skipped whitespaces before the name because of addCompoundRangeBetweenEntriesToStringRangeTree
+            command_crafter$stringRangeTreeBuilder.addMapKeyRange(compound, NbtString.of(tag), new StringRange(startCursor, reader.getCursor()));
             command_crafter$elementAllowedStartCursor.pop();
             command_crafter$elementAllowedStartCursor.push(reader.getCursor() + 1);
         }
-        return compound;
+        return tag;
     }
 
     @ModifyVariable(

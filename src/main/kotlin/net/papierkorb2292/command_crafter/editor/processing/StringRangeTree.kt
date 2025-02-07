@@ -55,9 +55,9 @@ class StringRangeTree<TNode: Any>(
      */
     val nodeAllowedStartRanges: Map<TNode, StringRange>,
     /**
-     * The ranges of keys of maps/objects/compounds in the tree
+     * The ranges of keys of maps/objects/compounds in the tree. The collection entries are a pair of a TNode representing the key and the range of the key.
      */
-    val mapKeyRanges: Map<TNode, Collection<StringRange>>,
+    val mapKeyRanges: Map<TNode, Collection<kotlin.Pair<TNode, StringRange>>>,
     /**
      * The ranges between entries of a node with children. Can be used for suggesting key names or list entries.
      */
@@ -118,7 +118,7 @@ class StringRangeTree<TNode: Any>(
             val range = getNodeRangeOrThrow(node)
             val nodeTokens = tokenProvider.getNodeTokenInfo(node)?.let { listOf(AdditionalToken(range, it)) }
                 ?: tokenProvider.getMapNameTokenInfo(node)?.let { tokenInfo ->
-                    mapKeyRanges[node]?.map { AdditionalToken(it, tokenInfo) }
+                    mapKeyRanges[node]?.map { AdditionalToken(it.second, tokenInfo) }
                 }
             if(nodeTokens != null)
                 collectedTokens += nodeTokens
@@ -287,14 +287,14 @@ class StringRangeTree<TNode: Any>(
 
             val allKeysQuoted = nbtTree.mapKeyRanges.values.flatten().all {
                 // Only check keys with a colon, so completions can be typed out without quotes
-                var nextCursor = it.end
+                var nextCursor = it.second.end
                 while(nextCursor < content.length && Character.isWhitespace(content[nextCursor]))
                     nextCursor++
                 if(nextCursor >= content.length || content[nextCursor] != ':')
                     return@all true
                 
                 // Check quotes
-                val startChar = content[it.start]
+                val startChar = content[it.second.start]
                 if(startChar != '"' && startChar != '\'')
                     return@all false
                 true
@@ -501,7 +501,8 @@ class StringRangeTree<TNode: Any>(
             stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this, languageServer)
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
-            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass)
+            val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.getOps(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
+            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher)
             PreLaunchDecoderOutputTracker.decodeWithCallback(decoder, registryWrapper?.getOps(ops) ?: ops, stringRangeTree.root, errorCallback)
             analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
         }
@@ -811,7 +812,7 @@ class StringRangeTree<TNode: Any>(
         private val orderedNodes = mutableListOf<TNode?>()
         private val nodeRanges = IdentityHashMap<TNode, StringRange>()
         private val nodeAllowedStartRanges = IdentityHashMap<TNode, StringRange>()
-        private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<StringRange>>()
+        private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<kotlin.Pair<TNode, StringRange>>>()
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
         private val placeholderNodes = mutableSetOf<TNode>()
 
@@ -856,8 +857,8 @@ class StringRangeTree<TNode: Any>(
             internalNodeRangesBetweenEntries.computeIfAbsent(node) { mutableListOf() }.add(range)
         }
 
-        fun addMapKeyRange(node: TNode, range: StringRange) {
-            mapKeyRanges.computeIfAbsent(node) { mutableListOf() }.add(range)
+        fun addMapKeyRange(node: TNode, key: TNode, range: StringRange) {
+            mapKeyRanges.computeIfAbsent(node) { mutableListOf() }.add(key to range)
         }
 
         fun addPlaceholderNode(node: TNode) {
@@ -886,16 +887,29 @@ class StringRangeTree<TNode: Any>(
      * to only the nodes with errors. In other words, all errors whose range encompasses another error's
      * range are ignored
      */
-    inner class DecoderErrorLeafRangesCallback(private val nodeClass: KClass<out TNode>) : PreLaunchDecoderOutputTracker.ResultCallback {
+    inner class DecoderErrorLeafRangesCallback(private val nodeClass: KClass<out TNode>, private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>) : PreLaunchDecoderOutputTracker.ResultCallback {
         private val errors = mutableListOf<kotlin.Pair<StringRange, String>>()
 
         private fun throwForPartialOverlap(range1: StringRange, range2: StringRange) {
             throw IllegalStateException("Ranges of nodes must not partially overlap. They must either not overlap or one must encompass the other. Ranges: $range1, $range2")
         }
 
+        private fun getNodeRange(node: TNode): StringRange? {
+            ranges[node]?.let {
+                return it
+            }
+            // Node could be a key, so check if key access happened for it
+            val map = accessedKeysWatcherDynamicOps.accessedKeys.firstNotNullOfOrNull {
+                if(node in it.value) {
+                    it.key
+                } else null
+            } ?: return null
+            return mapKeyRanges[map]?.firstOrNull { it.first == node }?.second
+        }
+
         override fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput) {
             val inputNode = nodeClass.safeCast(input) ?: return
-            val range = ranges[inputNode] ?: return
+            val range = getNodeRange(inputNode) ?: return
             val index = errors.binarySearch { entry -> entry.first.compareToExclusive(range) }
             if(index < 0) {
                 errors.add(-index - 1, range to error.message())
@@ -942,8 +956,8 @@ class StringRangeTree<TNode: Any>(
             return errors.map { (range, message) ->
                 Diagnostic().also {
                     it.range = Range(
-                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.start), fileMappingInfo),
-                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.end), fileMappingInfo)
+                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.start + fileMappingInfo.readSkippingChars), fileMappingInfo),
+                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.end + fileMappingInfo.readSkippingChars), fileMappingInfo)
                     )
                     it.message = message
                     it.severity = severity

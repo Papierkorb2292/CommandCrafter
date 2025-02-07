@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import java.nio.ByteBuffer
+import java.util.*
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.function.Function
@@ -14,7 +15,7 @@ class AccessedKeysWatcherDynamicOps<T>(private val delegate: DynamicOps<T>): Dyn
     val accessedKeys = mutableMapOf<T, MutableSet<T>>()
 
     private fun addAccessedKey(map: T, key: T) {
-        accessedKeys.getOrPut(map) { mutableSetOf() } += key
+        accessedKeys.getOrPut(map) { Collections.newSetFromMap(IdentityHashMap()) } += key
     }
 
     override fun empty(): T = delegate.empty()

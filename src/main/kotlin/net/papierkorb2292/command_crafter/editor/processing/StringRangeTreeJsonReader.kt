@@ -123,7 +123,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     // Name is only used for JSON object members
                     if(current is JsonObject) {
                         name = `in`.nextName()
-                        builder.addMapKeyRange(current, StringRange(`in`.absoluteValueStartPos, `in`.absolutePos))
+                        builder.addMapKeyRange(current, JsonPrimitive(name), StringRange(`in`.absoluteValueStartPos, `in`.absolutePos))
                     }
 
                     var isNesting: Boolean

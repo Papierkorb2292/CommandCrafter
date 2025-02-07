@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -63,8 +64,9 @@ public class NbtParsingRuleMixin {
         PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {
             var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
             if(analyzingResult != null) {
-                treeOps.withOps(ops)
-                        .analyzeFull(analyzingResult, languageServer, true, decoder);
+                var registryTreeOps = treeOps.withOps(ops);
+                registryTreeOps.analyzeFull(analyzingResult, languageServer, true, decoder);
+                registryTreeOps.generateDiagnostics(analyzingResult, decoder, DiagnosticSeverity.Error);
             }
             return Unit.INSTANCE;
         });

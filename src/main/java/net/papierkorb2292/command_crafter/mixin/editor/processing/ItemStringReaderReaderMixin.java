@@ -22,6 +22,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -85,7 +86,7 @@ public class ItemStringReaderReaderMixin {
             )
     )
     private NbtElement command_crafter$analyzeComponentNbt(StringNbtReader nbtReader, Operation<NbtElement> op, ComponentType<?> type) {
-        if (command_crafter$analyzingResult == null) {
+        if (command_crafter$analyzingResult == null || type.getCodec() == null) {
             return op.call(nbtReader);
         }
         //noinspection unchecked
@@ -105,12 +106,12 @@ public class ItemStringReaderReaderMixin {
             treeBuilder.addNode(nbt, new StringRange(startCursor, reader.getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        StringRangeTree.TreeOperations.Companion.forNbt(
+        var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        )
-                .withOps(((ItemStringReaderAccessor)field_48970).getNbtOps())
-                .analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
+        ).withOps(((ItemStringReaderAccessor)field_48970).getNbtOps());
+        treeOps.analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
+        treeOps.generateDiagnostics(command_crafter$analyzingResult, type.getCodec(), DiagnosticSeverity.Error);
         return nbt;
     }
 }
