@@ -13,8 +13,8 @@ import java.util.stream.Stream
 class AccessedKeysWatcherDynamicOps<T>(private val delegate: DynamicOps<T>): DynamicOps<T> {
     val accessedKeys = mutableMapOf<T, MutableSet<T>>()
 
-    private fun addAccessedKey(key: T, value: T) {
-        accessedKeys.getOrPut(key) { mutableSetOf() } += value
+    private fun addAccessedKey(map: T, key: T) {
+        accessedKeys.getOrPut(map) { mutableSetOf() } += key
     }
 
     override fun empty(): T = delegate.empty()
