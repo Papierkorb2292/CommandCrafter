@@ -422,8 +422,6 @@ class StringRangeTree<TNode: Any>(
         val isRootEmpty = stringRangeTree.orderedNodes.size == 1
 
         companion object {
-            private val IDENTITY_ESCAPER: (String) -> String = { it }
-
             fun forJson(jsonTree: StringRangeTree<JsonElement>, content: String) =
                 TreeOperations(
                     jsonTree,
