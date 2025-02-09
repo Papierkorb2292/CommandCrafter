@@ -102,6 +102,7 @@
     "editor.processing.ParsingStateAccessor",
     "editor.processing.PlaceCommandMixin",
     "editor.processing.RecipeCommandMixin",
+    "editor.processing.RegistryElementCodecMixin",
     "editor.processing.RegistryEntryArgumentTypeMixin",
     "editor.processing.RegistryFixedCodecMixin",
     "editor.processing.RegistryKeyArgumentTypeMixin",
