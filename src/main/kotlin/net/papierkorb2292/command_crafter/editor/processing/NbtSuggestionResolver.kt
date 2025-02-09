@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import org.eclipse.lsp4j.CompletionItemKind
 import java.util.regex.Pattern
 
 class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader) : StringRangeTree.SuggestionResolver<NbtElement> {
@@ -58,7 +59,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                 val valueEnd = valueEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
                     valueEnd,
-                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer)
+                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer, kind=CompletionItemKind.Value)
                 )
             }
             StringRangeTree.SuggestionType.MAP_KEY -> {
@@ -69,7 +70,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                 val keyEnd = keyEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
                     keyEnd,
-                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key)
+                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
                 )
             }
         }
