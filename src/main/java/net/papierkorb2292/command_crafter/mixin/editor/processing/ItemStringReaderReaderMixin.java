@@ -1,15 +1,21 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
+import com.mojang.brigadier.ImmutableStringReader;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.DataResult;
 import net.minecraft.command.argument.ItemStringReader;
 import net.minecraft.component.ComponentType;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
@@ -29,6 +35,9 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 @Mixin(targets = "net.minecraft.command.argument.ItemStringReader$Reader")
 public class ItemStringReaderReaderMixin {
@@ -113,5 +122,22 @@ public class ItemStringReaderReaderMixin {
         treeOps.analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
         treeOps.generateDiagnostics(command_crafter$analyzingResult, type.getCodec(), DiagnosticSeverity.Error);
         return nbt;
+    }
+
+    @ModifyReceiver(
+            method = "readComponentValue",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",
+                    remap = false
+            )
+    )
+    private <T> DataResult<T> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<T> original, Function<?, ?> exceptionSupplier, ComponentType<T> type, @Cancellable CallbackInfo ci) {
+        // Skip components with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyzeComponentNbt
+        // This also makes the analyzer more forgiving
+        if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
+            ci.cancel();
+        }
+        return original;
     }
 }
