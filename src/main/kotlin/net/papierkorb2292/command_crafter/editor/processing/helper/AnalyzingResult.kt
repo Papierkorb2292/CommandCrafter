@@ -11,15 +11,16 @@ import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 
 class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf(), val filePosition: Position, var documentation: String? = null) {
+
     constructor(reader: FileMappingInfo, filePosition: Position, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(reader, SemanticTokensBuilder(reader), diagnostics, filePosition)
 
-    private val completionProviders: MutableList<RangedDataProvider<CompletableFuture<List<CompletionItem>>>> = mutableListOf()
+    private val completionProviders: MutableMap<String, MutableList<RangedDataProvider<CompletableFuture<List<CompletionItem>>>>> = mutableMapOf()
     private val hoverProviders: MutableList<RangedDataProvider<CompletableFuture<Hover>>> = mutableListOf()
     private val definitionProviders: MutableList<RangedDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>> = mutableListOf()
 
     fun combineWith(other: AnalyzingResult) {
         combineWithExceptCompletions(other)
-        addRangedDataProviders(completionProviders, other.completionProviders)
+        combineWithCompletionProviders(other)
     }
 
     fun combineWithExceptCompletions(other: AnalyzingResult) {
@@ -30,15 +31,22 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     }
 
     fun combineWithCompletionProviders(other: AnalyzingResult) {
-        addRangedDataProviders(completionProviders, other.completionProviders)
+        for((channel, providers) in other.completionProviders) {
+            addRangedDataProviders(getOrPutCompletionProvidersForChannel(channel), providers)
+        }
     }
 
-    fun addCompletionProvider(provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>, shouldMap: Boolean) {
+    fun addCompletionProvider(
+        completionChannelName: String,
+        provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>,
+        shouldMap: Boolean
+    ) {
+        val channel = getOrPutCompletionProvidersForChannel(completionChannelName)
         if(shouldMap) {
-            addMappedRangedDataProvider(completionProviders, provider)
+            addMappedRangedDataProvider(channel, provider)
             return
         }
-        addRangedDataProvider(completionProviders, provider)
+        addRangedDataProvider(channel, provider)
     }
 
     fun addHoverProvider(provider: RangedDataProvider<CompletableFuture<Hover>>, shouldMap: Boolean) {
@@ -57,8 +65,16 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         addRangedDataProvider(definitionProviders, provider)
     }
 
-    fun getCompletionProviderForCursor(cursor: Int) =
-        getRangedDataProviderForCursor(completionProviders, cursor, true)
+    fun getCompletionProviderForCursor(filterCursor: Int): RangedDataProvider<CompletableFuture<List<CompletionItem>>>? {
+        val providers = completionProviders.mapNotNull { getRangedDataProviderForCursor(it.value, filterCursor, true) }
+        if(providers.isEmpty())
+            return null
+        val completeStringRange = providers.asSequence().map { it.cursorRange }.reduce(StringRange::encompassing)
+        return RangedDataProvider(completeStringRange) { providerCursor ->
+            val completions = providers.map { it.dataProvider(providerCursor) }.toTypedArray()
+            CompletableFuture.allOf(*completions).thenApply { completions.flatMap { it.join() } }
+        }
+    }
 
     fun getHoverProviderForCursor(cursor: Int) =
         getRangedDataProviderForCursor(hoverProviders, cursor)
@@ -86,6 +102,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.semanticTokens" }, true))
             semanticTokens.clear()
     }
+
+    private fun getOrPutCompletionProvidersForChannel(channel: String) =
+        completionProviders.getOrPut(channel, ::mutableListOf)
 
     private fun <TData> addRangedDataProviders(dest: MutableList<RangedDataProvider<TData>>, source: List<RangedDataProvider<TData>>) {
         for(provider in source) {
@@ -176,6 +195,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     }
 
     companion object {
+        const val LANGUAGE_COMPLETION_CHANNEL = "language"
+        const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
+
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
             getPositionFromCursor(cursor, mappingInfo.lines, zeroBased)
 

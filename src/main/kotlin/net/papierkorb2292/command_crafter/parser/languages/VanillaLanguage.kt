@@ -555,6 +555,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
         analyzingResult.addCompletionProvider(
+            AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
             AnalyzingResult.RangedDataProvider(
                 StringRange(
                     parentNode.range.end + 1,

@@ -218,7 +218,7 @@ class StringRangeTree<TNode: Any>(
             while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= newEndCursor) {
                 if(suggestionStart <= nextSuggestionInsertRange.start) {
                     val preInsertEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
-                    result.addCompletionProvider(AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, preInsertEndCursor)) { offset ->
+                    result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, preInsertEndCursor)) { offset ->
                         CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
                     }, true)
                 }
@@ -234,7 +234,7 @@ class StringRangeTree<TNode: Any>(
                 }
             }
 
-            result.addCompletionProvider(AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, newEndCursor)) { offset ->
+            result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, newEndCursor)) { offset ->
                 CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
             }, true)
         }
