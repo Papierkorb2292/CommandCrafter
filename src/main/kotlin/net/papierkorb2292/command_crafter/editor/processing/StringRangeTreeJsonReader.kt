@@ -280,7 +280,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     val replaceEnd = valueEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
-                        StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
+                        SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
                     )
                 }
                 StringRangeTree.SuggestionType.MAP_KEY -> {
@@ -290,7 +290,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     val replaceEnd = keyEndParser(suggestionRange)
                     return StringRangeTree.ResolvedSuggestion(
                         replaceEnd,
-                        StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
+                        SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
                     )
                 }
             }

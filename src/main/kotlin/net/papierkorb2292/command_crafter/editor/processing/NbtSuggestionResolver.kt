@@ -59,7 +59,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                 val valueEnd = valueEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
                     valueEnd,
-                    StringRangeTree.SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer, kind=CompletionItemKind.Value)
+                    SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer, kind=CompletionItemKind.Value)
                 )
             }
             StringRangeTree.SuggestionType.MAP_KEY -> {
@@ -70,7 +70,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                 val keyEnd = keyEndParser(suggestionRange)
                 return StringRangeTree.ResolvedSuggestion(
                     keyEnd,
-                    StringRangeTree.SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
+                    SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
                 )
             }
         }
