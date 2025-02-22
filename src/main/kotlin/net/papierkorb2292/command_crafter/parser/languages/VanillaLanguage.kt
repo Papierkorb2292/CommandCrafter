@@ -47,7 +47,6 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.getOrNull
-import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.TagEntryAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -112,10 +111,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
         }
 
-        while(skipToNextCommandAndAnalyze(reader, result, source)) {
+        var previousTextWasCommand = false
+        while(skipToNextCommandAndAnalyze(reader, result, source, !easyNewLine || !previousTextWasCommand)) {
             if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
+                previousTextWasCommand = false
                 continue
             }
+            previousTextWasCommand = true
             try {
                 if (reader.canRead() && reader.peek() == '/') {
                     if (reader.canRead(2) && reader.peek(1) == '/') {
@@ -370,7 +372,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return reader.canRead() && reader.currentLanguage == this
     }
 
-    private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: CommandSource): Boolean {
+    private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: CommandSource, ignorePrevIndent: Boolean): Boolean {
         if(reader.cursor != 0 && reader.peek(-1) != '\n') {
             if(!reader.canRead()) {
                 reader.checkEndLanguage()
@@ -378,6 +380,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             reader.readLine()
         }
+        var readDirective = false
         val prevCommandIndent = reader.currentIndentation
         while(true) {
             reader.cutReadChars()
@@ -385,9 +388,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val whitespaceEnd = reader.cursor
             // Reset cursor such that endStatementAndAnalyze can add correct completions and doesn't cut away the whitespace
             reader.cursor = 0
-            reader.endStatementAndAnalyze(result, false)
-
-            val suggestEnd = min(whitespaceEnd, prevCommandIndent)
+            val suggestEnd = if(readDirective || ignorePrevIndent) whitespaceEnd else min(whitespaceEnd, prevCommandIndent)
+            readDirective = reader.endStatementAndAnalyze(result, false) || readDirective
             suggestRootNode(
                 reader,
                 StringRange(0, suggestEnd),
