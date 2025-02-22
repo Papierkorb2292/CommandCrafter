@@ -390,7 +390,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val suggestEnd = min(whitespaceEnd, prevCommandIndent)
             suggestRootNode(
                 reader,
-                StringRange(Int.MAX_VALUE, suggestEnd),
+                StringRange(0, suggestEnd),
                 source,
                 result
             )
@@ -449,18 +449,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         resource.content += Either.left(stringBuilder.append('\n').toString())
     }
 
-    fun <S> getAnalyzingParsedRootNode(rootNode: CommandNode<S>): ParsedCommandNode<S> {
-        // The position is -1, because the first actual node will start at 0
-        return ParsedCommandNode(rootNode, StringRange.at(-1))
+    fun <S> getAnalyzingParsedRootNode(rootNode: CommandNode<S>, completionStart: Int): ParsedCommandNode<S> {
+        // Subtract 1 from position, because one character will be skipped between nodes such that the actual next node starts at completionStart
+        return ParsedCommandNode(rootNode, StringRange.at(completionStart - 1))
     }
 
     fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: CommandSource, analyzingResult: AnalyzingResult) {
-        reader.directiveManager.suggestDirectives(StringRange(0, range.end), analyzingResult)
-        val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root)
+        reader.directiveManager.suggestDirectives(range, analyzingResult)
+        val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root, range.start)
         addNodeSuggestions(
             parsedRootNode,
             analyzingResult,
-            range,
+            // Use max value as start, such that the completion start is always at the cursor instead of the start of the range (addNodeSuggestions uses `min` to get the completion start)
+            StringRange(Integer.MAX_VALUE, range.end),
             reader.copy().apply {
                 // The string must be empty, so no matter where in the range completions are requested, the literals will be suggested
                 string = ""
@@ -477,7 +478,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
-        var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode)
+        var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode, 0)
         while(contextBuilder != null) {
             for (parsedNode in contextBuilder.nodes) {
                 analyzeCommandNode(
