@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AddressConfigMalformedError, MinecraftConnectionType, MinecraftLanguageClientRunner, parseAddressConfig, SocketConnectionType } from './minecraftConnection';
-import { State } from 'vscode-languageclient';5
+import { State } from 'vscode-languageclient';
 
 let prevMinecraftAddress: string | undefined
 let minecraftLanguageClientRunner: MinecraftLanguageClientRunner | undefined
