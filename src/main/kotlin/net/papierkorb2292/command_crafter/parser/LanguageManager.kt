@@ -197,17 +197,23 @@ object LanguageManager {
                     }
                     if(c == ':') {
                         val string = reader.string
+                        val pathStartCursor = reader.cursor
                         val idStart = string.subSequence(0, reader.cursor - 1)
                             .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
+                        while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
+                            reader.skip()
+                        val idEnd = reader.cursor
+                        // Only highlight ids with a non-empty namespace and path (to avoid highlighting colons in normal text)
+                        if(idStart + 1 == pathStartCursor || idEnd == pathStartCursor) {
+                            reader.cursor = pathStartCursor
+                            continue
+                        }
                         result.semanticTokens.addMultiline(
                             highlightStart,
                             idStart - highlightStart,
                             TokenType.COMMENT,
                             0
                         )
-                        while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
-                            reader.skip()
-                        val idEnd = reader.cursor
                         val idRange = StringRange(idStart, idEnd)
                         result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
                         val languageServer = reader.resourceCreator.languageServer

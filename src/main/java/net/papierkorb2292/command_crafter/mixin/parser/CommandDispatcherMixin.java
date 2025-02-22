@@ -41,8 +41,8 @@ public class CommandDispatcherMixin {
         if(!(reader instanceof DirectiveStringReader<?> directiveStringReader)) {
             return c;
         }
-        if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
-            return ARGUMENT_SEPARATOR_CHAR;
+        if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader, true)) {
+            return c;
         }
         if(!VanillaLanguage.Companion.isReaderEasyNextLine(reader)) {
             return c;
@@ -66,7 +66,7 @@ public class CommandDispatcherMixin {
             return false;
         }
         if(reader instanceof DirectiveStringReader<?> directiveStringReader) {
-            if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
+            if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader, true)) {
                 return false;
             }
             if(VanillaLanguage.Companion.isReaderEasyNextLine(reader) && reader.canRead() && reader.peek() == '\n') {

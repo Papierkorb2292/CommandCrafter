@@ -183,20 +183,18 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
                 if(easyNewLine) {
                     reader.skipSpaces()
-                    if(!reader.canRead()) {
-                        reader.checkEndLanguage()
-                        break
+                    if(!reader.canRead() || reader.scopeStack.element().closure.endsClosure(reader)) {
+                        // Analyze last whitespace and then loop should end
+                        continue
                     }
                     if (reader.peek() != '\n') {
-                        if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(
-                            reader
-                        )
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(reader)
                     } else reader.skip()
                 } else {
                     reader.onlyReadEscapedMultiline = false
-                    if(!reader.canRead()) {
-                        reader.checkEndLanguage()
-                        break
+                    if(!reader.canRead() || reader.scopeStack.element().closure.endsClosure(reader)) {
+                        // Analyze last whitespace and then loop should end
+                        continue
                     }
                     reader.skip()
                 }
@@ -310,9 +308,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 reader.skipSpaces()
                 if (reader.canRead() && reader.peek() != '\n') {
-                    if (!reader.scopeStack.element().closure.endsClosure(reader)) throw COMMAND_NEEDS_NEW_LINE_EXCEPTION.createWithContext(
-                        reader
-                    )
+                    if (!reader.scopeStack.element().closure.endsClosure(reader))
+                        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(reader)
                 } else reader.skip()
             } else {
                 if (parseResults.reader.canRead()) {
@@ -349,8 +346,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         var indentStartCursor = reader.cursor - 1
         while(reader.tryReadIndentation { it > reader.currentIndentation }) {
             val skippedChars = reader.cursor - indentStartCursor
-            @Suppress("KotlinConstantConditions")
-            (reader as StringReaderAccessor).setString(reader.string.substring(0, indentStartCursor - 1) + ' ' + reader.string.substring(reader.cursor)) //Also removes newline
+            reader.string = reader.string.substring(0, indentStartCursor - 1) + ' ' + reader.string.substring(reader.cursor) //Also removes newline
             reader.cursor = indentStartCursor
             reader.skippedChars += skippedChars
             reader.readCharacters += skippedChars
@@ -375,24 +371,37 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: CommandSource): Boolean {
-        do {
-            var isLineStart = reader.cursor == 0 || reader.peek(-1) == '\n'
+        if(reader.cursor != 0 && reader.peek(-1) != '\n') {
+            if(!reader.canRead()) {
+                reader.checkEndLanguage()
+                return false
+            }
+            reader.readLine()
+        }
+        val prevCommandIndent = reader.currentIndentation
+        while(true) {
             reader.cutReadChars()
             reader.saveIndentation()
-            while(reader.canRead() && reader.peek() == '\n') {
-                isLineStart = true
-                reader.skip()
-                reader.saveIndentation()
-            }
-            if(isLineStart)
-                suggestRootNode(
-                    reader,
-                    StringRange(Int.MAX_VALUE, reader.cursor),
-                    source,
-                    result
-                )
-        } while(reader.endStatementAndAnalyze(result) && reader.canRead() && reader.currentLanguage == this)
-        return reader.canRead() && reader.currentLanguage == this
+            val whitespaceEnd = reader.cursor
+            // Reset cursor such that endStatementAndAnalyze can add correct completions and doesn't cut away the whitespace
+            reader.cursor = 0
+            reader.endStatementAndAnalyze(result, false)
+
+            val suggestEnd = min(whitespaceEnd, prevCommandIndent)
+            suggestRootNode(
+                reader,
+                StringRange(Int.MAX_VALUE, suggestEnd),
+                source,
+                result
+            )
+            // Skip whitespace again if endStatement didn't read anything
+            reader.cursor = max(reader.cursor, whitespaceEnd)
+            if(!reader.canRead() || reader.currentLanguage != this)
+                return false
+            if(reader.peek() != '\n')
+                return true
+            reader.skip()
+        }
     }
 
     fun writeCommand(result: ParseResults<ServerCommandSource>, resource: RawResource, reader: DirectiveStringReader<RawZipResourceCreator>) {
@@ -446,6 +455,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: CommandSource, analyzingResult: AnalyzingResult) {
+        reader.directiveManager.suggestDirectives(StringRange(0, range.end), analyzingResult)
         val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root)
         addNodeSuggestions(
             parsedRootNode,
@@ -453,15 +463,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             range,
             reader.copy().apply {
                 // The string must be empty, so no matter where in the range completions are requested, the literals will be suggested
-                @Suppress("CAST_NEVER_SUCCEEDS")
-                (this as StringReaderAccessor).setString("")
+                string = ""
             },
             CommandContextBuilder(
                 reader.dispatcher,
                 commandSource,
                 parsedRootNode.node,
                 parsedRootNode.range.start
-            )
+            ),
+            completionsChannel = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL + "_root"
         )
     }
 
@@ -551,11 +561,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         parsedNodeRange: StringRange,
         completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
         contextBuilder: CommandContextBuilder<CommandSource>,
-        additionalCompletions: AnalyzingResult? = null
+        additionalCompletions: AnalyzingResult? = null,
+        completionsChannel: String = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
         analyzingResult.addCompletionProvider(
-            AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+            completionsChannel,
             AnalyzingResult.RangedDataProvider(
                 StringRange(
                     parentNode.range.end + 1,
@@ -1180,7 +1191,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.skip()
                 newLineIndentation = reader.readIndentation()
             }
-            if(newLineIndentation > reader.currentIndentation) {
+            if(reader.canRead() && newLineIndentation > reader.currentIndentation) {
                 return true
             }
             reader.cursor = cursor
@@ -1205,16 +1216,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     class NestedVanillaClosure(override val startLanguage: Language) : Language.LanguageClosure {
-        override fun endsClosure(reader: DirectiveStringReader<*>): Boolean {
+        override fun endsClosure(reader: DirectiveStringReader<*>, skipNewLine: Boolean): Boolean {
             val startCursor = reader.cursor
-            reader.skipWhitespace()
+            reader.skipWhitespace(skipNewLine)
             val result = reader.canRead() && reader.peek() == '}'
             reader.cursor = startCursor
             return result
         }
 
-        override fun skipClosureEnd(reader: DirectiveStringReader<*>) {
-            reader.skipWhitespace()
+        override fun skipClosureEnd(reader: DirectiveStringReader<*>, skipNewLine: Boolean) {
+            reader.skipWhitespace(skipNewLine)
             reader.skip()
         }
     }

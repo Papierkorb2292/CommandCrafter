@@ -23,6 +23,6 @@ public class CommandNodeMixin {
     private char command_crafter$endLiteralWithNewLineOrClosure(char original, StringReader input) {
         return
                 (VanillaLanguage.Companion.isReaderEasyNextLine(input) && original == '\n') ||
-                (VanillaLanguage.Companion.isReaderInlineResources(input) && ((DirectiveStringReader<?>)input).getScopeStack().element().getClosure().endsClosure((DirectiveStringReader<?>)input)) ? ' ' : original;
+                ((DirectiveStringReader<?>)input).getScopeStack().element().getClosure().endsClosure((DirectiveStringReader<?>)input, true) ? ' ' : original;
     }
 }

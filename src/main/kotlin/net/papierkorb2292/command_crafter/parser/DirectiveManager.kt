@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.registry.RegistryKey
@@ -7,8 +8,10 @@ import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.Range
+import net.papierkorb2292.command_crafter.helper.toShortString
+import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.jsonrpc.messages.Either
+import java.util.concurrent.CompletableFuture
 
 class DirectiveManager {
     companion object {
@@ -83,6 +86,32 @@ class DirectiveManager {
         analyzingResult.semanticTokens.add(directiveStartPos.line, directiveStartPos.character, directiveEndCursor - directiveStartCursor, TokenType.STRUCT, 0)
         directiveType.readAndAnalyze(reader, analyzingResult)
         endDirective()
+    }
+
+    /**
+     * Suggests to insert directives at the given range. The completions only insert the directive at the cursor position
+     * and don't replace any text.
+     */
+    fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult) {
+        analyzingResult.addCompletionProvider(
+            AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
+            AnalyzingResult.RangedDataProvider(range) { cursor ->
+                val position = AnalyzingResult.getPositionFromCursor(
+                    analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor),
+                    analyzingResult.mappingInfo
+                )
+                val completions = DIRECTIVES.ids.map {
+                    val directiveText = "@" + it.toShortString()
+                    CompletionItem().apply {
+                        label = directiveText
+                        kind = CompletionItemKind.Keyword
+                        textEdit = Either.forLeft(TextEdit(Range(position, position), directiveText))
+                    }
+                }
+                CompletableFuture.completedFuture(completions)
+            },
+            true
+        )
     }
 
     interface DirectiveType {

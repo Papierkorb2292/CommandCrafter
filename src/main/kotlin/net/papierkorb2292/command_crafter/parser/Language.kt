@@ -29,15 +29,15 @@ interface Language {
 
     interface LanguageClosure {
         val startLanguage: Language
-        fun endsClosure(reader: DirectiveStringReader<*>): Boolean
-        fun skipClosureEnd(reader: DirectiveStringReader<*>)
+        fun endsClosure(reader: DirectiveStringReader<*>, skipNewLine: Boolean = true): Boolean
+        fun skipClosureEnd(reader: DirectiveStringReader<*>, skipNewLine: Boolean = true)
     }
 
     class TopLevelClosure(override val startLanguage: Language) : LanguageClosure {
-        override fun endsClosure(reader: DirectiveStringReader<*>): Boolean {
+        override fun endsClosure(reader: DirectiveStringReader<*>, skipNewLine: Boolean): Boolean {
             return !reader.canRead()
         }
 
-        override fun skipClosureEnd(reader: DirectiveStringReader<*>) { }
+        override fun skipClosureEnd(reader: DirectiveStringReader<*>, skipNewLine: Boolean) { }
     }
 }

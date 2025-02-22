@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.helper
 
 import com.google.gson.reflect.TypeToken
+import net.minecraft.util.Identifier
 import java.lang.reflect.Type
 import java.util.concurrent.Semaphore
 
@@ -98,3 +99,8 @@ fun <T> Collection<T>?.concatNullable(other: Collection<T>?): Collection<T>? = w
     other == null -> this
     else -> this + other
 }
+
+/**
+ * Converts the Identifier to a string while omitting the namespace if it is the default "minecraft".
+ */
+fun Identifier.toShortString(): String = if(namespace == "minecraft") path else toString()

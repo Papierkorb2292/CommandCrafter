@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.parser
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.command.CommandSource
 import net.papierkorb2292.command_crafter.editor.OpenFile
@@ -25,7 +26,7 @@ class DirectiveStringReader<out ResourceCreator>(
     var skippedChars by fileMappingInfo::skippedChars
     val readSkippingChars by fileMappingInfo::readSkippingChars
 
-    private val directiveManager = DirectiveManager()
+    val directiveManager = DirectiveManager()
 
     private var nextLine: Int = 0
     val remainingLengthWithoutNewline get() = remainingLength - if(string.endsWith('\n')) 1 else 0
@@ -155,9 +156,9 @@ class DirectiveStringReader<out ResourceCreator>(
         cursor = 0
     }
 
-    fun endStatement(): Boolean {
+    fun endStatement(skipNewLine: Boolean = true): Boolean {
         cutReadChars()
-        val foundDirective = trySkipWhitespace {
+        val foundDirective = trySkipWhitespace(skipNewLine) {
             if(canRead() && peek() == '@') {
                 skip()
                 directiveManager.readDirective(this)
@@ -166,24 +167,21 @@ class DirectiveStringReader<out ResourceCreator>(
         }
         if(foundDirective)
             return true
-        checkEndLanguage()
+        checkEndLanguage(skipNewLine)
         return false
     }
 
-    fun checkEndLanguage() {
+    fun checkEndLanguage(skipNewLine: Boolean = true) {
         val currentClosure = scopeStack.element().closure
-        if(!currentClosure.endsClosure(this)) return
-        currentClosure.skipClosureEnd(this)
+        if(!currentClosure.endsClosure(this, skipNewLine)) return
+        currentClosure.skipClosureEnd(this, skipNewLine)
         scopeStack.poll()
         currentLanguage = null
     }
 
-    fun endStatementAndAnalyze(analyzingResult: AnalyzingResult): Boolean {
-        extendToLengthFromCursor(0)
-        setString(string.substring(min(cursor, string.length)))
-        readCharacters += cursor
-        cursor = 0
-        val foundDirective = trySkipWhitespace {
+    fun endStatementAndAnalyze(analyzingResult: AnalyzingResult, skipNewLine: Boolean = true): Boolean {
+        cutReadChars()
+        val foundDirective = trySkipWhitespace(skipNewLine) {
             if(canRead() && peek() == '@') {
                 skip()
                 directiveManager.readDirectiveAndAnalyze(this, analyzingResult)
@@ -192,13 +190,7 @@ class DirectiveStringReader<out ResourceCreator>(
         }
         if(foundDirective)
             return true
-        scopeStack.element().closure.let {
-            if(it.endsClosure(this)) {
-                it.skipClosureEnd(this)
-                scopeStack.poll()
-                currentLanguage = null
-            }
-        }
+        checkEndLanguage(skipNewLine)
         return false
     }
 
@@ -423,9 +415,9 @@ class DirectiveStringReader<out ResourceCreator>(
         }
     }
 
-    private fun setString(string: String) {
+    fun setString(string: String) {
         @Suppress("KotlinConstantConditions")
-        (this as StringReaderAccessor).setString(string)
+        (this as StringReaderAccessor)._setString(string)
     }
 
     class Scope(val closure: Language.LanguageClosure, val startLine: Int, var language: Language)

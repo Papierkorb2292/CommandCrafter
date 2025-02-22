@@ -24,7 +24,7 @@ public class LiteralCommandNodeMixin {
         if(!(reader instanceof DirectiveStringReader<?> directiveStringReader)) {
             return c;
         }
-        if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader)) {
+        if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader, true)) {
             return ' ';
         }
         if(!VanillaLanguage.Companion.isReaderEasyNextLine(reader)) {

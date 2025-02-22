@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(StringReader.class)
 public interface StringReaderAccessor {
 
-    @Mutable @Accessor(remap = false)
-    void setString(String string);
+    // Named with _ to not cause recursion when called from DirectStringReader.setString
+    @Mutable @Accessor(value = "string", remap = false)
+    void _setString(String string);
 }
