@@ -19,7 +19,8 @@
     "Other"
   ],
   "activationEvents": [
-    "workspaceContains:**/pack.mcmeta"
+    "workspaceContains:**/pack.mcmeta",
+    "onFileSystem:scoreboardStorage"
   ],
   "main": "./dist/extension.js",
   "contributes": {
