@@ -83,9 +83,10 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
 
     }
 
-    onLanguageClientStart(languageClient: LanguageClient): void { }
-    onLanguageClientReady(languageClient: LanguageClient): void {
+    onLanguageClientStart(languageClient: LanguageClient): void {
         this.languageClient = languageClient
+    }
+    onLanguageClientReady(languageClient: LanguageClient): void {
         this.documentProvider.onChangeLanguageClient(languageClient)
         this.viewProvider = new ScoreboardStorageTreeDataProvider(this)
         const viewDisposable = vscode.window.registerTreeDataProvider(
