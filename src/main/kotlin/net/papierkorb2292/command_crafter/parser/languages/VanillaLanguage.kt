@@ -474,7 +474,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 parsedRootNode.node,
                 parsedRootNode.range.start
             ),
-            completionsChannel = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL + "_root"
+            completionsChannel = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL
         )
     }
 
@@ -502,6 +502,30 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         )
     }
 
+    // Add root suggestions at the start of new lines for easyNewLine commands,
+    // since at the start of the line there wouldn't be enough indentation to continue the previous command, so a new command can start there
+    private fun addRootSuggestionsForImprovedCommandGap(
+        gapRange: StringRange,
+        analyzingResult: AnalyzingResult,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        commandSource: CommandSource
+    ) {
+        if(!isReaderEasyNextLine(reader))
+            // There can't be any improved command gaps
+            return
+        val gapReader = reader.copy()
+        gapReader.cursor = gapRange.start
+        gapReader.readLine()
+        while(gapReader.cursor < gapRange.end) {
+            val lineStart = gapReader.cursor
+            gapReader.readLine()
+            val lineEnd = gapReader.cursor
+            val indentEnd = min(lineEnd, lineStart + gapReader.currentIndentation)
+            val suggestionEnd = min(indentEnd, gapRange.end - 1)
+            suggestRootNode(gapReader, StringRange(lineStart, suggestionEnd), commandSource, analyzingResult)
+        }
+    }
+
     private fun analyzeCommandNode(
         parsedNode: ParsedCommandNode<CommandSource>,
         parentNode: ParsedCommandNode<CommandSource>,
@@ -514,6 +538,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val commandInput = reader.string
         val context = contextBuilder.build(commandInput)
         val node = parsedNode.node
+        val rootSuggestionsResult = analyzingResult.copyInput()
+        addRootSuggestionsForImprovedCommandGap(
+            StringRange(max(parentNode.range.end, 0), parsedNode.range.start),
+            rootSuggestionsResult,
+            reader,
+            context.source
+        )
         if (node is AnalyzingCommandNode) {
             reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
             reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
@@ -546,7 +577,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         parsedNode.range,
                         completionReader,
                         contextBuilder,
-                        nodeAnalyzingResult
+                        nodeAnalyzingResult,
+                        rootSuggestionsResult
                     )
                 } else {
                     analyzingResult.combineWith(nodeAnalyzingResult)
@@ -555,6 +587,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.readCharacters = initialReadCharacters
                 reader.skippedChars = initialSkippedChars
             }
+        } else {
+            analyzingResult.combineWithCompletionProviders(rootSuggestionsResult)
         }
     }
 
@@ -565,6 +599,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
         contextBuilder: CommandContextBuilder<CommandSource>,
         additionalCompletions: AnalyzingResult? = null,
+        rootCompletions: AnalyzingResult? = null,
         completionsChannel: String = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
@@ -576,6 +611,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     parsedNodeRange.end
                 )
             ) { cursor ->
+                val sourceCursor = analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor)
+                val rootCompletionProvider = rootCompletions?.getCompletionProviderForCursor(sourceCursor)
+                if(rootCompletionProvider != null)
+                    return@RangedDataProvider rootCompletionProvider.dataProvider(sourceCursor)
+
                 val endCursor = cursor - completionReader.readSkippingChars
                 val truncatedInput = completionReader.string
                     .substring(0, min(endCursor, completionReader.string.length))
@@ -618,7 +658,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 if(additionalCompletions == null)
                     return@RangedDataProvider commandCompletionsFuture
-                val sourceCursor = analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor)
                 val additionalCompletionsProvider = additionalCompletions.getCompletionProviderForCursor(sourceCursor)
                     ?: return@RangedDataProvider commandCompletionsFuture
                 commandCompletionsFuture.thenCombine(
