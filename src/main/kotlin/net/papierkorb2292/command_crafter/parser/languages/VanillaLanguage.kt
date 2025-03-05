@@ -201,13 +201,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.skip()
                 }
             } catch(e: Exception) {
-                if (e is CursorAwareException && e.`command_crafter$getCursor`() != -1) {
+                val exceptionCursor = if (e is CursorAwareException && e.`command_crafter$getCursor`() != -1) {
                     val cursor = e.`command_crafter$getCursor`()
-                    reader.cursor  = cursor
+                    reader.cursor = max(reader.cursor, cursor)
+                    cursor
+                } else {
+                    reader.cursor
                 }
                 reader.onlyReadEscapedMultiline = false
                 val startPosition =
-                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.skippingCursor), reader.lines)
+                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.readSkippingChars + exceptionCursor), reader.lines)
                 result.diagnostics += Diagnostic(
                     Range(
                         startPosition,
@@ -389,7 +392,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Reset cursor such that endStatementAndAnalyze can add correct completions and doesn't cut away the whitespace
             reader.cursor = 0
             val suggestEnd = if(readDirective || ignorePrevIndent) whitespaceEnd else min(whitespaceEnd, prevCommandIndent)
-            readDirective = reader.endStatementAndAnalyze(result, false) || readDirective
+            val readNewDirective = reader.endStatementAndAnalyze(result, false)
+            readDirective = readNewDirective || readDirective
             suggestRootNode(
                 reader,
                 StringRange(0, suggestEnd),
@@ -400,6 +404,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.cursor = max(reader.cursor, whitespaceEnd)
             if(!reader.canRead() || reader.currentLanguage != this)
                 return false
+            if(readNewDirective)
+                // '\n' is already skipped
+                continue
             if(reader.peek() != '\n')
                 return true
             reader.skip()
@@ -671,10 +678,21 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
-        if(reader.canRead() && reader.peek() == ' ')
+        if(isReaderEasyNextLine(reader)) {
+            // Don't skip more if a whitespace was already skipped, because the command parser won't skip both
+            if(reader.canRead(0) && reader.peek(-1) != ' ') {
+                while(reader.canRead() && reader.peek() == '\n') {
+                    val cursor = reader.cursor
+                    reader.skip()
+                    val newLineIndentation = reader.readIndentation()
+                    if(newLineIndentation <= reader.currentIndentation) {
+                        reader.cursor = cursor
+                        break
+                    }
+                }
+            }
+        } else if(reader.canRead() && reader.peek() == ' ')
             reader.skip()
-        else if(isReaderEasyNextLine(reader))
-            skipImprovedCommandGap(reader)
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
         var furthestParsedContext: CommandContextBuilder<CommandSource>? = null
