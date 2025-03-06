@@ -523,12 +523,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val gapReader = reader.copy()
         gapReader.cursor = gapRange.start
         gapReader.readLine()
-        while(gapReader.cursor < gapRange.end) {
+        while(gapReader.cursor <= gapRange.end) {
             val lineStart = gapReader.cursor
             gapReader.readLine()
             val lineEnd = gapReader.cursor
             val indentEnd = min(lineEnd, lineStart + gapReader.currentIndentation)
-            val suggestionEnd = min(indentEnd, gapRange.end - 1)
+            // Suggestions end when the node starts (gapRange) or could start (indentEnd), but if the line is empty gapRange.end would be at the start of the line,
+            // which would put gapRange.end - 1 before the start of the line, so max is used to prevent that
+            val suggestionEnd = max(lineStart, min(indentEnd, gapRange.end - 1))
             suggestRootNode(gapReader, StringRange(lineStart, suggestionEnd), commandSource, analyzingResult)
         }
     }
@@ -681,14 +683,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         if(isReaderEasyNextLine(reader)) {
             // Don't skip more if a whitespace was already skipped, because the command parser won't skip both
             if(reader.canRead(0) && reader.peek(-1) != ' ') {
-                while(reader.canRead() && reader.peek() == '\n') {
-                    val cursor = reader.cursor
-                    reader.skip()
-                    val newLineIndentation = reader.readIndentation()
-                    if(newLineIndentation <= reader.currentIndentation) {
-                        reader.cursor = cursor
+                var lastLineEnd = reader.cursor
+                while(reader.canRead()) {
+                    if(reader.peek() != '\n') {
+                        reader.cursor = lastLineEnd
                         break
                     }
+                    lastLineEnd = reader.cursor
+                    reader.skip()
+                    reader.skipSpaces()
                 }
             }
         } else if(reader.canRead() && reader.peek() == ' ')
