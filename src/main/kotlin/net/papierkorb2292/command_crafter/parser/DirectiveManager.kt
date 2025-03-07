@@ -5,13 +5,15 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.registry.RegistryKey
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.CombinedCompletionItemProvider
+import net.papierkorb2292.command_crafter.editor.processing.SimpleCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.helper.toShortString
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.jsonrpc.messages.Either
-import java.util.concurrent.CompletableFuture
 
 class DirectiveManager {
     companion object {
@@ -48,8 +50,8 @@ class DirectiveManager {
             reader.skip()
         }
 
-        val directiveStartCursor = reader.absoluteCursor - 1 // Subtract 1 to include '@'
-        val directiveStartPos = AnalyzingResult.getPositionFromCursor(directiveStartCursor, reader.lines)
+        val directiveStartCursor = reader.cursor - 1 // Subtract 1 to include '@'
+        val directiveStartPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - 1, reader.lines)
         val id = try {
             Identifier.fromCommandInput(reader)
         } catch(e: CommandSyntaxException) {
@@ -63,8 +65,17 @@ class DirectiveManager {
             endDirective()
             return
         }
-        val directiveEndCursor = reader.absoluteCursor
-        val directiveEndPos = AnalyzingResult.getPositionFromCursor(directiveEndCursor, reader.lines)
+        val directiveEndCursor = reader.cursor
+        val directiveEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+        analyzingResult.semanticTokens.add(directiveStartPos.line, directiveStartPos.character, directiveEndCursor - directiveStartCursor, TokenType.STRUCT, 0)
+
+        if(reader.resourceCreator is AnalyzingResourceCreator)
+            @Suppress("UNCHECKED_CAST")
+            suggestDirectives(StringRange(directiveStartCursor, directiveEndCursor), analyzingResult,
+                reader as DirectiveStringReader<AnalyzingResourceCreator>, true)
+        else
+            CommandCrafter.LOGGER.warn("Resource creator is not an AnalyzingResourceCreator in DirectiveManager.readDirectiveAndAnalyze. Skipping suggestions.")
+
         if(!reader.canRead() || reader.peek() != ' ') {
             analyzingResult.diagnostics += Diagnostic(
                 Range(directiveEndPos, directiveEndPos.advance()),
@@ -83,7 +94,6 @@ class DirectiveManager {
             endDirective()
             return
         }
-        analyzingResult.semanticTokens.add(directiveStartPos.line, directiveStartPos.character, directiveEndCursor - directiveStartCursor, TokenType.STRUCT, 0)
         directiveType.readAndAnalyze(reader, analyzingResult)
         endDirective()
     }
@@ -92,24 +102,20 @@ class DirectiveManager {
      * Suggests to insert directives at the given range. The completions only insert the directive at the cursor position
      * and don't replace any text.
      */
-    fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult) {
+    fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>, replaceRange: Boolean = false) {
         analyzingResult.addCompletionProvider(
             AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
-            AnalyzingResult.RangedDataProvider(range) { cursor ->
-                val position = AnalyzingResult.getPositionFromCursor(
-                    analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor),
-                    analyzingResult.mappingInfo
-                )
-                val completions = DIRECTIVES.ids.map {
-                    val directiveText = "@" + it.toShortString()
-                    CompletionItem().apply {
-                        label = directiveText
-                        kind = CompletionItemKind.Keyword
-                        textEdit = Either.forLeft(TextEdit(Range(position, position), directiveText))
-                    }
+            AnalyzingResult.RangedDataProvider(range, CombinedCompletionItemProvider(
+                DIRECTIVES.ids.map {
+                    SimpleCompletionItemProvider(
+                        "@" + it.toShortString(),
+                        range.start,
+                        { if(replaceRange) range.end else null },
+                        analyzingResult.mappingInfo.copy(),
+                        reader.resourceCreator.languageServer ?: return
+                    )
                 }
-                CompletableFuture.completedFuture(completions)
-            },
+            )),
             true
         )
     }

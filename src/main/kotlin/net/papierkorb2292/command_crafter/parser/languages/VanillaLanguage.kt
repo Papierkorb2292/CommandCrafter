@@ -392,14 +392,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Reset cursor such that endStatementAndAnalyze can add correct completions and doesn't cut away the whitespace
             reader.cursor = 0
             val suggestEnd = if(readDirective || ignorePrevIndent) whitespaceEnd else min(whitespaceEnd, prevCommandIndent)
-            val readNewDirective = reader.endStatementAndAnalyze(result, false)
-            readDirective = readNewDirective || readDirective
             suggestRootNode(
                 reader,
                 StringRange(0, suggestEnd),
                 source,
                 result
             )
+            val readNewDirective = reader.endStatementAndAnalyze(result, false)
+            readDirective = readNewDirective || readDirective
             // Skip whitespace again if endStatement didn't read anything
             reader.cursor = max(reader.cursor, whitespaceEnd)
             if(!reader.canRead() || reader.currentLanguage != this)
@@ -464,7 +464,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: CommandSource, analyzingResult: AnalyzingResult) {
-        reader.directiveManager.suggestDirectives(range, analyzingResult)
+        reader.directiveManager.suggestDirectives(range, analyzingResult, reader)
         val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root, range.start)
         addNodeSuggestions(
             parsedRootNode,
