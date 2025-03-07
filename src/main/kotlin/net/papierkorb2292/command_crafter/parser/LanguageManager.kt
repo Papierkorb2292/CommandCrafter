@@ -24,12 +24,11 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.helper.toShortString
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -345,7 +344,7 @@ object LanguageManager {
             }
 
             override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
-                val startCursor = reader.absoluteCursor
+                val startCursor = reader.cursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                 val language = try {
                     Identifier.fromCommandInput(reader)
@@ -359,8 +358,31 @@ object LanguageManager {
                     )
                     return
                 }
-                val languageIdEndCursor = reader.absoluteCursor
-                val languageIdEndPos = AnalyzingResult.getPositionFromCursor(languageIdEndCursor, reader.lines)
+                val languageIdEndCursor = reader.cursor
+
+                val languageServer = (reader.resourceCreator as? AnalyzingResourceCreator)?.languageServer
+                // Warning is already logged by DirectiveManager
+                if(languageServer != null) {
+                    analyzingResult.addCompletionProvider(
+                        AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
+                        AnalyzingResult.RangedDataProvider(
+                            StringRange(startCursor, languageIdEndCursor),
+                            CombinedCompletionItemProvider(
+                                LANGUAGES.ids.map {
+                                    SimpleCompletionItemProvider(
+                                        it.toShortString(),
+                                        startCursor,
+                                        { languageIdEndCursor },
+                                        analyzingResult.mappingInfo.copy(),
+                                        languageServer
+                                    )
+                                }
+                            )),
+                        true
+                    )
+                }
+
+                val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                 val languageType = LANGUAGES.get(language)
                 if(languageType == null) {
                     analyzingResult.diagnostics += Diagnostic(
