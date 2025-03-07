@@ -1,22 +1,27 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
+import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 
 class SimpleCompletionItemProvider(
     private val text: String,
     private val insertStart: Int,
-    private val replaceEndProvider: () -> Int,
+    private val replaceEndProvider: () -> Int?,
     private val mappingInfo: FileMappingInfo,
     private val languageServer: MinecraftLanguageServer,
     private val label: String = text,
     private val kind: CompletionItemKind? = null,
-) : (Int) -> CompletionItem {
-    override fun invoke(offset: Int): CompletionItem {
+) : AnalyzingCompletionProvider {
+    override fun invoke(offset: Int): CompletableFuture<List<CompletionItem>>
+        = CompletableFuture.completedFuture(listOf(createCompletionItem(offset)))
+
+    private fun createCompletionItem(offset: Int): CompletionItem {
         // Adjusting the insert start if the cursor is before the insert start
         val adjustedInsertStart = min(insertStart + mappingInfo.readSkippingChars, offset)
         val insertStartPos = AnalyzingResult.getPositionFromCursor(
@@ -32,16 +37,21 @@ class SimpleCompletionItemProvider(
         } else {
             insertStartPos
         }
-        if(!languageServer.clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) {
-            return CompletionItem().also {
+
+        fun getInsertCompletionItem()
+            = CompletionItem().also {
                 it.label = label
                 it.kind = kind
                 it.sortText = " $label" // Add whitespace so it appears above VSCodes suggestions
                 it.textEdit = Either.forLeft(TextEdit(Range(clampedInsertStartPos, insertEndPos), text))
             }
-        }
+
+        if(!languageServer.clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport)
+            return getInsertCompletionItem()
+        val replaceEnd = replaceEndProvider() ?: return getInsertCompletionItem()
+
         val replaceEndPos = AnalyzingResult.getPositionFromCursor(
-            mappingInfo.cursorMapper.mapToSource(replaceEndProvider() + mappingInfo.readSkippingChars),
+            mappingInfo.cursorMapper.mapToSource(replaceEnd + mappingInfo.readSkippingChars),
             mappingInfo
         )
         val clampedReplaceEndPos = if(replaceEndPos.line > insertEndPos.line) {

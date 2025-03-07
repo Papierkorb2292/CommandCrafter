@@ -24,7 +24,6 @@ import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.*
 import java.nio.ByteBuffer
 import java.util.*
-import java.util.concurrent.CompletableFuture
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.stream.Collectors
@@ -218,9 +217,14 @@ class StringRangeTree<TNode: Any>(
             while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= newEndCursor) {
                 if(suggestionStart <= nextSuggestionInsertRange.start) {
                     val preInsertEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
-                    result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, preInsertEndCursor)) { offset ->
-                        CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
-                    }, true)
+                    result.addCompletionProvider(
+                        AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                        AnalyzingResult.RangedDataProvider(
+                            StringRange(suggestionStart, preInsertEndCursor),
+                            CombinedCompletionItemProvider(suggestions.map { it.completionItemProvider })
+                        ),
+                        true
+                    )
                 }
                 result.combineWithCompletionProviders(nextSuggestionInsert)
                 suggestionStart = nextSuggestionInsertRange.end
@@ -233,10 +237,14 @@ class StringRangeTree<TNode: Any>(
                     nextSuggestionInsert = null
                 }
             }
-
-            result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, AnalyzingResult.RangedDataProvider(StringRange(suggestionStart, newEndCursor)) { offset ->
-                CompletableFuture.completedFuture(suggestions.map { it.completionItemProvider(offset) })
-            }, true)
+            result.addCompletionProvider(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                AnalyzingResult.RangedDataProvider(
+                    StringRange(suggestionStart, newEndCursor),
+                    CombinedCompletionItemProvider(suggestions.map { it.completionItemProvider })
+                ),
+                true
+            )
         }
 
         while(nextSuggestionInsert != null) {
@@ -719,7 +727,7 @@ class StringRangeTree<TNode: Any>(
     }
 
     data class Suggestion<TNode>(val element: TNode)
-    class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: (Int) -> CompletionItem)
+    class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: AnalyzingCompletionProvider)
     data class TokenInfo(val type: TokenType, val modifiers: Int)
     data class AdditionalToken(val range: StringRange, val tokenInfo: TokenInfo)
 

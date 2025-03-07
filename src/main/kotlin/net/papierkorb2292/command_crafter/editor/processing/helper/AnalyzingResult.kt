@@ -270,7 +270,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
     }
 
-    class RangedDataProvider<out TData>(val cursorRange: StringRange, val dataProvider: (Int) -> TData) {
+    class RangedDataProvider<out TData>(val cursorRange: StringRange, val dataProvider: AnalyzingDataProvider<TData>) {
         init {
             if(cursorRange.start > cursorRange.end) {
                 throw IllegalArgumentException("Start cursor must not be greater than end cursor")
@@ -278,3 +278,8 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
     }
 }
+
+typealias AnalyzingDataProvider<TData> = (Int) -> TData
+typealias AnalyzingCompletionProvider = AnalyzingDataProvider<CompletableFuture<List<CompletionItem>>>
+typealias AnalyzingHoverProvider = AnalyzingDataProvider<CompletableFuture<Hover>>
+typealias AnalyzingDefinitionProvider = AnalyzingDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>
