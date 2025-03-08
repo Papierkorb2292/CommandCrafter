@@ -407,7 +407,9 @@ object LanguageManager {
                     forNbt(
                         treeBuilder.build(nbt),
                         allowMalformedReader
-                    ).analyzeFull(analyzingResult, languageServer, true, languageType.argumentDecoder)
+                    )
+                        .copy(suggestionResolver = NbtSuggestionResolver(allowMalformedReader::copy, false))
+                        .analyzeFull(analyzingResult, languageServer, true, languageType.argumentDecoder)
                 }
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()

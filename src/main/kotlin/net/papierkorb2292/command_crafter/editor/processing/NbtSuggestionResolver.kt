@@ -14,11 +14,11 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItemKind
 import java.util.regex.Pattern
 
-class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader) : StringRangeTree.SuggestionResolver<NbtElement> {
+class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader, private val quoteRootString: Boolean = true) : StringRangeTree.SuggestionResolver<NbtElement> {
     private val SIMPLE_NAME = Pattern.compile("[A-Za-z0-9._+-]+")
 
-    constructor(directiveReader: DirectiveStringReader<*>): this(directiveReader::copy)
-    constructor(inputString: String): this({ StringReader(inputString) })
+    constructor(directiveReader: DirectiveStringReader<*>, quoteRootString: Boolean = true): this(directiveReader::copy, quoteRootString)
+    constructor(inputString: String, quoteRootString: Boolean = true): this({ StringReader(inputString) }, quoteRootString)
 
     private val valueEndParser = { suggestionRange: StringRange ->
         val reader = stringReaderProvider()
@@ -54,7 +54,12 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper
     ): StringRangeTree.ResolvedSuggestion {
-        val elementString = stringEscaper.escape(suggestion.element.toString())
+        val baseString =
+            if(node != tree.root || quoteRootString || suggestion.element !is NbtString)
+                suggestion.element.toString()
+            else
+                suggestion.element.asString()
+        val elementString = stringEscaper.escape(baseString)
         val valueEnd = valueEndParser(suggestionRange)
         return StringRangeTree.ResolvedSuggestion(
             valueEnd,
