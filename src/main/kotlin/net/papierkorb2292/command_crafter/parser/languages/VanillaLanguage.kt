@@ -12,6 +12,9 @@ import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.datafixers.util.Either
+import com.mojang.serialization.Codec
+import com.mojang.serialization.DataResult
+import com.mojang.serialization.Decoder
 import net.minecraft.command.CommandSource
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
@@ -32,6 +35,7 @@ import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.server.function.Macro
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
+import net.minecraft.util.StringIdentifiable
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
@@ -740,89 +744,20 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     object VanillaLanguageType : LanguageManager.LanguageType {
-        private const val ALL_FEATURES_OPTION = "improved"
-        private const val EASY_NEW_LINE_OPTION = "easyNewLine"
-        private const val INLINE_RESOURCES_OPTION = "inlineResources"
+        enum class VanillaLanguageOptions(val optionName: String) : StringIdentifiable {
+            ALL_FEATURES("improved"),
+            EASY_NEW_LINE("easyNewLine"),
+            INLINE_RESOURCES("inlineResources");
 
-        override fun createFromArguments(args: Map<String, String?>, currentLine: Int): Language {
-            if(args.containsKey(ALL_FEATURES_OPTION)) {
-                args.keys.filter { it != ALL_FEATURES_OPTION }.forEach {
-                    throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $it for '${ID}' on line $currentLine")
-                }
-                val allFeaturesParsed = when(val allFeaturesArg = args[ALL_FEATURES_OPTION]) {
-                    "false" -> false
-                    null, "true" -> true
-                    else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$allFeaturesArg' for parameter '$ALL_FEATURES_OPTION' of '$ID' on line $currentLine. Must be either 'true', 'false' or removed (defaults to 'true')")
-                }
-                return VanillaLanguage(easyNewLine = allFeaturesParsed, inlineResources = allFeaturesParsed)
-            }
-            val easyNewLineArg = if(args.containsKey(EASY_NEW_LINE_OPTION)) args[EASY_NEW_LINE_OPTION] ?: "true" else null
-            val inlineResourcesArg = if(args.containsKey(INLINE_RESOURCES_OPTION)) args[INLINE_RESOURCES_OPTION] ?: "true" else null
-
-            args.keys.filter { it != EASY_NEW_LINE_OPTION && it != INLINE_RESOURCES_OPTION }.forEach {
-                throw IllegalArgumentException("Error parsing language arguments: Unknown parameter $it for '${ID}' on line $currentLine")
-            }
-
-            return VanillaLanguage(
-                easyNewLine = when(easyNewLineArg) {
-                    null, "false" -> false
-                    "true" -> true
-                    else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$easyNewLineArg' for parameter '$EASY_NEW_LINE_OPTION' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')")
-                },
-                inlineResources = when(inlineResourcesArg) {
-                    null, "false" -> false
-                    "true" -> true
-                    else -> throw IllegalArgumentException("Error parsing language arguments: Unknown argument '$inlineResourcesArg' for parameter '$INLINE_RESOURCES_OPTION' of '$ID' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')")
-                }
-            )
+            override fun asString() = optionName
         }
-
-        override fun createFromArgumentsAndAnalyze(
-            args: Map<String, LanguageManager.AnalyzingLanguageArgument>,
-            currentLine: Int,
-            analyzingResult: AnalyzingResult,
-            lines: List<String>,
-        ): Language? {
-            val allFeaturesArg = args[ALL_FEATURES_OPTION]
-            if(allFeaturesArg != null) {
-                args.entries.filter { it.key != ALL_FEATURES_OPTION }.forEach {
-                    analyzingResult.diagnostics += it.value.createDiagnostic("Error parsing language arguments: Unknown parameter ${it.key} for '${ID}' on line $currentLine", lines)
-                }
-                val allFeaturesParsed = when(allFeaturesArg.value) {
-                    "false" -> false
-                    null, "true" -> true
-                    else -> {
-                        analyzingResult.diagnostics += allFeaturesArg.createDiagnostic("Error parsing language arguments: Unknown argument '${allFeaturesArg.value}' for parameter '$ALL_FEATURES_OPTION' of '$ID' on line $currentLine. Must be either 'true', 'false' or removed (defaults to 'true')", lines)
-                        true
-                    }
-                }
-                return VanillaLanguage(easyNewLine = allFeaturesParsed, inlineResources = allFeaturesParsed)
+        
+        override val argumentDecoder: Decoder<Language> = StringIdentifiable.createCodec(VanillaLanguageOptions.entries::toTypedArray).map {
+            when(it!!) {
+                VanillaLanguageOptions.EASY_NEW_LINE -> VanillaLanguage(easyNewLine = true, inlineResources = false)
+                VanillaLanguageOptions.INLINE_RESOURCES -> VanillaLanguage(easyNewLine = false, inlineResources = true)
+                VanillaLanguageOptions.ALL_FEATURES -> VanillaLanguage(easyNewLine = true, inlineResources = true)
             }
-            val easyNewLineArg = args["easyNewLine"]
-            val inlineResourcesArg = args["inlineResources"]
-
-            args.entries.filter { it.key != EASY_NEW_LINE_OPTION && it.key != INLINE_RESOURCES_OPTION }.forEach {
-                analyzingResult.diagnostics += it.value.createDiagnostic("Error parsing language arguments: Unknown parameter ${it.key} for '${ID}' on line $currentLine", lines)
-            }
-
-            return VanillaLanguage(
-                easyNewLine = when(easyNewLineArg?.run { value ?: "true" }) {
-                    null, "false" -> false
-                    "true" -> true
-                    else -> {
-                        analyzingResult.diagnostics += easyNewLineArg.createDiagnostic("Error parsing language arguments: Unknown argument '${easyNewLineArg.value}' for parameter 'easyNewLine' of '${ID}' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')", lines)
-                        return null
-                    }
-                },
-                inlineResources = when(inlineResourcesArg?.run { value ?: "true" }) {
-                    null, "false" -> false
-                    "true" -> true
-                    else -> {
-                        analyzingResult.diagnostics += inlineResourcesArg.createDiagnostic("Error parsing language arguments: Unknown argument '${inlineResourcesArg.value}' for parameter 'inlineResources' of '${ID}' on line $currentLine. Must be either 'false', 'true' or removed (defaults to 'false')", lines)
-                        return null
-                    }
-                }
-            )
         }
     }
 

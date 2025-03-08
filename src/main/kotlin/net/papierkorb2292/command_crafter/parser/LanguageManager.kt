@@ -3,8 +3,13 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
+import com.mojang.serialization.Decoder
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.command.CommandSource
+import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.NbtEnd
+import net.minecraft.nbt.NbtOps
+import net.minecraft.nbt.StringNbtReader
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.server.MinecraftServer
@@ -25,9 +30,8 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.*
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
-import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.TreeOperations.Companion.forNbt
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.toShortString
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
@@ -38,6 +42,7 @@ import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.jvm.optionals.getOrNull
 
 object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(RegistryKey.ofRegistry(Identifier.of("command_crafter", "languages"))).buildAndRegister()!!
@@ -50,7 +55,7 @@ object LanguageManager {
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
             server: MinecraftServer,
             sourceFile: BreakpointManager.FileBreakpointSource,
-            debugConnection: EditorDebugConnection
+            debugConnection: EditorDebugConnection,
         ): List<Breakpoint> = emptyList()
 
         override fun createDebugPauseHandler(debugFrame: FunctionDebugFrame) =
@@ -298,49 +303,21 @@ object LanguageManager {
     init {
         Registry.register(DirectiveManager.DIRECTIVES, Identifier.of("language"), object : DirectiveManager.DirectiveType {
             override fun read(reader: DirectiveStringReader<*>) {
-                val start = reader.cursor
-                val language = reader.readUnquotedString()
-                reader.switchLanguage(
-                    requireNotNull(LANGUAGES.get(Identifier.of(language))) { "Error while parsing function: Encountered unknown language '$language' on line ${reader.currentLine}" }
-                        .run {
-                            reader.skipSpaces()
-                            if(!reader.canRead() || reader.peek() != '(') {
-                                return@run createFromArguments(emptyMap(), reader.currentLine)
-                            }
-                            reader.skip()
-                            val args: MutableMap<String, String?> = HashMap()
-                            while(reader.canRead()) {
-                                reader.skipSpaces()
-                                if(!reader.canRead()) {
-                                    break
-                                }
-                                if(reader.peek() == ')') {
-                                    reader.skip()
-                                    return@run createFromArguments(args, reader.currentLine)
-                                }
-                                val parameter = reader.readUnquotedString()
-                                require(parameter.isNotEmpty()) { "Error while parsing language: Expected parameter on line ${reader.currentLine}" }
-                                reader.skipSpaces()
-                                if(!reader.canRead()) {
-                                    throw IllegalArgumentException("Error while parsing language: Unexpected end of language parameters on line ${reader.currentLine}")
-                                }
-                                args[parameter] = if(reader.peek() == ',' || reader.peek() == ')') {
-                                    null
-                                } else {
-                                    reader.expect('=')
-                                    reader.skipSpaces()
+                val languageId = reader.readUnquotedString()
+                val languageType = requireNotNull(LANGUAGES.get(Identifier.of(languageId))) { "Error while parsing function: Encountered unknown language '$languageId' on line ${reader.currentLine}" }
+                reader.switchLanguage(readLanguageArgs(reader, languageType))
+            }
 
-                                    reader.readUnquotedString().apply {
-                                        require(isNotEmpty()) { "Error while parsing language: Expected argument for parameter $parameter on line ${reader.currentLine}" }
-                                    }
-                                }
-                                reader.skipSpaces()
-                                if(reader.peek() != ')')
-                                    reader.expect(',')
-                            }
-                            throw IllegalArgumentException("Error while parsing language: Found no closing parentheses for language parameters on line ${reader.currentLine}")
-                        }
-                )
+            private fun readLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType): Language {
+                reader.skipSpaces()
+                if(reader.canRead() && reader.peek() == '(') {
+                    throw IllegalArgumentException("Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine}.") //TODO: Refer to wiki for more info
+                }
+                if(!reader.canRead() || reader.peek() == '\n') {
+                    return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).orThrow
+                }
+                val args = StringNbtReader(reader).parseElement()
+                return languageType.argumentDecoder.parse(NbtOps.INSTANCE, args).orThrow
             }
 
             override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
@@ -361,7 +338,7 @@ object LanguageManager {
                 val languageIdEndCursor = reader.cursor
 
                 val languageServer = (reader.resourceCreator as? AnalyzingResourceCreator)?.languageServer
-                // Warning is already logged by DirectiveManager
+                // A warning for incorrect resource creators is already logged by DirectiveManager
                 if(languageServer != null) {
                     analyzingResult.addCompletionProvider(
                         AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
@@ -392,111 +369,75 @@ object LanguageManager {
                     return
                 }
                 analyzingResult.semanticTokens.add(startPos.line, startPos.character, languageIdEndCursor - startCursor, TokenType.DECORATOR, 0)
+                reader.switchLanguage(readAndAnalyzeLanguageArgs(reader, languageType, analyzingResult) ?: return)
+            }
 
+            private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
+                val allowedStart = reader.cursor
                 reader.skipSpaces()
-                if(!reader.canRead() || reader.peek() != '(') {
-                    val parsedLanguage = languageType.createFromArgumentsAndAnalyze(emptyMap(), reader.currentLine, analyzingResult, reader.lines)
-                    if(parsedLanguage != null)
-                        reader.switchLanguage(parsedLanguage)
-                    return
+                val rangeStart = reader.cursor
+                if(reader.canRead() && reader.peek() == '(') {
+                    val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    reader.cursor = reader.nextLineEnd
+                    val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    analyzingResult.diagnostics += Diagnostic(
+                        Range(startPos, endPos),
+                        "Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine}." //TODO: Refer to wiki for more info
+                    )
+                    return null
                 }
-                reader.skip()
-                val args: MutableMap<String, AnalyzingLanguageArgument> = HashMap()
-                while(reader.canRead() && reader.peek() != '\n') {
-                    reader.skipSpaces()
-                    if(!reader.canRead()) {
-                        break
-                    }
-                    if(reader.peek() == ')') {
-                        reader.skip()
-                        val parsedLanguage = languageType.createFromArgumentsAndAnalyze(args, reader.currentLine, analyzingResult, reader.lines)
-                        if(parsedLanguage != null)
-                            reader.switchLanguage(parsedLanguage)
-                        return
-                    }
-                    val parameterCursor = reader.absoluteCursor
-                    val parameterPos = AnalyzingResult.getPositionFromCursor(parameterCursor, reader.lines)
-                    val parameter = reader.readUnquotedString()
-                    if(parameter.isEmpty()) {
-                        analyzingResult.diagnostics += Diagnostic(
-                            Range(parameterPos, parameterPos.advance()),
-                            "Error while parsing language: Expected parameter on line ${reader.currentLine}"
-                        )
-                        break
-                    }
-                    analyzingResult.semanticTokens.add(parameterPos.line, parameterPos.character, parameter.length, TokenType.PARAMETER, 0)
+                // A warning for incorrect resource creators is already logged by DirectiveManager
+                val languageServer = (reader.resourceCreator as? AnalyzingResourceCreator)?.languageServer
 
-                    reader.skipSpaces()
-                    if(!reader.canRead()) {
-                        val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                        analyzingResult.diagnostics += Diagnostic(
-                            Range(pos, pos.advance()),
-                            "Error while parsing language: Unexpected end of language parameters on line ${reader.currentLine}"
-                        )
-                        break
-                    }
-                    args[parameter] = if(reader.peek() == ',' || reader.peek() == ')') {
-                        AnalyzingLanguageArgument(parameterCursor, null, reader.absoluteCursor)
-                    } else {
-                        if(!reader.canRead() || reader.peek() != '=') {
-                            val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                            analyzingResult.diagnostics += Diagnostic(
-                                Range(pos, pos.advance()),
-                                "Expected '='"
-                            )
-                            AnalyzingLanguageArgument(parameterCursor, null, reader.absoluteCursor)
-                        } else {
-                            reader.skip()
-                            reader.skipSpaces()
-                            val argCursor = reader.absoluteCursor
-                            val argPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                            val arg = reader.readUnquotedString()
-                            if (arg.isEmpty()) {
-                                analyzingResult.diagnostics += Diagnostic(
-                                    Range(argPos, argPos.advance()),
-                                    "Error while parsing language: Expected argument for parameter $parameter on line ${reader.currentLine}"
-                                )
-                                continue
-                            }
-                            analyzingResult.semanticTokens.add(
-                                argPos.line,
-                                argPos.character,
-                                arg.length,
-                                TokenType.PARAMETER,
-                                0
-                            )
-                            AnalyzingLanguageArgument(parameterCursor, arg, argCursor)
-                        }
-                    }
-                    reader.skipSpaces()
-                    if(reader.canRead() && reader.peek() != ')') {
-                        if(reader.peek() != ',') {
-                            val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                            analyzingResult.diagnostics += Diagnostic(
-                                Range(pos, pos.advance()),
-                                "Expected ','"
-                            )
-                            break
-                        }
-                        reader.skip()
-                    }
+                val allowMalformedReader = reader.copy()
+                val nbtReader = StringNbtReader(allowMalformedReader)
+                @Suppress("KotlinConstantConditions")
+                (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
+                val treeBuilder = StringRangeTree.Builder<NbtElement>()
+                @Suppress("UNCHECKED_CAST")
+                (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+                val nbt = try {
+                    nbtReader.parseElement()
+                } catch(e: CommandSyntaxException) {
+                    val empty = NbtOps.INSTANCE.empty()
+                    treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), allowedStart)
+                    empty
                 }
-                val pos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
-                analyzingResult.diagnostics += Diagnostic(
-                    Range(pos, pos.advance()),
-                    "Error while parsing language: Found no closing parentheses for language parameters on line ${reader.currentLine}"
-                )
-                val parsedLanguage = languageType.createFromArgumentsAndAnalyze(args, reader.currentLine, analyzingResult, reader.lines)
-                if(parsedLanguage != null) {
-                    reader.switchLanguage(parsedLanguage)
+                if(languageServer != null) {
+                    forNbt(
+                        treeBuilder.build(nbt),
+                        allowMalformedReader
+                    ).analyzeFull(analyzingResult, languageServer, true, languageType.argumentDecoder)
                 }
+                if(!reader.canRead() || reader.peek() == '\n') {
+                    return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
+                }
+                // Parse nbt with strict parser to mark syntax errors
+                try {
+                    StringNbtReader(reader).parseElement()
+                } catch(e: CommandSyntaxException) {
+                    val startPos = AnalyzingResult.getPositionFromCursor(e.cursor + reader.readCharacters, reader.lines)
+                    reader.cursor = reader.nextLineEnd
+                    val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    analyzingResult.diagnostics += Diagnostic(
+                        Range(startPos, endPos),
+                        e.message
+                    )
+                }
+
+                return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
             }
         })
     }
 
     interface LanguageType {
-        fun createFromArguments(args: Map<String, String?>, currentLine: Int): Language
-        fun createFromArgumentsAndAnalyze(args: Map<String, AnalyzingLanguageArgument>, currentLine: Int, analyzingResult: AnalyzingResult, lines: List<String>): Language?
+        /**
+         * Used to instantiate the language with the given @language arguments.
+         * If no arguments are present in the directive, DynamicOps.empty() will be used.
+         *
+         * For advanced analyzing, use AnalyzingDynamicOps.CURRENT_ANALYZING_OPS
+         */
+        val argumentDecoder: Decoder<Language>
     }
 
     data class AnalyzingLanguageArgument(val parameterCursor: Int, val value: String?, val valueCursor: Int) {
