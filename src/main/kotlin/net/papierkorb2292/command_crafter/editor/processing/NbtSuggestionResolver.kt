@@ -45,34 +45,40 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         reader.cursor
     }.memoizeLast()
 
-    override fun resolveSuggestion(
+    override fun resolveNodeSuggestion(
         suggestion: StringRangeTree.Suggestion<NbtElement>,
-        suggestionType: StringRangeTree.SuggestionType,
+        tree: StringRangeTree<NbtElement>,
+        node: NbtElement,
         languageServer: MinecraftLanguageServer,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper
     ): StringRangeTree.ResolvedSuggestion {
-        when(suggestionType) {
-            StringRangeTree.SuggestionType.NODE_START -> {
-                val elementString = stringEscaper.escape(suggestion.element.toString())
-                val valueEnd = valueEndParser(suggestionRange)
-                return StringRangeTree.ResolvedSuggestion(
-                    valueEnd,
-                    SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer, kind=CompletionItemKind.Value)
-                )
-            }
-            StringRangeTree.SuggestionType.MAP_KEY -> {
-                val key = suggestion.element.asString()
-                // Similar to StringNbtWriter.escapeName
-                val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
-                val keySuggestion = stringEscaper.escape("$escapedKey: ")
-                val keyEnd = keyEndParser(suggestionRange)
-                return StringRangeTree.ResolvedSuggestion(
-                    keyEnd,
-                    SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
-                )
-            }
-        }
+        val elementString = stringEscaper.escape(suggestion.element.toString())
+        val valueEnd = valueEndParser(suggestionRange)
+        return StringRangeTree.ResolvedSuggestion(
+            valueEnd,
+            SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer, kind=CompletionItemKind.Value)
+        )
+    }
+
+    override fun resolveMapKeySuggestion(
+        suggestion: StringRangeTree.Suggestion<NbtElement>,
+        tree: StringRangeTree<NbtElement>,
+        map: NbtElement,
+        languageServer: MinecraftLanguageServer,
+        suggestionRange: StringRange,
+        mappingInfo: FileMappingInfo,
+        stringEscaper: StringRangeTree.StringEscaper
+    ): StringRangeTree.ResolvedSuggestion {
+        val key = suggestion.element.asString()
+        // Similar to StringNbtWriter.escapeName
+        val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
+        val keySuggestion = stringEscaper.escape("$escapedKey: ")
+        val keyEnd = keyEndParser(suggestionRange)
+        return StringRangeTree.ResolvedSuggestion(
+            keyEnd,
+            SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
+        )
     }
 }

@@ -172,7 +172,7 @@ class StringRangeTree<TNode: Any>(
             analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestions ->
                 val range = nodeAllowedStartRanges[node] ?: StringRange.at(getNodeRangeOrThrow(node).start)
                 nodeSuggestions += range to suggestions.map { suggestion ->
-                    suggestionResolver.resolveSuggestion(suggestion, SuggestionType.NODE_START, languageServer, range, copiedMappingInfo, completionEscaper)
+                    suggestionResolver.resolveNodeSuggestion(suggestion, this, node, languageServer, range, copiedMappingInfo, completionEscaper)
                 }
             }
             analyzingDynamicOps.mapKeySuggestions[node]
@@ -182,7 +182,7 @@ class StringRangeTree<TNode: Any>(
                     val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
                     nodeSuggestions += ranges.map { range ->
                         range to suggestions.map { suggestion ->
-                            suggestionResolver.resolveSuggestion(suggestion, SuggestionType.MAP_KEY, languageServer, range, copiedMappingInfo, completionEscaper)
+                            suggestionResolver.resolveMapKeySuggestion(suggestion, this, node, languageServer, range, copiedMappingInfo, completionEscaper)
                         }
                     }
                 }
@@ -737,8 +737,26 @@ class StringRangeTree<TNode: Any>(
         fun getAdditionalTokens(node: TNode): Collection<AdditionalToken>
     }
 
-    interface SuggestionResolver<TNode> {
-        fun resolveSuggestion(suggestion: Suggestion<TNode>, suggestionType: SuggestionType, languageServer: MinecraftLanguageServer, suggestionRange: StringRange, mappingInfo: FileMappingInfo, stringEscaper: StringEscaper): ResolvedSuggestion
+    interface SuggestionResolver<TNode : Any> {
+        fun resolveNodeSuggestion(
+            suggestion: Suggestion<TNode>,
+            tree: StringRangeTree<TNode>,
+            node: TNode,
+            languageServer: MinecraftLanguageServer,
+            suggestionRange: StringRange,
+            mappingInfo: FileMappingInfo,
+            stringEscaper: StringEscaper,
+        ): ResolvedSuggestion
+
+        fun resolveMapKeySuggestion(
+            suggestion: Suggestion<TNode>,
+            tree: StringRangeTree<TNode>,
+            map: TNode,
+            languageServer: MinecraftLanguageServer,
+            suggestionRange: StringRange,
+            mappingInfo: FileMappingInfo,
+            stringEscaper: StringEscaper,
+        ): ResolvedSuggestion
     }
 
     fun interface StringEscaper {
@@ -755,11 +773,6 @@ class StringRangeTree<TNode: Any>(
             override fun escape(string: String) = string
         }
         fun escape(string: String): String
-    }
-
-    enum class SuggestionType {
-        NODE_START,
-        MAP_KEY
     }
 
     class Builder<TNode: Any> {

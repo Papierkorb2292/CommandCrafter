@@ -266,34 +266,40 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             suggestionRange.end + max(jsonReader.absolutePos, 0)
         }.memoizeLast()
 
-        override fun resolveSuggestion(
+        override fun resolveNodeSuggestion(
             suggestion: StringRangeTree.Suggestion<JsonElement>,
-            suggestionType: StringRangeTree.SuggestionType,
+            tree: StringRangeTree<JsonElement>,
+            node: JsonElement,
             languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringRangeTree.StringEscaper
         ): StringRangeTree.ResolvedSuggestion {
-            when(suggestionType) {
-                StringRangeTree.SuggestionType.NODE_START -> {
-                    val elementString = stringEscaper.escape(suggestion.element.toString())
-                    val replaceEnd = valueEndParser(suggestionRange)
-                    return StringRangeTree.ResolvedSuggestion(
-                        replaceEnd,
-                        SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
-                    )
-                }
-                StringRangeTree.SuggestionType.MAP_KEY -> {
-                    val element = suggestion.element
-                    val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                    val keySuggestion = stringEscaper.escape("\"$key\": ")
-                    val replaceEnd = keyEndParser(suggestionRange)
-                    return StringRangeTree.ResolvedSuggestion(
-                        replaceEnd,
-                        SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
-                    )
-                }
-            }
+            val elementString = stringEscaper.escape(suggestion.element.toString())
+            val replaceEnd = valueEndParser(suggestionRange)
+            return StringRangeTree.ResolvedSuggestion(
+                replaceEnd,
+                SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
+            )
+        }
+
+        override fun resolveMapKeySuggestion(
+            suggestion: StringRangeTree.Suggestion<JsonElement>,
+            tree: StringRangeTree<JsonElement>,
+            map: JsonElement,
+            languageServer: MinecraftLanguageServer,
+            suggestionRange: StringRange,
+            mappingInfo: FileMappingInfo,
+            stringEscaper: StringRangeTree.StringEscaper
+        ): StringRangeTree.ResolvedSuggestion {
+            val element = suggestion.element
+            val key = if(element.isJsonPrimitive) element.asString else element.toString()
+            val keySuggestion = stringEscaper.escape("\"$key\": ")
+            val replaceEnd = keyEndParser(suggestionRange)
+            return StringRangeTree.ResolvedSuggestion(
+                replaceEnd,
+                SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
+            )
         }
     }
 
