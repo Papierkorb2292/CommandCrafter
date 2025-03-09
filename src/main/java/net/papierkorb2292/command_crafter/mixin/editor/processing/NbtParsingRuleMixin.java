@@ -63,7 +63,6 @@ public class NbtParsingRuleMixin {
             if(analyzingResult != null) {
                 var registryTreeOps = treeOps.withOps(ops);
                 registryTreeOps.analyzeFull(analyzingResult, true, decoder);
-                registryTreeOps.generateDiagnostics(analyzingResult, decoder, DiagnosticSeverity.Error);
             }
             return Unit.INSTANCE;
         });

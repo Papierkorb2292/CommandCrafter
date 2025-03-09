@@ -118,7 +118,6 @@ public class ItemStringReaderReaderMixin {
                 directiveReader
         ).withOps(((ItemStringReaderAccessor)field_48970).getNbtOps());
         treeOps.analyzeFull(command_crafter$analyzingResult, true, type.getCodec());
-        treeOps.generateDiagnostics(command_crafter$analyzingResult, type.getCodec(), DiagnosticSeverity.Error);
         return nbt;
     }
 

@@ -340,7 +340,8 @@ class StringRangeTree<TNode: Any>(
             treeOperations.analyzeFull(
                 stringAnalyzingResult,
                 true,
-                if(jsonTextRecognizability.shouldDecode()) TextCodecs.CODEC else null
+                if(jsonTextRecognizability.shouldDecode()) TextCodecs.CODEC else null,
+                false
             )
             // Parse input without lenience to find syntax errors
             if(treeOperations.stringRangeTree == jsonTree) {
@@ -476,7 +477,10 @@ class StringRangeTree<TNode: Any>(
 
         fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
 
-        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
+        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null) =
+            analyzeFull(analyzingResult, shouldGenerateSemanticTokens, contentDecoder, true)
+
+        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null, generateDiagnostics: Boolean): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult)
             if(shouldGenerateSemanticTokens) {
                 generateSemanticTokens(
@@ -493,6 +497,8 @@ class StringRangeTree<TNode: Any>(
                 AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
                     contentDecoder.decode(wrappedOps, stringRangeTree.root)
                 }
+                if(generateDiagnostics)
+                    generateDiagnostics(analyzingResult, contentDecoder, DiagnosticSeverity.Error)
             }
             analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
             analyzingResult.diagnostics += analyzedStrings.values.flatMap { it.second.diagnostics }
