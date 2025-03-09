@@ -141,6 +141,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
                         break;
                     case State.Stopped:
+                        languageClient.diagnostics?.clear()
                         this.connectionFeatures.forEach(feature => feature.onLanguageClientStop());
                         break;
                 }
