@@ -76,6 +76,10 @@ class AccessedKeysWatcherDynamicOps<T>(private val delegate: DynamicOps<T>): Dyn
                         it
                     }
                 }
+
+                override fun toString(): String {
+                    return delegateMap.toString()
+                }
             }
         }
     override fun createMap(map: Map<T, T>): T = delegate.createMap(map)

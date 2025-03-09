@@ -624,6 +624,10 @@ class StringRangeTree<TNode: Any>(
                             pair
                         }
                     }
+
+                    override fun toString(): String {
+                        return delegateMap.toString()
+                    }
                 }
             }
         }
