@@ -429,6 +429,8 @@ class StringRangeTree<TNode: Any>(
         val isRootEmpty = stringRangeTree.orderedNodes.size == 1
 
         companion object {
+            val IS_ANALYZING_DECODER = ThreadLocal<Boolean>()
+
             fun forJson(jsonTree: StringRangeTree<JsonElement>, content: String) =
                 TreeOperations(
                     jsonTree,
@@ -495,7 +497,9 @@ class StringRangeTree<TNode: Any>(
             val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.getOps(ops) ?: ops)
             if(contentDecoder != null) {
                 AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
-                    contentDecoder.decode(wrappedOps, stringRangeTree.root)
+                    IS_ANALYZING_DECODER.runWithValue(true) {
+                        contentDecoder.decode(wrappedOps, stringRangeTree.root)
+                    }
                 }
                 if(generateDiagnostics)
                     generateDiagnostics(analyzingResult, contentDecoder, DiagnosticSeverity.Error)
@@ -515,7 +519,14 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.getOps(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher)
-            PreLaunchDecoderOutputTracker.decodeWithCallback(decoder, registryWrapper?.getOps(ops) ?: ops, stringRangeTree.root, errorCallback)
+            IS_ANALYZING_DECODER.runWithValue(true) {
+                PreLaunchDecoderOutputTracker.decodeWithCallback(
+                    decoder,
+                    registryWrapper?.getOps(ops) ?: ops,
+                    stringRangeTree.root,
+                    errorCallback
+                )
+            }
             analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
         }
     }

@@ -24,7 +24,8 @@ public class JsonOpsMapMixin {
             remap = false
     )
     private boolean command_crafter$allowJsonNullForStringRangeTree(Object element, Operation<Boolean> op) {
-        if(getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS()) != null)
+        final var isAnalyzingDecoder = getOrNull(StringRangeTree.TreeOperations.Companion.getIS_ANALYZING_DECODER());
+        if(isAnalyzingDecoder != null && isAnalyzingDecoder)
             return false;
         return op.call(element);
     }
