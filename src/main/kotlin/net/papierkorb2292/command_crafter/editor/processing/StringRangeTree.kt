@@ -881,7 +881,8 @@ class StringRangeTree<TNode: Any>(
         override fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput) {
             val inputNode = nodeClass.safeCast(input) ?: return
             val range = getNodeRange(inputNode) ?: return
-            val index = errors.binarySearch { entry -> entry.first.compareToExclusive(range) }
+            // Use compareTo instead of compareToExclusive, because the latter doesn't return 0 for equal ranges of length 0
+            val index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) {
                 errors.add(-index - 1, range to error.message())
                 return
@@ -902,7 +903,7 @@ class StringRangeTree<TNode: Any>(
             //Since decoding was successful, all errors that are encompassed by the input node's range are removed
             val inputNode = nodeClass.safeCast(input) ?: return
             val range = ranges[inputNode] ?: return
-            var index = errors.binarySearch { entry -> entry.first.compareToExclusive(range) }
+            var index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) return
 
             while(index >= 0) {
