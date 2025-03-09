@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.command.CommandSource
+import net.minecraft.loot.LootDataType
 import net.minecraft.nbt.NbtOps
 import net.minecraft.network.ClientConnection
 import net.minecraft.network.listener.ClientCommonPacketListener
@@ -41,7 +42,11 @@ import java.util.concurrent.Executors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
-    val SYNCED_REGISTRIES = RegistryLoader.DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES
+    val ALL_DYNAMIC_REGISTRIES = RegistryLoader.DYNAMIC_REGISTRIES + LootDataType.stream().map {
+        createRegistryLoaderEntryForLootDataType(it)
+    }.toList()
+    val SYNCED_REGISTRIES = ALL_DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES
+
     val SYNCED_REGISTRY_KEYS = SYNCED_REGISTRIES.mapTo(mutableSetOf()) { it.key }
 
     private val currentConnections = mutableMapOf<ServerPlayNetworkHandler, DirectServerConnection>()
@@ -237,6 +242,9 @@ object NetworkServerConnectionHandler {
             ServerScoreboardStorageFileSystem.createdFileSystems.remove(networkHandler)
         }
     }
+
+    private fun <T> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
+        RegistryLoader.Entry(dataType.registryKey, dataType.codec, false)
 
     private fun sendConnectionRequestResponse(
         server: MinecraftServer,

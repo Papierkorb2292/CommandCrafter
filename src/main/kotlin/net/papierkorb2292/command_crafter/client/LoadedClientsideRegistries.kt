@@ -8,6 +8,7 @@ import net.minecraft.registry.tag.TagGroupLoader
 import net.minecraft.resource.LifecycledResourceManagerImpl
 import net.minecraft.resource.ResourceType
 import net.minecraft.resource.VanillaDataPackProvider
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import java.util.stream.Stream
 
 class LoadedClientsideRegistries(
@@ -27,9 +28,7 @@ class LoadedClientsideRegistries(
             val dynamicRegistries = RegistryLoader.loadFromResource(
                 resourceManager,
                 tagRegistries,
-                RegistryLoader.DYNAMIC_REGISTRIES + LootDataType.stream()
-                    .map { createRegistryLoaderEntryForLootDataType(it) }
-                    .toList()
+                NetworkServerConnectionHandler.ALL_DYNAMIC_REGISTRIES
             )
             val tagAndDynamicRegistries = Stream.concat(tagRegistries.stream(), dynamicRegistries.stream()).toList()
             val dimensionRegistries = RegistryLoader.loadFromResource(resourceManager, tagAndDynamicRegistries, RegistryLoader.DIMENSION_REGISTRIES)
@@ -47,9 +46,6 @@ class LoadedClientsideRegistries(
             registryLoader.applyTags()
             return registryLoader
         }
-
-        private fun <T> createRegistryLoaderEntryForLootDataType(type: LootDataType<T>) =
-            RegistryLoader.Entry(type.registryKey, type.codec, false)
 
         private fun getCopiedInitialRegistries(): CombinedDynamicRegistries<ServerDynamicRegistryType> {
             val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries()
