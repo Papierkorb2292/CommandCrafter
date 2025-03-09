@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
@@ -399,7 +400,7 @@ object LanguageManager {
                     treeBuilder.build(nbt),
                     allowMalformedReader
                 )
-                    .copy(suggestionResolver = NbtSuggestionResolver(allowMalformedReader::copy, false))
+                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.asString().all { c -> StringReader.isAllowedInUnquotedString(c) }})
                     .analyzeFull(analyzingResult, true, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()

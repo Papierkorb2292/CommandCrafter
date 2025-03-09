@@ -14,6 +14,7 @@ import net.minecraft.command.argument.RegistryEntryArgumentType;
 import net.minecraft.component.ComponentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
+import net.minecraft.nbt.NbtString;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -75,26 +76,31 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
+        Identifier parsedId = null;
         try {
-            var id = Identifier.fromCommandInputNonEmpty(readerCopy);
+            parsedId = Identifier.fromCommandInputNonEmpty(readerCopy);
             if (command_crafter$packContentFileType != null) {
-                IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(id, command_crafter$packContentFileType, range, result, reader);
-                return;
+                IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(parsedId, command_crafter$packContentFileType, range, result, reader);
+            } else {
+                result.getSemanticTokens().addMultiline(range, TokenType.Companion.getPARAMETER(), 0);
             }
-            result.getSemanticTokens().addMultiline(range, TokenType.Companion.getPARAMETER(), 0);
-            return;
         } catch(CommandSyntaxException ignored) { }
         readerCopy.setCursor(range.getStart());
-        var nbtReader = new StringNbtReader(readerCopy);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
-        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
-        //noinspection unchecked
-        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         NbtElement nbt;
-        try {
-            nbt = nbtReader.parseElement();
-        } catch(CommandSyntaxException e) {
-            nbt = NbtEnd.INSTANCE;
+        if(parsedId == null) {
+            var nbtReader = new StringNbtReader(readerCopy);
+            ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
+            //noinspection unchecked
+            ((StringRangeTreeCreator<NbtElement>) nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+            try {
+                nbt = nbtReader.parseElement();
+            } catch (CommandSyntaxException e) {
+                nbt = NbtEnd.INSTANCE;
+                treeBuilder.addNode(nbt, range, range.getStart());
+            }
+        } else {
+            nbt = NbtString.of(parsedId.toString());
             treeBuilder.addNode(nbt, range, range.getStart());
         }
         var tree = treeBuilder.build(nbt);
@@ -102,8 +108,9 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
                 tree,
                 readerCopy
         )
+                .withSuggestionResolver(new NbtSuggestionResolver(readerCopy, nbtString -> Identifier.tryParse(nbtString.asString()) == null))
                 .withRegistry(registries)
-                .analyzeFull(result, true, entryCodec);
+                .analyzeFull(result, parsedId == null, entryCodec);
     }
 
     @Override

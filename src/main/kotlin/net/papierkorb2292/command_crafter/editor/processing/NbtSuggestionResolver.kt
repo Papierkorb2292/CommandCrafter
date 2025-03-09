@@ -12,13 +12,14 @@ import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItemKind
+import java.util.function.Predicate
 import java.util.regex.Pattern
 
-class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader, private val quoteRootString: Boolean = true) : StringRangeTree.SuggestionResolver<NbtElement> {
+class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader, private val quoteRootStringPredicate: ((NbtString) -> Boolean)? = null) : StringRangeTree.SuggestionResolver<NbtElement> {
     private val SIMPLE_NAME = Pattern.compile("[A-Za-z0-9._+-]+")
 
-    constructor(directiveReader: DirectiveStringReader<*>, quoteRootString: Boolean = true): this(directiveReader::copy, quoteRootString)
-    constructor(inputString: String, quoteRootString: Boolean = true): this({ StringReader(inputString) }, quoteRootString)
+    constructor(directiveReader: DirectiveStringReader<*>, quoteRootStringPredicate: ((NbtString) -> Boolean)? = null): this(directiveReader::copy, quoteRootStringPredicate)
+    constructor(inputString: String, quoteRootStringPredicate: ((NbtString) -> Boolean)? = null): this({ StringReader(inputString) }, quoteRootStringPredicate)
 
     private val valueEndParser = { suggestionRange: StringRange ->
         val reader = stringReaderProvider()
@@ -54,7 +55,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         stringEscaper: StringRangeTree.StringEscaper
     ): StringRangeTree.ResolvedSuggestion {
         val baseString =
-            if(node != tree.root || quoteRootString || suggestion.element !is NbtString)
+            if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
                 suggestion.element.toString()
             else
                 suggestion.element.asString()

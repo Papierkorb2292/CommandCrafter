@@ -479,6 +479,8 @@ class StringRangeTree<TNode: Any>(
 
         fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
 
+        fun withSuggestionResolver(resolver: SuggestionResolver<TNode>) = copy(suggestionResolver = resolver)
+
         fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null) =
             analyzeFull(analyzingResult, shouldGenerateSemanticTokens, contentDecoder, true)
 
