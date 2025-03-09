@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.serialization.Lifecycle
-import net.minecraft.loot.LootDataType
 import net.minecraft.registry.*
 import net.minecraft.registry.Registry.PendingTagLoad
 import net.minecraft.registry.tag.TagGroupLoader
@@ -18,7 +17,7 @@ class LoadedClientsideRegistries(
     companion object {
         fun load(): LoadedClientsideRegistries {
             // Static registries are copied so tags don't modify the original registries
-            val initialRegistries = getCopiedInitialRegistries()
+            val initialRegistries = getCopiedInitialRegistries(ServerDynamicRegistryType.createCombinedDynamicRegistries(), ServerDynamicRegistryType.STATIC)
             val resourceManager = LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, listOf(VanillaDataPackProvider.createDefaultPack()))
             val pendingTagLoads = TagGroupLoader.startReload(
                 resourceManager, initialRegistries.get(ServerDynamicRegistryType.STATIC)
@@ -47,19 +46,18 @@ class LoadedClientsideRegistries(
             return registryLoader
         }
 
-        private fun getCopiedInitialRegistries(): CombinedDynamicRegistries<ServerDynamicRegistryType> {
-            val initialRegistries = ServerDynamicRegistryType.createCombinedDynamicRegistries()
-            val copiedStaticRegistries = initialRegistries.get(ServerDynamicRegistryType.STATIC)
+        fun <DynamicRegistryType> getCopiedInitialRegistries(combinedRegistries: CombinedDynamicRegistries<DynamicRegistryType>, registryType: DynamicRegistryType): CombinedDynamicRegistries<DynamicRegistryType> {
+            val copiedStatic = combinedRegistries.get(registryType)
                 .streamAllRegistries()
                 .map { copyRegistry(it.value) }
                 .toList()
-            return initialRegistries.with(
-                ServerDynamicRegistryType.STATIC,
-                DynamicRegistryManager.ImmutableImpl(copiedStaticRegistries).toImmutable()
+            return combinedRegistries.with(
+                registryType,
+                DynamicRegistryManager.ImmutableImpl(copiedStatic).toImmutable()
             )
         }
 
-        private fun <T> copyRegistry(registry: Registry<T>): Registry<T> {
+        fun <T> copyRegistry(registry: Registry<T>): Registry<T> {
             val copy = SimpleRegistry(registry.key, Lifecycle.stable())
             registry.streamEntries().forEach { entry ->
                 copy.add(entry.registryKey(), entry.value(), registry.getEntryInfo(entry.registryKey()).get())

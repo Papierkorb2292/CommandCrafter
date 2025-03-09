@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.RootCommandNode
+import it.unimi.dsi.fastutil.ints.IntArrayList
+import it.unimi.dsi.fastutil.ints.IntList
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
@@ -15,11 +17,16 @@ import net.minecraft.network.packet.Packet
 import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
 import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
+import net.minecraft.registry.DynamicRegistryManager
+import net.minecraft.registry.Registry
+import net.minecraft.registry.RegistryKey
 import net.minecraft.registry.RegistryLoader
+import net.minecraft.registry.RegistryWrapper
 import net.minecraft.registry.tag.TagPacketSerializer
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -28,6 +35,8 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerS
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.ServerRecipeManagerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
@@ -38,6 +47,7 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
+import java.util.stream.Collectors
 
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
@@ -274,10 +284,16 @@ object NetworkServerConnectionHandler {
         server: MinecraftServer,
         networkHandler: ServerPlayNetworkHandler
     ) {
-        val serializedRegistriesTags = TagPacketSerializer.serializeTags(server.combinedDynamicRegistries)
+        // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
+        val registryManager = server.reloadableRegistries.createRegistryLookup() as DynamicRegistryManager
+
+        val tagWrapperLookup = (server.recipeManager as ServerRecipeManagerAccessor).registries
+
+        val serializedRegistriesTags = serializeTags(tagWrapperLookup, registryManager)
         // Sync tags of non-dynamic registries first, because
         // client builds registry manager once all SYNCED_REGISTRIES have been received
-        server.registryManager.streamAllRegistryKeys().forEach {
+        registryManager.streamAllRegistryKeys().forEach {
+            if(it in SYNCED_REGISTRY_KEYS) return@forEach
             val registryTags = serializedRegistriesTags[it] ?: return@forEach
             networkHandler.sendPacket(
                 CustomPayloadS2CPacket(
@@ -286,20 +302,40 @@ object NetworkServerConnectionHandler {
             )
         }
         SYNCED_REGISTRIES.forEach {
-            sendDynamicRegistry(server, it, networkHandler, serializedRegistriesTags[it.key])
+            sendDynamicRegistry(registryManager, it, networkHandler, serializedRegistriesTags[it.key])
         }
     }
 
+    private fun serializeTags(
+        tagWrapperLookup: RegistryWrapper.WrapperLookup,
+        entryLookup: DynamicRegistryManager
+    ): Map<RegistryKey<out Registry<*>>, TagPacketSerializer.Serialized> {
+        return tagWrapperLookup.streamAllRegistryKeys().map {
+            val serializedTags = mutableMapOf<Identifier, IntList>()
+            val tagRegistry = tagWrapperLookup.getOrThrow(it)
+            val entryRegistry = entryLookup.getOrThrow(it)
+            for(tag in tagRegistry.tags.toList()) {
+                val serialized = IntArrayList(tag.size())
+                for(entry in tag) {
+                    val id = entry.key.orElseThrow { IllegalArgumentException("Synced tag entries must have an id") }
+                    serialized.add(entryRegistry.getRawId(entryRegistry.get(id)))
+                }
+                serializedTags[tag.tag.id] = serialized
+            }
+            it to TagPacketSerializerSerializedAccessor.callInit(serializedTags)
+        }.collect(Collectors.toMap({ it.first }, { it.second }))
+    }
+
     private fun sendDynamicRegistry(
-        server: MinecraftServer,
+        registryManager: DynamicRegistryManager,
         registry: RegistryLoader.Entry<*>,
         networkHandler: ServerPlayNetworkHandler,
         registryTags: TagPacketSerializer.Serialized?
     ) {
         SerializableRegistriesAccessor.callSerialize(
-            server.registryManager.getOps(NbtOps.INSTANCE),
+            registryManager.getOps(NbtOps.INSTANCE),
             registry,
-            server.registryManager,
+            registryManager,
             emptySet()
         ) { registryKey, entries ->
             networkHandler.sendPacket(

@@ -4,7 +4,6 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.context.CommandContext
 import io.netty.channel.local.LocalChannel
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
@@ -16,6 +15,7 @@ import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.resource.ResourceFactory
+import net.papierkorb2292.command_crafter.client.helper.SyncedRegistriesListConsumer
 import net.papierkorb2292.command_crafter.editor.DirectServerConnection
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
@@ -34,6 +34,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
@@ -108,11 +109,17 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                     receivedClientRegistries.putTags(mapOf(payload.dynamicRegistry.registry to payload.tags))
                 receivedRegistryKeys += payload.dynamicRegistry.registry
                 if(NetworkServerConnectionHandler.SYNCED_REGISTRY_KEYS.all { it in receivedRegistryKeys }) {
+                    (receivedClientRegistries as SyncedRegistriesListConsumer).`command_crafter$setSyncedRegistriesList`(NetworkServerConnectionHandler.SYNCED_REGISTRIES)
+                    (receivedClientRegistries as ShouldCopyRegistriesContainer).`command_crafter$setShouldCopyRegistries`(true)
                     //All registries have been received
+                    ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
                     receivedRegistryManager = receivedClientRegistries.createRegistryManager(
-                        ResourceFactory.MISSING, //No resource loading is required, because no common packs were specified,
-                        ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager,
-                        MinecraftClient.getInstance().isConnectedToLocalServer
+                        //No resource loading is required, because no common packs were specified
+                        ResourceFactory.MISSING,
+                        // Only matters if there are no registries to load, but there will always be some
+                        null,
+                        // False to load all tags, including of registries where the entries are not synced
+                        false
                     )
                     receivedRegistryKeys.clear()
                     receivedClientRegistries = ClientRegistries()

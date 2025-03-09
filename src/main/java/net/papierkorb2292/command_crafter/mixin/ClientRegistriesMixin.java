@@ -3,12 +3,12 @@ package net.papierkorb2292.command_crafter.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.network.ClientDynamicRegistryType;
 import net.minecraft.client.network.ClientRegistries;
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryLoader;
+import net.minecraft.registry.*;
 import net.minecraft.registry.tag.TagPacketSerializer;
+import net.papierkorb2292.command_crafter.client.LoadedClientsideRegistries;
+import net.papierkorb2292.command_crafter.client.ShouldCopyRegistriesContainer;
 import net.papierkorb2292.command_crafter.client.helper.SyncedRegistriesListConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,9 +24,10 @@ import java.util.stream.Collectors;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(ClientRegistries.class)
-public class ClientRegistriesMixin implements SyncedRegistriesListConsumer {
+public class ClientRegistriesMixin implements SyncedRegistriesListConsumer, ShouldCopyRegistriesContainer {
 
     private List<? extends RegistryLoader.Entry<?>> command_crafter$syncedRegistriesList;
+    private boolean command_crafter$shouldCopyRegistries;
     private static ThreadLocal<Set<RegistryKey<? extends Registry<?>>>> command_crafter$syncedRegistryKeys = new ThreadLocal<>();
 
     @Override
@@ -50,7 +51,7 @@ public class ClientRegistriesMixin implements SyncedRegistriesListConsumer {
         try {
             original.call(instance, consumer);
         } finally {
-            command_crafter$syncedRegistryKeys = null;
+            command_crafter$syncedRegistryKeys.remove();
         }
     }
 
@@ -78,5 +79,24 @@ public class ClientRegistriesMixin implements SyncedRegistriesListConsumer {
     private List<RegistryLoader.Entry<?>> command_crafter$passSyncedRegistryListToRegistryLoader(List<RegistryLoader.Entry<?>> original) {
         //noinspection unchecked
         return command_crafter$syncedRegistriesList != null ? (List<RegistryLoader.Entry<?>>) command_crafter$syncedRegistriesList : original;
+    }
+
+    @ModifyExpressionValue(
+            method = "createRegistryManager(Lnet/minecraft/resource/ResourceFactory;Lnet/minecraft/client/network/ClientRegistries$DynamicRegistries;Z)Lnet/minecraft/registry/DynamicRegistryManager;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/network/ClientDynamicRegistryType;createCombinedDynamicRegistries()Lnet/minecraft/registry/CombinedDynamicRegistries;"
+            )
+    )
+    private CombinedDynamicRegistries<ClientDynamicRegistryType> command_crafter$copyInitialRegistries(CombinedDynamicRegistries<ClientDynamicRegistryType> original) {
+        if(command_crafter$shouldCopyRegistries) {
+            return LoadedClientsideRegistries.Companion.getCopiedInitialRegistries(original, ClientDynamicRegistryType.STATIC);
+        }
+        return original;
+    }
+
+    @Override
+    public void command_crafter$setShouldCopyRegistries(boolean shouldCopyRegistries) {
+        command_crafter$shouldCopyRegistries = shouldCopyRegistries;
     }
 }
