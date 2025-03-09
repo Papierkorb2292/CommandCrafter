@@ -468,7 +468,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: CommandSource, analyzingResult: AnalyzingResult) {
-        reader.directiveManager.suggestDirectives(range, analyzingResult, reader)
+        reader.directiveManager.suggestDirectives(range, analyzingResult)
         val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root, range.start)
         addNodeSuggestions(
             parsedRootNode,

@@ -49,7 +49,6 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         suggestion: StringRangeTree.Suggestion<NbtElement>,
         tree: StringRangeTree<NbtElement>,
         node: NbtElement,
-        languageServer: MinecraftLanguageServer,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper
@@ -63,7 +62,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         val valueEnd = valueEndParser(suggestionRange)
         return StringRangeTree.ResolvedSuggestion(
             valueEnd,
-            SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, languageServer, kind=CompletionItemKind.Value)
+            SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, kind=CompletionItemKind.Value)
         )
     }
 
@@ -71,7 +70,6 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         suggestion: StringRangeTree.Suggestion<NbtElement>,
         tree: StringRangeTree<NbtElement>,
         map: NbtElement,
-        languageServer: MinecraftLanguageServer,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper
@@ -83,7 +81,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         val keyEnd = keyEndParser(suggestionRange)
         return StringRangeTree.ResolvedSuggestion(
             keyEnd,
-            SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
+            SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, key, CompletionItemKind.Property)
         )
     }
 }

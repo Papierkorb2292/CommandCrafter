@@ -59,8 +59,6 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             result.getSemanticTokens().addMultiline(range, TokenType.Companion.getPARAMETER(), 0);
             return;
         } catch(CommandSyntaxException ignored) { }
-        if(reader.getResourceCreator().getLanguageServer() == null)
-            return;
         readerCopy.setCursor(range.getStart());
         var nbtReader = new StringNbtReader(readerCopy);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
@@ -80,7 +78,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
                 readerCopy
         )
                 .withRegistry(registries)
-                .analyzeFull(result, reader.getResourceCreator().getLanguageServer(), true, entryCodec);
+                .analyzeFull(result, true, entryCodec);
     }
 
     @Override

@@ -41,9 +41,6 @@ public class NbtParsingRuleMixin {
             return op.call(stringNbtReader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.getReader();
-        if(directiveReader.getResourceCreator().getLanguageServer() == null)
-            return op.call(stringNbtReader);
-        var languageServer = directiveReader.getResourceCreator().getLanguageServer();
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)stringNbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -65,7 +62,7 @@ public class NbtParsingRuleMixin {
             var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
             if(analyzingResult != null) {
                 var registryTreeOps = treeOps.withOps(ops);
-                registryTreeOps.analyzeFull(analyzingResult, languageServer, true, decoder);
+                registryTreeOps.analyzeFull(analyzingResult, true, decoder);
                 registryTreeOps.generateDiagnostics(analyzingResult, decoder, DiagnosticSeverity.Error);
             }
             return Unit.INSTANCE;

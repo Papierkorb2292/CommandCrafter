@@ -69,12 +69,7 @@ class DirectiveManager {
         val directiveEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
         analyzingResult.semanticTokens.add(directiveStartPos.line, directiveStartPos.character, directiveEndCursor - directiveStartCursor, TokenType.STRUCT, 0)
 
-        if(reader.resourceCreator is AnalyzingResourceCreator)
-            @Suppress("UNCHECKED_CAST")
-            suggestDirectives(StringRange(directiveStartCursor, directiveEndCursor), analyzingResult,
-                reader as DirectiveStringReader<AnalyzingResourceCreator>, true)
-        else
-            CommandCrafter.LOGGER.warn("Resource creator is not an AnalyzingResourceCreator in DirectiveManager.readDirectiveAndAnalyze. Skipping suggestions.")
+        suggestDirectives(StringRange(directiveStartCursor, directiveEndCursor), analyzingResult, true)
 
         if(!reader.canRead() || reader.peek() != ' ') {
             analyzingResult.diagnostics += Diagnostic(
@@ -102,7 +97,7 @@ class DirectiveManager {
      * Suggests to insert directives at the given range. The completions only insert the directive at the cursor position
      * and don't replace any text.
      */
-    fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>, replaceRange: Boolean = false) {
+    fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult, replaceRange: Boolean = false) {
         analyzingResult.addCompletionProvider(
             AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
             AnalyzingResult.RangedDataProvider(range, CombinedCompletionItemProvider(
@@ -112,7 +107,6 @@ class DirectiveManager {
                         range.start,
                         { if(replaceRange) range.end else null },
                         analyzingResult.mappingInfo.copy(),
-                        reader.resourceCreator.languageServer ?: return
                     )
                 }
             )),

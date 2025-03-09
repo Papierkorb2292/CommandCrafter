@@ -49,7 +49,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             ).withRegistry(languageServer.dynamicRegistryManager)
                 // JSON highlighting should be provided by the editor, but `shouldGenerateSemanticTokens` is set to `true` to add semantic tokens from analyzed strings, so the semantic token provider needs to be set to a dummy instance to not interfere with highlighting of other elements
                 .copy(semanticTokenProvider = DummySemanticTokenProvider)
-            treeOperations.analyzeFull(result, languageServer, true, fileDecoder)
+            treeOperations.analyzeFull(result, true, fileDecoder)
             treeOperations.generateDiagnostics(result, fileDecoder)
             return result
         }

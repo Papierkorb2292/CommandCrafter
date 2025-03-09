@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -14,7 +13,6 @@ class SimpleCompletionItemProvider(
     private val insertStart: Int,
     private val replaceEndProvider: () -> Int?,
     private val mappingInfo: FileMappingInfo,
-    private val languageServer: MinecraftLanguageServer,
     private val label: String = text,
     private val kind: CompletionItemKind? = null,
 ) : AnalyzingCompletionProvider {
@@ -38,17 +36,13 @@ class SimpleCompletionItemProvider(
             insertStartPos
         }
 
-        fun getInsertCompletionItem()
-            = CompletionItem().also {
+        val replaceEnd = replaceEndProvider()
+            ?: return CompletionItem().also {
                 it.label = label
                 it.kind = kind
                 it.sortText = " $label" // Add whitespace so it appears above VSCodes suggestions
                 it.textEdit = Either.forLeft(TextEdit(Range(clampedInsertStartPos, insertEndPos), text))
             }
-
-        if(!languageServer.clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport)
-            return getInsertCompletionItem()
-        val replaceEnd = replaceEndProvider() ?: return getInsertCompletionItem()
 
         val replaceEndPos = AnalyzingResult.getPositionFromCursor(
             mappingInfo.cursorMapper.mapToSource(replaceEnd + mappingInfo.readSkippingChars),

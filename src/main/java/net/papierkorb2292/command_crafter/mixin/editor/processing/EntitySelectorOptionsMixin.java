@@ -427,8 +427,6 @@ public class EntitySelectorOptionsMixin {
             return op.call(nbtReader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>) selectorReader.getReader();
-        if(directiveReader.getResourceCreator().getLanguageServer() == null)
-            return op.call(nbtReader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -437,7 +435,7 @@ public class EntitySelectorOptionsMixin {
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
+        ).analyzeFull(analyzingResult, true, null);
         return nbt;
     }
 

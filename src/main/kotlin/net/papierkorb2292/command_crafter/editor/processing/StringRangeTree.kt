@@ -165,14 +165,14 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, languageServer: MinecraftLanguageServer, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
+    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, List<ResolvedSuggestion>>>()
             analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestions ->
                 val range = nodeAllowedStartRanges[node] ?: StringRange.at(getNodeRangeOrThrow(node).start)
                 nodeSuggestions += range to suggestions.map { suggestion ->
-                    suggestionResolver.resolveNodeSuggestion(suggestion, this, node, languageServer, range, copiedMappingInfo, completionEscaper)
+                    suggestionResolver.resolveNodeSuggestion(suggestion, this, node, range, copiedMappingInfo, completionEscaper)
                 }
             }
             analyzingDynamicOps.mapKeySuggestions[node]
@@ -182,7 +182,7 @@ class StringRangeTree<TNode: Any>(
                     val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
                     nodeSuggestions += ranges.map { range ->
                         range to suggestions.map { suggestion ->
-                            suggestionResolver.resolveMapKeySuggestion(suggestion, this, node, languageServer, range, copiedMappingInfo, completionEscaper)
+                            suggestionResolver.resolveMapKeySuggestion(suggestion, this, node, range, copiedMappingInfo, completionEscaper)
                         }
                     }
                 }
@@ -265,7 +265,7 @@ class StringRangeTree<TNode: Any>(
      * @param baseAnalyzingResult The base analyzing result whose base data is copied for each string node and filled with the analyzed data for each node.
      * @return A map of the nodes that were analyzed as strings to the analyzing results for each node as well as the range of the string content in the original input. The oder of this list is the same as the order of the nodes in the tree.
      */
-    fun tryAnalyzeStrings(stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?, baseAnalyzingResult: AnalyzingResult, parentOps: TreeOperations<TNode>?, languageServer: MinecraftLanguageServer): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> {
+    fun tryAnalyzeStrings(stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?, baseAnalyzingResult: AnalyzingResult, parentOps: TreeOperations<TNode>?): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> {
         val results = LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>>()
         for(node in orderedNodes) {
             val (content, cursorMapper, stringEscaper) = stringGetter(node) ?: continue
@@ -339,7 +339,6 @@ class StringRangeTree<TNode: Any>(
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
             treeOperations.analyzeFull(
                 stringAnalyzingResult,
-                languageServer,
                 true,
                 if(jsonTextRecognizability.shouldDecode()) TextCodecs.CODEC else null
             )
@@ -477,8 +476,8 @@ class StringRangeTree<TNode: Any>(
 
         fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
 
-        fun analyzeFull(analyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
-            val analyzedStrings = tryAnalyzeStrings(analyzingResult, languageServer)
+        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
+            val analyzedStrings = tryAnalyzeStrings(analyzingResult)
             if(shouldGenerateSemanticTokens) {
                 generateSemanticTokens(
                     analyzingResult.semanticTokens,
@@ -495,7 +494,7 @@ class StringRangeTree<TNode: Any>(
                     contentDecoder.decode(wrappedOps, stringRangeTree.root)
                 }
             }
-            analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, languageServer, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
+            analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
             analyzingResult.diagnostics += analyzedStrings.values.flatMap { it.second.diagnostics }
             return shouldGenerateSemanticTokens || contentDecoder != null || analyzedStrings.isNotEmpty()
         }
@@ -504,8 +503,8 @@ class StringRangeTree<TNode: Any>(
             stringRangeTree.generateSemanticTokens(semanticTokenProvider, builder, semanticTokenInserts)
         }
 
-        fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult, languageServer: MinecraftLanguageServer): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
-            stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this, languageServer)
+        fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
+            stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this)
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.getOps(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
@@ -742,7 +741,6 @@ class StringRangeTree<TNode: Any>(
             suggestion: Suggestion<TNode>,
             tree: StringRangeTree<TNode>,
             node: TNode,
-            languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringEscaper,
@@ -752,7 +750,6 @@ class StringRangeTree<TNode: Any>(
             suggestion: Suggestion<TNode>,
             tree: StringRangeTree<TNode>,
             map: TNode,
-            languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringEscaper,

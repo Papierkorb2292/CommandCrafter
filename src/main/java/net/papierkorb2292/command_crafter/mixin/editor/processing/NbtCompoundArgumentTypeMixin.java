@@ -19,8 +19,6 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        if(reader.getResourceCreator().getLanguageServer() == null)
-            return;
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
         var nbtReader = new StringNbtReader(readerCopy);
@@ -33,6 +31,6 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode {
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 readerCopy
-        ).analyzeFull(result, reader.getResourceCreator().getLanguageServer(), true, null);
+        ).analyzeFull(result, true, null);
     }
 }

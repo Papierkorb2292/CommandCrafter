@@ -100,8 +100,6 @@ public class ItemStringReaderReaderMixin {
         }
         //noinspection unchecked
         final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
-        if(directiveReader.getResourceCreator().getLanguageServer() == null)
-            return op.call(nbtReader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -119,7 +117,7 @@ public class ItemStringReaderReaderMixin {
                 tree,
                 directiveReader
         ).withOps(((ItemStringReaderAccessor)field_48970).getNbtOps());
-        treeOps.analyzeFull(command_crafter$analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, type.getCodec());
+        treeOps.analyzeFull(command_crafter$analyzingResult, true, type.getCodec());
         treeOps.generateDiagnostics(command_crafter$analyzingResult, type.getCodec(), DiagnosticSeverity.Error);
         return nbt;
     }

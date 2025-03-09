@@ -102,8 +102,6 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
         if(analyzingResult == null) return op.call(reader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)stringReader;
-        if(directiveReader.getResourceCreator().getLanguageServer() == null)
-            return op.call(reader);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)reader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -112,7 +110,7 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(analyzingResult, directiveReader.getResourceCreator().getLanguageServer(), true, null);
+        ).analyzeFull(analyzingResult, true, null);
         return nbt;
     }
 

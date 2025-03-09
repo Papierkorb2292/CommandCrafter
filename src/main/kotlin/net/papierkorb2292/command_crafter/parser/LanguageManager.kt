@@ -337,27 +337,22 @@ object LanguageManager {
                 }
                 val languageIdEndCursor = reader.cursor
 
-                val languageServer = (reader.resourceCreator as? AnalyzingResourceCreator)?.languageServer
-                // A warning for incorrect resource creators is already logged by DirectiveManager
-                if(languageServer != null) {
-                    analyzingResult.addCompletionProvider(
-                        AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
-                        AnalyzingResult.RangedDataProvider(
-                            StringRange(startCursor, languageIdEndCursor),
-                            CombinedCompletionItemProvider(
-                                LANGUAGES.ids.map {
-                                    SimpleCompletionItemProvider(
-                                        it.toShortString(),
-                                        startCursor,
-                                        { languageIdEndCursor },
-                                        analyzingResult.mappingInfo.copy(),
-                                        languageServer
-                                    )
-                                }
-                            )),
-                        true
-                    )
-                }
+                analyzingResult.addCompletionProvider(
+                    AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
+                    AnalyzingResult.RangedDataProvider(
+                        StringRange(startCursor, languageIdEndCursor),
+                        CombinedCompletionItemProvider(
+                            LANGUAGES.ids.map {
+                                SimpleCompletionItemProvider(
+                                    it.toShortString(),
+                                    startCursor,
+                                    { languageIdEndCursor },
+                                    analyzingResult.mappingInfo.copy(),
+                                )
+                            }
+                        )),
+                    true
+                )
 
                 val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                 val languageType = LANGUAGES.get(language)
@@ -386,9 +381,6 @@ object LanguageManager {
                     )
                     return null
                 }
-                // A warning for incorrect resource creators is already logged by DirectiveManager
-                val languageServer = (reader.resourceCreator as? AnalyzingResourceCreator)?.languageServer
-
                 val allowMalformedReader = reader.copy()
                 val nbtReader = StringNbtReader(allowMalformedReader)
                 @Suppress("KotlinConstantConditions")
@@ -403,14 +395,12 @@ object LanguageManager {
                     treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), allowedStart)
                     empty
                 }
-                if(languageServer != null) {
-                    forNbt(
-                        treeBuilder.build(nbt),
-                        allowMalformedReader
-                    )
-                        .copy(suggestionResolver = NbtSuggestionResolver(allowMalformedReader::copy, false))
-                        .analyzeFull(analyzingResult, languageServer, true, languageType.argumentDecoder)
-                }
+                forNbt(
+                    treeBuilder.build(nbt),
+                    allowMalformedReader
+                )
+                    .copy(suggestionResolver = NbtSuggestionResolver(allowMalformedReader::copy, false))
+                    .analyzeFull(analyzingResult, true, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
                 }

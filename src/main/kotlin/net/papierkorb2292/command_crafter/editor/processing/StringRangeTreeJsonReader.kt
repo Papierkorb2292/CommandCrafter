@@ -270,7 +270,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             suggestion: StringRangeTree.Suggestion<JsonElement>,
             tree: StringRangeTree<JsonElement>,
             node: JsonElement,
-            languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringRangeTree.StringEscaper
@@ -279,7 +278,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             val replaceEnd = valueEndParser(suggestionRange)
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
-                SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, kind = CompletionItemKind.Value)
+                SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, kind = CompletionItemKind.Value)
             )
         }
 
@@ -287,7 +286,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             suggestion: StringRangeTree.Suggestion<JsonElement>,
             tree: StringRangeTree<JsonElement>,
             map: JsonElement,
-            languageServer: MinecraftLanguageServer,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringRangeTree.StringEscaper
@@ -298,7 +296,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             val replaceEnd = keyEndParser(suggestionRange)
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
-                SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, languageServer, key, CompletionItemKind.Property)
+                SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, key, CompletionItemKind.Property)
             )
         }
     }

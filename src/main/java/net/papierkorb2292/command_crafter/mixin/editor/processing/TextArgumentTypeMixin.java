@@ -26,8 +26,6 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        if(reader.getResourceCreator().getLanguageServer() == null)
-            return;
         var readerCopy = reader.copy();
 
         readerCopy.setCursor(range.getStart());
@@ -41,7 +39,7 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
                     stringRangeTree,
                     readerCopy
             ).withRegistry(registries)
-                    .analyzeFull(result, reader.getResourceCreator().getLanguageServer(), true, TextCodecs.CODEC);
+                    .analyzeFull(result, true, TextCodecs.CODEC);
         } finally {
             result.getMappingInfo().setReadCharacters(prevReadCharacters);
         }
