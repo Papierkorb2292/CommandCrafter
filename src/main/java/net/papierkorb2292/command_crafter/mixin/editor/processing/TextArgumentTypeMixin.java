@@ -1,11 +1,14 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.google.gson.JsonParseException;
+import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.TextArgumentType;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -18,6 +21,10 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(TextArgumentType.class)
 public class TextArgumentTypeMixin implements AnalyzingCommandNode {
@@ -43,5 +50,19 @@ public class TextArgumentTypeMixin implements AnalyzingCommandNode {
         } finally {
             result.getMappingInfo().setReadCharacters(prevReadCharacters);
         }
+    }
+
+    @ModifyVariable(
+            method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/text/Text;",
+            at = @At(
+                    value = "LOAD",
+                    ordinal = 0
+            )
+    )
+    private Exception command_crafter$suppressDecoderErrorsWhenAnalyzing(Exception e, @Cancellable CallbackInfoReturnable<Text> cir) {
+        if(e instanceof JsonParseException) {
+            cir.setReturnValue(null);
+        }
+        return e;
     }
 }

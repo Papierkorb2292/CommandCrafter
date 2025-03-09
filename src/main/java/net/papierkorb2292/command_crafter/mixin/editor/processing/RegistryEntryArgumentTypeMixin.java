@@ -1,12 +1,17 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.sugar.Cancellable;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.RegistryEntryArgumentType;
+import net.minecraft.component.ComponentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
@@ -25,6 +30,9 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.function.Function;
 
 @Mixin(RegistryEntryArgumentType.class)
 public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, CustomCompletionsCommandNode {
@@ -44,6 +52,23 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             command_crafter$packContentFileType = PackContentFileType.ITEM_MODIFIER_FILE_TYPE;
         else if(registry == RegistryKeys.LOOT_TABLE)
             command_crafter$packContentFileType = PackContentFileType.LOOT_TABLES_FILE_TYPE;
+    }
+
+    @ModifyReceiver(
+            method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/registry/entry/RegistryEntry;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",
+                    remap = false
+            )
+    )
+    private DataResult<RegistryEntry<T>> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<RegistryEntry<T>> original, Function<String, ?> stringEFunction, StringReader reader, @Cancellable CallbackInfoReturnable<RegistryEntry<T>> cir) {
+        // Skip components with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyze
+        // This also makes the analyzer more forgiving
+        if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
+            cir.setReturnValue(null);
+        }
+        return original;
     }
 
     @Override
