@@ -108,6 +108,7 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.CHAT_TYPE_FILE_TYPE, MessageType.CODEC)
         addJsonAnalyzer(PackContentFileType.DAMAGE_TYPE_FILE_TYPE, DamageType.CODEC)
         addJsonAnalyzer(PackContentFileType.BANNER_PATTERN_TAGS_FILE_TYPE, TagFile.CODEC)
+        addJsonAnalyzer(PackContentFileType.BLOCK_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.CAT_VARIANT_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.DAMAGE_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_TAGS_FILE_TYPE, TagFile.CODEC)
