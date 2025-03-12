@@ -80,13 +80,26 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
 
         var current: JsonElement
         val startAbsolutePos = `in`.absolutePos
-        var peeked = `in`.peek()
+        var nestedStartPos: Int
+        var nestedAllowedStartPos: Int
+        var peeked: JsonToken
+        try {
+            peeked = `in`.peek()
 
-        var nestedStartPos = startAbsolutePos
-        var nestedAllowedStartPos = 0
+            nestedStartPos = startAbsolutePos
+            nestedAllowedStartPos = 0
 
-        current = tryBeginNesting(`in`, peeked)
-            ?: return readOnlyTerminal(`in`, peeked, startAbsolutePos, builder)
+            current = tryBeginNesting(`in`, peeked)
+                ?: return readOnlyTerminal(`in`, peeked, startAbsolutePos, builder)
+        } catch(e: Throwable) {
+            if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
+                throw e
+            }
+            @Suppress("DEPRECATION")
+            current = JsonNull()
+            builder.addNode(current, StringRange(startAbsolutePos, `in`.absolutePos), startAbsolutePos)
+            return builder.build(current)
+        }
 
         builder.addNodeOrder(current)
 
