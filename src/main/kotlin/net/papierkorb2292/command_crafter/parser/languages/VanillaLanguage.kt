@@ -46,6 +46,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
@@ -664,10 +665,18 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                             ?: emptyList()
                     }
-                    CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
-                        completionItems,
-                        completionReader.string.substring(min(parsedNodeRange.start, completionReader.string.length))
-                    )
+                    if(contextBuilder.source is AnalyzingClientCommandSource) {
+                        // Partial Completions are added clientside, so they aren't added twice
+                        CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
+                            completionItems,
+                            completionReader.string.substring(
+                                min(
+                                    parsedNodeRange.start,
+                                    completionReader.string.length
+                                )
+                            )
+                        )
+                    } else completionItems
                 }
                 if(additionalCompletions == null)
                     return@RangedDataProvider commandCompletionsFuture
