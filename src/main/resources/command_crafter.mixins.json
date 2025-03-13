@@ -58,6 +58,7 @@
     "editor.processing.BlockPredicateArgumentTypeMixin",
     "editor.processing.BlockStateArgumentTypeMixin",
     "editor.processing.BoolArgumentTypeMixin",
+    "editor.processing.CodecsMixin",
     "editor.processing.CommandFunctionArgumentTypeMixin",
     "editor.processing.CommandNodeMixin",
     "editor.processing.DimensionArgumentTypeMixin",

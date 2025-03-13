@@ -6,6 +6,7 @@ import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.Position
@@ -18,7 +19,9 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                 && (file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta"))
 
     override fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer): AnalyzingResult {
-        val analyzingResult = Companion.analyze(file, languageServer, fileDecoder)
+        val analyzingResult = JSON_ANALYZER_CURRENT_DECODER_FILE_TYPE.runWithValue(packContentFileType) {
+            Companion.analyze(file, languageServer, fileDecoder)
+        }
         analyzingResult.clearDisabledFeatures(languageServer.featureConfig, listOf(
             JSON_ANALYZER_CONFIG_PATH_PREFIX + analyzerConfigPath,
             JSON_ANALYZER_CONFIG_PATH_PREFIX,
@@ -29,6 +32,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
 
     companion object {
         const val JSON_ANALYZER_CONFIG_PATH_PREFIX = ".json"
+        val JSON_ANALYZER_CURRENT_DECODER_FILE_TYPE = ThreadLocal<PackContentFileType>()
+
         fun addJsonAnalyzer(packContentFileType: PackContentFileType, codec: Codec<*>, analyzerConfigPath: String = packContentFileType.contentTypePath) {
             MinecraftLanguageServer.addAnalyzer(StringRangeTreeJsonResourceAnalyzer(packContentFileType, codec, ".$analyzerConfigPath"))
         }
