@@ -21,19 +21,6 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     constructor(directiveReader: DirectiveStringReader<*>, quoteRootStringPredicate: ((NbtString) -> Boolean)? = null): this(directiveReader::copy, quoteRootStringPredicate)
     constructor(inputString: String, quoteRootStringPredicate: ((NbtString) -> Boolean)? = null): this({ StringReader(inputString) }, quoteRootStringPredicate)
 
-    private val valueEndParser = { suggestionRange: StringRange ->
-        val reader = stringReaderProvider()
-        reader.cursor = suggestionRange.end
-        reader.skipWhitespace()
-        val nbtReader = StringNbtReader(reader)
-        @Suppress("KotlinConstantConditions")
-        (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
-        try {
-            nbtReader.parseElement()
-        } catch(ignored: CommandSyntaxException) { }
-        reader.cursor
-    }.memoizeLast()
-
     private val keyEndParser = { suggestionRange: StringRange ->
         val reader = stringReaderProvider()
         reader.cursor = suggestionRange.end
@@ -60,7 +47,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
             else
                 suggestion.element.asString()
         val elementString = stringEscaper.escape(baseString)
-        val valueEnd = valueEndParser(suggestionRange)
+        val valueEnd = tree.ranges[node]!!.end
         return StringRangeTree.ResolvedSuggestion(
             valueEnd,
             SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, kind=CompletionItemKind.Value)

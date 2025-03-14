@@ -244,20 +244,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         constructor(directiveReader: DirectiveStringReader<*>): this({ directiveReader.copy().asReader() })
         constructor(inputString: String): this({ StringReader(inputString) })
 
-        private val valueEndParser = { suggestionRange: StringRange ->
-            val inputReader = readerProvider()
-            inputReader.skip(suggestionRange.end.toLong())
-            val jsonReader = JsonReader(inputReader)
-            suggestionRange.end + try {
-                val childStringRangeTree = StringRangeTreeJsonReader { jsonReader }.read(Strictness.LENIENT, true)
-                childStringRangeTree.ranges[childStringRangeTree.root]!!.end
-            } catch(e: EOFException) {
-                jsonReader.absolutePos
-            } catch(e: Exception) {
-                max(jsonReader.absolutePos - 1, 0)
-            }
-        }.memoizeLast()
-
         private val keyEndParser = { suggestionRange: StringRange ->
             val inputReader = readerProvider()
             inputReader.skip(suggestionRange.end.toLong())
@@ -288,7 +274,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             stringEscaper: StringRangeTree.StringEscaper
         ): StringRangeTree.ResolvedSuggestion {
             val elementString = stringEscaper.escape(suggestion.element.toString())
-            val replaceEnd = valueEndParser(suggestionRange)
+            val replaceEnd = tree.ranges[node]!!.end
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, kind = CompletionItemKind.Value)
