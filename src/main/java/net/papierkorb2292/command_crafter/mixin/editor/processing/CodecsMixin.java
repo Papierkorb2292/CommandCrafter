@@ -45,20 +45,12 @@ public class CodecsMixin {
             @NotNull
             @Override
             public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
-                var decodeFileType = getOrNull(StringRangeTreeJsonResourceAnalyzer.Companion.getJSON_ANALYZER_CURRENT_DECODER_FILE_TYPE());
-                if (decodeFileType == null || !(ops instanceof RegistryOps<?> registryOps))
-                    return Stream.empty();
-                var filePath = decodeFileType.getContentTypePath();
-                var tagPrefix = "tags/";
-                if (!filePath.startsWith(tagPrefix))
-                    return Stream.empty();
-                var registryName = filePath.substring(tagPrefix.length());
-                var registry = registryOps.getOwner(RegistryKey.ofRegistry(Identifier.ofVanilla(registryName)));
-                if (registry.isEmpty() || !(registry.get() instanceof RegistryWrapper<?> wrapper))
+                var registry = getOrNull(StringRangeTreeJsonResourceAnalyzer.Companion.getCURRENT_TAG_ANALYZING_REGISTRY());
+                if (registry == null)
                     return Stream.empty();
                 return Stream.concat(
-                        wrapper.streamKeys().map(key -> ops.createString(key.getValue().toString())),
-                        wrapper.streamTagKeys().map(key -> ops.createString("#" + key.id().toString()))
+                        registry.streamKeys().map(key -> ops.createString(key.getValue().toString())),
+                        registry.streamTagKeys().map(key -> ops.createString("#" + key.id().toString()))
                 );
             }
         });
