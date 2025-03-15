@@ -21,7 +21,6 @@ import java.util.stream.Stream;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Debug(export = true)
 @Mixin(Codecs.class)
 public class CodecsMixin {
     @ModifyExpressionValue(
