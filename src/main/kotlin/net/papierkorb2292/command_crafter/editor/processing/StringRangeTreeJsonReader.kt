@@ -254,9 +254,11 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                 jsonReader.nextName()
                 try {
                     // Skip ':'
-                    jsonReader.nextNonWhitespace(true)
-                    // Skip whitespace after ':'
-                    jsonReader.nextNonWhitespace(true)
+                    val c = jsonReader.nextNonWhitespace(true)
+                    if(c == ':'.code) {
+                        // Skip whitespace after ':'
+                        jsonReader.nextNonWhitespace(true)
+                    }
                     jsonReader.pos--
                 } catch(ignored: Exception) { }
             } catch(e: Exception) {
