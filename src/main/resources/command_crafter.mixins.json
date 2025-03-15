@@ -116,6 +116,7 @@
     "editor.processing.StringNbtReaderMixin",
     "editor.processing.SuggestionMixin",
     "editor.processing.SuggestionsMixin",
+    "editor.processing.TagEntryMixin",
     "editor.processing.TagPacketSerializerSerializedAccessor",
     "editor.processing.TagParsingRuleMixin",
     "editor.processing.TextArgumentTypeMixin",
