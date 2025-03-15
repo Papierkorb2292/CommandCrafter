@@ -31,7 +31,7 @@ class SimpleCompletionItemProvider(
             mappingInfo
         )
         val clampedInsertStartPos = if(insertStartPos.line < insertEndPos.line) {
-            Position(insertStartPos.line, 0)
+            Position(insertEndPos.line, 0)
         } else {
             insertStartPos
         }
