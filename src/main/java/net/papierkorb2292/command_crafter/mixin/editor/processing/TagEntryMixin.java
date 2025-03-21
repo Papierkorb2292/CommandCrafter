@@ -32,7 +32,8 @@ public class TagEntryMixin {
             method = "<clinit>",
             at = @At(
                     value = "INVOKE:LAST",
-                    target = "Lcom/mojang/serialization/Codec;xmap(Ljava/util/function/Function;Ljava/util/function/Function;)Lcom/mojang/serialization/Codec;"
+                    target = "Lcom/mojang/serialization/Codec;xmap(Ljava/util/function/Function;Ljava/util/function/Function;)Lcom/mojang/serialization/Codec;",
+                    remap = false
             ),
             slice = @Slice(
                     to = @At(
