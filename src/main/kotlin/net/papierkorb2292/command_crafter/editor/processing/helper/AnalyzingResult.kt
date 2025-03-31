@@ -30,9 +30,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         addRangedDataProviders(definitionProviders, other.definitionProviders)
     }
 
-    fun combineWithCompletionProviders(other: AnalyzingResult) {
+    fun combineWithCompletionProviders(other: AnalyzingResult, channelSuffix: String = "") {
         for((channel, providers) in other.completionProviders) {
-            addRangedDataProviders(getOrPutCompletionProvidersForChannel(channel), providers)
+            addRangedDataProviders(getOrPutCompletionProvidersForChannel(channel + channelSuffix), providers)
         }
     }
 
@@ -88,6 +88,10 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     }
     fun copy() = copyInput().also {
         it.combineWith(this)
+    }
+
+    fun copyExceptCompletions() = copyInput().also {
+        it.combineWithExceptCompletions(this)
     }
 
     fun clearDisabledFeatures(featureConfig: FeatureConfig, analyzerNameInserts: List<String>) {

@@ -20,9 +20,8 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 @Mixin(ItemPredicateArgumentType.class)
@@ -37,7 +36,7 @@ public abstract class ItemPredicateArgumentTypeMixin implements AnalyzingCommand
         PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(result.copyInput());
         var parsingState = new ParsingStateImpl(parser.rules(), new ParseErrorList.Impl<>(), readerCopy);
         parser.startParsing(parsingState);
-        result.combineWith(
+        result.combineWithExceptCompletions(
                 ((ParsingStateAccessor) parsingState).getPackrats().values().stream()
                     .sorted(Comparator.comparing(cache -> -cache.mark()))
                     .map(cache -> ((AnalyzingResultDataContainer) (Object) cache).command_crafter$getAnalyzingResult())
@@ -45,6 +44,15 @@ public abstract class ItemPredicateArgumentTypeMixin implements AnalyzingCommand
                     .findFirst()
                     .orElse(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get())
         );
+        var parsedAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get();
+        result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, new AnalyzingResult.RangedDataProvider<>(range, cursor -> {
+            var completionProvider = parsedAnalyzingResult.getCompletionProviderForCursor(cursor);
+            if(completionProvider == null)
+                return CompletableFuture.completedFuture(Collections.emptyList());
+            var completionFuture = completionProvider.getDataProvider().invoke(cursor);
+            // Make completions unique, because packrat parsing can result in duplicated completions
+            return completionFuture.thenApply(completions -> new ArrayList<>(new LinkedHashSet<>(completions)));
+        }), true);
         PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
     }
 }
