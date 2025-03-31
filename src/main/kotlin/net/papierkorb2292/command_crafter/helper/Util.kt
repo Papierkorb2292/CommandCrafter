@@ -1,7 +1,12 @@
 package net.papierkorb2292.command_crafter.helper
 
 import com.google.gson.reflect.TypeToken
+import com.mojang.datafixers.util.Pair
+import com.mojang.serialization.Codec
+import com.mojang.serialization.DataResult
+import com.mojang.serialization.DynamicOps
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.AnalyzingDynamicOps
 import java.lang.reflect.Type
 import java.util.concurrent.Semaphore
 
@@ -104,3 +109,20 @@ fun <T> Collection<T>?.concatNullable(other: Collection<T>?): Collection<T>? = w
  * Converts the Identifier to a string while omitting the namespace if it is the default "minecraft".
  */
 fun Identifier.toShortString(): String = if(namespace == "minecraft") path else toString()
+
+fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
+    override fun <T> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> {
+        return if(input == defaultValue) DataResult.success(prefix) else this@orEmpty.encode(input, ops, prefix)
+    }
+
+    override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
+        if(input == ops.empty()) {
+            // Add suggestions from other codec
+            if(AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() != null)
+                this@orEmpty.decode(ops, input)
+
+            return DataResult.success(Pair.of(defaultValue, ops.emptyList()))
+        }
+        return this@orEmpty.decode(ops, input)
+    }
+}

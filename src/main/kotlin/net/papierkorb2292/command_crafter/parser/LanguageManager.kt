@@ -8,7 +8,6 @@ import com.mojang.serialization.Decoder
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.command.CommandSource
 import net.minecraft.nbt.NbtElement
-import net.minecraft.nbt.NbtEnd
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.StringNbtReader
 import net.minecraft.registry.Registry
@@ -369,9 +368,14 @@ object LanguageManager {
             }
 
             private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
-                val allowedStart = reader.cursor
+                val languageEnd = reader.cursor
                 reader.skipSpaces()
                 val rangeStart = reader.cursor
+
+                // There must be a whitespace in front of the language arguments
+                if(languageEnd == rangeStart)
+                    return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).result().getOrNull()
+
                 if(reader.canRead() && reader.peek() == '(') {
                     val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                     reader.cursor = reader.nextLineEnd
@@ -389,12 +393,18 @@ object LanguageManager {
                 val treeBuilder = StringRangeTree.Builder<NbtElement>()
                 @Suppress("UNCHECKED_CAST")
                 (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
-                val nbt = try {
-                    nbtReader.parseElement()
-                } catch(e: CommandSyntaxException) {
+                val nbt = if(reader.canRead() && reader.peek() == '\n') {
                     val empty = NbtOps.INSTANCE.empty()
-                    treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), allowedStart)
+                    treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), languageEnd + 1)
                     empty
+                } else {
+                    try {
+                        nbtReader.parseElement()
+                    } catch(e: CommandSyntaxException) {
+                        val empty = NbtOps.INSTANCE.empty()
+                        treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), languageEnd + 1)
+                        empty
+                    }
                 }
                 forNbt(
                     treeBuilder.build(nbt),

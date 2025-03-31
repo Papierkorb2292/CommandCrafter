@@ -57,6 +57,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.StringIdentifiableUnit
 import net.papierkorb2292.command_crafter.helper.getOrNull
+import net.papierkorb2292.command_crafter.helper.orEmpty
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -764,6 +765,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     object VanillaLanguageType : LanguageManager.LanguageType {
         enum class VanillaLanguageOptions(val optionName: String) : StringIdentifiable {
+            DEFAULT("default"),
             ALL_FEATURES("improved"),
             EASY_NEW_LINE("easyNewLine"),
             INLINE_RESOURCES("inlineResources");
@@ -771,13 +773,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             override fun asString() = optionName
         }
         
-        override val argumentDecoder: Decoder<Language> = StringIdentifiable.createCodec(VanillaLanguageOptions.entries::toTypedArray).map {
-            when(it!!) {
-                VanillaLanguageOptions.EASY_NEW_LINE -> VanillaLanguage(easyNewLine = true, inlineResources = false)
-                VanillaLanguageOptions.INLINE_RESOURCES -> VanillaLanguage(easyNewLine = false, inlineResources = true)
-                VanillaLanguageOptions.ALL_FEATURES -> VanillaLanguage(easyNewLine = true, inlineResources = true)
+        override val argumentDecoder: Decoder<Language> = StringIdentifiable.createCodec(VanillaLanguageOptions.entries::toTypedArray)
+            .orEmpty(VanillaLanguageOptions.DEFAULT)
+            .map {
+                when(it!!) {
+                    VanillaLanguageOptions.DEFAULT -> VanillaLanguage(easyNewLine = false, inlineResources = false)
+                    VanillaLanguageOptions.EASY_NEW_LINE -> VanillaLanguage(easyNewLine = true, inlineResources = false)
+                    VanillaLanguageOptions.INLINE_RESOURCES -> VanillaLanguage(easyNewLine = false, inlineResources = true)
+                    VanillaLanguageOptions.ALL_FEATURES -> VanillaLanguage(easyNewLine = true, inlineResources = true)
+                }
             }
-        }
     }
 
     companion object {
