@@ -42,7 +42,7 @@ public class CommandDispatcherMixin {
             return c;
         }
         if(directiveStringReader.getScopeStack().element().getClosure().endsClosure(directiveStringReader, true)) {
-            return c;
+            return ARGUMENT_SEPARATOR_CHAR;
         }
         if(!VanillaLanguage.Companion.isReaderEasyNextLine(reader)) {
             return c;
