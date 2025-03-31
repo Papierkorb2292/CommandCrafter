@@ -432,18 +432,4 @@ object LanguageManager {
          */
         val argumentDecoder: Decoder<Language>
     }
-
-    data class AnalyzingLanguageArgument(val parameterCursor: Int, val value: String?, val valueCursor: Int) {
-        fun createDiagnostic(message: String, lines: List<String>): Diagnostic {
-            val startPos = AnalyzingResult.getPositionFromCursor(parameterCursor, lines)
-            var length = valueCursor - parameterCursor
-            if(value != null)
-                length += value.length
-            val endPos = startPos.advance(length)
-            return Diagnostic(
-                Range(startPos, endPos),
-                message
-            )
-        }
-    }
 }
