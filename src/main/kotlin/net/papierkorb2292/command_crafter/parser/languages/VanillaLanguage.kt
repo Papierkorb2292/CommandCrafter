@@ -534,7 +534,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val gapReader = reader.copy()
         gapReader.cursor = gapRange.start
         gapReader.readLine()
-        while(gapReader.cursor <= gapRange.end) {
+        while(gapReader.cursor < gapRange.end) {
             val lineStart = gapReader.cursor
             gapReader.readLine()
             val lineEnd = gapReader.cursor
