@@ -52,7 +52,7 @@ public class EntityArgumentTypeMixin implements StringifiableArgumentType {
             result.add(Either.left(reader.getString().substring(reader.getCursor()-1, reader.getCursor())));
             reader.skipWhitespace();
             sectionStartCursor = reader.getCursor();
-            if(argumentName.equals("type") && reader.canRead(2) && (reader.peek() == '(' || (reader.peek() == '!' && reader.peek(1) == '('))) {
+            if(argumentName.equals("type") && reader.canRead(2) && (reader.peek() == '[' || (reader.peek() == '!' && reader.peek(1) == '['))) {
                 if(reader.peek() == '!') reader.skip();
                 result.add(Either.left(reader.getString().substring(sectionStartCursor, reader.getCursor()) + '#'));
                 reader.skipWhitespace();

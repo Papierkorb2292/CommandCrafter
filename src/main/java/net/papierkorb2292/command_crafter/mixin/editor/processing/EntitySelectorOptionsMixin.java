@@ -14,12 +14,14 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.InvalidIdentifierException;
 import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.helper.AnalyzedRegistryEntryList;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -336,47 +338,54 @@ public class EntitySelectorOptionsMixin {
     private static EntitySelectorOptions.SelectorHandler command_crafter$highlightTypeOption(EntitySelectorOptions.SelectorHandler handler) {
         return selectorReader -> {
             var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
-            if(analyzingResult == null) {
+            var reader = selectorReader.getReader();
+            if(analyzingResult == null || !(reader instanceof DirectiveStringReader<?> directiveReader) || !(directiveReader.getResourceCreator() instanceof AnalyzingResourceCreator)) {
                 handler.handle(selectorReader);
                 return;
             }
-            var reader = selectorReader.getReader();
-            if(VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
-                var parsed = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>) reader, Registries.ENTITY_TYPE);
-                if(parsed instanceof AnalyzedRegistryEntryList<EntityType<?>> analyzed) {
-                    analyzingResult.combineWith(analyzed.getAnalyzingResult());
-                }
-                return;
-            }
-            if(reader instanceof DirectiveStringReader<?> directiveStringReader
-                    && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator
-                    && reader.canRead()
-            ) {
-                var startCursor = reader.getCursor();
-                if(reader.peek() == '!') reader.skip();
-                if(reader.canRead() && reader.peek() == '#') {
+            var hasNegationChar = false;
+            if(reader.canRead()) {
+                if(reader.peek() == '!') {
+                    hasNegationChar = true;
                     reader.skip();
-                    var tagId = Identifier.fromCommandInput(reader);
-                    //noinspection unchecked
-                    IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(
-                            tagId,
-                            PackContentFileType.ENTITY_TYPE_TAGS_FILE_TYPE,
-                            new StringRange(startCursor, reader.getCursor()),
-                            analyzingResult,
-                            (DirectiveStringReader<AnalyzingResourceCreator>) directiveStringReader
-                    );
-                    return;
                 }
+                var startCursor = reader.getCursor();
+                var isTag = reader.canRead() && reader.peek() == '#';
+                if(isTag) reader.skip();
+                try {
+                    var tagId = Identifier.fromCommandInput(reader);
+                    if(isTag) {
+                        //noinspection unchecked
+                        IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(
+                                tagId,
+                                PackContentFileType.ENTITY_TYPE_TAGS_FILE_TYPE,
+                                new StringRange(startCursor, reader.getCursor()),
+                                analyzingResult,
+                                (DirectiveStringReader<AnalyzingResourceCreator>) reader
+                        );
+                    } else {
+                        analyzingResult.getSemanticTokens().addMultiline(
+                                startCursor,
+                                reader.getCursor() - startCursor,
+                                TokenType.Companion.getPARAMETER(),
+                                0
+                        );
+                    }
+                } catch(InvalidIdentifierException ignored) { }
                 reader.setCursor(startCursor);
             }
-            var cursor = selectorReader.getReader().getCursor();
-            handler.handle(selectorReader);
-            analyzingResult.getSemanticTokens().addMultiline(
-                    cursor,
-                    selectorReader.getReader().getCursor() - cursor,
-                    TokenType.Companion.getPARAMETER(),
-                    0
-            );
+            if(VanillaLanguage.Companion.isReaderInlineResources(reader)) {
+                var isInlineTag = reader.canRead() && reader.peek() == '[';
+                //noinspection unchecked
+                var parsed = VanillaLanguage.Companion.analyzeRegistryTagTuple((DirectiveStringReader<AnalyzingResourceCreator>) reader, Registries.ENTITY_TYPE, false, hasNegationChar, true);
+                if(parsed instanceof AnalyzedRegistryEntryList<EntityType<?>> analyzed) {
+                    if(!isInlineTag) {
+                        parsed.getAnalyzingResult().getDiagnostics().removeIf(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.Error);
+                        parsed.getAnalyzingResult().getSemanticTokens().clear();
+                    }
+                    analyzingResult.combineWith(analyzed.getAnalyzingResult());
+                }
+            }
         };
     }
 

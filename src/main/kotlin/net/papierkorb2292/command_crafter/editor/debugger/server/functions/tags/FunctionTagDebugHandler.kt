@@ -28,7 +28,7 @@ import java.util.*
 class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandler {
     companion object {
         val TAG_PATH = RegistryKeys.getTagPath(FunctionLoader.FUNCTION_REGISTRY_KEY)
-        val TAG_PARSING_ELEMENT_RANGES = ThreadLocal<Map<JsonElement, StringRange>>()
+        val TAG_PARSING_ELEMENT_RANGES = ThreadLocal<Map<*, StringRange>>()
         val TAG_FILE_EXTENSION = ".json"
 
         fun getSourceName(function: PackagedId, sourceReference: Int? = ServerDebugManager.INITIAL_SOURCE_REFERENCE) =

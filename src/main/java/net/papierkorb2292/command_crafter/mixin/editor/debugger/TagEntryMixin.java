@@ -35,11 +35,9 @@ public class TagEntryMixin implements StringRangeContainer {
             @Override
             public <T> DataResult<Pair<TagEntry, T>> decode(DynamicOps<T> ops, T input) {
                 return codec.decode(ops, input).map(pair -> {
-                    if(input instanceof JsonElement) {
-                        var rangeMap = getOrNull(FunctionTagDebugHandler.Companion.getTAG_PARSING_ELEMENT_RANGES());
-                        if (rangeMap != null) {
-                            ((StringRangeContainer)pair.getFirst()).command_crafter$setRange(rangeMap.get(input));
-                        }
+                    var rangeMap = getOrNull(FunctionTagDebugHandler.Companion.getTAG_PARSING_ELEMENT_RANGES());
+                    if (rangeMap != null) {
+                        ((StringRangeContainer)pair.getFirst()).command_crafter$setRange(rangeMap.get(input));
                     }
                     return pair;
                 });

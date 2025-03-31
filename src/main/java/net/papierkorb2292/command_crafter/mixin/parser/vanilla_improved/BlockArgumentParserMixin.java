@@ -1,5 +1,8 @@
 package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -15,13 +18,15 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-@Mixin(BlockArgumentParser.class)
+@Mixin(
+        value = BlockArgumentParser.class,
+        // Set priority to ensure analyzing tags in processing/BlockArgumentParserMixin takes precedence
+        priority = 500
+)
 public abstract class BlockArgumentParserMixin {
 
     @Shadow @Final private boolean allowTag;
@@ -36,24 +41,32 @@ public abstract class BlockArgumentParserMixin {
 
     @Shadow protected abstract CompletableFuture<Suggestions> suggestSnbt(SuggestionsBuilder builder);
 
-    @Inject(
+    @ModifyExpressionValue(
+            method = "parse",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lcom/mojang/brigadier/StringReader;peek()C",
+                    remap = false
+            )
+    )
+    private char command_crafter$recognizeInlineTag(char peek) {
+        if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '[')
+            return '#';
+        return peek;
+    }
+
+    @WrapOperation(
             method = "parse",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;canRead()Z",
-                    remap = false,
-                    ordinal = 0
-            ),
-            cancellable = true
+                    target = "Lnet/minecraft/command/argument/BlockArgumentParser;parseTagId()V"
+            )
     )
-    private void command_crafter$parseInlineTag(CallbackInfo ci) throws CommandSyntaxException {
-        if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '(') {
+    private void command_crafter$parseInlineTag(BlockArgumentParser instance, Operation<Void> original) {
+        if(allowTag && VanillaLanguage.Companion.isReaderInlineResources(reader) && reader.canRead() && reader.peek() == '[') {
             tagId = VanillaLanguage.Companion.parseRegistryTagTuple((DirectiveStringReader<?>)reader, Registries.BLOCK);
-            if (this.reader.canRead() && this.reader.peek() == '[') {
-                parseTagProperties();
-                suggestions = this::suggestSnbt;
-            }
-            ci.cancel();
+        } else {
+            original.call(instance);
         }
     }
 }

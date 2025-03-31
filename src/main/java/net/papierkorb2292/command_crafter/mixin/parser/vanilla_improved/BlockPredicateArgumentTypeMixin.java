@@ -25,7 +25,7 @@ public class BlockPredicateArgumentTypeMixin implements StringifiableArgumentTyp
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        if(reader.peek() != '(' || !VanillaLanguage.Companion.isReaderInlineResources(reader)) {
+        if(reader.peek() != '[' || !VanillaLanguage.Companion.isReaderInlineResources(reader)) {
             return null;
         }
         var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.BLOCK);
