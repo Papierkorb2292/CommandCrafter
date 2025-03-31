@@ -7,6 +7,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.FontManager
 import net.minecraft.client.texture.atlas.AtlasSourceManager
+import net.minecraft.command.CommandRegistryAccess
+import net.minecraft.resource.featuretoggle.FeatureFlags
+import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandOutput
@@ -86,7 +89,7 @@ object ClientCommandCrafter : ClientModInitializer {
             val rootNode = limitCommandTreeForSource(
                 CommandManager(
                     CommandManager.RegistrationEnvironment.ALL,
-                    CommandManager.createRegistryAccess(registryWrapperLookup)
+                    CommandRegistryAccess.of(registryWrapperLookup, FeatureFlags.FEATURE_MANAGER.featureSet)
                 ), ServerCommandSource(
                     CommandOutput.DUMMY,
                     Vec3d.ZERO,
