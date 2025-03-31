@@ -400,7 +400,7 @@ object LanguageManager {
                     treeBuilder.build(nbt),
                     allowMalformedReader
                 )
-                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.asString().all { c -> StringReader.isAllowedInUnquotedString(c) }})
+                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.asString().any { c -> !StringReader.isAllowedInUnquotedString(c) }})
                     .analyzeFull(analyzingResult, true, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
