@@ -202,7 +202,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
 
         override fun removeEditorDebugConnection(editorDebugConnection: EditorDebugConnection) {
             val wrapped = wrappedEditorDebugConnections.remove(editorDebugConnection) ?: return
-            currentPauseActions.remove(wrapped)?.continue_()
+            currentPauseActions.remove(editorDebugConnection)?.continue_()
             val debugManager = server.getDebugManager()
             runOnServer { debugManager.removeDebugConnection(wrapped) }
         }
