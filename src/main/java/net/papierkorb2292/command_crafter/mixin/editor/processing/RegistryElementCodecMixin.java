@@ -39,8 +39,10 @@ public class RegistryElementCodecMixin<E> {
             method = "decode",
             at = @At(
                     value = "FIELD",
-                    target = "Lnet/minecraft/util/Identifier;CODEC:Lcom/mojang/serialization/Codec;"
-            )
+                    target = "Lnet/minecraft/util/Identifier;CODEC:Lcom/mojang/serialization/Codec;",
+                    remap = true
+            ),
+            remap = false
     )
     private Codec<?> command_crafter$addRegistryIdSuggestions(Codec<?> identifierCodec) {
         return new CodecSuggestionWrapper<>(identifierCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
@@ -61,7 +63,8 @@ public class RegistryElementCodecMixin<E> {
             method = "decode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/registry/RegistryEntryLookup;getOptional(Lnet/minecraft/registry/RegistryKey;)Ljava/util/Optional;"
+                    target = "Lnet/minecraft/registry/RegistryEntryLookup;getOptional(Lnet/minecraft/registry/RegistryKey;)Ljava/util/Optional;",
+                    remap = true
             ),
             remap = false
     )
