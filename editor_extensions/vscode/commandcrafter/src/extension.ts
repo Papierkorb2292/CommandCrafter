@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { AddressConfigMalformedError, MinecraftConnectionType, MinecraftLanguageClientRunner, parseAddressConfig, SocketConnectionType } from './minecraftConnection';
 import { State } from 'vscode-languageclient';
+import { activateLog } from './extensionLog';
 
 let prevMinecraftAddress: string | undefined
 let minecraftLanguageClientRunner: MinecraftLanguageClientRunner | undefined
 
 export function activate(context: vscode.ExtensionContext) {
+	activateLog(context)
 	startMinecraftLanguageClientRunner(context)
 	context.subscriptions.push(vscode.commands.registerCommand('commandcrafter.activate', () => { }));
 }

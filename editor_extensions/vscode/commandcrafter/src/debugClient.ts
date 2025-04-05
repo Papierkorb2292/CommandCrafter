@@ -3,6 +3,7 @@ import { LanguageClientRunner, findFiles, getFeatureConfig } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
 import { MinecraftConsole } from './minecraftConsole';
+import { outputChannel } from './extensionLog';
 
 // The debug adapter implementation is similar to vscodes StreamDebugAdapter implementation,
 // which isn't available through the API.
@@ -27,6 +28,7 @@ export class DebugClient implements ConnectionFeature {
                 return connectionType.connect().then((streamInfo) => {
                     return debugClient.connectToStream(streamInfo, connectionType);
                 }, (error) => {
+                    outputChannel?.appendLine("Error connecting to Minecraft debugger: " + error.stack)
                     throw new Error("Error connecting to Minecraft debugger: " + error.message);
                 });
             }
