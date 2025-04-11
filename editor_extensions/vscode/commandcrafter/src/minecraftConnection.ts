@@ -10,6 +10,7 @@ import { MinecraftConsole } from './minecraftConsole';
 import { LanguageClientRunner, checkUpdateMinecraftAddress, findFiles, getFeatureConfig } from './extension';
 import { DebugClient } from './debugClient';
 import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
+import { outputChannel } from './extensionLog';
 
 export interface MinecraftConnectionType extends Disposable {
 
@@ -38,6 +39,7 @@ export class SocketConnectionType implements MinecraftConnectionType {
     constructor(public address: string, public port: number) { }
 
     connect(): Promise<StreamInfo> {
+        outputChannel?.appendLine(`Connecting to Minecraft on ${this.address}:${this.port}`)
         return new Promise((resolve, reject) => {
             const connection = this.connection = net.connect({ host: this.address, port: this.port });
             connection.on('connect', () => resolve({
@@ -103,6 +105,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
 
         this.prevOutputChannel?.dispose();
         this.connectionType?.connect().then((streamInfo) => {
+            outputChannel?.appendLine(`Connecting to Minecraft Language server with feature config: ${JSON.stringify(getFeatureConfig())}`)
             const serviceRequest = JSON.stringify({
                 "seq": 1,
                 "type": "request",
@@ -116,6 +119,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 `Content-Length:${Buffer.byteLength(serviceRequest, 'utf-8')}\r\n\r\n${serviceRequest}`, 'utf-8'
             );
             const languageClient = new LanguageClient(
+                "commandCrafterLanguageClient",
                 "CommandCrafter Language Client",
                 () => Promise.resolve(streamInfo),
                 {
@@ -132,15 +136,18 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 this.clientState = e.newState;
                 switch(e.newState) {
                     case State.Starting:
+                        outputChannel?.appendLine("LanguageClient is starting")
                         this.connectionFeatures.forEach(feature => feature.onLanguageClientStart(languageClient));
                         break;
                     case State.Running:
+                        outputChannel?.appendLine("LanguageClient is running")
                         this.connectionFeatures.forEach(feature => feature.onLanguageClientReady(languageClient));
                         languageClient.onRequest("findFiles", (filePattern: string) => findFiles(filePattern))
                         languageClient.onRequest("getFileContent", (path: string) =>
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
                         break;
                     case State.Stopped:
+                        outputChannel?.appendLine("LanguageClient is stopping")
                         languageClient.diagnostics?.clear()
                         this.connectionFeatures.forEach(feature => feature.onLanguageClientStop());
                         break;
@@ -151,6 +158,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
             this.languageClient = languageClient;
         }, (error) => {
             vscode.window.showInformationMessage(`Can't connect to Minecraft Language Server: ${error}`);
+            outputChannel?.appendLine(`Can't connect to Minecraft Language Server: ${error.stack}`)
         })
     }
 
