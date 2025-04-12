@@ -5,17 +5,21 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.EntitySelectorOptions;
 import net.minecraft.command.EntitySelectorReader;
 import net.minecraft.entity.EntityType;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.InvalidIdentifierException;
 import net.papierkorb2292.command_crafter.editor.processing.*;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
@@ -427,25 +431,27 @@ public class EntitySelectorOptionsMixin {
             method = "method_9966",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;parseCompound()Lnet/minecraft/nbt/NbtCompound;"
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/NbtCompound;"
             )
     )
-    private static NbtCompound command_crafter$highlightNbtOption(StringNbtReader nbtReader, Operation<NbtCompound> op, EntitySelectorReader selectorReader) {
+    private static NbtCompound command_crafter$highlightNbtOption(StringReader reader, Operation<NbtCompound> op, EntitySelectorReader selectorReader) throws CommandSyntaxException {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult == null)
-            return op.call(nbtReader);
+            return op.call(reader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>) selectorReader.getReader();
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = op.call(nbtReader);
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        var nbt = nbtReader.readAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
         ).analyzeFull(analyzingResult, true, null);
-        return nbt;
+        return nbt instanceof NbtCompound ? (NbtCompound)nbt : null;
     }
 
     @ModifyExpressionValue(

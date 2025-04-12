@@ -9,16 +9,16 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
+import net.minecraft.command.EntitySelectorReader;
 import net.minecraft.command.argument.NbtPathArgumentType;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -94,24 +94,27 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             method = { "parseNode", "readCompoundChildNode" },
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;parseCompound()Lnet/minecraft/nbt/NbtCompound;"
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/NbtCompound;"
             )
     )
-    private static NbtCompound command_crafter$highlightCompounds(StringNbtReader reader, Operation<NbtCompound> op, StringReader stringReader) {
+    private static NbtCompound command_crafter$highlightNbtOption(StringReader reader, Operation<NbtCompound> op) throws CommandSyntaxException {
         var analyzingResult = command_crafter$analyzingResult.get();
-        if(analyzingResult == null) return op.call(reader);
+        if(analyzingResult == null)
+            return op.call(reader);
         //noinspection unchecked
-        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)stringReader;
+        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         //noinspection unchecked
-        ((StringRangeTreeCreator<NbtElement>)reader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = op.call(reader);
+        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        var nbt = nbtReader.readAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
         ).analyzeFull(analyzingResult, true, null);
-        return nbt;
+        return nbt instanceof NbtCompound ? (NbtCompound)nbt : null;
     }
 
     @Inject(

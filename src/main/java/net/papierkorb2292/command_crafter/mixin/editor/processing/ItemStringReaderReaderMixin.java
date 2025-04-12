@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -8,14 +7,12 @@ import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
-import com.mojang.brigadier.ImmutableStringReader;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.DataResult;
 import net.minecraft.command.argument.ItemStringReader;
 import net.minecraft.component.ComponentType;
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
@@ -28,7 +25,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
-import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -37,7 +33,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 @Mixin(targets = "net.minecraft.command.argument.ItemStringReader$Reader")
 public class ItemStringReaderReaderMixin {
@@ -116,7 +111,7 @@ public class ItemStringReaderReaderMixin {
         var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).withOps(((ItemStringReaderAccessor)field_48970).getNbtOps());
+        ).withOps(((ItemStringReaderAccessor)field_48970).getOps());
         treeOps.analyzeFull(command_crafter$analyzingResult, true, type.getCodec());
         return nbt;
     }

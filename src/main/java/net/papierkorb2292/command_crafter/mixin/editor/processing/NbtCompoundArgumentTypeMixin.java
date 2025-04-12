@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.NbtCompoundArgumentType;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -21,12 +22,12 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode {
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
-        var nbtReader = new StringNbtReader(readerCopy);
+        var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = nbtReader.parseCompound();
+        var nbt = nbtReader.readAsArgument(readerCopy);
         var tree = treeBuilder.build(nbt);
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,

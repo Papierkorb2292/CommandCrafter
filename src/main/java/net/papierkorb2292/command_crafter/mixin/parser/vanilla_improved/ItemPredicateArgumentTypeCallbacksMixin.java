@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 
 import com.mojang.brigadier.StringReader;
-import net.minecraft.command.argument.packrat.ParsingRule;
+import net.minecraft.util.packrat.ParsingRule;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryWrapper;

@@ -20,6 +20,6 @@ public class NbtCompoundArgumentTypeMixin implements StringifiableArgumentType {
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
         var argument = context.getArgument(name, NbtCompound.class);
-        return List.of(Either.left(argument.asString()));
+        return List.of(Either.left(argument.toString()));
     }
 }

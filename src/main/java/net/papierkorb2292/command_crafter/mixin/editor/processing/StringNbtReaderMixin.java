@@ -1,57 +1,34 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.llamalad7.mixinextras.injector.ModifyReceiver;
-import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.llamalad7.mixinextras.sugar.Local;
-import com.llamalad7.mixinextras.sugar.Share;
-import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.context.StringRange;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import kotlin.Unit;
-import kotlin.jvm.functions.Function1;
 import net.minecraft.nbt.*;
-import net.papierkorb2292.command_crafter.MixinUtil;
-import net.papierkorb2292.command_crafter.editor.processing.NbtStringRangeListBuilder;
+import net.minecraft.util.packrat.PackratParser;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
 
 @Mixin(StringNbtReader.class)
-public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<NbtElement>, AllowMalformedContainer {
-    @Shadow @Final private StringReader reader;
+public abstract class StringNbtReaderMixin<T> implements StringRangeTreeCreator<NbtElement>, AllowMalformedContainer {
+    /*@Shadow @Final private StringReader reader;
 
     @Shadow public abstract NbtCompound parseCompound() throws CommandSyntaxException;
 
     @Shadow protected abstract NbtElement parseList() throws CommandSyntaxException;
-
+    */
     private @Nullable StringRangeTree.Builder<NbtElement> command_crafter$stringRangeTreeBuilder;
-    private NbtCompound command_crafter$currentParsingCompound = null;
+    /*private NbtCompound command_crafter$currentParsingCompound = null;
     private NbtStringRangeListBuilder command_crafter$currentParsingNbtListBuilder = null;
     private int command_crafter$currentNestedStartChar = -1;
-    private boolean command_crafter$skipFirstNestedChar = false;
+    private boolean command_crafter$skipFirstNestedChar = false;*/
     private boolean command_crafter$allowMalformed = false;
-    private List<StringRange> command_crafter$pendingListRangesBetweenInternalNodeEntries = new ArrayList<>();
+    /*private List<StringRange> command_crafter$pendingListRangesBetweenInternalNodeEntries = new ArrayList<>();
 
     private Deque<Integer> command_crafter$elementAllowedStartCursor = new LinkedList<>();
 
@@ -61,7 +38,7 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
     )
     private void command_crafter$pushElementAllowedStartCursor(StringReader reader, CallbackInfo ci) {
         command_crafter$elementAllowedStartCursor.push(reader.getCursor());
-    }
+    }*/
 
     @Override
     public void command_crafter$setAllowMalformed(boolean allowMalformed) {
@@ -73,7 +50,32 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         command_crafter$stringRangeTreeBuilder = builder;
     }
 
-    @ModifyReturnValue(
+    @WrapOperation(
+            method = { "read(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;", "readAsArgument" },
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/packrat/PackratParser;parse(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
+            )
+    )
+    private T command_crafter$setAdditionalPackratParserArgs(PackratParser<T> instance, StringReader reader, Operation<T> op) {
+        PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(command_crafter$allowMalformed);
+        StringRangeTree.PartialBuilder<NbtElement> partialStringRangeTreeBuilder = null;
+        if(command_crafter$stringRangeTreeBuilder != null) {
+            partialStringRangeTreeBuilder = new StringRangeTree.PartialBuilder<>();
+            PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialStringRangeTreeBuilder));
+        }
+        try {
+            return op.call(instance, reader);
+        } finally {
+            PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
+            PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
+            if(partialStringRangeTreeBuilder != null) {
+                partialStringRangeTreeBuilder.addToBasicBuilder(command_crafter$stringRangeTreeBuilder);
+            }
+        }
+    }
+
+    /*@ModifyReturnValue(
             method = "parseElementPrimitive",
             at = @At(
                     value = "RETURN"
@@ -541,5 +543,5 @@ public abstract class StringNbtReaderMixin implements StringRangeTreeCreator<Nbt
         final var shouldSkip = command_crafter$skipFirstNestedChar;
         command_crafter$skipFirstNestedChar = false;
         return !shouldSkip;
-    }
+    }*/
 }

@@ -12,10 +12,7 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.RegistryEntryArgumentType;
 import net.minecraft.component.ComponentType;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtEnd;
-import net.minecraft.nbt.NbtString;
-import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.nbt.*;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
@@ -56,7 +53,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
     }
 
     @ModifyReceiver(
-            method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/registry/entry/RegistryEntry;",
+            method = "parse(Lcom/mojang/brigadier/StringReader;Lnet/minecraft/nbt/StringNbtReader;)Lnet/minecraft/registry/entry/RegistryEntry;",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",
@@ -89,12 +86,12 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         NbtElement nbt;
         if(parsedId == null) {
-            var nbtReader = new StringNbtReader(readerCopy);
+            var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
             ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
             //noinspection unchecked
             ((StringRangeTreeCreator<NbtElement>) nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
             try {
-                nbt = nbtReader.parseElement();
+                nbt = nbtReader.readAsArgument(readerCopy);
             } catch (CommandSyntaxException e) {
                 nbt = NbtEnd.INSTANCE;
                 treeBuilder.addNode(nbt, range, range.getStart());
@@ -108,7 +105,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
                 tree,
                 readerCopy
         )
-                .withSuggestionResolver(new NbtSuggestionResolver(readerCopy, nbtString -> Identifier.tryParse(nbtString.asString()) == null))
+                .withSuggestionResolver(new NbtSuggestionResolver(readerCopy, nbtString -> Identifier.tryParse(nbtString.value()) == null))
                 .withRegistry(registries)
                 .analyzeFull(result, parsedId == null, entryCodec);
     }

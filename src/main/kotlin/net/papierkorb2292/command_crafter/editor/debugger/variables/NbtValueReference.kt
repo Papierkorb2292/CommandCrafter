@@ -20,7 +20,7 @@ class NbtValueReference(
 
     override fun getVariable(name: String) = Variable().also {
         it.name = name
-        it.value = nbt.asString()
+        it.value = nbt.toString()
         it.type = getTypeName(nbt.nbtType)
         it.variablesReference = getVariablesReferencerId()
         variablesReferencer?.run {
@@ -30,7 +30,7 @@ class NbtValueReference(
     }
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = nbt.asString()
+        it.value = nbt.toString()
         it.type = getTypeName(nbt.nbtType)
         it.variablesReference = getVariablesReferencerId()
         variablesReferencer?.run {
@@ -58,19 +58,17 @@ class NbtValueReference(
                     variablesReferencerId = id
                     id
                 }
-                is AbstractNbtList<*> -> createNbtListVariablesReferencer(it)
+                is AbstractNbtList -> createNbtListVariablesReferencer(it)
                 else -> 0
             }
         }
 
-    private fun <Content : NbtElement> createNbtListVariablesReferencer(list: AbstractNbtList<Content>): Int {
-        val originalContentType = list.heldType
+    private fun createNbtListVariablesReferencer(list: AbstractNbtList): Int {
         val variablesReferencer = NbtListVariablesReferencer(mapper, list) {
             val value = nbtSetter(it) ?: NbtEnd.INSTANCE
             nbt = value
-            if(value is AbstractNbtList<*> && value.heldType == originalContentType) {
-                @Suppress("UNCHECKED_CAST")
-                return@NbtListVariablesReferencer value as AbstractNbtList<Content>
+            if(value is AbstractNbtList) {
+                return@NbtListVariablesReferencer value
             }
             variablesReferencerId = null
             variablesReferencer = null
@@ -86,7 +84,7 @@ class NbtValueReference(
         try {
             val element =
                 if(VariableValueReference.isNone(value)) null
-                else StringNbtReader(StringReader(value)).parseElement()
+                else StringNbtReader.fromOps(NbtOps.INSTANCE).read(value)
             nbt = nbtSetter(element) ?: NbtEnd.INSTANCE
         } catch(_: Exception) { }
     }

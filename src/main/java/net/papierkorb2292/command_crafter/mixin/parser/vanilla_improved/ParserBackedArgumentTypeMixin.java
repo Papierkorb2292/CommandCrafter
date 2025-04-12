@@ -4,7 +4,7 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Either;
-import net.minecraft.command.argument.ItemPredicateArgumentType;
+import net.minecraft.command.argument.ParserBackedArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
@@ -19,17 +19,17 @@ import org.spongepowered.asm.mixin.Shadow;
 import java.util.ArrayList;
 import java.util.List;
 
-@Mixin(ItemPredicateArgumentType.class)
-public abstract class ItemPredicateArgumentTypeMixin implements StringifiableArgumentType {
-    @Shadow public abstract ItemPredicateArgumentType.ItemStackPredicateArgument parse(StringReader stringReader) throws CommandSyntaxException;
+@Mixin(ParserBackedArgumentType.class)
+public abstract class ParserBackedArgumentTypeMixin<T> implements StringifiableArgumentType {
+    @Shadow public abstract T parse(StringReader reader) throws CommandSyntaxException;
 
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<ServerCommandSource> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(new ArrayList<>());
+        PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(new PackratParserAdditionalArgs.StringifiedBranchingArgument(new ArrayList<>()));
         parse(reader);
         var result = PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().get();
         PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().remove();
-        return result;
+        return result.getStringified();
     }
 }

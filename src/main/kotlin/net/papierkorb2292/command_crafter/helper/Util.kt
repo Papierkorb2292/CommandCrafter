@@ -104,6 +104,11 @@ fun <T> Collection<T>?.concatNullable(other: Collection<T>?): Collection<T>? = w
     other == null -> this
     else -> this + other
 }
+fun <T> MutableCollection<T>?.appendNullable(other: MutableCollection<T>?): MutableCollection<T>? = when {
+    this == null -> other?.toMutableList()
+    other == null -> this
+    else -> this.toMutableList().apply { addAll(other) }
+}
 
 /**
  * Converts the Identifier to a string while omitting the namespace if it is the default "minecraft".

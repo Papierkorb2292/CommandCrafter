@@ -8,15 +8,15 @@ import org.eclipse.lsp4j.debug.VariablesArguments
 import org.eclipse.lsp4j.debug.VariablesArgumentsFilter
 import java.util.concurrent.CompletableFuture
 
-class NbtListVariablesReferencer<Content : NbtElement>(
+class NbtListVariablesReferencer(
     private val mapper: VariablesReferenceMapper,
-    private var nbtList: AbstractNbtList<Content>,
-    private val nbtSetter: (AbstractNbtList<Content>) -> AbstractNbtList<Content>
+    private var nbtList: AbstractNbtList,
+    private val nbtSetter: (AbstractNbtList) -> AbstractNbtList
 ) : CountedVariablesReferencer {
     override val namedVariableCount: Int
         get() = 0
     override val indexedVariableCount: Int
-        get() = nbtList.size
+        get() = nbtList.size()
 
     private val valueReferences = mutableListOf<VariableValueReference>()
     init {
@@ -55,30 +55,29 @@ class NbtListVariablesReferencer<Content : NbtElement>(
 
     private fun createValueReference(index: Int, element: NbtElement): VariableValueReference {
         return NbtValueReference(mapper, element) {
-            @Suppress("UNCHECKED_CAST")
-            val newList = nbtList.copy() as AbstractNbtList<Content>
-            if(it != null && newList.heldType == element.type) {
-                @Suppress("UNCHECKED_CAST")
-                newList[index] = it as Content
+            val newList = nbtList.copy() as AbstractNbtList
+            if(it != null) {
+                newList.setElement(index, it)
             } else {
-                newList.removeAt(index)
+                newList.method_10536(index)
             }
             nbtList = nbtSetter(newList)
             updateValueReferences()
-            nbtList[index]
+            // get
+            nbtList.method_10534(index)
         }
     }
 
     private fun updateValueReferences() {
-        if(nbtList.size < valueReferences.size) {
-            valueReferences.subList(nbtList.size, valueReferences.size).clear()
+        if(nbtList.size() < valueReferences.size) {
+            valueReferences.subList(nbtList.size(), valueReferences.size).clear()
             return
         }
-        if(nbtList.size > valueReferences.size) {
+        if(nbtList.size() > valueReferences.size) {
             valueReferences.addAll(
-                nbtList.size - valueReferences.size,
-                (valueReferences.size until nbtList.size).map { index ->
-                    createValueReference(index, nbtList[index])
+                nbtList.size() - valueReferences.size,
+                (valueReferences.size until nbtList.size()).map { index ->
+                    createValueReference(index, nbtList.method_10534(index))
                 }
             )
         }

@@ -7,10 +7,7 @@ import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.command.CommandAction;
-import net.minecraft.command.ExecutionControl;
-import net.minecraft.command.ExecutionFlags;
-import net.minecraft.command.ReturnValueConsumer;
+import net.minecraft.command.*;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.command.ExecuteCommand;
@@ -45,7 +42,7 @@ public abstract class ExecuteCommandMixin {
             method = "enqueueExecutions",
             at = @At("HEAD")
     )
-    private static <T extends AbstractServerCommandSource<T>> void command_crafter$initCommandInfo(T baseSource, List<T> sources, Function<T, T> functionSourceGetter, IntPredicate predicate, ContextChain<T> contextChain, @Nullable NbtCompound args, ExecutionControl<T> control, ExecuteCommand.FunctionNamesGetter<T, Collection<CommandFunction<T>>> functionNamesGetter, ExecutionFlags flags, CallbackInfo ci, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfo, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
+    private static <T extends AbstractServerCommandSource<T>> void command_crafter$initCommandInfo(T baseSource, List<T> sources, Function<T, T> functionSourceGetter, IntPredicate predicate, ContextChain<T> contextChain, @Nullable NbtCompound args, ExecutionControl<T> control, ArgumentGetter<CommandContext<T>, Collection<CommandFunction<T>>> functionNamesGetter, ExecutionFlags flags, CallbackInfo ci, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfo, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         if (!(baseSource instanceof ServerCommandSource)) return;
         var pauseContext = PauseContext.Companion.getCurrentPauseContext().get();
         if(pauseContext == null) return;

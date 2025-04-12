@@ -31,7 +31,7 @@ dependencies {
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.19.0")
 
     // Only use within PartialIdGeneratorServiceImpl or other services with the purpose of interacting with PartialIdAutocomplete
-    modCompileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:1.1.2") {
+    modCompileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:1.2.0") {
         exclude("com.terraformersmc", "modmenu")
     }
 }

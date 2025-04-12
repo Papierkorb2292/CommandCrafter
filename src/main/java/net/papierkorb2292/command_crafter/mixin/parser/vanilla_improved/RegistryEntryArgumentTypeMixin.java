@@ -36,6 +36,6 @@ public class RegistryEntryArgumentTypeMixin<T> implements StringifiableArgumentT
         //noinspection unchecked
         var argument = (RegistryEntry<T>)context.getArgument(name, RegistryEntry.class);
         RegistryOps<NbtElement> registryOps = registries.getOps(NbtOps.INSTANCE);
-        return Collections.singletonList(Either.left(entryCodec.encode(argument, registryOps, registryOps.empty()).getOrThrow().asString()));
+        return Collections.singletonList(Either.left(entryCodec.encode(argument, registryOps, registryOps.empty()).getOrThrow().toString()));
     }
 }

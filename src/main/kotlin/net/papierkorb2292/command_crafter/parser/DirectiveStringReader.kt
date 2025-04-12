@@ -2,12 +2,8 @@ package net.papierkorb2292.command_crafter.parser
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
-import com.mojang.brigadier.context.StringRange
-import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.command.CommandSource
-import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import java.io.IOException
@@ -315,59 +311,6 @@ class DirectiveStringReader<out ResourceCreator>(
 
     fun skipSpaces() {
         while(canRead() && peek() == ' ') read()
-    }
-
-    fun readStringUntil(terminator: Char, allowMultiline: Boolean): String {
-        val result = StringBuilder()
-        var escaped = false
-        while(canRead() && (allowMultiline || peek() != '\n')) {
-            val c = read()
-            if(escaped) {
-                if(c == terminator || c == '\\') {
-                    result.append(c)
-                    escaped = false
-                } else {
-                    cursor--
-                    throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerInvalidEscape()
-                        .createWithContext(this, c.toString())
-                }
-            }
-            else if(c == '\\') escaped = true
-            else if(c == terminator) {
-                if(!allowMultiline) return result.toString()
-                val firstLineEnd = result.indexOfFirst { it == '\n' }
-                if(firstLineEnd == -1) return result.toString()
-                val restLines = result.substring(firstLineEnd + 1)
-                return result.substring(0, firstLineEnd) + restLines.trimIndent().replace("\n", "")
-            }
-            else result.append(c)
-        }
-
-        throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedEndOfQuote().createWithContext(this)
-    }
-
-    override fun readStringUntil(terminator: Char): String {
-        return readStringUntil(terminator, false)
-    }
-
-    fun readMultilineString(): String {
-        if(!canRead()) return ""
-        val next = peek()
-        if(isQuotedStringStart(next)) {
-            skip()
-            return readStringUntil(next, true)
-        }
-        return readUnquotedString()
-    }
-
-    fun readQuotedMultilineString(): String {
-        if(!canRead()) return ""
-        val next = peek()
-        if(!isQuotedStringStart(next)) {
-            throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.readerExpectedStartOfQuote().createWithContext(this)
-        }
-        skip()
-        return readStringUntil(next, true).trimIndent()
     }
 
     fun getMultilineString(absoluteStart: Int, absoluteEnd: Int, lineSeparator: String = OpenFile.LINE_SEPARATOR): String {

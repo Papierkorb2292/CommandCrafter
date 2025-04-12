@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.nbt.NbtIo
+import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.StringNbtReader
 import net.minecraft.registry.Registries
 import net.minecraft.scoreboard.ScoreHolder
@@ -359,7 +360,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             ?: return FileSystemResult(FileNotFoundError("Storage ${resolvedPath.fileName} not found"))
         val nbtCompound = try {
             if(!isNbt)
-                StringNbtReader.parse(content.decodeToString())
+                StringNbtReader.readCompound(content.decodeToString())
             else
                 NbtIo.readCompound(ByteStreams.newDataInput(content))
         } catch(e: Exception) {

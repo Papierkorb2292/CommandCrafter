@@ -19,8 +19,8 @@ import com.mojang.serialization.JsonOps
 import net.minecraft.command.CommandSource
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.command.argument.packrat.ParsingRule
-import net.minecraft.command.argument.packrat.ParsingState
+import net.minecraft.util.packrat.ParsingRule
+import net.minecraft.util.packrat.ParsingState
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtEnd
 import net.minecraft.nbt.NbtOps
@@ -1091,7 +1091,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader: DirectiveStringReader<*>,
             saveFunctionTagRanges: Boolean = false
         ): List<TagEntry> {
-            val nbtReader = StringNbtReader(reader)
+            val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
             val treeBuilder = StringRangeTree.Builder<NbtElement>()
             if(saveFunctionTagRanges) {
                 @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
@@ -1099,7 +1099,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     treeBuilder
                 )
             }
-            val nbt = nbtReader.parseElement()
+            val nbt = nbtReader.readAsArgument(reader)
             if(saveFunctionTagRanges) {
                 val tree = treeBuilder.build(nbt)
                 FunctionTagDebugHandler.TAG_PARSING_ELEMENT_RANGES.runWithValue(tree.ranges) {
@@ -1130,13 +1130,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val startCursor = reader.cursor
             // Copy reader when throwSyntaxErrors is true, such that the original reader can be used to parse without allowing malformed afterward
             val malformedReader = if(throwSyntaxErrors) reader.copy() else reader
-            val nbtReader = StringNbtReader(malformedReader)
+            val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
             val treeBuilder = StringRangeTree.Builder<NbtElement>()
             @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
             (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             val nbt = try {
-                nbtReader.parseElement()
+                nbtReader.readAsArgument(malformedReader)
             } catch(e: Exception) {
                 treeBuilder.addNode(NbtEnd.INSTANCE, StringRange(startCursor, malformedReader.cursor), startCursor)
                 NbtEnd.INSTANCE
@@ -1149,12 +1149,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             StringRangeTree.TreeOperations.forNbt(tree, malformedReader)
                 // Don't escape 'this' string for function references, '![]' for registry tags and remove empty string completion
-                .withSuggestionResolver(NbtSuggestionResolver(malformedReader) { it.asString() != "this" && it.asString() != "![]" && it.asString().isNotEmpty() })
+                .withSuggestionResolver(NbtSuggestionResolver(malformedReader) { it.value != "this" && it.value != "![]" && it.value.isNotEmpty() })
                 .analyzeFull(analyzingResult, contentDecoder = decoder)
 
             if(throwSyntaxErrors) {
                 // Read again without allowing malformed to get syntax errors
-                StringNbtReader(reader).parseElement()
+                StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
             }
         }
 
@@ -1209,36 +1209,36 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     class InlineTagRule<Testee, TagEntry>(val registry: RegistryWrapper.Impl<TagEntry>, val testeeProjection: (Testee) -> RegistryEntry<TagEntry>) : ParsingRule<StringReader, Predicate<Testee>> {
-        override fun parse(state: ParsingState<StringReader>): Optional<Predicate<Testee>> {
+        override fun parse(state: ParsingState<StringReader>): Predicate<Testee>? {
             val reader = state.reader
             val cursor = state.cursor
             if(!isReaderInlineResources(reader))
-                return Optional.empty()
+                return null
             val directiveReader = reader as DirectiveStringReader<*>
             try {
                 if(directiveReader.resourceCreator is AnalyzingResourceCreator) {
                     val isInlineTag = directiveReader.canRead() && directiveReader.peek() == '['
-                    val analyzingResult = PackratParserAdditionalArgs.analyzingResult.getOrNull()
+                    val analyzingResult = PackratParserAdditionalArgs.analyzingResult.getOrNull()?.analyzingResult
                     @Suppress("UNCHECKED_CAST")
                     val parsed = analyzeRegistryTagTuple(directiveReader as DirectiveStringReader<AnalyzingResourceCreator>, registry, analyzingResult == null, false)
                     analyzingResult?.combineWith(parsed.analyzingResult)
-                    return if(isInlineTag) Optional.of(Predicate { false }) else Optional.empty()
+                    return if(isInlineTag) Predicate { false } else null
                 }
                 val parsed = parseRegistryTagTuple(directiveReader, registry)
                 if(parsed is RawResourceRegistryEntryList<*>) {
                     PackratParserAdditionalArgs.stringifiedArgument.getOrNull()?.run {
-                        add(Either.left("#"))
-                        add(Either.right(parsed.resource))
+                        stringified.add(Either.left("#"))
+                        stringified.add(Either.right(parsed.resource))
                     }
-                    return Optional.of(Predicate { false })
+                    return Predicate { false }
                 }
-                return Optional.of(Predicate {
+                return Predicate {
                     parsed.contains(testeeProjection(it))
-                })
+                }
             } catch(e: Exception) {
                 state.errors.add(cursor, null, e)
             }
-            return Optional.empty()
+            return null
         }
     }
 

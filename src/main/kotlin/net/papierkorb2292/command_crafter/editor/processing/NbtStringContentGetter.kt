@@ -22,7 +22,7 @@ class NbtStringContentGetter(val tree: StringRangeTree<NbtElement>, val input: S
             } else
                 input.substring(range.start, range.end)
         return Triple(
-            p1.asString(),
+            p1.value,
             createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
             if(isQuoted) StringRangeTree.StringEscaper.escapeForQuotes(firstChar.toString()) else StringRangeTree.StringEscaper.Identity
         )

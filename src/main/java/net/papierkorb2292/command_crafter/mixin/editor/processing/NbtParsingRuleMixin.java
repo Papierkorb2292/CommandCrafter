@@ -6,11 +6,11 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import kotlin.Unit;
-import net.minecraft.command.argument.packrat.NbtParsingRule;
-import net.minecraft.command.argument.packrat.ParsingState;
+import net.minecraft.nbt.NbtParsingRule;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.util.packrat.ParsingState;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -18,40 +18,45 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
-import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+
+import java.util.Objects;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(NbtParsingRule.class)
-public class NbtParsingRuleMixin {
+public class NbtParsingRuleMixin<T> {
 
     @WrapOperation(
-            method = "parse",
+            method = "parse(Lnet/minecraft/util/packrat/ParsingState;)Lcom/mojang/serialization/Dynamic;",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;parseElement()Lnet/minecraft/nbt/NbtElement;"
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readAsArgument(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
             )
     )
-    private NbtElement command_crafter$analyzeNbt(StringNbtReader stringNbtReader, Operation<NbtElement> op, ParsingState<StringReader> state) {
+    private T command_crafter$analyzeNbt(StringNbtReader<T> instance, StringReader reader, Operation<T> op, ParsingState<StringReader> state) {
         // Only get analyzing result to check whether analyzing should happen. The actual analyzing result to use is only retrieved later in the callback,
         // at which point it might be a different instance.
         if (getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult()) == null)
-            return op.call(stringNbtReader);
+            return op.call(instance, reader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.getReader();
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
-        ((StringRangeTreeCreator<NbtElement>)stringNbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        ((AllowMalformedContainer)stringNbtReader).command_crafter$setAllowMalformed(true);
+        ((StringRangeTreeCreator<NbtElement>)instance).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((AllowMalformedContainer)instance).command_crafter$setAllowMalformed(true);
         final var startCursor = state.getReader().getCursor();
+        T parsed = null;
         NbtElement nbt;
         try {
-            nbt = MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(op, stringNbtReader);
+            parsed = MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
+            if (!(parsed instanceof NbtElement))
+                return parsed;
+            nbt = (NbtElement) parsed;
         } catch(CommandSyntaxException e) {
             nbt = NbtEnd.INSTANCE;
-            treeBuilder.addNode(nbt, new StringRange(startCursor, state.getReader().getCursor()), startCursor);
+            treeBuilder.addNode(NbtEnd.INSTANCE, new StringRange(startCursor, state.getReader().getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
         var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
@@ -59,13 +64,13 @@ public class NbtParsingRuleMixin {
                 directiveReader
         );
         PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {
-            var analyzingResult = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
-            if(analyzingResult != null) {
+            var analyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
+            if(analyzingResultArg != null) {
                 var registryTreeOps = treeOps.withOps(ops);
-                registryTreeOps.analyzeFull(analyzingResult, true, decoder);
+                registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), true, decoder);
             }
             return Unit.INSTANCE;
         });
-        return nbt;
+        return parsed;
     }
 }

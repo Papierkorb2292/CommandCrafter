@@ -7,6 +7,7 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.NbtElementArgumentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -21,14 +22,14 @@ public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode {
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
         var readerCopy = reader.copy();
         readerCopy.setCursor(range.getStart());
-        var nbtReader = new StringNbtReader(readerCopy);
+        var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         NbtElement nbt;
         try {
-            nbt = nbtReader.parseElement();
+            nbt = nbtReader.readAsArgument(readerCopy);
         } catch(CommandSyntaxException e) {
             nbt = NbtEnd.INSTANCE;
             treeBuilder.addNode(nbt, range, range.getStart());

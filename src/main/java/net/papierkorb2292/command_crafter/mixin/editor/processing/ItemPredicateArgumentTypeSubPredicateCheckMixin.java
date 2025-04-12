@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.mojang.brigadier.ImmutableStringReader;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Decoder;
+import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.DynamicOps;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtElement;
@@ -25,15 +26,15 @@ public class ItemPredicateArgumentTypeSubPredicateCheckMixin {
             method = "createPredicate",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/serialization/Decoder;parse(Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)Lcom/mojang/serialization/DataResult;",
+                    target = "Lcom/mojang/serialization/Decoder;parse(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/DataResult;",
                     remap = false
             )
     )
-    private Decoder<?> command_crafter$invokeDelayedDecodeNbtAnalyzing(Decoder<?> instance, DynamicOps<?> ops, Object input) {
+    private <T> Decoder<?> command_crafter$invokeDelayedDecodeNbtAnalyzing(Decoder<?> instance, Dynamic<T> input) {
         final var callback = getOrNull(PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback());
-        if (callback != null) {
+        if(callback != null && input.getValue() instanceof NbtElement) {
             //noinspection unchecked
-            callback.invoke(((DynamicOps<NbtElement>)ops), instance);
+            callback.invoke((DynamicOps<NbtElement>)input.getOps(), instance);
         }
         return instance;
     }

@@ -24,7 +24,7 @@ class NbtSemanticTokenProvider(val tree: StringRangeTree<NbtElement>, val input:
     }
 
     override fun getAdditionalTokens(node: NbtElement) = when(node) {
-        is AbstractNbtList<*> -> {
+        is AbstractNbtList -> {
             val nodeStart = tree.ranges[node]!!.start
             if(input.length > nodeStart + 2 && !StringReader.isQuotedStringStart(input[nodeStart + 1]) && input[nodeStart + 2] == ';')
                 // Is a primitive array

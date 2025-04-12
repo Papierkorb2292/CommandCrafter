@@ -9,10 +9,10 @@ import com.mojang.serialization.*
 import net.minecraft.nbt.*
 import net.minecraft.registry.RegistryWrapper
 import net.minecraft.text.TextCodecs
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.helper.appendNullable
 import net.papierkorb2292.command_crafter.helper.concatNullable
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -30,6 +30,7 @@ import java.util.stream.Collectors
 import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
+import kotlin.collections.ArrayDeque
 import kotlin.math.min
 import kotlin.reflect.KClass
 import kotlin.reflect.safeCast
@@ -270,20 +271,20 @@ class StringRangeTree<TNode: Any>(
         for(node in orderedNodes) {
             val (content, cursorMapper, stringEscaper) = stringGetter(node) ?: continue
             if(!content.startsWith('{') && !content.startsWith('[')) continue
-            val nbtReader = StringNbtReader(StringReader(content))
+            val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
             val nbtTreeBuilder = Builder<NbtElement>()
             @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
             (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
-            val nbtRoot = nbtReader.parseElement()
+            val nbtRoot = nbtReader.readAsArgument(StringReader(content))
             val nbtTree = nbtTreeBuilder.build(nbtRoot)
             val nbtElementCount = nbtTree.orderedNodes.count { it !in nbtTree.placeholderNodes }
             val jsonTree = StringRangeTreeJsonReader(java.io.StringReader(content)).read(Strictness.LENIENT, true)
             val jsonElementCount = jsonTree.orderedNodes.count { it !in jsonTree.placeholderNodes }
 
             val nbtArrayCount = nbtTree.orderedNodes.count {
-                if(it !is AbstractNbtList<*>)
+                if(it !is AbstractNbtList)
                     return@count false
                 val startCursor = nbtTree.getNodeRangeOrThrow(it).start
                 if(content.length <= startCursor + 2 || content[startCursor + 2] != ';')
@@ -361,7 +362,7 @@ class StringRangeTree<TNode: Any>(
             } else if(treeOperations.stringRangeTree == nbtTree) {
                 val reader = StringReader(content)
                 try {
-                    StringNbtReader(reader).parseElement()
+                    StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
                 } catch(e: Exception) {
                     stringAnalyzingResult.diagnostics += Diagnostic().also {
                         it.range = Range(
@@ -866,6 +867,93 @@ class StringRangeTree<TNode: Any>(
 
         class NodeWithoutRangeError(message: String) : Error(message)
         class UnresolvedPlaceholderError(message: String): Error(message)
+    }
+
+    class PartialBuilder<TNode: Any> private constructor(private val stack: ArrayDeque<PartialNode<TNode>>, private var nextNodeIndex: Int, private val parentStackTop: PartialNode<TNode>?, private val poppedNodes: ArrayList<PartialNode<TNode>?>) {
+        constructor(): this(ArrayDeque(), 0, null, ArrayList())
+
+        data class PartialNode<TNode: Any>(
+            val index: Int,
+            var node: TNode? = null,
+            var startCursor: Int? = null,
+            var endCursor: Int? = null,
+            var nodeAllowedStart: Int? = null,
+            var rangesBetweenEntries: MutableCollection<StringRange>? = null,
+            var mapKeyRanges: MutableCollection<kotlin.Pair<TNode, StringRange>>? = null,
+            var isPlaceholder: Boolean? = null,
+        ) {
+            fun copyFrom(other: PartialNode<TNode>) {
+                require(index == other.index) { "Tried to copy from a node with a different index" }
+                node = other.node ?: node
+                startCursor = other.startCursor ?: startCursor
+                endCursor = other.endCursor ?: endCursor
+                nodeAllowedStart = other.nodeAllowedStart ?: nodeAllowedStart
+                rangesBetweenEntries = rangesBetweenEntries.appendNullable(other.rangesBetweenEntries)
+                mapKeyRanges = mapKeyRanges.appendNullable(other.mapKeyRanges)
+                isPlaceholder = other.isPlaceholder ?: isPlaceholder
+            }
+
+            fun addRangeBetweenEntries(range: StringRange) {
+                val rangesBetweenEntries = rangesBetweenEntries
+                if(rangesBetweenEntries == null)
+                    this.rangesBetweenEntries = mutableListOf(range)
+                else
+                    rangesBetweenEntries.add(range)
+            }
+
+            fun addMapKeyRange(key: TNode, range: StringRange) {
+                val mapKeyRanges = mapKeyRanges
+                if(mapKeyRanges == null)
+                    this.mapKeyRanges = mutableListOf(key to range)
+                else
+                    mapKeyRanges.add(key to range)
+            }
+        }
+
+        fun pushNode(): PartialNode<TNode> {
+            val node = PartialNode<TNode>(nextNodeIndex++)
+            stack.addLast(node)
+            return node
+        }
+
+        fun popNode() {
+            val node = stack.removeLast()
+            require(node.node != null && node.startCursor != null && node.endCursor != null) { "Tried to pop incomplete node: $node" }
+            poppedNodes.ensureCapacity(node.index + 1)
+            for(i in poppedNodes.size..node.index)
+                poppedNodes.add(null)
+            poppedNodes[node.index] = node
+        }
+
+        fun peekNode() = stack.lastOrNull() ?: parentStackTop
+
+        fun pushBuilder(): PartialBuilder<TNode> {
+            val top = peekNode()
+            val branchedTop = if(top != null) PartialNode<TNode>(top.index) else null
+            return PartialBuilder(ArrayDeque(), nextNodeIndex, branchedTop, poppedNodes)
+        }
+
+        fun popBuilder(other: PartialBuilder<TNode>) {
+            while(other.stack.isNotEmpty())
+                other.popNode()
+            other.parentStackTop?.let {
+                peekNode()!!.copyFrom(it)
+            }
+            nextNodeIndex = other.nextNodeIndex
+        }
+
+        fun addToBasicBuilder(basicBuilder: Builder<TNode>) {
+            // Only consider elements up to nextNodeIndex, because elements beyond that were added by
+            // pushed builders that haven't been merged and thus shouldn't be build
+            for(node in poppedNodes.subList(0, nextNodeIndex)) {
+                require(node != null) { "Not all required nodes have been popped" }
+                basicBuilder.addNode(node.node!!, StringRange(node.startCursor!!, node.endCursor!!), node.nodeAllowedStart)
+                node.rangesBetweenEntries?.forEach { basicBuilder.addRangeBetweenInternalNodeEntries(node.node!!, it) }
+                node.mapKeyRanges?.forEach { basicBuilder.addMapKeyRange(node.node!!, it.first, it.second) }
+                if(node.isPlaceholder == true)
+                    basicBuilder.addPlaceholderNode(node.node!!)
+            }
+        }
     }
 
     /**

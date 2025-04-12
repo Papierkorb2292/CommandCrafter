@@ -316,7 +316,7 @@ object LanguageManager {
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).orThrow
                 }
-                val args = StringNbtReader(reader).parseElement()
+                val args = StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
                 return languageType.argumentDecoder.parse(NbtOps.INSTANCE, args).orThrow
             }
 
@@ -387,7 +387,7 @@ object LanguageManager {
                     return null
                 }
                 val allowMalformedReader = reader.copy()
-                val nbtReader = StringNbtReader(allowMalformedReader)
+                val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
                 @Suppress("KotlinConstantConditions")
                 (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
                 val treeBuilder = StringRangeTree.Builder<NbtElement>()
@@ -399,7 +399,7 @@ object LanguageManager {
                     empty
                 } else {
                     try {
-                        nbtReader.parseElement()
+                        nbtReader.readAsArgument(allowMalformedReader)
                     } catch(e: CommandSyntaxException) {
                         val empty = NbtOps.INSTANCE.empty()
                         treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), languageEnd + 1)
@@ -410,14 +410,14 @@ object LanguageManager {
                     treeBuilder.build(nbt),
                     allowMalformedReader
                 )
-                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.asString().any { c -> !StringReader.isAllowedInUnquotedString(c) }})
+                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.value.any { c -> !StringReader.isAllowedInUnquotedString(c) } })
                     .analyzeFull(analyzingResult, true, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
                 }
                 // Parse nbt with strict parser to mark syntax errors
                 try {
-                    StringNbtReader(reader).parseElement()
+                    StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
                 } catch(e: CommandSyntaxException) {
                     val startPos = AnalyzingResult.getPositionFromCursor(e.cursor + reader.readCharacters, reader.lines)
                     reader.cursor = reader.nextLineEnd

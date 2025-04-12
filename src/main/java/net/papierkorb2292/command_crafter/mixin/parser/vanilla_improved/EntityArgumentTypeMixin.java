@@ -63,8 +63,8 @@ public class EntityArgumentTypeMixin implements StringifiableArgumentType {
                 if(reader.peek() == '!') reader.skip();
                 var previousSection = reader.getString().substring(sectionStartCursor, reader.getCursor());
                 reader.skipWhitespace();
-                var compound = new StringNbtReader(reader).parseCompound();
-                result.add(Either.left(previousSection + compound.asString()));
+                var compound = StringNbtReader.readCompoundAsArgument(reader);
+                result.add(Either.left(previousSection + compound.toString()));
                 sectionStartCursor = reader.getCursor();
             } else {
                 selectorHandler.handle(selectorReader);

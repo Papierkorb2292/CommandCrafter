@@ -2,17 +2,12 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
-import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtString
-import net.minecraft.nbt.StringNbtReader
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItemKind
-import java.util.function.Predicate
 import java.util.regex.Pattern
 
 class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader, private val quoteRootStringPredicate: ((NbtString) -> Boolean)? = null) : StringRangeTree.SuggestionResolver<NbtElement> {
@@ -45,7 +40,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
             if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
                 suggestion.element.toString()
             else
-                suggestion.element.asString()
+                suggestion.element.value
         val elementString = stringEscaper.escape(baseString)
         val valueEnd = tree.ranges[node]!!.end
         return StringRangeTree.ResolvedSuggestion(
@@ -62,7 +57,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper
     ): StringRangeTree.ResolvedSuggestion {
-        val key = suggestion.element.asString()
+        val key = (suggestion.element as? NbtString)?.value ?: suggestion.element.toString()
         // Similar to StringNbtWriter.escapeName
         val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
         val keySuggestion = stringEscaper.escape("$escapedKey: ")
