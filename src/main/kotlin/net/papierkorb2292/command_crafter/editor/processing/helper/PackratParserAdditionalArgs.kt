@@ -56,6 +56,7 @@ object PackratParserAdditionalArgs {
     }
 
     interface BranchingArgument<TArg> {
+        fun get(): TArg
         fun createBranch(): TArg
         fun mergeBranch(argument: TArg, success: Boolean)
     }
@@ -66,10 +67,11 @@ object PackratParserAdditionalArgs {
     ) {
         fun branchArg(): (successful: Boolean) -> Unit {
             val previousBranch = argument.getOrNull() ?: return {}
-            val newBranch = previousBranch.createBranch()
-            argument.set(argumentWrapper(newBranch))
+            val newBranch = argumentWrapper(previousBranch.createBranch())
+            argument.set(newBranch)
             return {
-                previousBranch.mergeBranch(newBranch, it)
+                // Use .get() instead of previous return value of createBranch(), because the value could have changed due to merges since then
+                previousBranch.mergeBranch(newBranch.get(), it)
                 argument.set(previousBranch)
             }
         }
@@ -77,6 +79,7 @@ object PackratParserAdditionalArgs {
 
     data class AnalyzingResultBranchingArgument(var analyzingResult: AnalyzingResult) : BranchingArgument<AnalyzingResult> {
         private var mergedBranchCount = 0
+        override fun get() = analyzingResult
         override fun createBranch() = analyzingResult.copyExceptCompletions()
         override fun mergeBranch(argument: AnalyzingResult, success: Boolean) {
             if(success)
@@ -88,6 +91,7 @@ object PackratParserAdditionalArgs {
     }
 
     data class StringifiedBranchingArgument(var stringified: MutableList<Either<String, RawResource>>) : BranchingArgument<MutableList<Either<String, RawResource>>> {
+        override fun get() = stringified
         override fun createBranch() = ArrayList(stringified)
         override fun mergeBranch(argument: MutableList<Either<String, RawResource>>, success: Boolean) {
             if(success)
@@ -96,6 +100,7 @@ object PackratParserAdditionalArgs {
     }
 
     data class StringRangeTreeBranchingArgument<TNode: Any>(val stringRangeTreeBuilder: StringRangeTree.PartialBuilder<TNode>) : BranchingArgument<StringRangeTree.PartialBuilder<TNode>> {
+        override fun get() = stringRangeTreeBuilder
         override fun createBranch() = stringRangeTreeBuilder.pushBuilder()
         override fun mergeBranch(argument: StringRangeTree.PartialBuilder<TNode>, success: Boolean) {
             if(success)
