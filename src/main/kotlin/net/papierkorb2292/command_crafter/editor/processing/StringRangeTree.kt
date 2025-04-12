@@ -521,11 +521,12 @@ class StringRangeTree<TNode: Any>(
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.getOps(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
+            val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
             val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher)
             IS_ANALYZING_DECODER.runWithValue(true) {
                 PreLaunchDecoderOutputTracker.decodeWithCallback(
                     decoder,
-                    registryWrapper?.getOps(ops) ?: ops,
+                    filteredOps,
                     stringRangeTree.root,
                     errorCallback
                 )
