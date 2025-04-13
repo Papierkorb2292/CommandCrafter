@@ -4,8 +4,11 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import com.mojang.serialization.DynamicOps
 import net.minecraft.registry.RegistryOps
+import net.minecraft.util.packrat.ParsingRules
+import net.minecraft.util.packrat.Symbol
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
+import net.papierkorb2292.command_crafter.mixin.packrat.ParsingRulesAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
@@ -130,4 +133,11 @@ inline fun <TData, TWrappedOps: DynamicOps<TData>> wrapDynamicOps(
     }
     val wrappedOps = wrapper(delegate)
     return wrappedOps to wrappedOps
+}
+
+// This method must be used instead of creating a new symbol with the same name, because ParsingRules uses an IdentityHashMap
+fun <S> ParsingRules<S>.getSymbolByName(name: String): Symbol<*>? {
+    @Suppress("UNCHECKED_CAST")
+    return (this as ParsingRulesAccessor<S>).rules.keys
+        .firstOrNull { it.name == name }
 }

@@ -16,6 +16,7 @@ import it.unimi.dsi.fastutil.chars.CharSet;
 import net.minecraft.nbt.*;
 import net.minecraft.util.packrat.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
+import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -108,42 +109,6 @@ public class SnbtParsingMixin {
         return wrappedSymbol;
     }
 
-    @ModifyExpressionValue(
-            method = "createParser",
-            at = @At(
-                    value = "INVOKE:FIRST",
-                    target = "Lnet/minecraft/util/packrat/Symbol;of(Ljava/lang/String;)Lnet/minecraft/util/packrat/Symbol;"
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "stringValue=list_entries"
-                    )
-            )
-    )
-    private static Symbol<?> command_crafter$storeListEntriesSymbol(Symbol<?> symbol, @Share("list_entries") LocalRef<Symbol<?>> listEntriesSymbolRef) {
-        listEntriesSymbolRef.set(symbol);
-        return symbol;
-    }
-
-    @ModifyExpressionValue(
-            method = "createParser",
-            at = @At(
-                    value = "INVOKE:FIRST",
-                    target = "Lnet/minecraft/util/packrat/Symbol;of(Ljava/lang/String;)Lnet/minecraft/util/packrat/Symbol;"
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "stringValue=array_prefix"
-                    )
-            )
-    )
-    private static Symbol<?> command_crafter$storeArrayPrefixSymbol(Symbol<?> symbol, @Share("array_prefix") LocalRef<Symbol<?>> arrayPrefixSymbolRef) {
-        arrayPrefixSymbolRef.set(symbol);
-        return symbol;
-    }
-
     @WrapOperation(
             method = "createParser",
             at = @At(
@@ -157,11 +122,11 @@ public class SnbtParsingMixin {
                     )
             )
     )
-    private static Term<StringReader> command_crafter$allowMalformedArrayEntryByParsingAsList(ParsingRules<StringReader> instance, Symbol<List<?>> symbol, Operation<Term<StringReader>> op, @Share("list_entries") LocalRef<Symbol<?>> listEntriesSymbolRef, @Share("array_prefix") LocalRef<Symbol<?>> arrayPrefixSymbolRef) {
+    private static Term<StringReader> command_crafter$allowMalformedArrayEntryByParsingAsList(ParsingRules<StringReader> instance, Symbol<List<?>> symbol, Operation<Term<StringReader>> op) {
         var arrayEntriesTerm = op.call(instance, symbol);
-        var listEntriesSymbol = listEntriesSymbolRef.get();
+        var listEntriesSymbol = UtilKt.getSymbolByName(instance, "list_entries");
         var listEntriesTerm = instance.term(listEntriesSymbol);
-        var arrayPrefixSymbol = arrayPrefixSymbolRef.get();
+        var arrayPrefixSymbol = UtilKt.getSymbolByName(instance, "array_prefix");
         return (state, results, cut) -> {
             if (PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
                 var matches = listEntriesTerm.matches(state, results, cut);

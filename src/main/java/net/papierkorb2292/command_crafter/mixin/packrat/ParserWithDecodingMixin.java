@@ -64,23 +64,26 @@ public class ParserWithDecodingMixin<T> {
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         NbtElement nbt;
         try {
-            var partialBuilder = new StringRangeTree.PartialBuilder<NbtElement>();
-            PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialBuilder));
-            nbt = (NbtElement) MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
-            partialBuilder.addToBasicBuilder(treeBuilder);
-        } catch(CommandSyntaxException e) {
-            nbt = NbtEnd.INSTANCE;
-            treeBuilder.addNode(nbt, new StringRange(start, reader.getCursor()), reader.getCursor());
+            try {
+                var partialBuilder = new StringRangeTree.PartialBuilder<NbtElement>();
+                PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialBuilder));
+                nbt = (NbtElement) MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
+                partialBuilder.addToBasicBuilder(treeBuilder);
+            } catch (CommandSyntaxException e) {
+                nbt = NbtEnd.INSTANCE;
+                treeBuilder.addNode(nbt, new StringRange(start, reader.getCursor()), reader.getCursor());
+            } finally {
+                PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
+            }
+
+            var tree = treeBuilder.build(nbt);
+            StringRangeTree.TreeOperations.Companion.forNbt(
+                    tree,
+                    directiveReader
+            ).analyzeFull(analyzingResult, true, field_57539);
         } finally {
             analyzingResultThreadLocal.set(analyzingResultArg);
-            PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
         }
-
-        var tree = treeBuilder.build(nbt);
-        StringRangeTree.TreeOperations.Companion.forNbt(
-                tree,
-                directiveReader
-        ).analyzeFull(analyzingResult, true, field_57539);
         return (T)nbt;
     }
 

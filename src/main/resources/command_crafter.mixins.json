@@ -130,6 +130,7 @@
     "packrat.ItemPredicateParsingMixin",
     "packrat.OptionalTermsMixin",
     "packrat.ParserWithDecodingMixin",
+    "packrat.ParsingRulesAccessor",
     "packrat.ParsingStateImplMixin",
     "packrat.ReaderBackedParsingStateMixin",
     "packrat.RepeatedTermsMixin",
