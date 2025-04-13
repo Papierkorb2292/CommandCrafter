@@ -36,6 +36,29 @@ object PackratParserAdditionalArgs {
         }
     }
 
+    fun temporarilyClearArgs(): () -> Unit {
+        val analyzingResultVal = analyzingResult.getOrNull()
+        analyzingResult.remove()
+        val stringifiedArgumentVal = stringifiedArgument.getOrNull()
+        stringifiedArgument.remove()
+        val nbtStringRangeTreeBuilderVal = nbtStringRangeTreeBuilder.getOrNull()
+        nbtStringRangeTreeBuilder.remove()
+        val allowMalformedVal = allowMalformed.getOrNull()
+        allowMalformed.remove()
+        val furthestAnalyzingResultVal = furthestAnalyzingResult.getOrNull()
+        furthestAnalyzingResult.remove()
+        val delayedDecodeNbtAnalyzeCallbackVal = delayedDecodeNbtAnalyzeCallback.getOrNull()
+        delayedDecodeNbtAnalyzeCallback.remove()
+        return {
+            analyzingResult.set(analyzingResultVal)
+            stringifiedArgument.set(stringifiedArgumentVal)
+            nbtStringRangeTreeBuilder.set(nbtStringRangeTreeBuilderVal)
+            allowMalformed.set(allowMalformedVal)
+            furthestAnalyzingResult.set(furthestAnalyzingResultVal)
+            delayedDecodeNbtAnalyzeCallback.set(delayedDecodeNbtAnalyzeCallbackVal)
+        }
+    }
+
     fun shouldAllowMalformed() = allowMalformed.getOrNull() ?: false
 
     fun storeFurthestAnalyzingResult(cursor: Int) {
