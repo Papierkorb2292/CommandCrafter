@@ -61,7 +61,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             )
     )
     private DataResult<RegistryEntry<T>> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<RegistryEntry<T>> original, Function<String, ?> stringEFunction, StringReader reader, @Cancellable CallbackInfoReturnable<RegistryEntry<T>> cir) {
-        // Skip components with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyze
+        // Skip entries with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyze
         // This also makes the analyzer more forgiving
         if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
             cir.setReturnValue(null);

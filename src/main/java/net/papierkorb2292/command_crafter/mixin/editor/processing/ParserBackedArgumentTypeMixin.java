@@ -29,24 +29,30 @@ public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingComma
         readerCopy.setCursor(range.getStart());
         PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()));
         PackratParserAdditionalArgs.INSTANCE.setupFurthestAnalyzingResultStart();
+        PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(true);
 
         try {
-            parse(readerCopy);
-        } catch(CommandSyntaxException ignored) { }
+            try {
+                parse(readerCopy);
+            } catch(CommandSyntaxException ignored) {}
 
-        var parsedAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get().getAnalyzingResult();
-        var furthestAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAndRemoveFurthestAnalyzingResult();
-        if(furthestAnalyzingResult == null) furthestAnalyzingResult = parsedAnalyzingResult;
-        result.combineWithExceptCompletions(furthestAnalyzingResult);
+            var parsedAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get().getAnalyzingResult();
+            var furthestAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAndRemoveFurthestAnalyzingResult();
+            if(furthestAnalyzingResult == null) furthestAnalyzingResult = parsedAnalyzingResult;
+            result.combineWithExceptCompletions(furthestAnalyzingResult);
 
-        result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, new AnalyzingResult.RangedDataProvider<>(range, cursor -> {
-            var completionProvider = parsedAnalyzingResult.getCompletionProviderForCursor(cursor);
-            if(completionProvider == null)
-                return CompletableFuture.completedFuture(Collections.emptyList());
-            var completionFuture = completionProvider.getDataProvider().invoke(cursor);
-            // Make completions unique, because packrat parsing can result in duplicated completions
-            return completionFuture.thenApply(completions -> new ArrayList<>(new LinkedHashSet<>(completions)));
-        }), true);
-        PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
+            result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, new AnalyzingResult.RangedDataProvider<>(range, cursor -> {
+                var completionProvider = parsedAnalyzingResult.getCompletionProviderForCursor(cursor);
+                if(completionProvider == null)
+                    return CompletableFuture.completedFuture(Collections.emptyList());
+                var completionFuture = completionProvider.getDataProvider().invoke(cursor);
+                // Make completions unique, because packrat parsing can result in duplicated completions
+                return completionFuture.thenApply(completions -> new ArrayList<>(new LinkedHashSet<>(completions)));
+            }), true);
+        } finally {
+            PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
+            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
+            PackratParserAdditionalArgs.INSTANCE.getFurthestAnalyzingResult().remove();
+        }
     }
 }
