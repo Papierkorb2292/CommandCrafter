@@ -16,6 +16,7 @@ import net.minecraft.component.ComponentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
 import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.registry.RegistryOps;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -86,12 +87,12 @@ public class ItemStringReaderReaderMixin {
             method = "readComponentValue",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;parseElement()Lnet/minecraft/nbt/NbtElement;"
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readAsArgument(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
             )
     )
-    private NbtElement command_crafter$analyzeComponentNbt(StringNbtReader nbtReader, Operation<NbtElement> op, ComponentType<?> type) {
-        if (command_crafter$analyzingResult == null || type.getCodec() == null) {
-            return op.call(nbtReader);
+    private <O, T> O command_crafter$analyzeComponentNbt(StringNbtReader<O> instance, StringReader reader, Operation<O> op, StringNbtReader<O> nbtReader,  RegistryOps<O> ops, ComponentType<T> type) {
+        if (command_crafter$analyzingResult == null || type.getCodec() == null || !(ops.empty() instanceof NbtElement)) {
+            return op.call(instance, reader);
         }
         //noinspection unchecked
         final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
@@ -102,7 +103,7 @@ public class ItemStringReaderReaderMixin {
         final var startCursor = reader.getCursor();
         NbtElement nbt;
         try {
-            nbt = MixinUtil.<NbtElement, CommandSyntaxException>callWithThrows(op, nbtReader);
+            nbt = (NbtElement)MixinUtil.<O, CommandSyntaxException>callWithThrows(op, instance, reader);
         } catch(CommandSyntaxException e) {
             nbt = NbtEnd.INSTANCE;
             treeBuilder.addNode(nbt, new StringRange(startCursor, reader.getCursor()), startCursor);
@@ -113,7 +114,7 @@ public class ItemStringReaderReaderMixin {
                 directiveReader
         ).withOps(((ItemStringReaderAccessor)field_48970).getOps());
         treeOps.analyzeFull(command_crafter$analyzingResult, true, type.getCodec());
-        return nbt;
+        return (O)nbt;
     }
 
     @ModifyReceiver(
@@ -124,7 +125,7 @@ public class ItemStringReaderReaderMixin {
                     remap = false
             )
     )
-    private <T> DataResult<T> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<T> original, Function<?, ?> exceptionSupplier, ComponentType<T> type, @Cancellable CallbackInfo ci) {
+    private <T> DataResult<T> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<T> original, Function<String, ?> stringEFunction, @Cancellable CallbackInfo ci) {
         // Skip components with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyzeComponentNbt
         // This also makes the analyzer more forgiving
         if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
