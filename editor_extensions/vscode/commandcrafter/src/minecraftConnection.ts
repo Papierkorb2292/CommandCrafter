@@ -154,11 +154,17 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 }
             });
     
-            languageClient.start();
-            this.languageClient = languageClient;
-        }, (error) => {
+            const timeoutPromise = new Promise<void>(resolve => setTimeout(() => resolve(), 10000))
+            return Promise.race([languageClient.start().then(() => {
+                this.languageClient = languageClient;
+            }), timeoutPromise.then(() => {
+                this.connectionType?.dispose()
+                throw new TimeoutError("Connection to Minecraft Language Server timed out");
+            })]);
+        }).catch((error) => {
             vscode.window.showInformationMessage(`Can't connect to Minecraft Language Server: ${error}`);
             outputChannel?.appendLine(`Can't connect to Minecraft Language Server: ${error.stack}`)
+            this.languageClient = null;
         })
     }
 
@@ -178,4 +184,11 @@ export interface ConnectionFeature {
     onLanguageClientReady(languageClient: LanguageClient): void;
     onLanguageClientStop(): void;
     onConnectionTypeChange(connectionType: MinecraftConnectionType | null): void
+}
+
+class TimeoutError extends Error {
+    readonly name = "TimeoutError"
+    constructor(message: string) {
+        super(message);
+    }
 }
