@@ -24,7 +24,27 @@ public abstract class DataCommandStorageMixin {
                     target = "Lnet/minecraft/world/PersistentStateManager;getOrCreate(Lnet/minecraft/world/PersistentStateType;)Lnet/minecraft/world/PersistentState;"
             )
     )
-    private PersistentState command_crafter$notifyFileSystemOfStorageCreation(PersistentState original, String namespace) {
+    private PersistentState command_crafter$notifyFileSystemOfStorageCreationOrLoad(PersistentState original, String namespace) {
+        if(original != null) {
+            ((DataCommandStoragePersistentStateAccessor) original).callGetIds(namespace).forEach(id -> {
+                ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
+                        ServerScoreboardStorageFileSystem.Directory.STORAGES,
+                        id.toString(),
+                        FileChangeType.Created
+                );
+            });
+        }
+        return original;
+    }
+
+    @ModifyExpressionValue(
+            method = "getStorage",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/PersistentStateManager;get(Lnet/minecraft/world/PersistentStateType;)Lnet/minecraft/world/PersistentState;"
+            )
+    )
+    private PersistentState command_crafter$notifyFileSystemOfStorageLoad(PersistentState original, String namespace) {
         if(original != null) {
             ((DataCommandStoragePersistentStateAccessor) original).callGetIds(namespace).forEach(id -> {
                 ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
