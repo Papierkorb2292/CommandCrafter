@@ -535,16 +535,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val gapReader = reader.copy()
         gapReader.cursor = gapRange.start
         gapReader.readLine()
-        while(gapReader.cursor < gapRange.end) {
+        do {
             val lineStart = gapReader.cursor
             gapReader.readLine()
             val lineEnd = gapReader.cursor
             val indentEnd = min(lineEnd, lineStart + gapReader.currentIndentation)
-            // Suggestions end when the node starts (gapRange) or could start (indentEnd), but if the line is empty gapRange.end would be at the start of the line,
-            // which would put gapRange.end - 1 before the start of the line, so max is used to prevent that
-            val suggestionEnd = max(lineStart, min(indentEnd, gapRange.end - 1))
-            suggestRootNode(gapReader, StringRange(lineStart, suggestionEnd), commandSource, analyzingResult)
-        }
+            suggestRootNode(gapReader, StringRange(lineStart, indentEnd), commandSource, analyzingResult)
+        } while(gapReader.cursor < gapRange.end)
     }
 
     private fun analyzeCommandNode(
