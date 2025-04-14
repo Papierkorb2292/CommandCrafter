@@ -369,14 +369,10 @@ object LanguageManager {
 
             private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
                 val languageEnd = reader.cursor
-                reader.skipSpaces()
-                val rangeStart = reader.cursor
 
-                // There must be a whitespace in front of the language arguments
-                if(languageEnd == rangeStart)
-                    return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).result().getOrNull()
-
-                if(reader.canRead() && reader.peek() == '(') {
+                if(reader.trySkipWhitespace(false) {
+                    reader.canRead() && reader.peek() == '('
+                }) {
                     val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                     reader.cursor = reader.nextLineEnd
                     val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
@@ -386,6 +382,12 @@ object LanguageManager {
                     )
                     return null
                 }
+
+                // There must be a whitespace in front of the language arguments
+                if(!reader.canRead() || reader.peek() != ' ')
+                    return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).result().getOrNull()
+                reader.skip()
+
                 val allowMalformedReader = reader.copy()
                 val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
                 @Suppress("KotlinConstantConditions")
@@ -395,14 +397,14 @@ object LanguageManager {
                 (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
                 val nbt = if(reader.canRead() && reader.peek() == '\n') {
                     val empty = NbtOps.INSTANCE.empty()
-                    treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), languageEnd + 1)
+                    treeBuilder.addNode(empty, StringRange(languageEnd + 1, reader.cursor), languageEnd + 1)
                     empty
                 } else {
                     try {
                         nbtReader.readAsArgument(allowMalformedReader)
                     } catch(e: CommandSyntaxException) {
                         val empty = NbtOps.INSTANCE.empty()
-                        treeBuilder.addNode(empty, StringRange(rangeStart, reader.cursor), languageEnd + 1)
+                        treeBuilder.addNode(empty, StringRange(languageEnd + 1, reader.cursor), languageEnd + 1)
                         empty
                     }
                 }
