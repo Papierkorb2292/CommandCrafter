@@ -9,7 +9,6 @@ import java.net.SocketException
 class SocketEditorConnectionType(val port: Int) : EditorConnectionAcceptor {
 
     private var serverSocket: ServerSocket? = null
-    init { start() }
 
     override fun accept(): EditorConnection? {
         val socket = try {
