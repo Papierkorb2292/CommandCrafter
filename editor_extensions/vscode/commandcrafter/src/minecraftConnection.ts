@@ -158,12 +158,12 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
             return Promise.race([languageClient.start().then(() => {
                 this.languageClient = languageClient;
             }), timeoutPromise.then(() => {
-                this.connectionType?.dispose()
                 throw new TimeoutError("Connection to Minecraft Language Server timed out");
             })]);
         }).catch((error) => {
             vscode.window.showInformationMessage(`Can't connect to Minecraft Language Server: ${error}`);
             outputChannel?.appendLine(`Can't connect to Minecraft Language Server: ${error.stack}`)
+            this.connectionType?.dispose()
             this.languageClient = null;
         })
     }
