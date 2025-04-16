@@ -14,6 +14,7 @@ class ServerCommandSourceValueReference(
         const val ENTITY_VARIABLE_NAME = "@s"
         const val DIMENSION_VARIABLE_NAME = "dimension"
         const val POS_VARIABLE_NAME = "pos"
+        const val ROTATION_VARIABLE_NAME = "rotation"
     }
 
     private var variablesReferencerId: Int? = null
@@ -57,6 +58,17 @@ class ServerCommandSourceValueReference(
                 }
             }
             return@Vec3dValueReference source.position
+        }
+        content[ROTATION_VARIABLE_NAME] = Vec2fValueReference(mapper, source.rotation) { newRotation ->
+            this.setter?.let { setter ->
+                if(newRotation != null) {
+                    updateSource(
+                        this.source.withRotation(newRotation),
+                        setter
+                    )
+                }
+            }
+            source.rotation
         }
     }
 
