@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Scoreboard/Storage viewer
 - Feature Config
+- Language server now has an id: `commandCrafterLanguageClient`
+- "CommandCrafter" output with some log info
 
 ## 0.1.0
 
