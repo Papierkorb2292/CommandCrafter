@@ -311,7 +311,7 @@ object LanguageManager {
             private fun readLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType): Language {
                 reader.skipSpaces()
                 if(reader.canRead() && reader.peek() == '(') {
-                    throw IllegalArgumentException("Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine}.") //TODO: Refer to wiki for more info
+                    throw IllegalArgumentException("Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine} (see https://github.com/Papierkorb2292/CommandCrafter/wiki/Parser#Languages).")
                 }
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).orThrow
@@ -378,7 +378,7 @@ object LanguageManager {
                     val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
                     analyzingResult.diagnostics += Diagnostic(
                         Range(startPos, endPos),
-                        "Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine}." //TODO: Refer to wiki for more info
+                        "Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine} (see https://github.com/Papierkorb2292/CommandCrafter/wiki/Parser#Languages)."
                     )
                     return null
                 }
