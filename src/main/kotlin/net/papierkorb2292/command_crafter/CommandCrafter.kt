@@ -16,6 +16,12 @@ import net.minecraft.enchantment.Enchantment
 import net.minecraft.enchantment.provider.EnchantmentProvider
 import net.minecraft.entity.damage.DamageType
 import net.minecraft.entity.decoration.painting.PaintingVariant
+import net.minecraft.entity.passive.CatVariant
+import net.minecraft.entity.passive.ChickenVariant
+import net.minecraft.entity.passive.CowVariant
+import net.minecraft.entity.passive.FrogVariant
+import net.minecraft.entity.passive.PigVariant
+import net.minecraft.entity.passive.WolfSoundVariant
 import net.minecraft.entity.passive.WolfVariant
 import net.minecraft.item.equipment.trim.ArmorTrimMaterial
 import net.minecraft.item.equipment.trim.ArmorTrimPattern
@@ -127,6 +133,12 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.TRIM_MATERIAL_FILE_TYPE, ArmorTrimMaterial.CODEC)
         addJsonAnalyzer(PackContentFileType.TRIM_PATTERN_FILE_TYPE, ArmorTrimPattern.CODEC)
         addJsonAnalyzer(PackContentFileType.WOLF_VARIANT_FILE_TYPE, WolfVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.PIG_VARIANT_FILE_TYPE, PigVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.CAT_VARIANT_FILE_TYPE, CatVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.FROG_VARIANT_FILE_TYPE, FrogVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.COW_VARIANT_FILE_TYPE, CowVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.CHICKEN_VARIANT_FILE_TYPE, ChickenVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.WOLF_SOUND_VARIANT_FILE_TYPE, WolfSoundVariant.CODEC)
         addJsonAnalyzer(PackContentFileType.DIMENSION_FILE_TYPE, DimensionOptions.CODEC)
         addJsonAnalyzer(PackContentFileType.DIMENSION_TYPE_FILE_TYPE, DimensionType.CODEC)
         addJsonAnalyzer(PackContentFileType.WORLDGEN_BIOME_FILE_TYPE, Biome.CODEC)
