@@ -535,6 +535,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val gapReader = reader.copy()
         gapReader.cursor = gapRange.start
         gapReader.readLine()
+        if(gapReader.cursor > gapRange.end) {
+            // The gap doesn't span multiple lines
+            return
+        }
         do {
             val lineStart = gapReader.cursor
             gapReader.readLine()
