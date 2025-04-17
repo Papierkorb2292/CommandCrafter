@@ -74,6 +74,11 @@ class DirectiveStringReader<out ResourceCreator>(
                 if(indent == -1) {
                     skippedChars += 2
                     readCharacters += 2
+                    cursorMapper.addMapping(
+                        readCharacters + string.length,
+                        readSkippingChars + string.length,
+                        0
+                    )
                     break
                 }
                 val contentEnd = line.indexOfLast { !it.isWhitespace() }
