@@ -75,7 +75,7 @@ addEventListener("load", () => {
                     break;
                 }
 
-                log.replaceChild(channelElements.values().next().value.channelContents, log.firstElementChild!);
+                log.replaceChild(channelElements.values().next().value!!.channelContents, log.firstElementChild!);
                 break;
             case "removeAllChannels":
                 channelElements.clear();
