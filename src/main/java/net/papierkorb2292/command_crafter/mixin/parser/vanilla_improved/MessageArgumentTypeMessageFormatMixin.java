@@ -20,9 +20,14 @@ public class MessageArgumentTypeMessageFormatMixin {
         }
 
         directiveReader.setOnlyReadEscapedMultiline(true);
+        final var prevCursorMapper = directiveReader.getFileMappingInfo().getCursorMapper().copy();
         try {
             directiveReader.canRead();
             return op.call(reader, canUseSelectors);
+        } catch(Exception e) {
+            // Restore mappings
+            directiveReader.getFileMappingInfo().getCursorMapper().copyFrom(prevCursorMapper);
+            throw e;
         } finally {
             directiveReader.setOnlyReadEscapedMultiline(false);
         }

@@ -89,6 +89,10 @@ class IntList(capacity: Int) {
         return true
     }
 
+    fun clear() {
+        size = 0
+    }
+
     fun contains(element: Int) = indexOf(element) != -1
 
     fun copy() = IntList().also { it.addAll(this) }

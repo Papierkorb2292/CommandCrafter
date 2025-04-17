@@ -164,4 +164,23 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         }
         return result
     }
+
+    fun copy(): SplitProcessedInputCursorMapper {
+        val result = SplitProcessedInputCursorMapper()
+        result.copyFrom(this)
+        return result
+    }
+
+    fun copyFrom(other: SplitProcessedInputCursorMapper) {
+        sourceCursors.clear()
+        targetCursors.clear()
+        lengths.clear()
+        expandedCharEnds.clear()
+        sourceCursors.addAll(other.sourceCursors)
+        targetCursors.addAll(other.targetCursors)
+        lengths.addAll(other.lengths)
+        expandedCharEnds.putAll(other.expandedCharEnds)
+        prevSourceEnd = other.prevSourceEnd
+        prevTargetEnd = other.prevTargetEnd
+    }
 }
