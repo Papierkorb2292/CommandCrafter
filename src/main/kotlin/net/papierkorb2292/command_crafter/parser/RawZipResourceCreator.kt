@@ -134,8 +134,7 @@ class RawZipResourceCreator {
     }
 
     private fun createResource(currentId: Identifier, parentFunctionId: Identifier, resource: RawResource, zipOutput: ZipOutputStream, subResourceNumbering: MutableMap<String, Int>) {
-        val resourceId = Identifier.of(currentId.namespace, Path.of(resource.type.prefix).resolve(currentId.path).toString().replace('\\', '/'))
-        resource.id = resourceId
+        resource.id = currentId
         resource.content.map { either ->
             either.map({ it }, content@{
                 it.id?.run { return@content toString() }
@@ -144,7 +143,7 @@ class RawZipResourceCreator {
                 childId.toString()
             })
         }.apply {
-            zipOutput.putNextEntry(ZipEntry("${Path.of("${ResourceType.SERVER_DATA.directory}/${resourceId.namespace}").resolve(resourceId.path)}.${resource.type.fileExtension}"))
+            zipOutput.putNextEntry(ZipEntry("${Path.of("${ResourceType.SERVER_DATA.directory}/${currentId.namespace}").resolve(resource.type.prefix).resolve(currentId.path)}.${resource.type.fileExtension}"))
             zipOutput.writer(Charset.defaultCharset()).append(*toTypedArray()).flush()
         }
     }
