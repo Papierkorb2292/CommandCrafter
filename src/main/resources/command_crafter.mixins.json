@@ -167,7 +167,6 @@
     "parser.vanilla_improved.IdentifiableParsingRuleMixin",
     "parser.vanilla_improved.ItemPredicateArgumentTypeCallbacksMixin",
     "parser.vanilla_improved.ItemStackArgumentTypeMixin",
-    "parser.vanilla_improved.JsonReaderAccessor",
     "parser.vanilla_improved.MessageArgumentTypeMessageFormatMixin",
     "parser.vanilla_improved.NbtCompoundArgumentTypeMixin",
     "parser.vanilla_improved.NbtElementArgumentTypeMixin",
