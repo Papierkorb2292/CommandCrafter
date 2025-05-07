@@ -173,17 +173,15 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         ): CompletableFuture<SetBreakpointsResponse> {
             val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
                 ?: return CompletableFuture.failedFuture(IllegalArgumentException("EditorDebugConnection not initialized"))
-            return runOnServer {
-                SetBreakpointsResponse().also {
-                    it.breakpoints = server.getDebugManager().setBreakpoints(
-                        breakpoints,
-                        fileType,
-                        id,
-                        wrapped,
-                        source.sourceReference
-                    )
-                }
-            }
+            return CompletableFuture.completedFuture(SetBreakpointsResponse().also {
+                it.breakpoints = server.getDebugManager().setBreakpoints(
+                    breakpoints,
+                    fileType,
+                    id,
+                    wrapped,
+                    source.sourceReference
+                )
+            })
         }
 
         override fun retrieveSourceReference(
@@ -192,19 +190,13 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         ): CompletableFuture<SourceResponse?> {
             val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
                 ?: return CompletableFuture.failedFuture(IllegalArgumentException("EditorDebugConnection not initialized"))
-            return runOnServer {
-                server.getDebugManager().retrieveSourceReference(
-                    wrapped,
-                    sourceReference
-                )
-            }
+            return CompletableFuture.completedFuture(server.getDebugManager().retrieveSourceReference(wrapped, sourceReference))
         }
 
         override fun removeEditorDebugConnection(editorDebugConnection: EditorDebugConnection) {
             val wrapped = wrappedEditorDebugConnections.remove(editorDebugConnection) ?: return
             currentPauseActions.remove(editorDebugConnection)?.continue_()
-            val debugManager = server.getDebugManager()
-            runOnServer { debugManager.removeDebugConnection(wrapped) }
+            server.getDebugManager().removeDebugConnection(wrapped)
         }
     }
 
@@ -214,19 +206,13 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             resetMappingInfo.readCharacters = 0
             resetMappingInfo.skippedChars = 0
             val analyzingResult = AnalyzingResult(resetMappingInfo, Position())
-            return runOnServer {
-                LanguageManager.analyse(DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator), server.commandSource, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
-            }.thenCompose {
-                analyzingResult.getCompletionProviderForCursor(fullInput.cursor)
-                    ?.dataProvider?.invoke(fullInput.cursor)
-                    ?: CompletableFuture.completedFuture(listOf())
-            }
+            LanguageManager.analyse(DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator), server.commandSource, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
+            return analyzingResult.getCompletionProviderForCursor(fullInput.cursor)
+                ?.dataProvider?.invoke(fullInput.cursor)
+                ?: CompletableFuture.completedFuture(listOf())
         }
     }
 
     override fun createScoreboardStorageFileSystem() =
         ServerScoreboardStorageFileSystem(server)
-
-    private fun <TResult> runOnServer(action: () -> TResult): CompletableFuture<TResult> =
-        CompletableFuture.supplyAsync(action, server)
 }

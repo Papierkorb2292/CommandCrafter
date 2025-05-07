@@ -82,6 +82,7 @@ object NetworkServerConnectionHandler {
         player.hasPermissionLevel(2)
 
     fun registerPacketHandlers() {
+        // Don't use registerAsyncServerPacketHandler here, because the client wouldn't be able to check whether a handler is registered for the packet
         ServerPlayNetworking.registerGlobalReceiver(RequestNetworkServerConnectionC2SPacket.ID) handler@{ payload, context ->
             if(!isPlayerAllowedConnection(context.player())) {
                 context.responseSender().sendPacket(
@@ -148,9 +149,9 @@ object NetworkServerConnectionHandler {
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             currentBreakpointIdsRequests.remove(payload.requestId)?.complete(payload.start)
         }
-        ServerPlayNetworking.registerGlobalReceiver(ConfigurationDoneC2SPacket.ID) { payload, context ->
-            if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
-            val debugConnection = editorDebugConnections[context.player().networkHandler]?.get(payload.debugConnectionId) ?: return@registerGlobalReceiver
+        registerAsyncServerPacketHandler(ConfigurationDoneC2SPacket.ID) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val debugConnection = editorDebugConnections[context.player.networkHandler]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
             debugConnection.lifecycle.configurationDoneEvent.complete(null)
         }
         // This is async, so it isn't delayed until the next server tick, which sometimes caused "setBreakpoints" to be run first, which created its own DebugConnection
@@ -232,15 +233,15 @@ object NetworkServerConnectionHandler {
                 context.sendPacket(StepInTargetsResponseS2CPacket(payload.requestId, it))
             }
         }
-        ServerPlayNetworking.registerGlobalReceiver(ContextCompletionRequestC2SPacket.ID) { payload, context ->
-            if(!isPlayerAllowedConnection(context.player())) return@registerGlobalReceiver
-            val serverConnection = currentConnections[context.player().networkHandler] ?: return@registerGlobalReceiver
-            val server = context.player().server
+        registerAsyncServerPacketHandler(ContextCompletionRequestC2SPacket.ID) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
+            val server = context.player.server
             @Suppress("UNCHECKED_CAST")
             val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
             reader.cursor = payload.cursor
             serverConnection.contextCompletionProvider.getCompletions(reader).thenAccept {
-                context.responseSender().sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
+                context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
             }
         }
 

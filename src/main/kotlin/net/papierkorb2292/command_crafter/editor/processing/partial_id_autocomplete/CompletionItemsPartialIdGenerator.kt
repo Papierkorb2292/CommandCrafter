@@ -42,6 +42,7 @@ object CompletionItemsPartialIdGenerator {
                 { Either.forRight(InsertReplaceEdit(suggestion.text, it.insert, it.replace)) }
             )
             //Put at beginning
+            //TODO: Check config
             completionItem.sortText = " " + suggestion.text
             completionItem
         } + completionItems
