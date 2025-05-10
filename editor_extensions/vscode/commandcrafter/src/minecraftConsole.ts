@@ -136,31 +136,29 @@ class MinecraftConsoleViewProvider implements vscode.WebviewViewProvider, Consol
 
     private _getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'minecraftConsole.js'));
+        const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css'));
         const nonce = getNonce();
-        //TODO: Use webview ui toolkit?
         return /*html*/`<!DOCTYPE html>
             <html lang="en" style="height:100%">
             <head>
                 <meta charset="UTF-8">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src vscode-resource: 'unsafe-inline';">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource}; style-src vscode-resource: 'unsafe-inline';">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="${codiconsUri}" rel="stylesheet" id="vscode-codicon-stylesheet" nonce="${nonce}"/>
                 <title>Minecraft Console</title>
             </head>
             <body>
-                <script nonce="${nonce}" src="${scriptUri}"></script>
-                <div>
-                    <button id="toggleClientButton"></button>
-                    <div class="controlElement">
-                        Channel:
-                        <select class="channelSelector" id="channelSelector"></select>
+                <script src="${scriptUri}" nonce="${nonce}"></script>
+                <vscode-split-layout split="horizontal" class="ConsoleSplit" id="consoleSplit">
+                    <vscode-tabs class="ChannelTabs" id="channelTabs" slot="start">
+                        <vscode-button id="toggleClientButton" class="ToggleClientButton" slot="addons">Connect</vscode-button>
+                    </vscode-tabs>
+                    <div slot="end" class="CommandInput" id="commandInput">
+                        <div class="CommandInputSpacer"></div>
+                        <vscode-textarea monospace placeholder="Enter command..." id="commandInputTextarea"></vscode-textarea>
+                        <div class="CommandInputSpacer"></div>
                     </div>
-                </div>
-                <div class="separator"></div>
-                <div class="log" id="log"></div>
-                <div>
-                    <div class="separator"></div>
-                    <textarea class="commandInput" id="commandInput" placeholder="Enter command..."></textarea>
-                </div>
+                </vscode-split-layout>
             </body>
             </html>`;
     }

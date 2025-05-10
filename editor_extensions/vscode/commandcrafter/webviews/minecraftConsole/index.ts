@@ -1,6 +1,7 @@
+import "@vscode-elements/elements/dist/bundled.js";
 import './index.scss';
+import AnsiToHtmlConverter = require("ansi-to-html");
 import { Channel, ChannelName, ConsoleMessage } from '../../src/console';
-import { on } from 'events';
 
 declare var acquireVsCodeApi: any;
 const vscode = acquireVsCodeApi();
@@ -10,56 +11,177 @@ interface Message {
     payload: any
 }
 
-interface ChannelElements {
-    channelContents: HTMLElement
-    channelSelectorOption: HTMLOptionElement
+interface ChannelData {
+    name: ChannelName,
+    channelHeader: HTMLElement
+    channelLogContainer: HTMLElement
+    channelLogContent: ScrollableElement
+    pendingMessages: string[]
 }
 
-addEventListener("load", () => {
-    vscode.postMessage({ type: "requestUpdate" });
+type TabsElement = HTMLElement & { selectedIndex: number }
+type SplitElement = HTMLElement & { handlePosition: string }
+type TextfieldElement = HTMLElement & { wrappedElement: HTMLElement & { value: string } }
+type ScrollableElement = HTMLElement & { scrollMax: number, scrollPos: number }
+type IconElement = HTMLElement & { name: string }
 
-    const toggleClientButton = document.getElementById("toggleClientButton")!;
+const channelNamesByIndex: ChannelName[] = [ ]
+const channelElements = new Map<ChannelName, ChannelData>();
+
+function buildAnsiConverter() {
+    return new AnsiToHtmlConverter({
+        colors: {
+            6: "var(--vscode-editorInfo-foreground)", //INFO
+            3: "var(--vscode-editorWarning-foreground)", //WARN
+            1: "var(--vscode-debugIcon-stopForeground)", //ERROR
+        },
+        stream: true
+    });
+}
+
+function setInitialConsoleSplitPosition(consoleSplit: SplitElement) {
+    const height = consoleSplit.offsetHeight;
+    // Make the command input a bit more than one line tall to make it clear that it accepts multiline inputs
+    const commandInputGoalHeight = 3 * parseFloat(window.getComputedStyle(consoleSplit).fontSize);
+    consoleSplit.handlePosition = (height - commandInputGoalHeight).toString();
+}
+
+function toggleClientRunning(this: HTMLElement) {
+    let shouldStart = this.textContent === "Connect";
+    vscode.postMessage({ "type": shouldStart ? "startClient" : "stopClient" });
+}
+
+function setupToggleClientButton(toggleClientButton: HTMLElement) {
     toggleClientButton.addEventListener("click", toggleClientRunning);
+}
 
-    const channelElements = new Map<ChannelName, ChannelElements>();
-    const channelSelector = document.getElementById("channelSelector")! as HTMLSelectElement;
-    const log = document.getElementById("log")!;
+function setupCommandInput(commandInput: TextfieldElement, channelTabs: TabsElement) {
+    commandInput.wrappedElement.addEventListener("keypress", event => {
+        if(event.key !== "Enter") {
+            return true;
+        }
+        if(event.shiftKey) {
+            return true;
+        }
+        event.preventDefault();
+        vscode.postMessage({ type: "runCommand", payload: { channel: channelNamesByIndex[channelTabs.selectedIndex], command: commandInput.wrappedElement.value }});
+        commandInput.wrappedElement.value = "";
+    });
+}
 
+function convertAnsiLines(lines: string[], converter: AnsiToHtmlConverter): HTMLElement {
+    const container = document.createElement("div")
+    console.log(lines)
+    container.innerHTML = converter.toHtml(lines.join("\n"))
+    console.log(container.innerHTML)
+    return container
+}
+
+function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement, content: string) {
+    // Only add messages when the channel is focused so it's easy to determine whether the channel should scroll to the bottom
+    if(channelNamesByIndex[channelTabs.selectedIndex] !== targetChannel.name) {
+        if(targetChannel.pendingMessages.length > 255)
+            targetChannel.pendingMessages.splice(0, targetChannel.pendingMessages.length - 255);
+        targetChannel.pendingMessages.push(content);
+        return;
+    }
+
+    const lines = content.split('\n');
+
+    const title = lines.slice(0, 2);
+    const detail = lines.slice(2);
+
+    const ansiConverter = buildAnsiConverter();
+
+    const logContent = targetChannel.channelLogContent
+    const isScrolledToBottom = logContent.scrollPos + logContent.offsetHeight + 1 >= logContent.scrollMax;
+
+    const messageContentElement = convertAnsiLines(title, ansiConverter)
+    if(detail.length == 0) {
+        messageContentElement.classList.add("NonExpandableLogEntry")
+        logContent.append(messageContentElement)
+    } else {
+        const collapsibleContainer = document.createElement("div")
+        const collapsibleContainerTitle = document.createElement("div")
+        collapsibleContainerTitle.classList.add("ExpandableLogEntryTitle")
+
+        const arrow = document.createElement("vscode-icon") as IconElement
+        arrow.name = "chevron-right"
+        arrow.classList.add("ExpandableLogEntryArrow")
+
+        const detailContentElement = convertAnsiLines(detail, ansiConverter);
+        detailContentElement.classList.add("ExpandableLogEntryDetail")
+        detailContentElement.style.height = "0";
+
+        // Toggle collapsible
+        arrow.addEventListener("click", () => {
+            const isCollapsed = arrow.name == "chevron-right"
+            if(isCollapsed) {
+                arrow.name = "chevron-down"
+                detailContentElement.style.height = "unset";
+            } else {
+                arrow.name = "chevron-right"
+                detailContentElement.style.height = "0";
+            }
+        });
+
+        collapsibleContainerTitle.append(arrow);
+        collapsibleContainerTitle.append(messageContentElement);
+        collapsibleContainer.append(collapsibleContainerTitle);
+        collapsibleContainer.append(detailContentElement);
+        logContent.append(collapsibleContainer);
+    }
+
+    if(isScrolledToBottom) {
+        logContent.scrollPos = logContent.scrollMax - logContent.offsetHeight;
+    }
+
+    while(logContent.children.length > 256) {
+        logContent.removeChild(logContent.firstChild!);
+    }
+}
+
+function setupMessageListeners(toggleClientButton: HTMLElement, channelTabs: TabsElement) {
     addEventListener("message", (ev: MessageEvent<Message>) => {
         switch(ev.data.type) {
             case "clientReady":
-                toggleClientButton.textContent = "Stop language client";
-                toggleClientButton.classList.value = "clientStopButton";
+                toggleClientButton.textContent = "Disconnect";
                 break;
             case "clientStopped":
-                toggleClientButton.textContent = "Start language client";
-                toggleClientButton.classList.value = "clientStartButton";
-
-                channelSelector.innerHTML = "";
-                channelElements.clear();
-                log.innerHTML = "";
+                toggleClientButton.textContent = "Connect";
+                channelNamesByIndex.length = 0;
                 break;
             case "clientStarted":
-                toggleClientButton.textContent = "Starting...";
-                toggleClientButton.classList.value = "clientStartButton";
+                toggleClientButton.textContent = "Connecting...";
+                channelElements.forEach(channel => {
+                    channelTabs.removeChild(channel.channelHeader);
+                    channelTabs.removeChild(channel.channelLogContainer);
+                })
+                channelElements.clear();
                 break;
             case "addConsoleChannel":
                 const channel = ev.data.payload as Channel;
-                const channelElement = document.createElement("div");
 
-                const channelOption = document.createElement("option");
-                channelOption.value = channel.name;
-                channelOption.textContent = channel.name;
-                channelSelector.appendChild(channelOption);
+                const channelHeader = document.createElement("vscode-tab-header");
+                channelHeader.slot = "header";
+                channelHeader.classList.add("ChannelHeader");
+                channelHeader.textContent = channel.name;
 
-                channelElements.set(channel.name, { channelContents: channelElement, channelSelectorOption: channelOption });
+                const channelLogContainer = document.createElement("vscode-tab-panel");
+                channelLogContainer.classList.add("Log");
 
-                if(channelElements.size === 1) {
-                    log.appendChild(channelElement);
-                }
+                const channelLogContent = document.createElement("vscode-scrollable") as ScrollableElement;
+                channelLogContainer.appendChild(channelLogContent);
+                     
+                channelTabs.append(channelHeader);
+                channelTabs.append(channelLogContainer);
+
+                const channelData = { name: channel.name, channelHeader, channelLogContainer, channelLogContent, pendingMessages: [] }
+                channelElements.set(channel.name, channelData);
+                channelNamesByIndex.push(channel.name);
 
                 for(const message of channel.content) {
-                    addConsoleMessage(channelElement, message);
+                    addConsoleMessage(channelData, channelTabs, message);
                 }
 
                 break;
@@ -68,99 +190,98 @@ addEventListener("load", () => {
                 const channelElementToRemove = channelElements.get(channelName);
                 if(!channelElementToRemove) break;
                 channelElements.delete(channelName);
-                channelSelector.removeChild(channelElementToRemove.channelSelectorOption);
-
-                if(channelElements.size === 0) {
-                    log.removeChild(channelElementToRemove.channelContents);
-                    break;
-                }
-
-                log.replaceChild(channelElements.values().next().value!!.channelContents, log.firstElementChild!);
+                channelNamesByIndex.splice(channelNamesByIndex.indexOf(channelName), 1)
+                channelTabs.removeChild(channelElementToRemove.channelHeader);
+                channelTabs.removeChild(channelElementToRemove.channelLogContainer);
                 break;
             case "removeAllChannels":
+                channelElements.forEach(channel => {
+                    channelTabs.removeChild(channel.channelHeader);
+                    channelTabs.removeChild(channel.channelLogContainer);
+                })
                 channelElements.clear();
-                log.innerHTML = "";
-                channelSelector.innerHTML = "";
+                channelNamesByIndex.length = 0;
                 break;
             case "addConsoleMessage":
                 const message = ev.data.payload as ConsoleMessage;
                 const targetChannel = channelElements.get(message.channelName);
                 if(!targetChannel) break;
 
-                addConsoleMessage(targetChannel.channelContents, message.content);
+                addConsoleMessage(targetChannel, channelTabs, message.content);
                 break;
         }
     });
+}
 
-    channelSelector.addEventListener("change", onChannelSelectorChange);
-    let commandInput = document.getElementById("commandInput");
-    commandInput?.addEventListener("keypress", onCommandInputKeyDown);
+function setupPendingMessagesHandler(channelTabs: TabsElement) {
+    channelTabs.addEventListener("vsc-tabs-select", () => {
+        const channelData = channelElements.get(channelNamesByIndex[channelTabs.selectedIndex])!;
+        // Wait for subsequent resize, so scroll is meaningful
+        const resizeObserver = new ResizeObserver(() => {
+            resizeObserver.disconnect()
+            const pendingMessages = channelData.pendingMessages.splice(0)
+            for(const message of pendingMessages) {
+                addConsoleMessage(channelData, channelTabs, message);
+            }
+        })
+        resizeObserver.observe(channelData.channelLogContent);
+    });
+}
 
-    function onChannelSelectorChange(this: HTMLElement) {
-        const channelName = (this as HTMLSelectElement).value;
-        const channelElement = channelElements.get(channelName);
-        if(channelElement) {
-            log.replaceChild(channelElement.channelContents, log.firstElementChild!);
-        }
-    }
+addEventListener("load", () => {
+    vscode.postMessage({ type: "requestUpdate" });
 
-    function toggleClientRunning(this: HTMLElement) {
-        let shouldStart = this.textContent === "Start language client";
-        vscode.postMessage({ "type": shouldStart ? "startClient" : "stopClient" });
-    }
+    const toggleClientButton = document.getElementById("toggleClientButton")!;
+    const split = document.getElementById("consoleSplit") as SplitElement;
+    const channelTabs = document.getElementById("channelTabs") as TabsElement;
+    const commandInputContainer = document.getElementById("commandInputTextarea") as TextfieldElement;
 
-    function onCommandInputKeyDown(this: HTMLElement, event: KeyboardEvent) {
-        if(event.key !== "Enter") {
-            return true;
-        }
-        if(event.shiftKey) {
-            return true;
-        }
-        event.preventDefault();
-        if("value" in this) {
-            vscode.postMessage({ type: "runCommand", payload: { channel: channelSelector.value, command: this.value }});
-            this.value = "";
-        }
-    }
+    setInitialConsoleSplitPosition(split);
+    setupToggleClientButton(toggleClientButton);
+    setupMessageListeners(toggleClientButton, channelTabs);
+    setupCommandInput(commandInputContainer, channelTabs);
+    setupPendingMessagesHandler(channelTabs)
 
-    function addConsoleMessage(targetChannel: HTMLElement, content: String) {
-        const scrolledToBottom = log.scrollTop + log.clientHeight + 1 >= log.scrollHeight;
-        
-        const prefixEnd = content.indexOf("]") + 2 // Adds 2 to include the char after ']' (probably the colon)
-        const prefixElement = document.createElement("span");
-        const logLevelEndChar = content.charAt(prefixEnd - 3); // Subtracts -3 to select the char before ']'
-        prefixElement.classList.add(logLevelEndChar === "R" ? "logLevelError" : logLevelEndChar === "N" ? "logLevelWarn" : "logLevelInfo");
-        prefixElement.textContent = content.substring(0, prefixEnd);
-        targetChannel.append(prefixElement);
+    const testTree = document.getElementById("tree-basic-example")
 
-        let messageStart = prefixEnd;
-
-        if(content.charAt(prefixEnd) === "(") {
-            const sourceEnd = content.indexOf(")", prefixEnd) + 1;
-            const sourceElement = document.createElement("span");
-            sourceElement.classList.add("source");
-            sourceElement.textContent = content.substring(prefixEnd, sourceEnd);
-            targetChannel.append(sourceElement);
-
-            messageStart = sourceEnd;
-        }
-
-        const messageContentElement = document.createElement("span");
-        messageContentElement.textContent = content.substring(messageStart);
-        if(logLevelEndChar === "R") {
-            messageContentElement.classList.add("errorMessageContent");
-        }
-        if(logLevelEndChar === "N") {
-            messageContentElement.classList.add("warnMessageContent");
-        }
-        targetChannel.append(messageContentElement);
-
-        if(scrolledToBottom) {
-            log.scrollTop = log.scrollHeight;
-        }
-
-        while(targetChannel.children.length > 256) {
-            targetChannel.removeChild(targetChannel.firstChild!);
-        }
-    }
-});
+    const data = [
+        {
+          label: "awjop",
+          value: 'black hole',
+          subItems: [
+            {
+              label: '.bin',
+              subItems: [
+                { label: '_mocha_' },
+                { label: '_mocha.cmd_' },
+                { label: '_mocha.ps1_' },
+                { label: 'acorn' },
+                { label: 'acorn.cmd' },
+                { label: 'acorn.ps1' },
+              ],
+            },
+            {
+              label: '@11ty',
+              open: true,
+              subItems: [
+                { label: 'lorem.js' },
+                { label: 'ipsum.js' },
+                { label: 'dolor.js' },
+              ],
+            },
+            { label: '.DS_Store' },
+          ],
+        },
+        {
+          label: 'scripts',
+          subItems: [
+            { label: 'build.js' },
+            { label: 'start.js' },
+          ],
+        },
+        { label: '.editorconfig' },
+        { label: '2021-01-18T22_10_20_535Z-debug.log' },
+      ];  
+    
+      (testTree as any).data = data;
+})

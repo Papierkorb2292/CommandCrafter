@@ -16,7 +16,7 @@ export function startMinecraftLanguageClientRunner(context: vscode.ExtensionCont
 	const minecraftConnection = getUpdatedMinecraftConnectionType()
 	minecraftLanguageClientRunner = new MinecraftLanguageClientRunner(minecraftConnection, context);
 	minecraftLanguageClientRunner.startLanguageClient();
-
+	
 }
 
 export function checkUpdateMinecraftAddress() {

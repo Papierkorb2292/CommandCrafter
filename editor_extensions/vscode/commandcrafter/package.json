@@ -13,6 +13,9 @@
     "vscode": "^1.77.0"
   },
   "dependencies": {
+    "@vscode-elements/elements": "^1.15.0",
+    "@vscode/codicons": "^0.0.36",
+    "ansi-to-html": "^0.7.2",
     "vscode-languageclient": "^8.1.0"
   },
   "categories": [
@@ -99,20 +102,31 @@
           "type": "object",
           "additionalProperties": {
             "type": "string",
-            "enum": ["enable", "disable"]
+            "enum": [
+              "enable",
+              "disable"
+            ]
           },
-          "default": { },
+          "default": {},
           "description": "Features to opt-in or opt-out of"
         }
       }
     },
-    "breakpoints": [{ "language": "mcfunction" }, { "language": "json" }],
+    "breakpoints": [
+      {
+        "language": "mcfunction"
+      },
+      {
+        "language": "json"
+      }
+    ],
     "debuggers": [
       {
         "type": "commandcrafter",
         "label": "CommandCrafter-Minecraft Debug",
-        "languages": [ "mcfunction" ],
-
+        "languages": [
+          "mcfunction"
+        ],
         "configurationAttributes": {
           "launch": {
             "properties": {
@@ -131,7 +145,6 @@
             }
           }
         },
-
         "initialConfigurations": [
           {
             "type": "commandcrafter",
@@ -140,7 +153,6 @@
             "suspendServer": true
           }
         ],
-
         "configurationSnippets": [
           {
             "label": "Minecraft: Debug",

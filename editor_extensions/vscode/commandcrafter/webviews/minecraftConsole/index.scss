@@ -1,113 +1,66 @@
-.controlElement {
-    float: left;
-    margin: 0.1em 0 0.3em 0.75em;
-}
-
-.button {
-    padding: 0.1em 1em;
-    border-color: transparent;
-}
-
-.clientButton {
-    @extend .button;
-    @extend .controlElement;
-    color: var(--vscode-editor-foreground);
-}
-
-.clientStartButton {
-    @extend .clientButton;
-    background-color: rgb(0, 70, 0);
-    border-radius: 1em;
-}
-
-.clientStopButton {
-    @extend .clientButton;
-    background-color: rgb(90, 0, 0);
-    border-radius: 0.5em;
-}
-
-.channelSelector {
-    background-color: var(--vscode-dropdown-background);
-    color: var(--vscode-dropdown-foreground);
-    border-color: var(--vscode-dropdown-border);
-
-    border-radius: 0.2em;
-
-    margin-left: 0.3em;
-}
-
-.undo_body_padding {
-    margin-left: -20px;
-}
-
-.separator {
-    clear: both;
-
-    @extend .undo_body_padding;
-    border-top: 1px solid var(--vscode-input-border);
-    width: 100vw;
-    height: 0;
-}
-
 body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.ConsoleSplit {
+    flex-grow: 1;
+    border: none;
+}
+
+.ChannelTabs {
     height: 100%;
     display: flex;
     flex-direction: column;
 }
 
-.log {
-    overflow: auto;
+.ChannelTabs vscode-tab-panel {
     flex-grow: 1;
-    margin: 0.2em 0;   
+}
+.ChannelTabs vscode-scrollable {
+    height: 100%;
+}
+
+.ChannelTabs vscode-tab-panel vscode-scrollable {
+  color: var(--vscode-terminal-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  font-weight: var(--vscode-editor-font-weight);
+}
+
+.ToggleClientButton {
+    margin-right: 20px;
+}
+
+.CommandInput, .NonExpandableLogEntry, .ChannelHeader:first-of-type, .ExpandableLogEntryDetail {
+    margin-left: 20px;
+}
+
+.ExpandableLogEntryTitle {
+    display: flex;
+}
+
+.ExpandableLogEntryArrow {
+    min-width: 20px;
+    max-width: 20px;
+}
+
+.ExpandableLogEntryDetail {
     white-space: pre-wrap;
+    overflow: hidden;
 }
 
-.commandInput {
-    background-color: transparent;
-    border: none;
-    border-radius: 0.5em;
-    margin-bottom: 0.2em;
-    width: 100%;
-    height: 2em;
-
-    resize: none;
-
-    //From vscode body
-    color: var(--vscode-editor-foreground);
+.CommandInput {
+    display: flex;
+    flex-direction: column;
 }
-
-.log, .commandInput {
-    font-family: Consolas, "Courier New", monospace;
-    font-weight: normal;
-    font-size: 14px;
+.CommandInputSpacer {
+    height: 0.4em;
 }
-
-.commandInput:focus {
-    outline: none;
-}
-
-.timestamp {
-    color: rgb(0, 98, 255);
-}
-
-.logLevelInfo {
-    color: var(--vscode-editorInfo-foreground);
-}
-.logLevelWarn {
-    color: var(--vscode-editorWarning-foreground);
-}
-.logLevelError {
-    color: var(--vscode-debugIcon-stopForeground);
-}
-
-.source {
-    color: rgb(25, 202, 182);
-}
-
-.errorMessageContent {
-    color: var(--vscode-debugIcon-stopForeground);
-}
-
-.warnMessageContent {
-    color: var(--vscode-editorWarning-foreground);
+.CommandInput > vscode-textarea {
+    flex-grow: 1;
+    margin-right: 40px;
+    width: auto;
 }

@@ -10,7 +10,10 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.Appender
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configuration
+import org.apache.logging.log4j.core.layout.LevelPatternSelector
 import org.apache.logging.log4j.core.layout.PatternLayout
+import org.apache.logging.log4j.core.layout.PatternMatch
+import org.apache.logging.log4j.core.pattern.AnsiEscape
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.reflect.full.staticProperties
@@ -20,7 +23,6 @@ import kotlin.reflect.jvm.isAccessible
 object PreLaunchLogListener : PreLaunchEntrypoint {
 
     private const val EDITOR_LOG_QUEUE = "CommandCrafter"
-    private const val VANILLA_SERVER_QUEUE = "ServerGuiConsole"
 
     private var logQueue: SizeLimitedCallbackLinkedBlockingQueue<String>? = null
 
@@ -47,6 +49,12 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         })
     }
 
+    private fun getAnsiPattern(levelColor: String, resetForMessage: Boolean): String {
+        val levelColorAnsi = AnsiEscape.createSequence(levelColor)
+        val messagePrefix = if(resetForMessage) "\u001B[0m" else ""
+        return "$levelColorAnsi[%d{HH:mm:ss} %level]: $messagePrefix%msg%n"
+    }
+
     private fun startSavingLog(queueLock: ReentrantReadWriteLock, queues: MutableMap<String, BlockingQueue<String>>) {
         queueLock.readLock().lock()
         val logQueue = SizeLimitedCallbackLinkedBlockingQueue<String>()
@@ -58,7 +66,11 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         val config: Configuration = ctx.configuration
         val logger = config.loggers[""]!!
 
-        val layout = PatternLayout.newBuilder().withPattern("[%d{HH:mm:ss} %level]: %msg%n").withConfiguration(config).build()
+        val layout = PatternLayout.newBuilder().withPatternSelector(LevelPatternSelector.newBuilder().setProperties(arrayOf(
+            PatternMatch("info" , getAnsiPattern("cyan", true)), // "#3794ff" --> #1c4c83
+            PatternMatch("warn" , getAnsiPattern("yellow", false)), // "#cca700" --> #ae9623
+            PatternMatch("error", getAnsiPattern("red", false)) // "#f48771" --> #b6494b
+        )).build()).withConfiguration(config).build()
 
         @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val appender: Appender = QueueLogAppender.createAppender(EDITOR_LOG_QUEUE, "false", layout, null, null)
@@ -66,10 +78,6 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         config.addAppender(appender)
         logger.addAppender(appender, Level.INFO, null)
         ctx.updateLoggers()
-
-        // There's technically a slight chance of messages being logged between the logger update
-        // and the following iteration finishing, causing those messages to be logged twice.
-        queues[VANILLA_SERVER_QUEUE]?.forEach { logQueue.offer(it) }
     }
 
     fun addLogListener(logListener: SizeLimitedCallbackLinkedBlockingQueue.Callback<String>) {
