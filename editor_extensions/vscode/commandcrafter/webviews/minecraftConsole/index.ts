@@ -141,6 +141,16 @@ function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement,
     }
 }
 
+function scheduleAddConsoleMessages(channelData: ChannelData, channelTabs: TabsElement, messagesProvider: () => string[]) {
+    const resizeObserver = new ResizeObserver(() => {
+        resizeObserver.disconnect()
+        for(const message of messagesProvider()) {
+            addConsoleMessage(channelData, channelTabs, message);
+        }
+    })
+    resizeObserver.observe(channelData.channelLogContent);
+}
+
 function setupMessageListeners(toggleClientButton: HTMLElement, channelTabs: TabsElement) {
     addEventListener("message", (ev: MessageEvent<Message>) => {
         switch(ev.data.type) {
@@ -180,10 +190,8 @@ function setupMessageListeners(toggleClientButton: HTMLElement, channelTabs: Tab
                 channelElements.set(channel.name, channelData);
                 channelNamesByIndex.push(channel.name);
 
-                for(const message of channel.content) {
-                    addConsoleMessage(channelData, channelTabs, message);
-                }
-
+                // Wait for new elements to setup before adding logs, so scroll works correctly
+                scheduleAddConsoleMessages(channelData, channelTabs, () => channel.content)
                 break;
             case "removeConsoleChannel":
                 const channelName = ev.data.payload as ChannelName;
@@ -217,14 +225,7 @@ function setupPendingMessagesHandler(channelTabs: TabsElement) {
     channelTabs.addEventListener("vsc-tabs-select", () => {
         const channelData = channelElements.get(channelNamesByIndex[channelTabs.selectedIndex])!;
         // Wait for subsequent resize, so scroll is meaningful
-        const resizeObserver = new ResizeObserver(() => {
-            resizeObserver.disconnect()
-            const pendingMessages = channelData.pendingMessages.splice(0)
-            for(const message of pendingMessages) {
-                addConsoleMessage(channelData, channelTabs, message);
-            }
-        })
-        resizeObserver.observe(channelData.channelLogContent);
+        scheduleAddConsoleMessages(channelData, channelTabs, () => channelData.pendingMessages.splice(0))
     });
 }
 
@@ -241,47 +242,4 @@ addEventListener("load", () => {
     setupMessageListeners(toggleClientButton, channelTabs);
     setupCommandInput(commandInputContainer, channelTabs);
     setupPendingMessagesHandler(channelTabs)
-
-    const testTree = document.getElementById("tree-basic-example")
-
-    const data = [
-        {
-          label: "awjop",
-          value: 'black hole',
-          subItems: [
-            {
-              label: '.bin',
-              subItems: [
-                { label: '_mocha_' },
-                { label: '_mocha.cmd_' },
-                { label: '_mocha.ps1_' },
-                { label: 'acorn' },
-                { label: 'acorn.cmd' },
-                { label: 'acorn.ps1' },
-              ],
-            },
-            {
-              label: '@11ty',
-              open: true,
-              subItems: [
-                { label: 'lorem.js' },
-                { label: 'ipsum.js' },
-                { label: 'dolor.js' },
-              ],
-            },
-            { label: '.DS_Store' },
-          ],
-        },
-        {
-          label: 'scripts',
-          subItems: [
-            { label: 'build.js' },
-            { label: 'start.js' },
-          ],
-        },
-        { label: '.editorconfig' },
-        { label: '2021-01-18T22_10_20_535Z-debug.log' },
-      ];  
-    
-      (testTree as any).data = data;
 })
