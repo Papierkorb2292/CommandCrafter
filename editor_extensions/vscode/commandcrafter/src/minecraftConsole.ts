@@ -21,6 +21,7 @@ export class MinecraftConsole implements ConnectionFeature {
             vscode.window.registerWebviewViewProvider(consoleViewId, this.consoleView)
         );
         this.console = new Console(this.consoleView);
+        this.registerRunCommands(context)
     }
     onConnectionTypeChange(connectionType: MinecraftConnectionType | null) { }
 
@@ -58,6 +59,24 @@ export class MinecraftConsole implements ConnectionFeature {
 
     runCommand(command: ConsoleCommnad) {
         this.client?.sendNotification("runCommand", command);
+    }
+
+    private registerRunCommands(context: vscode.ExtensionContext) {
+        context.subscriptions.push(
+            vscode.commands.registerCommand("commandcrafter.runCommand", async (command?: string) => {
+                if(!command) {
+                    command = await vscode.window.showInputBox({
+                        prompt: "Minecraft command",
+                    })
+                    if(!command)
+                        return
+                }
+                this.runCommand({ command, channel: "client" })
+            }),
+            vscode.commands.registerCommand("commandcrafter.reload", async () => {
+                this.runCommand({ command: "reload", channel: "client" })
+            })
+        )
     }
 }
 

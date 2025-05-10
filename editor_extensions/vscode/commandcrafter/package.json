@@ -37,6 +37,14 @@
         "title": "CommandCrafter: Toggle"
       },
       {
+        "command": "commandcrafter.runCommand",
+        "title": "CommandCrafter: Run Command"
+      },
+      {
+        "command": "commandcrafter.reload",
+        "title": "CommandCrafter: Reload Datapacks"
+      },
+      {
         "command": "commandcrafter.openScoreboard",
         "title": "CommandCrafter: Open Scoreboard"
       },

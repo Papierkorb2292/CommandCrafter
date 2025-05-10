@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - New Minecraft console view
+- `commandcrafter.runCommand` VSCode command to run Minecraft commands in VSCode without having to select the textfiel in the Minecraft console
+- `commandcrafter.reload` VSCode command to let Minecraft reload datapacks
 
 ## 0.2.0
 
