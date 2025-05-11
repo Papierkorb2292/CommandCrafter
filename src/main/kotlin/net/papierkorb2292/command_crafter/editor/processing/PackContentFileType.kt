@@ -71,14 +71,17 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
 
     ATLASES_FILE_TYPE("atlases", PackType.RESOURCE),
     BLOCKSTATES_FILE_TYPE("blockstates", PackType.RESOURCE),
+    EQUIPMENT_FILE_TYPE("equipment", PackType.RESOURCE),
     FONTS_FILE_TYPE("font", PackType.RESOURCE),
+    ITEMS_FILE_TYPE("items", PackType.RESOURCE),
     LANGUAGES_FILE_TYPE("lang", PackType.RESOURCE),
     MODELS_FILE_TYPE("models", PackType.RESOURCE),
     PARTICLES_FILE_TYPE("particles", PackType.RESOURCE),
+    POST_EFFECTS_FILE_TYPE("post_effect", PackType.RESOURCE),
     CORE_SHADERS_FILE_TYPE("shaders/core", PackType.RESOURCE),
     INCLUDE_SHADERS_FILE_TYPE("shaders/include", PackType.RESOURCE),
     POST_SHADERS_FILE_TYPE("shaders/post", PackType.RESOURCE),
-    PROGRAM_SHADERS_FILE_TYPE("shaders/program", PackType.RESOURCE),
+    SOUNDS_FILE_TYPE("sounds", PackType.RESOURCE),
     TEXTS_FILE_TYPE("texts", PackType.RESOURCE),
     TEXTURES_FILE_TYPE("textures", PackType.RESOURCE);
 

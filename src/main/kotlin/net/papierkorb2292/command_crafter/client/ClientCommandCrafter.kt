@@ -6,8 +6,11 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.FontManager
+import net.minecraft.client.gl.PostEffectPipeline
+import net.minecraft.client.item.ItemAsset
 import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandRegistryAccess
+import net.minecraft.item.equipment.EquipmentType
 import net.minecraft.resource.featuretoggle.FeatureFlags
 import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.screen.ScreenTexts
@@ -83,7 +86,10 @@ object ClientCommandCrafter : ClientModInitializer {
             }
         })
         addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
+        addJsonAnalyzer(PackContentFileType.EQUIPMENT_FILE_TYPE, EquipmentType.CODEC)
         addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
+        addJsonAnalyzer(PackContentFileType.ITEMS_FILE_TYPE, ItemAsset.CODEC)
+        addJsonAnalyzer(PackContentFileType.POST_EFFECTS_FILE_TYPE, PostEffectPipeline.CODEC)
 
         val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
         fun setDefaultServerConnection() {
