@@ -27,7 +27,7 @@ import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val featureConfig: FeatureConfig)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, val featureConfig: FeatureConfig)
     : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
@@ -368,6 +368,22 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val fe
             && (channel == CLIENT_LOG_CHANNEL || serverConsole != null && channel == serverConsole.name)) {
             serverCommandExecutor.executeCommand(message.command)
         }
+    }
+
+    @JsonNotification
+    fun reloadResources(params: ReloadResourcesParams) {
+        val client = client ?: return
+        val minecraftClient = minecraftClient
+        if(minecraftClient == null) {
+            client.showMessage(
+                MessageParams(
+                    MessageType.Error,
+                    "Can't reload resources, not connected to Minecraft client"
+                )
+            )
+            return
+        }
+        minecraftClient.reloadResources(params)
     }
 
     override fun connect(client: CommandCrafterLanguageClient) {

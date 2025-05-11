@@ -45,6 +45,14 @@
         "title": "CommandCrafter: Reload Datapacks"
       },
       {
+        "command": "commandcrafter.reloadResources",
+        "title": "CommandCrafter: Reload Resourcepacks"
+      },
+      {
+        "command": "commandcrafter.reloadShaders",
+        "title": "CommandCrafter: Reload Shaders"
+      },
+      {
         "command": "commandcrafter.openScoreboard",
         "title": "CommandCrafter: Open Scoreboard"
       },

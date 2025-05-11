@@ -187,6 +187,8 @@
   ],
   "client": [
     "ClientRegistriesMixin",
-    "SimpleOptionAccessor"
+    "SimpleOptionAccessor",
+    "editor.shader.GlBackendMixin",
+    "editor.shader.ShaderLoaderAccessor"
   ]
 }

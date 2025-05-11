@@ -47,6 +47,7 @@ object ClientCommandCrafter : ClientModInitializer {
         ClientDummyServerConnection(
             CommandDispatcher(), 0
         ),
+        DirectMinecraftClientConnection,
         CommandCrafter.serviceLaunchers
     )
 

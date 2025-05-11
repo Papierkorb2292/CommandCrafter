@@ -197,6 +197,7 @@ object CommandCrafter: ModInitializer {
                     val editorConnectionManager = EditorConnectionManager(
                         SocketEditorConnectionType(config.servicesPort),
                         DirectServerConnection(it),
+                        null,
                         serviceLaunchers
                     )
                     dedicatedServerEditorConnectionManager = editorConnectionManager
@@ -263,11 +264,12 @@ object CommandCrafter: ModInitializer {
         "languageServer" to object : EditorConnectionManager.ServiceLauncher {
             override fun launch(
                 serverConnection: MinecraftServerConnection,
+                clientConnection: MinecraftClientConnection?,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
                 featureConfig: FeatureConfig
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftLanguageServer(serverConnection, featureConfig)
+                val server = MinecraftLanguageServer(serverConnection, clientConnection, featureConfig)
                 val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                     .setLocalService(server)
                     .setRemoteInterface(CommandCrafterLanguageClient::class.java)
@@ -292,6 +294,7 @@ object CommandCrafter: ModInitializer {
         "debugger" to object : EditorConnectionManager.ServiceLauncher {
             override fun launch(
                 serverConnection: MinecraftServerConnection,
+                clientConnection: MinecraftClientConnection?,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
                 featureConfig: FeatureConfig

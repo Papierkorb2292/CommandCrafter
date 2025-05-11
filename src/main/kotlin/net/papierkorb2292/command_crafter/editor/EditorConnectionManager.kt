@@ -15,6 +15,7 @@ import java.util.concurrent.*
 class EditorConnectionManager(
     private val connectionAcceptor: EditorConnectionAcceptor,
     minecraftServerConnection: MinecraftServerConnection,
+    val minecraftClientConnection: MinecraftClientConnection?,
     private val serviceLaunchers: Map<String, ServiceLauncher>
 ) {
 
@@ -90,6 +91,7 @@ class EditorConnectionManager(
         val serviceRemover = ServiceRemover(runningServices, null)
         val launchedService = serviceLauncher.launch(
             minecraftServerConnection,
+            minecraftClientConnection,
             connection,
             CallbackExecutorService(
                 Executors.newCachedThreadPool(),
@@ -117,12 +119,13 @@ class EditorConnectionManager(
         return EditorConnectionManager(
             newConnectionAcceptor,
             minecraftServerConnection,
+            minecraftClientConnection,
             serviceLaunchers
         )
     }
 
     interface ServiceLauncher {
-        fun launch(serverConnection: MinecraftServerConnection, editorConnection: EditorConnection, executorService: ExecutorService, featureConfig: FeatureConfig): LaunchedService
+        fun launch(serverConnection: MinecraftServerConnection, clientConnection: MinecraftClientConnection?, editorConnection: EditorConnection, executorService: ExecutorService, featureConfig: FeatureConfig): LaunchedService
     }
 
     class ServiceClient(val client: Any)

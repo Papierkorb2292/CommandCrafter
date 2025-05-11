@@ -75,6 +75,12 @@ export class MinecraftConsole implements ConnectionFeature {
             }),
             vscode.commands.registerCommand("commandcrafter.reload", async () => {
                 this.runCommand({ command: "reload", channel: "client" })
+            }),
+            vscode.commands.registerCommand("commandcrafter.reloadResources", async () => {
+                this.client?.sendNotification("reloadResources", {})
+            }),
+            vscode.commands.registerCommand("commandcrafter.reloadShaders", async () => {
+                this.client?.sendNotification("reloadResources", { onlyShaders: true })
             })
         )
     }
