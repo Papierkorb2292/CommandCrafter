@@ -5,7 +5,6 @@ import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.MinecraftLanguageServerExtension
 import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
@@ -23,13 +22,13 @@ import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.jsonrpc.services.JsonDelegate
+import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
 class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val featureConfig: FeatureConfig)
-    : MinecraftServerConnectedLanguageServer, EditorClientAware,
-    MinecraftLanguageServerExtension {
+    : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
 
@@ -360,7 +359,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val fe
 
     override fun setTrace(params: SetTraceParams) { }
 
-    override fun runCommand(message: ConsoleCommand) {
+    @JsonNotification
+    fun runCommand(message: ConsoleCommand) {
         val channel = message.channel
         val serverCommandExecutor = serverCommandExecutor
         val serverConsole = minecraftServer.serverLog
