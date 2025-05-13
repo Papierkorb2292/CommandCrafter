@@ -21,6 +21,7 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
             DummyProfiler.INSTANCE
         )
     }
+    private var shaderReloadWaitFuture: CompletableFuture<*>? = CompletableFuture.completedFuture(Unit)
 
     override fun reloadResources(params: ReloadResourcesParams) {
         if(params.onlyShaders != true) {
@@ -30,14 +31,20 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
         }
 
         // Reload only shaders
-        client.inGameHud.chatHud.addMessage(Text.translatable("command_crafter.reload.shaders").formatted(Formatting.GREEN))
-        SimpleResourceReload.start(
-            client.resourceManager,
-            listOf(client.shaderLoader),
-            Util.getMainWorkerExecutor(),
-            client,
-            CompletableFuture.completedFuture(Unit.INSTANCE),
-            false
-        )
+        val shaderReloadWaitFuture = shaderReloadWaitFuture
+        if(shaderReloadWaitFuture != null) {
+            this.shaderReloadWaitFuture = null // No other reloads should be scheduled until this one starts
+            shaderReloadWaitFuture.whenComplete { _, _ ->
+                client.inGameHud.chatHud.addMessage(Text.translatable("command_crafter.reload.shaders").formatted(Formatting.GREEN))
+                this.shaderReloadWaitFuture = SimpleResourceReload.start(
+                    client.resourceManager,
+                    listOf(client.shaderLoader),
+                    Util.getMainWorkerExecutor(),
+                    client,
+                    CompletableFuture.completedFuture(Unit.INSTANCE),
+                    false
+                ).whenComplete()
+            }
+        }
     }
 }

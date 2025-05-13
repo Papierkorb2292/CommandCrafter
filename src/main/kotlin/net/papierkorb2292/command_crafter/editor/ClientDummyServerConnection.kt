@@ -18,7 +18,8 @@ class ClientDummyServerConnection(
     override val debugService: ServerDebugConnectionService? = null,
     override val contextCompletionProvider: ContextCompletionProvider? = null,
     val dynamicRegistryManagerGetter: () -> DynamicRegistryManager = { ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager },
-    val scoreboardStorageFileSystemGetter: () -> ScoreboardStorageFileSystem? = { null }
+    val scoreboardStorageFileSystemGetter: () -> ScoreboardStorageFileSystem? = { null },
+    override val datapackReloader: (() -> Unit)? = null
 ) : MinecraftServerConnection {
     override val dynamicRegistryManager: DynamicRegistryManager
         get() = dynamicRegistryManagerGetter()

@@ -36,6 +36,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
         val emptyCompletionsDefault: CompletableFuture<Either<List<CompletionItem>, CompletionList>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
 
+        const val AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH = "autoreload.datapack_functions"
+        const val AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH = "autoreload.datapack_json"
+        const val AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH = "autoreload.resourcepack"
+
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
         }
@@ -114,6 +118,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 openClose = true
                 hoverProvider = Either.forLeft(true)
                 definitionProvider = Either.forLeft(true)
+                save = Either.forLeft(true)
                 completionProvider = CompletionOptions().apply {
                     resolveProvider = true
                 }
@@ -177,8 +182,34 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 }
             }
 
-            override fun didSave(params: DidSaveTextDocumentParams?) {
+            private val shaderFileTypes = setOf(
+                PackContentFileType.CORE_SHADERS_FILE_TYPE,
+                PackContentFileType.POST_SHADERS_FILE_TYPE,
+                PackContentFileType.INCLUDE_SHADERS_FILE_TYPE,
+                PackContentFileType.POST_EFFECTS_FILE_TYPE
+            )
 
+            override fun didSave(params: DidSaveTextDocumentParams) {
+                // If enabled: Automatically reload files
+                val file = openFiles[params.textDocument.uri] ?: return
+                val packContentFileType = PackContentFileType.parsePath(file.parsedUri.path)?.type ?: return
+                when(packContentFileType.packType) {
+                    PackContentFileType.PackType.DATA -> {
+                        val configPath =
+                            if(packContentFileType == PackContentFileType.FUNCTIONS_FILE_TYPE)
+                                AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH
+                            else
+                                AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH
+                        if(!featureConfig.isEnabled(configPath, false))
+                            return
+                        minecraftServer.datapackReloader?.invoke()
+                    }
+                    PackContentFileType.PackType.RESOURCE -> {
+                        if(!featureConfig.isEnabled(AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH, false))
+                            return
+                        minecraftClient?.reloadResources(ReloadResourcesParams(onlyShaders = packContentFileType in shaderFileTypes))
+                    }
+                }
             }
 
             override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {

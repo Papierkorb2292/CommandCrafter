@@ -327,6 +327,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
+    override val datapackReloader = {
+        ClientPlayNetworking.send(ReloadDatapacksC2SPacket)
+    }
+
     override fun createScoreboardStorageFileSystem(): NetworkScoreboardStorageFileSystem {
         val fileSystem = NetworkScoreboardStorageFileSystem(UUID.randomUUID())
         scoreboardStorageFileSystems[fileSystem.fileSystemId] = fileSystem

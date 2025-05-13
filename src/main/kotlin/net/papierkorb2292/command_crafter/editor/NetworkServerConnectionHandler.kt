@@ -17,16 +17,14 @@ import net.minecraft.network.packet.Packet
 import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
 import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryLoader
-import net.minecraft.registry.RegistryWrapper
+import net.minecraft.registry.*
 import net.minecraft.registry.tag.TagPacketSerializer
+import net.minecraft.resource.ResourcePackManager
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
+import net.minecraft.world.SaveProperties
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -34,6 +32,7 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ServerRecipeManagerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
@@ -244,6 +243,11 @@ object NetworkServerConnectionHandler {
                 context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
             }
         }
+        registerAsyncServerPacketHandler(ReloadDatapacksC2SPacket.ID) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
+            serverConnection.datapackReloader()
+        }
 
         ServerPlayConnectionEvents.DISCONNECT.register { networkHandler, _ ->
             val serverConnection = currentConnections.remove(networkHandler) ?: return@register
@@ -262,7 +266,7 @@ object NetworkServerConnectionHandler {
         requestPacket: RequestNetworkServerConnectionC2SPacket,
         connection: DirectServerConnection,
         packetSender: PacketSender,
-        networkHandler: ServerPlayNetworkHandler
+        networkHandler: ServerPlayNetworkHandler,
     ) {
         sendDynamicRegistries(server, networkHandler)
 
@@ -283,7 +287,7 @@ object NetworkServerConnectionHandler {
 
     fun sendDynamicRegistries(
         server: MinecraftServer,
-        networkHandler: ServerPlayNetworkHandler
+        networkHandler: ServerPlayNetworkHandler,
     ) {
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
         val registryManager = server.reloadableRegistries.createRegistryLookup() as DynamicRegistryManager
@@ -309,7 +313,7 @@ object NetworkServerConnectionHandler {
 
     private fun serializeTags(
         tagWrapperLookup: RegistryWrapper.WrapperLookup,
-        entryLookup: DynamicRegistryManager
+        entryLookup: DynamicRegistryManager,
     ): Map<RegistryKey<out Registry<*>>, TagPacketSerializer.Serialized> {
         return tagWrapperLookup.streamAllRegistryKeys().map {
             val serializedTags = mutableMapOf<Identifier, IntList>()
@@ -331,7 +335,7 @@ object NetworkServerConnectionHandler {
         registryManager: DynamicRegistryManager,
         registry: RegistryLoader.Entry<*>,
         networkHandler: ServerPlayNetworkHandler,
-        registryTags: TagPacketSerializer.Serialized?
+        registryTags: TagPacketSerializer.Serialized?,
     ) {
         SerializableRegistriesAccessor.callSerialize(
             registryManager.getOps(NbtOps.INSTANCE),
@@ -350,7 +354,7 @@ object NetworkServerConnectionHandler {
     private fun <TParams, TResult> registerScoreboardStorageRequestHandler(
         requestType: ScoreboardStorageFileRequestC2SPacket.Type<TParams>,
         responseType: ScoreboardStorageFileResponseS2CPacket.Type<TResult>,
-        handler: (ScoreboardStorageFileSystem, TParams) -> CompletableFuture<TResult>
+        handler: (ScoreboardStorageFileSystem, TParams) -> CompletableFuture<TResult>,
     ) {
         registerAsyncServerPacketHandler(requestType.id) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler

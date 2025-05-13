@@ -35,6 +35,7 @@
     "editor.debugger.MacroInvocationMixin",
     "editor.debugger.MacroMixin",
     "editor.debugger.MinecraftServerMixin",
+    "editor.debugger.ReloadCommandAccessor",
     "editor.debugger.ResourceManagerHolderAccessor",
     "editor.debugger.ReturnRunRedirectorMixin",
     "editor.debugger.ReturnValueAdderAccessor",

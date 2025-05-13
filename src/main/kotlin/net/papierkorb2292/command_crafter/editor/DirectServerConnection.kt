@@ -1,69 +1,45 @@
 package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.tree.RootCommandNode
-import net.fabricmc.fabric.api.networking.v1.PacketSender
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.command.CommandSource
-import net.minecraft.nbt.NbtOps
-import net.minecraft.network.ClientConnection
-import net.minecraft.network.listener.ClientCommonPacketListener
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.network.packet.Packet
-import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
-import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
-import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
 import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.RegistryLoader
-import net.minecraft.registry.tag.TagPacketSerializer
+import net.minecraft.resource.ResourcePackManager
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.network.ServerPlayNetworkHandler
-import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.SaveProperties
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
-import net.papierkorb2292.command_crafter.editor.debugger.helper.*
-import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
+import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
+import net.papierkorb2292.command_crafter.editor.debugger.helper.setupOneTimeDebugTarget
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
-import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
-import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
-import net.papierkorb2292.command_crafter.networking.packets.*
-import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
-import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
-import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileRequestC2SPacket
-import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileResponseS2CPacket
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
-import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
-import java.util.*
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import kotlin.collections.set
 
 class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConnection {
@@ -210,6 +186,27 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             return analyzingResult.getCompletionProviderForCursor(fullInput.cursor)
                 ?.dataProvider?.invoke(fullInput.cursor)
                 ?: CompletableFuture.completedFuture(listOf())
+        }
+    }
+
+    private var datapackReloadWaitFuture: CompletableFuture<*>? = CompletableFuture.completedFuture(Unit)
+
+    override val datapackReloader: () -> Unit = {
+        val datapackReloadWaitFuture = datapackReloadWaitFuture
+        if(datapackReloadWaitFuture != null) {
+            this.datapackReloadWaitFuture = null // No other reloads should be scheduled until this one starts
+            datapackReloadWaitFuture.whenCompleteAsync({ _, _ ->
+                val completableFuture = CompletableFuture<Unit>()
+                this.datapackReloadWaitFuture = completableFuture
+                val resourcePackManager: ResourcePackManager = server.dataPackManager
+                val saveProperties: SaveProperties = server.saveProperties
+                val previouslyEnabledDatapacks = resourcePackManager.enabledIds
+                val allEnabledDatapacks = ReloadCommandAccessor.callFindNewDataPacks(resourcePackManager, saveProperties, previouslyEnabledDatapacks)
+
+                server.reloadResources(allEnabledDatapacks).whenComplete { _, _ ->
+                    completableFuture.complete(Unit)
+                }
+            }, server)
         }
     }
 

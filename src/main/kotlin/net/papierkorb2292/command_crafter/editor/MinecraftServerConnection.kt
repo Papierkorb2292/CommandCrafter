@@ -17,6 +17,7 @@ interface MinecraftServerConnection {
     val debugService: ServerDebugConnectionService?
     val contextCompletionProvider: ContextCompletionProvider?
     val dynamicRegistryManager: DynamicRegistryManager
+    val datapackReloader: (() -> Unit)?
 
     fun createScoreboardStorageFileSystem(): ScoreboardStorageFileSystem?
 }
