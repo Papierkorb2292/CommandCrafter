@@ -257,10 +257,8 @@ class StringRangeTree<TNode: Any>(
     }
 
     /**
-     * Analyzes string nodes in the tree by trying to parse them as SNBT/JSON.
-     * For every string node that can be parsed to SNBT/JSON, a StringRangeTree is generated.
-     * Using the StringRangeTree, semantic tokens are created. Additionally, if the parsed data represents
-     * a Minecraft Text (JSON Text), completions are created for it.
+     * Analyzes string nodes in the tree by trying to parse them as SNBT.
+     * For every string node that can be parsed to SNBT, a StringRangeTree is generated which is used to fill a new AnalyzingResult.
      *
      * @param stringGetter A function that returns the string content and a cursor mapper between the original input (source) and the string value for a node (target), or null if the node is not a string
      * @param baseAnalyzingResult The base analyzing result whose base data is copied for each string node and filled with the analyzed data for each node.
@@ -273,60 +271,19 @@ class StringRangeTree<TNode: Any>(
             if(!content.startsWith('{') && !content.startsWith('[')) continue
             val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
             val nbtTreeBuilder = Builder<NbtElement>()
-            @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
+            @Suppress("UNCHECKED_CAST")
             (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
             val nbtRoot = nbtReader.readAsArgument(StringReader(content))
             val nbtTree = nbtTreeBuilder.build(nbtRoot)
-            val nbtElementCount = nbtTree.orderedNodes.count { it !in nbtTree.placeholderNodes }
-            val jsonTree = StringRangeTreeJsonReader(java.io.StringReader(content)).read(Strictness.LENIENT, true)
-            val jsonElementCount = jsonTree.orderedNodes.count { it !in jsonTree.placeholderNodes }
 
-            val nbtArrayCount = nbtTree.orderedNodes.count {
-                if(it !is AbstractNbtList)
-                    return@count false
-                val startCursor = nbtTree.getNodeRangeOrThrow(it).start
-                if(content.length <= startCursor + 2 || content[startCursor + 2] != ';')
-                    return@count false
-                val arrayTypeChar = content[startCursor + 1]
-                arrayTypeChar == 'B' || arrayTypeChar == 'I' || arrayTypeChar == 'L'
-            }
-
-            val allKeysQuoted = nbtTree.mapKeyRanges.values.flatten().all {
-                // Only check keys with a colon, so completions can be typed out without quotes
-                var nextCursor = it.second.end
-                while(nextCursor < content.length && Character.isWhitespace(content[nextCursor]))
-                    nextCursor++
-                if(nextCursor >= content.length || content[nextCursor] != ':')
-                    return@all true
-                
-                // Check quotes
-                val startChar = content[it.second.start]
-                if(startChar != '"' && startChar != '\'')
-                    return@all false
-                true
-            }
-
-            /*
-            Select the data type that was able to parse more elements.
-
-            Because NBT arrays are of the form [T;...], the JSON parser reads an
-            additional unquoted string for them that has to be accounted for when comparing element counts.
-
-            Since many inputs can be interpreted as both NBT or lenient JSON, all keys being quoted
-            (a requirement for proper JSON), is one plus point for json, meaning that if both element counts
-            are the same, JSON is chosen (otherwise, when not all keys are quoted, NBT is chosen).
-            */
-            var treeOperations =
-                if(nbtElementCount + nbtArrayCount >= jsonElementCount + if(allKeysQuoted && nbtArrayCount == 0) 1 else 0)
-                    TreeOperations.forNbt(nbtTree, content)
-                else
-                    TreeOperations.forJson(jsonTree, content)
+            var treeOperations = TreeOperations.forNbt(nbtTree, content)
             if(parentOps != null)
                 treeOperations = treeOperations
                     .withRegistry(parentOps.registryWrapper)
                     .withCompletionEscaper(parentOps.completionEscaper.andThen(stringEscaper))
+
             val offsetBaseMapper = baseAnalyzingResult.mappingInfo.cursorMapper
                 .combineWith(OffsetProcessedInputCursorMapper(-baseAnalyzingResult.mappingInfo.readSkippingChars))
             offsetBaseMapper.removeNegativeTargetCursors()
@@ -335,85 +292,16 @@ class StringRangeTree<TNode: Any>(
                 offsetBaseMapper.combineWith(cursorMapper)
             )
 
-            val jsonTextRecognizability = tryRecognizeJsonText(treeOperations)
-
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
             treeOperations.analyzeFull(
                 stringAnalyzingResult,
                 true,
-                if(jsonTextRecognizability.shouldDecode()) TextCodecs.CODEC else null,
+                null,
                 false
             )
-            // Parse input without lenience to find syntax errors
-            if(treeOperations.stringRangeTree == jsonTree) {
-                val reader = JsonReader(java.io.StringReader(content))
-                try {
-                    StringRangeTreeJsonReader { reader }.read(Strictness.STRICT, false)
-                } catch(e: Exception) {
-                    stringAnalyzingResult.diagnostics += Diagnostic().also {
-                        it.range = Range(
-                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(reader.absolutePos), stringMappingInfo),
-                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(content.length), stringMappingInfo)
-                        )
-                        it.message = e.message
-                        it.severity = DiagnosticSeverity.Warning
-                    }
-                }
-            } else if(treeOperations.stringRangeTree == nbtTree) {
-                val reader = StringReader(content)
-                try {
-                    StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
-                } catch(e: Exception) {
-                    stringAnalyzingResult.diagnostics += Diagnostic().also {
-                        it.range = Range(
-                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(reader.cursor), stringMappingInfo),
-                            AnalyzingResult.getPositionFromCursor(stringMappingInfo.cursorMapper.mapToSource(content.length), stringMappingInfo)
-                        )
-                        it.message = e.message
-                        it.severity = DiagnosticSeverity.Warning
-                    }
-                }
-            }
-
-            if(jsonTextRecognizability.shouldGenerateDiagnostics()) {
-                treeOperations.generateDiagnostics(stringAnalyzingResult, TextCodecs.CODEC, DiagnosticSeverity.Warning)
-            }
             results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
         }
         return results
-    }
-
-    private fun <TNode: Any> tryRecognizeJsonText(treeOperations: TreeOperations<TNode>): JsonTextRecognizability {
-        val (accessedKeysWatcherDynamicOps, wrappedOps) = wrapDynamicOps(treeOperations.ops, ::AccessedKeysWatcherDynamicOps)
-        val wrappedTreeOperations = treeOperations.copy(ops = wrappedOps)
-        TextCodecs.CODEC.decode(wrappedTreeOperations.ops, treeOperations.stringRangeTree.root)
-        var recognizability = JsonTextRecognizability.NOT_DETERMINABLE
-        val textComponents = mutableListOf(treeOperations.stringRangeTree.root)
-        while(textComponents.isNotEmpty()) {
-            val textComponent = textComponents.removeAt(0)
-            val tryAsList = treeOperations.ops.getList(textComponent)
-            if(tryAsList.result().isPresent) {
-                tryAsList.result().get().accept(textComponents::add)
-                continue
-            }
-            val tryAsMap = treeOperations.ops.getMap(textComponent)
-            if(tryAsMap.result().isEmpty) continue
-            val map = tryAsMap.result().get()
-            val accessedKeys = accessedKeysWatcherDynamicOps.accessedKeys[textComponent] ?: continue
-            val existingKeys = map.entries()
-                .filter { it.second !in treeOperations.stringRangeTree.placeholderNodes }
-                .map { it.first }
-                .collect(Collectors.toSet())
-
-            if(existingKeys.isNotEmpty()) {
-                if(!existingKeys.any(accessedKeys::contains))
-                    // The map resembles no text component
-                    return JsonTextRecognizability.NO_JSON_TEXT
-                recognizability = JsonTextRecognizability.NOT_DETERMINABLE
-            }
-        }
-        // All contents resemble a text component
-        return recognizability
     }
 
     data class TreeOperations<TNode: Any>(
@@ -508,8 +396,7 @@ class StringRangeTree<TNode: Any>(
                     generateDiagnostics(analyzingResult, contentDecoder, DiagnosticSeverity.Error)
             }
             analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
-            analyzingResult.diagnostics += analyzedStrings.values.flatMap { it.second.diagnostics }
-            return shouldGenerateSemanticTokens || contentDecoder != null || analyzedStrings.isNotEmpty()
+            return shouldGenerateSemanticTokens || contentDecoder != null
         }
 
         fun generateSemanticTokens(builder: SemanticTokensBuilder, semanticTokenInserts: Iterator<kotlin.Pair<StringRange, SemanticTokensBuilder>>) {
