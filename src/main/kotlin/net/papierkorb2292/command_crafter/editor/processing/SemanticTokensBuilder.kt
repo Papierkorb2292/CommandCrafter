@@ -175,6 +175,126 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastCursor = other.lastCursor
     }
 
+    /**
+     * Overlaps the SemanticTokensBuilders onto this SementicTokensBuilder,
+     * meaning the tokens from the sortedOverlaps will be added to this builder starting at
+     * the beginning of the file and split up existing tokens where necessary.
+     */
+    fun overlap(sortedOverlaps: Iterator<SemanticTokensBuilder>) {
+        var currentTokenIndex = 0
+        lastLine = 0
+        lastCursor = 0
+        for(overlap in sortedOverlaps) {
+            var srcLine = 0
+            var srcCursor = 0
+            srcTokens@for(i in 0 until overlap.data.size step 5) {
+                srcLine += overlap.data[i]
+                srcCursor += overlap.data[i + 1]
+                val srcLength = overlap.data[i + 2]
+                val srcTypeId = overlap.data[i + 3]
+                val srcModifiers = overlap.data[i + 4]
+
+                while(currentTokenIndex < data.size) {
+                    val newDestLine = lastLine + data[currentTokenIndex]
+                    val newDestCursor = lastCursor + data[currentTokenIndex + 1]
+                    val destLength = data[currentTokenIndex + 2]
+                    val destTypeId = data[currentTokenIndex + 3]
+                    val destModifiers = data[currentTokenIndex + 4]
+
+                    if(newDestLine > srcLine || (newDestLine == srcLine && newDestCursor + destLength > srcCursor)) {
+                        // dest token is not completely before src token
+
+                        if(newDestLine > srcLine || newDestCursor > srcCursor + srcLength) {
+                            // dest token is completely after src token, add src token to the result and move to the next src token
+                            data.add(currentTokenIndex, srcLine - lastLine)
+                            data.add(currentTokenIndex + 1, if(srcLine == lastLine) srcCursor - lastCursor else srcCursor)
+                            data.add(currentTokenIndex + 2, srcLength)
+                            data.add(currentTokenIndex + 3, srcTypeId)
+                            data.add(currentTokenIndex + 4, srcModifiers)
+
+                            lastLine = srcLine
+                            lastCursor = srcCursor
+
+                            currentTokenIndex += 5
+                            data[currentTokenIndex] = newDestLine - srcLine
+                            data[currentTokenIndex + 1] = if(newDestLine == srcLine) newDestCursor - srcCursor else newDestCursor
+                            continue@srcTokens
+                        }
+
+                        // Tokens must be on the same line and overlap
+                        val cursorDiff: Int
+
+                        if(newDestCursor < srcCursor) {
+                            // Src token doesn't cover start of dest token, so trim dest token length
+                            cursorDiff = srcCursor - newDestCursor
+                            data[currentTokenIndex + 2] = cursorDiff
+                            currentTokenIndex += 5
+                        } else {
+                            // Token is removed, becaise its start is covered by the src token. The remaining part of the dest token will be added back later
+                            data.subList(currentTokenIndex, currentTokenIndex + 5).clear()
+                            // Use previous destCursor because the token that starts at newDestCursor has been removed
+                            cursorDiff = srcCursor - lastCursor
+                        }
+
+                        data.add(currentTokenIndex, 0)
+                        data.add(currentTokenIndex + 1, cursorDiff)
+                        data.add(currentTokenIndex + 2, srcLength)
+                        data.add(currentTokenIndex + 3, srcTypeId)
+                        data.add(currentTokenIndex + 4, srcModifiers)
+
+                        val hasRemainingDest = newDestCursor + destLength > srcCursor + srcLength
+
+                        if(hasRemainingDest) {
+                            // The dest token is longer than the src token, add its remaining part
+                            currentTokenIndex += 5
+                            val remainingLength = newDestCursor + destLength - srcCursor - srcLength
+                            data.add(currentTokenIndex, 0)
+                            data.add(currentTokenIndex + 1, srcLength)
+                            data.add(currentTokenIndex + 2, remainingLength)
+                            data.add(currentTokenIndex + 3, destTypeId)
+                            data.add(currentTokenIndex + 4, destModifiers)
+
+                            // Set position to src, because the src token is going to be the previous token when reading the remaining part of the dest token
+                            // that has just been placed at currentTokenIndex
+                            lastLine = srcLine
+                            lastCursor = srcCursor
+                        } else {
+                            // Set position to dest, because the dest token is going to be the previous token when reading the src token that has just been placed at currentTokenIndex
+                            lastLine = newDestLine
+                            lastCursor = newDestCursor
+                        }
+
+                        if(currentTokenIndex + 5 < data.size && data[currentTokenIndex + 5] == 0) {
+                            // Adjust position of next token cursor, which will require a different offset now
+
+                            // Always use the cursorDiff between the current src token and dest token instead of the previous dest token (which is normally used when src token covers the start of dest token)
+                            // Because the next token position is also relative to the current dest token, not the previous one.
+                            val originalCursorDiff = srcCursor - newDestCursor
+
+                            data[currentTokenIndex + 6] -= if(hasRemainingDest) originalCursorDiff + srcLength else originalCursorDiff
+                        }
+                        continue@srcTokens
+                    }
+
+                    lastLine = newDestLine
+                    lastCursor = newDestCursor
+                    currentTokenIndex += 5
+                }
+
+                // There are no dest tokens left, add src token at the end
+                add(srcLine, srcCursor, srcLength, srcTypeId, srcModifiers)
+                currentTokenIndex += 5
+            }
+        }
+
+        // Restore lastLine and lastCursor
+        while(currentTokenIndex < data.size) {
+            lastLine += data[currentTokenIndex]
+            lastCursor = (if(data[currentTokenIndex] == 0) lastCursor else 0) + data[currentTokenIndex + 1]
+            currentTokenIndex += 5
+        }
+    }
+
     fun clear() {
         data.clear()
         dataSize = 100

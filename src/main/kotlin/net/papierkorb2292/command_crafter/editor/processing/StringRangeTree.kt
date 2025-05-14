@@ -111,7 +111,7 @@ class StringRangeTree<TNode: Any>(
     private fun getNodeRangeOrThrow(node: TNode) =
         ranges[node] ?: throw IllegalStateException("Node $node not found in ranges")
 
-    fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder, semanticTokenInserts: Iterator<kotlin.Pair<StringRange, SemanticTokensBuilder>>) {
+    fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
         val collectedTokens = mutableListOf<List<AdditionalToken>>()
         for(node in orderedNodes) {
             val range = getNodeRangeOrThrow(node)
@@ -124,45 +124,11 @@ class StringRangeTree<TNode: Any>(
             collectedTokens += tokenProvider.getAdditionalTokens(node).toList()
         }
 
-        var nextSemanticTokensInsertRange: StringRange? = null
-        var nextSemanticTokensInsert: SemanticTokensBuilder? = null
-        if(semanticTokenInserts.hasNext()) {
-            val insert = semanticTokenInserts.next()
-            nextSemanticTokensInsertRange = insert.first
-            nextSemanticTokensInsert = insert.second
-        }
-
         for(token in flattenSorted(
             collectedTokens,
             Comparator.comparing(AdditionalToken::range, StringRange::compareTo)
         )) {
-            var tokenStart = token.range.start
-            while(nextSemanticTokensInsertRange != null && token.range.end >= nextSemanticTokensInsertRange.start) {
-                if(tokenStart < nextSemanticTokensInsertRange.start)
-                    builder.addMultiline(StringRange(tokenStart, nextSemanticTokensInsertRange.start), token.tokenInfo.type, token.tokenInfo.modifiers)
-                if(tokenStart < nextSemanticTokensInsertRange.end)
-                    tokenStart = nextSemanticTokensInsertRange.end
-                if(nextSemanticTokensInsert != null) {
-                    builder.combineWith(nextSemanticTokensInsert)
-                    nextSemanticTokensInsert = null
-                }
-                if(token.range.end >= nextSemanticTokensInsertRange.end) {
-                    if(semanticTokenInserts.hasNext()) {
-                        val insert = semanticTokenInserts.next()
-                        nextSemanticTokensInsertRange = insert.first
-                        nextSemanticTokensInsert = insert.second
-                    } else {
-                        nextSemanticTokensInsertRange = null
-                    }
-                }
-            }
-            builder.addMultiline(StringRange(tokenStart, token.range.end), token.tokenInfo.type, token.tokenInfo.modifiers)
-        }
-        while(nextSemanticTokensInsert != null) {
-            builder.combineWith(nextSemanticTokensInsert)
-            nextSemanticTokensInsert =
-                if(semanticTokenInserts.hasNext()) semanticTokenInserts.next().second
-                else null
+            builder.addMultiline(token.range, token.tokenInfo.type, token.tokenInfo.modifiers)
         }
     }
 
@@ -376,12 +342,12 @@ class StringRangeTree<TNode: Any>(
         fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null, generateDiagnostics: Boolean): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult)
             if(shouldGenerateSemanticTokens) {
-                generateSemanticTokens(
-                    analyzingResult.semanticTokens,
+                generateSemanticTokens(analyzingResult.semanticTokens)
+                analyzingResult.semanticTokens.overlap(
                     analyzedStrings.values
                         .asSequence()
-                        .map { it.first to it.second.semanticTokens }
-                        .filter { !it.second.isEmpty() }
+                        .map { it.second.semanticTokens }
+                        .filter { !it.isEmpty() }
                         .iterator()
                 )
             }
@@ -399,8 +365,8 @@ class StringRangeTree<TNode: Any>(
             return shouldGenerateSemanticTokens || contentDecoder != null
         }
 
-        fun generateSemanticTokens(builder: SemanticTokensBuilder, semanticTokenInserts: Iterator<kotlin.Pair<StringRange, SemanticTokensBuilder>>) {
-            stringRangeTree.generateSemanticTokens(semanticTokenProvider, builder, semanticTokenInserts)
+        fun generateSemanticTokens(builder: SemanticTokensBuilder) {
+            stringRangeTree.generateSemanticTokens(semanticTokenProvider, builder)
         }
 
         fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
@@ -914,14 +880,5 @@ class StringRangeTree<TNode: Any>(
                 }
             }
         }
-    }
-
-    private enum class JsonTextRecognizability {
-        NO_JSON_TEXT,
-        NOT_DETERMINABLE,
-        IS_JSON_TEXT;
-
-        fun shouldDecode() = this != NO_JSON_TEXT
-        fun shouldGenerateDiagnostics() = this == IS_JSON_TEXT
     }
 }
