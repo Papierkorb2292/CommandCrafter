@@ -46,6 +46,16 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         }
     }
 
+    const val ON_DECODE_START_NAME = "onDecodeStart"
+    const val ON_DECODE_START_DESC = "(Ljava/lang/Object;)V"
+
+    // Calls to this method are injected by the coprocessor at
+    // the start of every Decoder.decode implementation
+    fun <TInput> onDecodeStart(input: TInput) {
+        val callback = RESULT_CALLBACK.getOrNull() ?: return
+        callback.onDecodeStart(input)
+    }
+
     const val ON_DECODED_NAME = "onDecoded"
     const val ON_DECODED_DESC = "(Lcom/mojang/serialization/DataResult;Ljava/lang/Object;)V"
 
@@ -65,8 +75,15 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         )
     }
 
+    fun <TInput, TResult> onStringParseError(dataResult: DataResult.Error<TResult>, input: TInput, cursor: Int) {
+        val callback = RESULT_CALLBACK.getOrNull() ?: return
+        callback.onStringParseError(dataResult, input, cursor)
+    }
+
     interface ResultCallback {
         fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput)
+        fun <TInput, TResult> onStringParseError(error: DataResult.Error<TResult>, input: TInput, cursor: Int)
         fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput)
+        fun <TInput> onDecodeStart(input: TInput)
     }
 }

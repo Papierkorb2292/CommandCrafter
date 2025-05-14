@@ -275,7 +275,7 @@ class StringRangeTree<TNode: Any>(
         val ops: DynamicOps<TNode>,
         val semanticTokenProvider: SemanticTokenProvider<TNode>,
         val suggestionResolver: SuggestionResolver<TNode>,
-        val stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
+        val stringGetter: (TNode) -> Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
         val nodeClass: KClass<out TNode>,
         var completionEscaper: StringEscaper = StringEscaper.Identity,
         val registryWrapper: RegistryWrapper.WrapperLookup? = null,
@@ -375,7 +375,7 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.getOps(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher)
+            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher, stringGetter)
             IS_ANALYZING_DECODER.runWithValue(true) {
                 PreLaunchDecoderOutputTracker.decodeWithCallback(
                     decoder,
@@ -802,8 +802,13 @@ class StringRangeTree<TNode: Any>(
      * to only the nodes with errors. In other words, all errors whose range encompasses another error's
      * range are ignored
      */
-    inner class DecoderErrorLeafRangesCallback(private val nodeClass: KClass<out TNode>, private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>) : PreLaunchDecoderOutputTracker.ResultCallback {
+    inner class DecoderErrorLeafRangesCallback(
+        private val nodeClass: KClass<out TNode>,
+        private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
+        private val stringGetter: (TNode) -> Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
+    ) : PreLaunchDecoderOutputTracker.ResultCallback {
         private val errors = mutableListOf<kotlin.Pair<StringRange, String>>()
+        private val decodeStackCounts = mutableMapOf<TNode, Int>()
 
         private fun throwForPartialOverlap(range1: StringRange, range2: StringRange) {
             throw IllegalStateException("Ranges of nodes must not partially overlap. They must either not overlap or one must encompass the other. Ranges: $range1, $range2")
@@ -824,7 +829,28 @@ class StringRangeTree<TNode: Any>(
 
         override fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput) {
             val inputNode = nodeClass.safeCast(input) ?: return
+            // Only add error when the decoder is the topmost decoder for this node
+            if(postDecrementDecodeStackCount(inputNode) > 1) return
             val range = getNodeRange(inputNode) ?: return
+            addError(error, range)
+        }
+
+        override fun <TInput, TResult> onStringParseError(error: DataResult.Error<TResult>, input: TInput, cursor: Int) {
+            val inputNode = nodeClass.safeCast(input) ?: return
+            val range = getNodeRange(inputNode) ?: return
+
+            val stringInfo = stringGetter(inputNode)
+            if(stringInfo == null) {
+                addError(error, range)
+                return
+            }
+            val mapper = stringInfo.second
+            val startCursor = mapper.mapToSource(cursor)
+
+            addError(error, StringRange(startCursor, range.end))
+        }
+
+        private fun addError(error: DataResult.Error<*>, range: StringRange) {
             // Use compareTo instead of compareToExclusive, because the latter doesn't return 0 for equal ranges of length 0
             val index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) {
@@ -846,6 +872,8 @@ class StringRangeTree<TNode: Any>(
 
             //Since decoding was successful, all errors that are encompassed by the input node's range are removed
             val inputNode = nodeClass.safeCast(input) ?: return
+            // Only remove errors when the decoder is the topmost decoder for this node
+            if(postDecrementDecodeStackCount(inputNode) > 1) return
             val range = ranges[inputNode] ?: return
             var index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) return
@@ -866,6 +894,21 @@ class StringRangeTree<TNode: Any>(
                 if(index >= errors.size)
                     index = errors.lastIndex
             }
+        }
+
+        override fun <TInput> onDecodeStart(input: TInput) {
+            val inputNode = nodeClass.safeCast(input) ?: return
+            decodeStackCounts[inputNode] = decodeStackCounts.getOrDefault(inputNode, 0) + 1
+        }
+
+        private fun postDecrementDecodeStackCount(node: TNode): Int {
+            val count = decodeStackCounts[node]!!
+            if(count == 1)
+                decodeStackCounts.remove(node)
+            else
+                decodeStackCounts[node] = count - 1
+
+            return count
         }
 
         fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
