@@ -771,8 +771,8 @@ class FunctionElementDebugInformation(
                     parsed,
                     addedBreakpoints,
                     mutableMapOf(),
-                    null,
-                    null
+                    sourceFile, // Give source file and debug connection so breakpoints are mapped according to the source reference
+                    debugConnection
                 )
         }
 
