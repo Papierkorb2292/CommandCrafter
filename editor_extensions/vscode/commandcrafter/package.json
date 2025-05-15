@@ -124,7 +124,7 @@
             ]
           },
           "default": {},
-          "description": "Features to opt-in or opt-out of"
+          "description": "Features to opt-in or opt-out of. See https://github.com/Papierkorb2292/CommandCrafter/wiki/Config#vscode-extension for more detail."
         }
       }
     },
