@@ -204,11 +204,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val packContentFileType = PackContentFileType.parsePath(file.parsedUri.path)?.type ?: return
                 when(packContentFileType.packType) {
                     PackContentFileType.PackType.DATA -> {
-                        if(packContentFileType !in relodableDatapackFileTypes) {
-                            if(minecraftClient?.isConnectedToServer != false)
-                                client!!.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, "${AnsiEscape.createSequence("green")}[AutoReload] World has to be restarted to reload saved file"))
-                            return
-                        }
                         val configPath =
                             if(packContentFileType == PackContentFileType.FUNCTIONS_FILE_TYPE)
                                 AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH
@@ -216,6 +211,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH
                         if(!featureConfig.isEnabled(configPath, false))
                             return
+                        if(packContentFileType !in relodableDatapackFileTypes) {
+                            if(minecraftClient?.isConnectedToServer != false)
+                                client!!.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, "${AnsiEscape.createSequence("green")}[AutoReload] World has to be restarted to reload saved file"))
+                            return
+                        }
                         minecraftServer.datapackReloader?.invoke()
                     }
                     PackContentFileType.PackType.RESOURCE -> {
