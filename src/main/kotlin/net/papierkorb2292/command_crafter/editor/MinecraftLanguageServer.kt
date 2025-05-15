@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.Fil
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
+import org.apache.logging.log4j.core.pattern.AnsiEscape
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -189,12 +190,25 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 PackContentFileType.POST_EFFECTS_FILE_TYPE
             )
 
+            private val relodableDatapackFileTypes = setOf(
+                *PackContentFileType.tagTypes,
+                PackContentFileType.LOOT_TABLES_FILE_TYPE,
+                PackContentFileType.RECIPES_FILE_TYPE,
+                PackContentFileType.FUNCTIONS_FILE_TYPE,
+                PackContentFileType.ADVANCEMENTS_FILE_TYPE
+            )
+
             override fun didSave(params: DidSaveTextDocumentParams) {
                 // If enabled: Automatically reload files
                 val file = openFiles[params.textDocument.uri] ?: return
                 val packContentFileType = PackContentFileType.parsePath(file.parsedUri.path)?.type ?: return
                 when(packContentFileType.packType) {
                     PackContentFileType.PackType.DATA -> {
+                        if(packContentFileType !in relodableDatapackFileTypes) {
+                            if(minecraftClient?.isConnectedToServer != false)
+                                client!!.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, "${AnsiEscape.createSequence("green")}[AutoReload] World has to be restarted to reload saved file"))
+                            return
+                        }
                         val configPath =
                             if(packContentFileType == PackContentFileType.FUNCTIONS_FILE_TYPE)
                                 AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH
@@ -329,8 +343,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         }
 
         override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Unit>> {
-            return delegateFileSystem?.createDirectory(params)
-                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+            return delegateFileSystem?.createDirectory(params)                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
         override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {

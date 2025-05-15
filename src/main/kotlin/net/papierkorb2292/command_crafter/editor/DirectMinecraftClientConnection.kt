@@ -22,6 +22,8 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
         )
     }
     private var shaderReloadWaitFuture: CompletableFuture<*>? = CompletableFuture.completedFuture(Unit)
+    override val isConnectedToServer: Boolean
+        get() = client.world != null
 
     override fun reloadResources(params: ReloadResourcesParams) {
         if(params.onlyShaders != true) {

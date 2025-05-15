@@ -94,6 +94,26 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
         val packTypeFolders = PackType.entries.associateBy { it.folderName }
         val PACKET_CODEC = enumConstantCodec(PackContentFileType::class.java)
 
+        val tagTypes = arrayOf(
+            BANNER_PATTERN_TAGS_FILE_TYPE,
+            BLOCK_TAGS_FILE_TYPE,
+            CAT_VARIANT_TAGS_FILE_TYPE,
+            DAMAGE_TYPE_TAGS_FILE_TYPE,
+            ENCHANTMENT_TAGS_FILE_TYPE,
+            ENTITY_TYPE_TAGS_FILE_TYPE,
+            FLUID_TAGS_FILE_TYPE,
+            FUNCTION_TAGS_FILE_TYPE,
+            GAME_EVENT_TAGS_FILE_TYPE,
+            INSTRUMENT_TAGS_FILE_TYPE,
+            ITEM_TAGS_FILE_TYPE,
+            PAINTING_VARIANT_TAGS_FILE_TYPE,
+            POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE,
+            WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE,
+            WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE,
+            WORLDGEN_STRUCTURE_TAGS_FILE_TYPE,
+            WORLDGEN_WORLD_PRESET_TAGS_FILE_TYPE,
+        )
+
         fun parsePath(path: Path): ParsedPath? {
             for(i in 0 until path.nameCount - 2) {
                 val currentFolder = path.getName(i).toString()
