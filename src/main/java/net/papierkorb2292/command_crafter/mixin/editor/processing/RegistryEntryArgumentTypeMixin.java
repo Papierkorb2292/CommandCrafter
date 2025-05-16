@@ -49,6 +49,8 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             command_crafter$packContentFileType = PackContentFileType.ITEM_MODIFIER_FILE_TYPE;
         else if(registry == RegistryKeys.LOOT_TABLE)
             command_crafter$packContentFileType = PackContentFileType.LOOT_TABLES_FILE_TYPE;
+        else if(registry == RegistryKeys.DIALOG)
+            command_crafter$packContentFileType = PackContentFileType.DIALOG_FILE_TYPE;
     }
 
     @Override
