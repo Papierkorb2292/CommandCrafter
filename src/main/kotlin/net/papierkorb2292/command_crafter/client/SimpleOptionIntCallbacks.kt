@@ -76,12 +76,12 @@ object SimpleOptionIntCallbacks : SimpleOption.Callbacks<Int> {
                     super.setY(y);
                 }
             };
-            container.tooltip = tooltipFactory.apply(option.value)
+            container.setTooltip(tooltipFactory.apply(option.value))
             textInput.setChangedListener {
                 val int = it.toInt()
                 option.value = int
                 changeCallback.accept(int)
-                container.tooltip = tooltipFactory.apply(int)
+                container.setTooltip(tooltipFactory.apply(int))
             }
             textInput.setTextPredicate {
                 it.toIntOrNull() != null

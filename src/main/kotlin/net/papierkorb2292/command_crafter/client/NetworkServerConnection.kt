@@ -36,6 +36,7 @@ import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlocki
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.ClientPlayNetworkHandlerAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
@@ -235,7 +236,8 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }
 
     private val commandDispatcherFactory: (DynamicRegistryManager) -> CommandDispatcher<CommandSource> = { registryManager: DynamicRegistryManager ->
-        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures)))
+        @Suppress("UNCHECKED_CAST")
+        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures), ClientPlayNetworkHandlerAccessor.getField_60784())) as CommandDispatcher<CommandSource>
     }.memoizeLast()
 
     override val dynamicRegistryManager: DynamicRegistryManager

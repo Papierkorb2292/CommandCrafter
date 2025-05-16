@@ -5,7 +5,10 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.command.EntitySelectorReader
 import net.minecraft.entity.Entity
 import net.minecraft.nbt.NbtCompound
+import net.minecraft.predicate.NbtPredicate
 import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.storage.NbtReadView
+import net.minecraft.util.ErrorReporter
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.SetVariableResponse
 import org.eclipse.lsp4j.debug.Variable
@@ -26,10 +29,11 @@ class EntityValueReference(
 
     private var entityNbtValueReference = createEntityNbtValueReference()
 
-    private fun createEntityNbtValueReference() = entity?.run {
-        NbtValueReference(mapper, writeNbt(NbtCompound())) {
-            if (it is NbtCompound) readNbt(it)
-            writeNbt(NbtCompound())
+    private fun createEntityNbtValueReference() = entity?.let { entity ->
+        NbtValueReference(mapper, NbtPredicate.entityToNbt(entity)) {
+            if (it is NbtCompound)
+                entity.readData(NbtReadView.create(ErrorReporter.EMPTY, entity.registryManager, it));
+            NbtPredicate.entityToNbt(entity)
         }
     }
 

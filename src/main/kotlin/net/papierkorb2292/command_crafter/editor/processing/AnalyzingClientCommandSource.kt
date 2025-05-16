@@ -7,6 +7,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.network.ClientCommandSource
 import net.minecraft.command.CommandSource
+import net.minecraft.command.PermissionLevelSource
 import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
@@ -24,10 +25,10 @@ import java.util.stream.Stream
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientCommandSource,
     private val hasNetworkHandler: Boolean
-) : CommandSource {
+) : CommandSource, PermissionLevelSource {
 
     constructor(minecraftClient: MinecraftClient): this(
-        minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient),
+        minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient, true),
         minecraftClient.networkHandler != null
     )
 

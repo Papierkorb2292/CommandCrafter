@@ -18,17 +18,18 @@ fun CommandNode<*>.visitChildrenRecursively(visitor: (CommandNode<*>) -> Unit) {
 val IS_BUILDING_CLIENTSIDE_COMMAND_TREE = ThreadLocal<Boolean>()
 
 fun limitCommandTreeForSource(commandManager: CommandManager, source: ServerCommandSource): RootCommandNode<CommandSource> {
-    val rootNode = RootCommandNode<CommandSource>()
-    val newCommandTreeMapping = mutableMapOf<CommandNode<ServerCommandSource>, CommandNode<CommandSource>>(commandManager.dispatcher.root to rootNode)
+    val rootNode = RootCommandNode<ServerCommandSource>()
+    val newCommandTreeMapping = mutableMapOf<CommandNode<ServerCommandSource>, CommandNode<ServerCommandSource>>(commandManager.dispatcher.root to rootNode)
     IS_BUILDING_CLIENTSIDE_COMMAND_TREE.runWithValue(true) {
-        (commandManager as CommandManagerAccessor).callMakeTreeForSource(
+        CommandManagerAccessor.callMakeTreeForSource(
             commandManager.dispatcher.root,
             rootNode,
             source,
             newCommandTreeMapping
         )
     }
-    return rootNode
+    @Suppress("UNCHECKED_CAST")
+    return rootNode as RootCommandNode<CommandSource>
 }
 
 fun <S> CommandNode<S>.resolveRedirects(): CommandNode<S> {
