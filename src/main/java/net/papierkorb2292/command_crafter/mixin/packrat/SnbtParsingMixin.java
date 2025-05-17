@@ -180,7 +180,7 @@ public class SnbtParsingMixin {
             )
     )
     private static boolean command_crafter$filterMalformedCompoundPlaceholder(ImmutableMap.Builder<?, ?> instance, Object key, Object value) {
-        return !(key instanceof String && key.equals(command_crafter$malformedCompoundEntryPlaceholderName) && value instanceof NbtEnd);
+        return !(key instanceof NbtString(var string) && string.equals(command_crafter$malformedCompoundEntryPlaceholderName) && value instanceof NbtEnd);
     }
 
     @ModifyExpressionValue(
