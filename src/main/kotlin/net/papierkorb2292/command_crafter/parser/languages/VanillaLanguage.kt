@@ -534,18 +534,22 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return
         val gapReader = reader.copy()
         gapReader.cursor = gapRange.start
-        gapReader.readLine()
+        while(gapReader.canRead() && gapReader.peek() != '\n')
+            gapReader.skip()
+        gapReader.skip() // Skip \n
         if(gapReader.cursor > gapRange.end) {
             // The gap doesn't span multiple lines
             return
         }
         do {
             val lineStart = gapReader.cursor
-            gapReader.readLine()
+            while(gapReader.canRead() && gapReader.peek() != '\n')
+                gapReader.skip()
+            gapReader.skip() // Skip \n
             val lineEnd = gapReader.cursor
             val indentEnd = min(lineEnd, lineStart + gapReader.currentIndentation)
             suggestRootNode(gapReader, StringRange(lineStart, indentEnd), commandSource, analyzingResult)
-        } while(gapReader.cursor < gapRange.end)
+        } while(gapReader.cursor <= gapRange.end)
     }
 
     private fun analyzeCommandNode(
@@ -701,6 +705,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+        val initialCursor = reader.cursor
         if(isReaderEasyNextLine(reader)) {
             // Don't skip more if a whitespace was already skipped, because the command parser won't skip both
             if(reader.cursor == 0 || (reader.canRead(0) && reader.peek(-1) != ' ')) {
@@ -754,7 +759,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             furthestParsedContext == null
             || furthestParsedReader == null
             || furthestParsedContext.nodes.last().range <= parentNode.range
-            ) return
+            ) {
+            reader.cursor = initialCursor
+            return
+        }
         analyzeCommandNode(
             furthestParsedContext.nodes.last(),
             parentNode,
