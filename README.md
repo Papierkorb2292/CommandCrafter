@@ -6,7 +6,7 @@ With this mod and the corresponding [CommandCrafter vscode extension](https://ma
 
 Additionally, the mod includes a flexible extension of the vanilla datapack parser, which makes new function syntax possible. This mod provides an improved version of the vanilla function language, currently offering multiline commands without backslashes and inline functions/tags. This new function syntax can be transpiled to a vanilla datapack by the mod using the `/datapack build` command.
 
-For more info, visit the [wiki](wiki/).
+For more info, visit the [wiki](https://github.com/Papierkorb2292/CommandCrafter/wiki).
 
 The following is an example of the changes this extension can
 make in vscode:
@@ -14,7 +14,7 @@ make in vscode:
 
 ## Installation and Usage
 
-For information on how to install and use the mod, visit the [Getting Started](wiki/Getting-Started) page on the wiki.
+For information on how to install and use the mod, visit the [Getting Started](https://github.com/Papierkorb2292/CommandCrafter/wiki/Getting-Started) page on the wiki.
 
 ## License
 
