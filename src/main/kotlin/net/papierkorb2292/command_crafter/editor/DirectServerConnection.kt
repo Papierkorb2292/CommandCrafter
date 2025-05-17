@@ -40,6 +40,7 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Supplier
 import kotlin.collections.set
 
 class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConnection {
@@ -203,6 +204,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 val previouslyEnabledDatapacks = resourcePackManager.enabledIds
                 val allEnabledDatapacks = ReloadCommandAccessor.callFindNewDataPacks(resourcePackManager, saveProperties, previouslyEnabledDatapacks)
 
+                server.commandSource.sendFeedback({ Text.translatable("commands.reload.success") }, true)
                 server.reloadResources(allEnabledDatapacks).whenComplete { _, _ ->
                     completableFuture.complete(Unit)
                 }
