@@ -120,6 +120,7 @@
     "editor.processing.TagEntryMixin",
     "editor.processing.TagPacketSerializerSerializedAccessor",
     "editor.processing.TagParsingRuleMixin",
+    "editor.processing.TextColorMixin",
     "editor.scoreboardStorageViewer.ContextLootNbtProviderEntityTargetMixin",
     "editor.scoreboardStorageViewer.DataCommandStorageMixin",
     "editor.scoreboardStorageViewer.DataCommandStoragePersistentStateAccessor",
