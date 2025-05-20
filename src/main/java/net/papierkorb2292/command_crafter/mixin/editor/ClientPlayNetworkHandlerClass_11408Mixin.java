@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import java.util.function.Predicate;
 
+
 @Debug(export = true)
 @Mixin(targets = "net/minecraft/client/network/ClientPlayNetworkHandler$1")
 public class ClientPlayNetworkHandlerClass_11408Mixin {
@@ -18,7 +19,8 @@ public class ClientPlayNetworkHandlerClass_11408Mixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/builder/ArgumentBuilder;requires(Ljava/util/function/Predicate;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
-            )
+            ),
+            remap = false
     )
     private Predicate<PermissionLevelSource> command_crafter$allowAnySourceClassForCheckingElevatedPrivileges(Predicate<ClientCommandSource> predicate) {
         return PermissionLevelSource::hasElevatedPermissions;
