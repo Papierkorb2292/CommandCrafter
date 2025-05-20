@@ -15,6 +15,7 @@ import net.minecraft.registry.RegistryKey
 import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.util.Identifier
 import net.minecraft.world.World
+import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -44,7 +45,7 @@ class AnalyzingClientCommandSource(
     override fun getRegistryManager(): DynamicRegistryManager =
         if(hasNetworkHandler) clientCommandSource.registryManager else DynamicRegistryManager.of(Registries.REGISTRIES)
     override fun getEnabledFeatures(): FeatureSet =
-        if(hasNetworkHandler) clientCommandSource.enabledFeatures else FeatureSet.empty()
+        if(hasNetworkHandler) clientCommandSource.enabledFeatures else ClientCommandCrafter.defaultFeatureSet
     override fun hasPermissionLevel(level: Int) = true
 
     override fun listIdSuggestions(
