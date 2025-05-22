@@ -59,6 +59,7 @@
     "editor.processing.BlockPredicateArgumentTypeMixin",
     "editor.processing.BlockStateArgumentTypeMixin",
     "editor.processing.BoolArgumentTypeMixin",
+    "editor.processing.ClientConnectionMixin",
     "editor.processing.CodecsIdMapperMixin",
     "editor.processing.CodecsMixin",
     "editor.processing.CommandFunctionArgumentTypeMixin",

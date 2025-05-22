@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 import com.mojang.brigadier.arguments.ArgumentType;
 import net.minecraft.command.argument.ArgumentTypes;
 import net.minecraft.command.argument.serialize.ArgumentSerializer;
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer;
+import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -27,7 +27,7 @@ public class ArgumentTypesMixin {
             )
     )
     private static <A extends ArgumentType<A>> ArgumentSerializer<A, ArgumentSerializer.ArgumentTypeProperties<A>> command_crafter$wrapIdSerializer(ArgumentSerializer<A, ArgumentSerializer.ArgumentTypeProperties<A>> serializer) {
-        return IdArgumentTypeAnalyzer.INSTANCE.wrapArgumentSerializer(serializer);
+        return new ArgumentTypeAdditionalDataSerializer<>(serializer);
     }
 
     @ModifyArg(
@@ -45,6 +45,6 @@ public class ArgumentTypesMixin {
             )
     )
     private static <A extends ArgumentType<A>> ArgumentSerializer<A, ArgumentSerializer.ArgumentTypeProperties<A>> command_crafter$wrapRegistryKeySerializer(ArgumentSerializer<A, ArgumentSerializer.ArgumentTypeProperties<A>> serializer) {
-        return IdArgumentTypeAnalyzer.INSTANCE.wrapArgumentSerializer(serializer);
+        return new ArgumentTypeAdditionalDataSerializer<>(serializer);
     }
 }
