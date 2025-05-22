@@ -103,13 +103,15 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
             command_crafter$inlineOrReferenceCodec = RegistryElementCodec.of(field_60673, entryCodec.xmap(RegistryEntry::value, RegistryEntry::of));
 
         var tree = treeBuilder.build(treeRoot);
-        StringRangeTree.TreeOperations.Companion.forNbt(
+        var treeOperations = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 readerCopy
         )
                 .withSuggestionResolver(new NbtSuggestionResolver(readerCopy, nbtString -> Identifier.tryParse(nbtString.value()) == null))
-                .withRegistry(registries)
-                .analyzeFull(result, isInline, command_crafter$inlineOrReferenceCodec, isInline);
+                .withRegistry(registries);
+        if(!isInline)
+            treeOperations = treeOperations.withDiagnosticSeverity(null);
+        treeOperations.analyzeFull(result, isInline, command_crafter$inlineOrReferenceCodec);
     }
 
     @Override
