@@ -8,6 +8,7 @@ import com.mojang.serialization.DynamicOps
 import net.minecraft.util.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.AnalyzingDynamicOps
 import java.lang.reflect.Type
+import java.util.*
 import java.util.concurrent.Semaphore
 
 fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
@@ -131,3 +132,8 @@ fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
         return this@orEmpty.decode(ops, input)
     }
 }
+
+fun <T: Any> Optional<Optional<T>>.flatten(): Optional<T> =
+    if(isEmpty) Optional.empty() else get()
+fun <TParent: Any, TChild : TParent> Optional<TChild>.cast(): Optional<TParent> =
+    Optional.ofNullable(orElse(null))

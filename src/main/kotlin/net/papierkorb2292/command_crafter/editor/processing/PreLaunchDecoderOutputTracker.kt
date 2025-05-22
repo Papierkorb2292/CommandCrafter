@@ -46,6 +46,10 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         }
     }
 
+    fun clearResultCallback() {
+        RESULT_CALLBACK.remove()
+    }
+
     const val ON_DECODE_START_NAME = "onDecodeStart"
     const val ON_DECODE_START_DESC = "(Ljava/lang/Object;)V"
 

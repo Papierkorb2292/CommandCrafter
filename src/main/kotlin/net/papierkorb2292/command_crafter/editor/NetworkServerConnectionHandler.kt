@@ -29,10 +29,12 @@ import net.minecraft.world.SaveProperties
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ServerRecipeManagerAccessor
@@ -280,11 +282,8 @@ object NetworkServerConnectionHandler {
             requestPacket.requestId
         )
 
-        try {
-            IdArgumentTypeAnalyzer.shouldAddPackContentFileType.set(true)
+        ArgumentTypeAdditionalDataSerializer.shouldWriteAdditionalDataTypes.runWithValue(true) {
             packetSender.sendPacket(responsePacket)
-        } finally {
-            IdArgumentTypeAnalyzer.shouldAddPackContentFileType.remove()
         }
     }
 
