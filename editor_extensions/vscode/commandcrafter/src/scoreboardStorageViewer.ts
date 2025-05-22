@@ -78,9 +78,18 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
                 }
                 const uri = vscode.Uri.parse(`${this.scoreboardStorageFileSystemScheme}:///storages/${name}.${this.foundNbtEditor ? "nbt" : "snbt"}`)
                 vscode.commands.executeCommand("vscode.open", uri)
+            }),
+            vscode.commands.registerCommand("commandcrafter.loadStorageNamespace", async (namespace?: string) => {
+                if(!namespace) {
+                    namespace = await vscode.window.showInputBox({
+                        prompt: "Namespace",
+                    })
+                    if(!namespace)
+                        return
+                }
+                this.languageClient?.sendNotification("scoreboardStorageFileSystem/loadStorageNamespace", { namespace } as any)
             })
         )
-
     }
 
     onLanguageClientStart(languageClient: LanguageClient): void {
@@ -104,6 +113,13 @@ export class ScoreboardStorageViewer implements ConnectionFeature {
     }
 
     onConnectionTypeChange(connectionType: MinecraftConnectionType | null): void { }
+
+    getLoadableStorageNamespaces(): Thenable<{ namespaces: string[] }> {
+        var promise = this.languageClient?.sendRequest<{ namespaces: string[] }>("scoreboardStorageFileSystem/getLoadableStorageNamespaces", {})
+        if(!promise)
+            throw vscode.FileSystemError.FileNotFound("Not connected to a Minecraft instance")
+        return promise
+    }
 }
 
 class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<ScoreboardStorageTreeItem>, vscode.Disposable {
@@ -154,6 +170,16 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
             }
             return treeItem
         }
+        if(element.type === "storageLoad") {
+            const treeItem = new vscode.TreeItem(`Load ${element.namespace}:`)
+            treeItem.contextValue = "storageLoad"
+            treeItem.command = {
+                command: "commandcrafter.loadStorageNamespace",
+                title: "Load namespace",
+                arguments: [ element.namespace ]
+            }
+            return treeItem;
+        }
         assert(element.type === "storage")
         const treeItem = new vscode.TreeItem(element.storageName)
         treeItem.contextValue = "storage"
@@ -194,14 +220,22 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
             case "storage":
                 return vscode.workspace.fs.readDirectory(vscode.Uri.parse(`${this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme}:///storages/`))
                     .then(storages => {
-                        const fileExtension = this.scoreboardStorageViewer.foundNbtEditor ? ".nbt" : ".snbt"
-                        return storages
-                            .filter(([name]) => name.endsWith(fileExtension))
-                            .map(([name]) => ({ type: "storage", storageName: name.slice(
-                                this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
-                                -fileExtension.length
-                            )
-                        }))
+                        return this.scoreboardStorageViewer.getLoadableStorageNamespaces().then(loadableNamespaces => {
+                            const fileExtension = this.scoreboardStorageViewer.foundNbtEditor ? ".nbt" : ".snbt"
+                            const storageItems: ScoreboardStorageTreeItem[] = storages
+                                .filter(([name]) => name.endsWith(fileExtension))
+                                .map(([name]) => ({ type: "storage", storageName: name.slice(
+                                    this.scoreboardStorageViewer.scoreboardStorageFileSystemScheme.length + ':///storages/'.length,
+                                    -fileExtension.length
+                                )
+                                }))
+                            const loadableNamespaceItems: ScoreboardStorageTreeItem[] = loadableNamespaces.namespaces
+                                .map(namespace => ({
+                                    type: "storageLoad",
+                                    namespace
+                                }))
+                            return storageItems.concat(loadableNamespaceItems)
+                        })
                     })
         }
     }
@@ -215,7 +249,7 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
     }
 }
 
-type ScoreboardStorageTreeItem = ScoreboardTreeItem | StorageTreeItem | ScoreboardStorageTreeFolder
+type ScoreboardStorageTreeItem = ScoreboardTreeItem | StorageTreeItem | StorageLoadNamespaceTreeItem | ScoreboardStorageTreeFolder
 
 interface ScoreboardTreeItem {
     type: "scoreboard",
@@ -225,6 +259,11 @@ interface ScoreboardTreeItem {
 interface StorageTreeItem {
     type: "storage",
     storageName: string
+}
+
+interface StorageLoadNamespaceTreeItem {
+    type: "storageLoad",
+    namespace: string
 }
 
 interface ScoreboardStorageTreeFolder {

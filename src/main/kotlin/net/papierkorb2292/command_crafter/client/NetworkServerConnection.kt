@@ -34,7 +34,6 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
-import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
@@ -62,6 +61,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val currentScoreboardStorageWriteFileRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
         val currentScoreboardStorageDeleteRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
         val currentScoreboardStorageRenameRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
+        val currentScoreboardStorageLoadableStorageNamespacesRequests = mutableMapOf<UUID, CompletableFuture<LoadableStorageNamespaces>>()
 
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
@@ -216,6 +216,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             registerScoreboardStorageResponseHandler(
                 ScoreboardStorageFileResponseS2CPacket.RENAME_RESPONSE_PACKET,
                 currentScoreboardStorageRenameRequests
+            )
+            registerScoreboardStorageResponseHandler(
+                ScoreboardStorageFileResponseS2CPacket.LOADABLE_STORAGE_NAMESPACES_RESPONSE_PACKET,
+                currentScoreboardStorageLoadableStorageNamespacesRequests
             )
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 editorDebugConnections.clear()
@@ -421,6 +425,18 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             currentScoreboardStorageRenameRequests[requestId] = future
             ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.RENAME_PACKET.factory(fileSystemId, requestId, params))
             return future
+        }
+
+        override fun getLoadableStorageNamespaces(params: Unit): CompletableFuture<LoadableStorageNamespaces> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<LoadableStorageNamespaces>()
+            currentScoreboardStorageLoadableStorageNamespacesRequests[requestId] = future
+            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.LOADABLE_STORAGE_NAMESPACES_PACKET.factory(fileSystemId, requestId, params))
+            return future
+        }
+
+        override fun loadStorageNamespace(params: LoadStorageNamespaceParams) {
+            ClientPlayNetworking.send(ScoreboardStorageFileNotificationC2SPacket.LOAD_STORAGE_NAMESPACE_PACKET.factory(fileSystemId, params))
         }
     }
 

@@ -366,6 +366,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
+        override fun getLoadableStorageNamespaces(params: Unit): CompletableFuture<LoadableStorageNamespaces> {
+            return delegateFileSystem?.getLoadableStorageNamespaces(params)
+                ?: CompletableFuture.completedFuture(LoadableStorageNamespaces(arrayOf()))
+        }
+
+        override fun loadStorageNamespace(params: LoadStorageNamespaceParams) {
+            delegateFileSystem?.loadStorageNamespace(params)
+        }
+
         fun onChangeServerConnection() {
             val fileSystem = this@MinecraftLanguageServer.minecraftServer.createScoreboardStorageFileSystem()
             delegateFileSystem = fileSystem

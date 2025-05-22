@@ -7,6 +7,7 @@ import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
+import net.papierkorb2292.command_crafter.networking.UNIT_CODEC
 import java.util.*
 
 class ScoreboardStorageFileRequestC2SPacket<TParams>(private val packetId: CustomPayload.Id<ScoreboardStorageFileRequestC2SPacket<TParams>>, val fileSystemId: UUID, val requestId: UUID, val params: TParams) : CustomPayload {
@@ -18,6 +19,7 @@ class ScoreboardStorageFileRequestC2SPacket<TParams>(private val packetId: Custo
         val WRITE_FILE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_request"), WriteFileParams.PACKET_CODEC)
         val DELETE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_delete_request"), DeleteParams.PACKET_CODEC)
         val RENAME_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_rename_request"), RenameParams.PACKET_CODEC)
+        val LOADABLE_STORAGE_NAMESPACES_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_get_loadable_storage_namespaces_request"), UNIT_CODEC)
 
         fun <TParams : Any> createType(
             packetId: Identifier,

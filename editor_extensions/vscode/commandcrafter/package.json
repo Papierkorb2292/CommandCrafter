@@ -59,6 +59,10 @@
       {
         "command": "commandcrafter.openStorage",
         "title": "CommandCrafter: Open Storage"
+      },
+      {
+        "command": "commandcrafter.loadStorageNamespace",
+        "title": "CommandCrafter: Load Storage Namespace"
       }
     ],
     "languages": [

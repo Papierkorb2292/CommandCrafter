@@ -20,6 +20,7 @@ class ScoreboardStorageFileResponseS2CPacket<TParams>(private val packetId: Cust
         val WRITE_FILE_RESPONSE_PACKET: Type<FileSystemResult<Unit>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_response"), FileSystemResult.createCodec(UNIT_CODEC))
         val DELETE_RESPONSE_PACKET: Type<FileSystemResult<Unit>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_delete_response"), FileSystemResult.createCodec(UNIT_CODEC))
         val RENAME_RESPONSE_PACKET: Type<FileSystemResult<Unit>> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_rename_response"), FileSystemResult.createCodec(UNIT_CODEC))
+        val LOADABLE_STORAGE_NAMESPACES_RESPONSE_PACKET: Type<LoadableStorageNamespaces> = createType(Identifier.of("command_crafter", "scoreboard_storage_file_get_loadable_storage_namespaces_response"), LoadableStorageNamespaces.PACKET_CODEC.cast())
         
         fun <TParams : Any> createType(
             packetId: Identifier,

@@ -122,6 +122,7 @@
     "editor.processing.TagParsingRuleMixin",
     "editor.processing.TextColorMixin",
     "editor.scoreboardStorageViewer.ContextLootNbtProviderEntityTargetMixin",
+    "editor.scoreboardStorageViewer.DataCommandStorageAccessor",
     "editor.scoreboardStorageViewer.DataCommandStorageMixin",
     "editor.scoreboardStorageViewer.DataCommandStoragePersistentStateAccessor",
     "editor.scoreboardStorageViewer.ScoreboardAccessor",

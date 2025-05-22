@@ -14,7 +14,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.StringNbtReader
 import net.minecraft.registry.Registries
 import net.minecraft.scoreboard.ScoreHolder
@@ -30,11 +29,13 @@ import net.minecraft.text.Text
 import net.minecraft.text.TextCodecs
 import net.minecraft.util.Identifier
 import net.minecraft.util.Util
+import net.minecraft.util.WorldSavePath
 import net.minecraft.util.dynamic.Codecs
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.getOrNull
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.DataCommandStorageAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardObjectiveAccessor
 import java.io.StringWriter
@@ -378,6 +379,24 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     override fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Unit>> {
         // Renaming files isn't implemented
         return CompletableFuture.completedFuture(FileSystemResult(Unit))
+    }
+
+    override fun getLoadableStorageNamespaces(params: Unit): CompletableFuture<LoadableStorageNamespaces> {
+        val storagePrefix = "command_storage_"
+        val storageSuffix = ".dat"
+
+        val loadedNamespaces = (server.dataCommandStorage as DataCommandStorageAccessor).storages.keys
+        val dataDirectory = server.getSavePath(WorldSavePath.ROOT).resolve("data").toFile()
+        val fileNamespaces = dataDirectory.listFiles { file ->
+            file.isFile && file.name.startsWith(storagePrefix) && file.name.endsWith(storageSuffix);
+        }?.map { it.name.substring(storagePrefix.length, it.name.length - storageSuffix.length) } ?: emptyList()
+
+        val loadableNamespaces = fileNamespaces.filter { it !in loadedNamespaces }
+        return CompletableFuture.completedFuture(LoadableStorageNamespaces(loadableNamespaces.toTypedArray()))
+    }
+
+    override fun loadStorageNamespace(params: LoadStorageNamespaceParams) {
+        server.dataCommandStorage.get(Identifier.of(params.namespace, ""))
     }
 
     private fun resolveUri(uri: String): FileSystemResult<ResolvedPath> {

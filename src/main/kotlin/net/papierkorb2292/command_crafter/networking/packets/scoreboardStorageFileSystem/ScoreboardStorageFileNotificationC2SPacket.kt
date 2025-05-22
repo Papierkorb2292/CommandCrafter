@@ -3,11 +3,13 @@ package net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageF
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.minecraft.network.codec.PacketCodec
+import net.minecraft.network.codec.PacketCodecs
 import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemRemoveWatchParams
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemWatchParams
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.LoadStorageNamespaceParams
 import java.util.*
 
 class ScoreboardStorageFileNotificationC2SPacket<TParams>(private val packetId: CustomPayload.Id<ScoreboardStorageFileNotificationC2SPacket<TParams>>, val fileSystemId: UUID, val params: TParams) : CustomPayload {
@@ -19,6 +21,10 @@ class ScoreboardStorageFileNotificationC2SPacket<TParams>(private val packetId: 
         val REMOVE_WATCH_PACKET = createType(
             Identifier.of("command_crafter", "scoreboard_storage_file_remove_watch"),
             FileSystemRemoveWatchParams.PACKET_CODEC
+        )
+        val LOAD_STORAGE_NAMESPACE_PACKET = createType(
+            Identifier.of("command_crafter", "scoreboard_storage_file_load_storage_namespace"),
+            LoadStorageNamespaceParams.PACKET_CODEC
         )
 
         fun <TParams : Any> createType(

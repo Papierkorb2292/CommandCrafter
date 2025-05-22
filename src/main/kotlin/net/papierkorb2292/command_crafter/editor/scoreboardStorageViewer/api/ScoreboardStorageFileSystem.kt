@@ -36,4 +36,10 @@ interface ScoreboardStorageFileSystem {
 
     @JsonRequest
     fun rename(params: RenameParams): CompletableFuture<FileSystemResult<Unit>>
+
+    @JsonRequest
+    fun getLoadableStorageNamespaces(params: Unit): CompletableFuture<LoadableStorageNamespaces>
+
+    @JsonNotification
+    fun loadStorageNamespace(params: LoadStorageNamespaceParams)
 }

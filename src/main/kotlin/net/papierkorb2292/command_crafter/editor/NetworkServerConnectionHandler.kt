@@ -206,6 +206,16 @@ object NetworkServerConnectionHandler {
             ScoreboardStorageFileResponseS2CPacket.RENAME_RESPONSE_PACKET,
             ScoreboardStorageFileSystem::rename
         )
+        registerScoreboardStorageRequestHandler(
+            ScoreboardStorageFileRequestC2SPacket.LOADABLE_STORAGE_NAMESPACES_PACKET,
+            ScoreboardStorageFileResponseS2CPacket.LOADABLE_STORAGE_NAMESPACES_RESPONSE_PACKET,
+            ScoreboardStorageFileSystem::getLoadableStorageNamespaces
+        )
+        registerAsyncServerPacketHandler(ScoreboardStorageFileNotificationC2SPacket.LOAD_STORAGE_NAMESPACE_PACKET.id) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val fileSystem = getServerScoreboardStorageFileSystem(context.player, payload.fileSystemId) ?: return@registerAsyncServerPacketHandler
+            fileSystem.loadStorageNamespace(payload.params)
+        }
         registerAsyncServerPacketHandler(DebugPauseActionC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
