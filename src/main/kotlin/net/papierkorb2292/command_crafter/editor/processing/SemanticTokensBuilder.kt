@@ -189,14 +189,14 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             var srcCursor = 0
             srcTokens@for(i in 0 until overlap.data.size step 5) {
                 srcLine += overlap.data[i]
-                srcCursor += overlap.data[i + 1]
+                srcCursor = overlap.data[i + 1] + if(overlap.data[i] == 0) srcCursor else 0
                 val srcLength = overlap.data[i + 2]
                 val srcTypeId = overlap.data[i + 3]
                 val srcModifiers = overlap.data[i + 4]
 
                 while(currentTokenIndex < data.size) {
                     val newDestLine = lastLine + data[currentTokenIndex]
-                    val newDestCursor = lastCursor + data[currentTokenIndex + 1]
+                    val newDestCursor = data[currentTokenIndex + 1] + if(data[currentTokenIndex] == 0) lastCursor else 0
                     val destLength = data[currentTokenIndex + 2]
                     val destTypeId = data[currentTokenIndex + 3]
                     val destModifiers = data[currentTokenIndex + 4]
