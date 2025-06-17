@@ -299,6 +299,10 @@ object NetworkServerConnectionHandler {
         server: MinecraftServer,
         networkHandler: ServerPlayNetworkHandler,
     ) {
+        // Only send to players that have CommandCrafter installed and are connected
+        if(networkHandler !in currentConnections)
+            return
+
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
         val registryManager = server.reloadableRegistries.createRegistryLookup() as DynamicRegistryManager
 
