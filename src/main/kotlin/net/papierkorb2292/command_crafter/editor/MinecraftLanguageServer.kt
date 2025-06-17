@@ -124,6 +124,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     resolveProvider = true
                 }
             })
+            workspace = WorkspaceServerCapabilities().apply {
+                fileOperations = FileOperationsServerCapabilities().apply {
+                    didDelete = FileOperationOptions(listOf(FileOperationFilter(FileOperationPattern("**"))))
+                }
+            }
             semanticTokensProvider = SemanticTokensWithRegistrationOptions(
                 SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS),
                 true
@@ -406,6 +411,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
             override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams?) {
 
+            }
+
+            override fun didDeleteFiles(params: DeleteFilesParams) {
+                params.files.forEach {
+                    client?.publishDiagnostics(PublishDiagnosticsParams(it.uri, listOf()))
+                }
             }
         }
     }
