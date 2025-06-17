@@ -348,6 +348,7 @@ public class EntitySelectorOptionsMixin {
                 return;
             }
             var hasNegationChar = false;
+            var maxEndCursor = reader.getCursor();
             if(reader.canRead()) {
                 if(reader.peek() == '!') {
                     hasNegationChar = true;
@@ -376,6 +377,7 @@ public class EntitySelectorOptionsMixin {
                         );
                     }
                 } catch(InvalidIdentifierException ignored) { }
+                maxEndCursor = reader.getCursor();
                 reader.setCursor(startCursor);
             }
             if(VanillaLanguage.Companion.isReaderInlineResources(reader)) {
@@ -389,7 +391,10 @@ public class EntitySelectorOptionsMixin {
                     }
                     analyzingResult.combineWith(analyzed.getAnalyzingResult());
                 }
+                if(reader.getCursor() > maxEndCursor)
+                    maxEndCursor = reader.getCursor();
             }
+            reader.setCursor(maxEndCursor);
         };
     }
 
