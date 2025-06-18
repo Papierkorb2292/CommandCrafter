@@ -21,6 +21,7 @@ import net.minecraft.registry.*
 import net.minecraft.registry.tag.TagPacketSerializer
 import net.minecraft.resource.ResourcePackManager
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
@@ -29,14 +30,17 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ServerRecipeManagerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.CommandManagerAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
@@ -91,7 +95,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "insufficient permissions",
-                        CommandTreeS2CPacket(RootCommandNode()),
+                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getField_60672()),
                         0,
                         payload.requestId
                     )
@@ -103,7 +107,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "mismatched mod version (client=${payload.clientModVersion},server=${CommandCrafter.VERSION})",
-                        CommandTreeS2CPacket(RootCommandNode()),
+                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getField_60672()),
                         0,
                         payload.requestId
                     )
@@ -111,11 +115,11 @@ object NetworkServerConnectionHandler {
                 return@handler
             }
 
-            val connection = DirectServerConnection(context.player().server)
+            val connection = DirectServerConnection(context.player().server!!)
             currentConnections[context.player().networkHandler] = connection
 
             sendConnectionRequestResponse(
-                context.player().server,
+                context.player().server!!,
                 payload,
                 connection,
                 context.responseSender(),
@@ -279,7 +283,7 @@ object NetworkServerConnectionHandler {
         registerAsyncServerPacketHandler(ContextCompletionRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
-            val server = context.player.server
+            val server = context.player.server!!
             @Suppress("UNCHECKED_CAST")
             val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
             reader.cursor = payload.cursor
@@ -314,19 +318,17 @@ object NetworkServerConnectionHandler {
     ) {
         sendDynamicRegistries(server, networkHandler)
 
+        @Suppress("UNCHECKED_CAST")
         val responsePacket = InitializeNetworkServerConnectionS2CPacket(
             true,
             null,
-            CommandTreeS2CPacket(connection.commandDispatcher.root),
+            CommandTreeS2CPacket(connection.commandDispatcher.root as RootCommandNode<ServerCommandSource>, CommandManagerAccessor.getField_60672()),
             server.functionPermissionLevel,
             requestPacket.requestId
         )
 
-        try {
-            IdArgumentTypeAnalyzer.shouldAddPackContentFileType.set(true)
+        ArgumentTypeAdditionalDataSerializer.shouldWriteAdditionalDataTypes.runWithValue(true) {
             packetSender.sendPacket(responsePacket)
-        } finally {
-            IdArgumentTypeAnalyzer.shouldAddPackContentFileType.remove()
         }
     }
 

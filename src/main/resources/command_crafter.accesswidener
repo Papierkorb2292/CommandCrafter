@@ -10,6 +10,5 @@ extendable method net/minecraft/nbt/NbtByte <init> (B)V
 accessible class net/minecraft/client/font/FontManager$Providers
 accessible class net/minecraft/server/MinecraftServer$ResourceManagerHolder
 accessible class net/minecraft/client/option/SimpleOption$Callbacks
-accessible class net/minecraft/nbt/NbtOps$CompoundListMerger
-accessible class net/minecraft/nbt/NbtOps$Merger
 accessible method net/minecraft/client/gl/ShaderLoader$ShaderSourceKey <init> (Lnet/minecraft/util/Identifier;Lcom/mojang/blaze3d/shaders/ShaderType;)V
+accessible class net/minecraft/block/entity/BlockEntityType$BlockEntityFactory

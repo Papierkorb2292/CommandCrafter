@@ -6,17 +6,23 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.Decoder;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.command.argument.BlockArgumentParser;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.util.Identifier;
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer;
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
-import net.papierkorb2292.command_crafter.editor.processing.TokenType;
+import net.papierkorb2292.command_crafter.editor.processing.*;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -34,6 +40,7 @@ public class BlockArgumentParserMixin implements AnalyzingResultCreator {
     @Shadow @Final private StringReader reader;
     @Shadow private @Nullable RegistryEntryList<Block> tagId;
     @Shadow @Final private boolean allowTag;
+    @Shadow private @Nullable BlockState blockState;
     private AnalyzingResult command_crafter$analyzingResult;
 
     @Override
@@ -181,5 +188,42 @@ public class BlockArgumentParserMixin implements AnalyzingResultCreator {
         if(command_crafter$analyzingResult != null) {
             command_crafter$analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPARAMETER(), 0);
         }
+    }
+
+    @WrapOperation(
+            method = "parseSnbt",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/nbt/StringNbtReader;readCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/NbtCompound;"
+            )
+    )
+    private NbtCompound command_crafter$highlightNbtArg(StringReader reader, Operation<NbtCompound> op) throws CommandSyntaxException {
+        if(command_crafter$analyzingResult == null)
+            return op.call(reader);
+        //noinspection unchecked
+        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
+        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
+        //noinspection unchecked
+        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        var nbt = nbtReader.readAsArgument(directiveReader);
+        var tree = treeBuilder.build(nbt);
+
+        Decoder<?> decoder = null;
+        if(blockState != null) {
+            //noinspection unchecked
+            var dataObjectDecoding = DataObjectDecoding.Companion.getForReader((DirectiveStringReader<AnalyzingResourceCreator>) reader);
+            if (dataObjectDecoding != null)
+                decoder = dataObjectDecoding.getDummyBlockEntityDecoders().get(blockState.getBlock());
+        }
+
+        StringRangeTree.TreeOperations.Companion.forNbt(
+                tree,
+                directiveReader
+        )
+                .withDiagnosticSeverity(DiagnosticSeverity.Warning)
+                .analyzeFull(command_crafter$analyzingResult, true, decoder);
+        return nbt instanceof NbtCompound ? (NbtCompound)nbt : null;
     }
 }

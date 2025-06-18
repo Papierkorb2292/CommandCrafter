@@ -45,6 +45,8 @@ object ClientCommandCrafter : ClientModInitializer {
         }
     }
 
+    val defaultFeatureSet = FeatureFlags.FEATURE_MANAGER.featureSet
+
     var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
         SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
@@ -96,7 +98,7 @@ object ClientCommandCrafter : ClientModInitializer {
             val rootNode = limitCommandTreeForSource(
                 CommandManager(
                     CommandManager.RegistrationEnvironment.ALL,
-                    CommandRegistryAccess.of(registryWrapperLookup, FeatureFlags.FEATURE_MANAGER.featureSet)
+                    CommandRegistryAccess.of(registryWrapperLookup, defaultFeatureSet)
                 ), ServerCommandSource(
                     CommandOutput.DUMMY,
                     Vec3d.ZERO,

@@ -12,6 +12,7 @@ import net.minecraft.advancement.Advancement
 import net.minecraft.block.entity.BannerPattern
 import net.minecraft.block.jukebox.JukeboxSong
 import net.minecraft.command.CommandSource
+import net.minecraft.dialog.type.Dialog
 import net.minecraft.enchantment.Enchantment
 import net.minecraft.enchantment.provider.EnchantmentProvider
 import net.minecraft.entity.damage.DamageType
@@ -58,9 +59,7 @@ import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
@@ -159,9 +158,11 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.JUKEBOX_SONG_FILE_TYPE, JukeboxSong.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_FILE_TYPE, Enchantment.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE, EnchantmentProvider.CODEC)
+        addJsonAnalyzer(PackContentFileType.DIALOG_FILE_TYPE, Dialog.CODEC)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
+        IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
 
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used

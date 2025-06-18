@@ -56,9 +56,11 @@
     "editor.processing.ArgumentTypesMixin",
     "editor.processing.BlockArgumentParserAccessor",
     "editor.processing.BlockArgumentParserMixin",
+    "editor.processing.BlockEntityTypeAccessor",
     "editor.processing.BlockPredicateArgumentTypeMixin",
     "editor.processing.BlockStateArgumentTypeMixin",
     "editor.processing.BoolArgumentTypeMixin",
+    "editor.processing.ClientConnectionMixin",
     "editor.processing.CodecsIdMapperMixin",
     "editor.processing.CodecsMixin",
     "editor.processing.CommandFunctionArgumentTypeMixin",
@@ -68,6 +70,7 @@
     "editor.processing.EntityArgumentTypeMixin",
     "editor.processing.EntitySelectorOptionsMixin",
     "editor.processing.EntitySelectorReaderMixin",
+    "editor.processing.EntityTypeAccessor",
     "editor.processing.ForwardingDynamicOpsAccessor",
     "editor.processing.FunctionBuilderMixin",
     "editor.processing.IdentifiableParsingRuleMixin",
@@ -104,6 +107,7 @@
     "editor.processing.PlaceCommandMixin",
     "editor.processing.RecipeCommandMixin",
     "editor.processing.RegistryElementCodecMixin",
+    "editor.processing.RegistryEntryArgumentTypeDirectParserMixin",
     "editor.processing.RegistryEntryArgumentTypeMixin",
     "editor.processing.RegistryFixedCodecMixin",
     "editor.processing.RegistryKeyArgumentTypeMixin",
@@ -117,6 +121,7 @@
     "editor.processing.StringNbtReaderMixin",
     "editor.processing.SuggestionMixin",
     "editor.processing.SuggestionsMixin",
+    "editor.processing.SummonCommandMixin",
     "editor.processing.TagEntryMixin",
     "editor.processing.TagPacketSerializerSerializedAccessor",
     "editor.processing.TagParsingRuleMixin",
@@ -142,6 +147,7 @@
     "packrat.SnbtParsingMixin",
     "parser.ArgumentCommandNodeMixin",
     "parser.CommandDispatcherMixin",
+    "parser.CommandManagerAccessor",
     "parser.CommandNodeAccessor",
     "parser.CommandNodeMixin",
     "parser.CommandSourceMixin",
@@ -192,7 +198,9 @@
   "client": [
     "ClientRegistriesMixin",
     "SimpleOptionAccessor",
+    "editor.ClientPlayNetworkHandlerClass_11408Mixin",
     "editor.shader.GlBackendMixin",
-    "editor.shader.ShaderLoaderAccessor"
+    "editor.shader.ShaderLoaderAccessor",
+    "parser.ClientPlayNetworkHandlerAccessor"
   ]
 }

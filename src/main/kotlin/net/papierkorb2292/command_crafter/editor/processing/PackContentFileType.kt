@@ -68,6 +68,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     JUKEBOX_SONG_FILE_TYPE("jukebox_song", PackType.DATA),
     ENCHANTMENT_FILE_TYPE("enchantment", PackType.DATA),
     ENCHANTMENT_PROVIDER_FILE_TYPE("enchantment_provider", PackType.DATA),
+    DIALOG_FILE_TYPE("dialog", PackType.DATA),
 
     ATLASES_FILE_TYPE("atlases", PackType.RESOURCE),
     BLOCKSTATES_FILE_TYPE("blockstates", PackType.RESOURCE),

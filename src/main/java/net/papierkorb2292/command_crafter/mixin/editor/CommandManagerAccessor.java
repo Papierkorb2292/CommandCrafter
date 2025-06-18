@@ -17,6 +17,9 @@ public interface CommandManagerAccessor {
     static ThreadLocal<CommandExecutionContext<ServerCommandSource>> getCURRENT_CONTEXT() {
         throw new AssertionError();
     }
+
     @Invoker
-    void callMakeTreeForSource(CommandNode<ServerCommandSource> tree, CommandNode<CommandSource> result, ServerCommandSource source, Map<CommandNode<ServerCommandSource>, CommandNode<CommandSource>> resultNodes);
+    static <S> void callMakeTreeForSource(CommandNode<S> tree, CommandNode<S> result, S source, Map<CommandNode<S>, CommandNode<S>> resultNodes) {
+        throw new AssertionError();
+    }
 }

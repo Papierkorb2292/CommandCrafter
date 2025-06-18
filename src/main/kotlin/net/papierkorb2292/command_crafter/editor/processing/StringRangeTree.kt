@@ -259,11 +259,10 @@ class StringRangeTree<TNode: Any>(
             )
 
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
-            treeOperations.analyzeFull(
+            treeOperations.withDiagnosticSeverity(null).analyzeFull(
                 stringAnalyzingResult,
                 true,
-                null,
-                false
+                null
             )
             results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
         }
@@ -279,6 +278,7 @@ class StringRangeTree<TNode: Any>(
         val nodeClass: KClass<out TNode>,
         var completionEscaper: StringEscaper = StringEscaper.Identity,
         val registryWrapper: RegistryWrapper.WrapperLookup? = null,
+        val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     ) {
         // Size should never be 0, because a root element has to be present. If it is 1, there are no child elements.
         val isRootEmpty = stringRangeTree.orderedNodes.size == 1
@@ -336,10 +336,9 @@ class StringRangeTree<TNode: Any>(
 
         fun withSuggestionResolver(resolver: SuggestionResolver<TNode>) = copy(suggestionResolver = resolver)
 
-        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null) =
-            analyzeFull(analyzingResult, shouldGenerateSemanticTokens, contentDecoder, true)
+        fun withDiagnosticSeverity(severity: DiagnosticSeverity?) = copy(diagnosticSeverity = severity)
 
-        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null, generateDiagnostics: Boolean): Boolean {
+        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult)
             if(shouldGenerateSemanticTokens) {
                 generateSemanticTokens(analyzingResult.semanticTokens)
@@ -358,8 +357,8 @@ class StringRangeTree<TNode: Any>(
                         contentDecoder.decode(wrappedOps, stringRangeTree.root)
                     }
                 }
-                if(generateDiagnostics)
-                    generateDiagnostics(analyzingResult, contentDecoder, DiagnosticSeverity.Error)
+                if(diagnosticSeverity != null)
+                    generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
             }
             analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
             return shouldGenerateSemanticTokens || contentDecoder != null

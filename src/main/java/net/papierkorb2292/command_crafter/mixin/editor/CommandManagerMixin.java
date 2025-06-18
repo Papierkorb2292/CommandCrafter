@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(CommandManager.class)
-public class CommandManagerMixin<S> {
+public class CommandManagerMixin {
 
     @WrapOperation(
             method = "makeTreeForSource",
@@ -22,7 +22,7 @@ public class CommandManagerMixin<S> {
                     remap = false
             )
     )
-    private boolean command_crafter$catchCanUseErrorWhenBuildingClientsideTree(CommandNode<S> instance, S source, Operation<Boolean> op) {
+    private static <S> boolean command_crafter$catchCanUseErrorWhenBuildingClientsideTree(CommandNode<S> instance, S source, Operation<Boolean> op) {
         var isBuildingClientsideTree = getOrNull(UtilKt.getIS_BUILDING_CLIENTSIDE_COMMAND_TREE());
         if(isBuildingClientsideTree == null || !isBuildingClientsideTree)
             return op.call(instance, source);

@@ -29,7 +29,7 @@ public class MacroInvocationMixin implements MacroCursorMapperProvider {
             method = "parse",
             at = @At("HEAD")
     )
-    private static void command_crafter$createCursorMappingBuilder(String command, int lineNumber, CallbackInfoReturnable<MacroInvocation> cir, @Share("cursorStarts") LocalRef<IntList> cursorStartsRef) {
+    private static void command_crafter$createCursorMappingBuilder(String command, CallbackInfoReturnable<MacroInvocation> cir, @Share("cursorStarts") LocalRef<IntList> cursorStartsRef) {
         cursorStartsRef.set(new IntList());
     }
 
