@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(CommandManager.class)
 public interface CommandManagerAccessor {
     @Accessor
-    static CommandTreeS2CPacket.class_11409<ServerCommandSource> getField_60672() {
+    static CommandTreeS2CPacket.CommandNodeInspector<ServerCommandSource> getINSPECTOR() {
         throw new AssertionError();
     }
 }

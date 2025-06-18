@@ -33,7 +33,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
     @Shadow @Final private Codec<RegistryEntry<T>> entryCodec;
     @Shadow @Final private RegistryWrapper.WrapperLookup registries;
     @Shadow @Final private PackratParser<RegistryEntryArgumentType.EntryParser<T, NbtElement>> parser;
-    @Shadow @Final private RegistryKey<? extends Registry<T>> field_60673;
+    @Shadow @Final private RegistryKey<? extends Registry<T>> registryRef;
     private PackContentFileType command_crafter$packContentFileType = null;
 
     private Codec<?> command_crafter$inlineOrReferenceCodec = null;
@@ -100,7 +100,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
         var isInline = parsed instanceof RegistryEntryArgumentType.DirectParser<T, NbtElement>;
 
         if(command_crafter$inlineOrReferenceCodec == null)
-            command_crafter$inlineOrReferenceCodec = RegistryElementCodec.of(field_60673, entryCodec.xmap(RegistryEntry::value, RegistryEntry::of));
+            command_crafter$inlineOrReferenceCodec = RegistryElementCodec.of(registryRef, entryCodec.xmap(RegistryEntry::value, RegistryEntry::of));
 
         var tree = treeBuilder.build(treeRoot);
         var treeOperations = StringRangeTree.TreeOperations.Companion.forNbt(

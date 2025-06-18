@@ -95,7 +95,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "insufficient permissions",
-                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getField_60672()),
+                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getINSPECTOR()),
                         0,
                         payload.requestId
                     )
@@ -107,7 +107,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "mismatched mod version (client=${payload.clientModVersion},server=${CommandCrafter.VERSION})",
-                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getField_60672()),
+                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getINSPECTOR()),
                         0,
                         payload.requestId
                     )
@@ -322,7 +322,7 @@ object NetworkServerConnectionHandler {
         val responsePacket = InitializeNetworkServerConnectionS2CPacket(
             true,
             null,
-            CommandTreeS2CPacket(connection.commandDispatcher.root as RootCommandNode<ServerCommandSource>, CommandManagerAccessor.getField_60672()),
+            CommandTreeS2CPacket(connection.commandDispatcher.root as RootCommandNode<ServerCommandSource>, CommandManagerAccessor.getINSPECTOR()),
             server.functionPermissionLevel,
             requestPacket.requestId
         )

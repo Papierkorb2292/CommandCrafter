@@ -21,7 +21,7 @@ fun limitCommandTreeForSource(commandManager: CommandManager, source: ServerComm
     val rootNode = RootCommandNode<ServerCommandSource>()
     val newCommandTreeMapping = mutableMapOf<CommandNode<ServerCommandSource>, CommandNode<ServerCommandSource>>(commandManager.dispatcher.root to rootNode)
     IS_BUILDING_CLIENTSIDE_COMMAND_TREE.runWithValue(true) {
-        CommandManagerAccessor.callMakeTreeForSource(
+        CommandManagerAccessor.callDeepCopyNodes(
             commandManager.dispatcher.root,
             rootNode,
             source,

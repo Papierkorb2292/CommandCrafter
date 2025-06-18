@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(ClientPlayNetworkHandler.class)
 public interface ClientPlayNetworkHandlerAccessor {
     @Accessor
-    static CommandTreeS2CPacket.class_11408<ClientCommandSource> getField_60784() {
+    static CommandTreeS2CPacket.NodeFactory<ClientCommandSource> getCOMMAND_NODE_FACTORY() {
         throw new AssertionError();
     }
 }

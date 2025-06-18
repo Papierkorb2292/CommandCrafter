@@ -254,7 +254,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
 
     private val commandDispatcherFactory: (DynamicRegistryManager) -> CommandDispatcher<CommandSource> = { registryManager: DynamicRegistryManager ->
         @Suppress("UNCHECKED_CAST")
-        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures), ClientPlayNetworkHandlerAccessor.getField_60784())) as CommandDispatcher<CommandSource>
+        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures), ClientPlayNetworkHandlerAccessor.getCOMMAND_NODE_FACTORY())) as CommandDispatcher<CommandSource>
     }.memoizeLast()
 
     override val dynamicRegistryManager: DynamicRegistryManager

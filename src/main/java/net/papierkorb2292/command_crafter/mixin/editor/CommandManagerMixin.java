@@ -15,7 +15,7 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 public class CommandManagerMixin {
 
     @WrapOperation(
-            method = "makeTreeForSource",
+            method = "deepCopyNodes",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/tree/CommandNode;canUse(Ljava/lang/Object;)Z",
