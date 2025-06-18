@@ -9,10 +9,12 @@ import net.minecraft.network.packet.CustomPayload
 import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
 import net.minecraft.util.Identifier
 import net.minecraft.util.Uuids
+import net.papierkorb2292.command_crafter.networking.nullable
 import java.util.*
 
 class InitializeNetworkServerConnectionS2CPacket(
     val successful: Boolean,
+    val failReason: String?,
     val commandTree: CommandTreeS2CPacket,
     val functionPermissionLevel: Int,
     val requestId: UUID,
@@ -24,6 +26,8 @@ class InitializeNetworkServerConnectionS2CPacket(
         val CODEC: PacketCodec<PacketByteBuf, InitializeNetworkServerConnectionS2CPacket> = PacketCodec.tuple(
             PacketCodecs.BOOLEAN,
             InitializeNetworkServerConnectionS2CPacket::successful,
+            PacketCodecs.STRING.nullable(),
+            InitializeNetworkServerConnectionS2CPacket::failReason,
             CommandTreeS2CPacket.CODEC,
             InitializeNetworkServerConnectionS2CPacket::commandTree,
             PacketCodecs.VAR_INT,

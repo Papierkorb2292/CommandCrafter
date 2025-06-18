@@ -124,7 +124,9 @@ object ClientCommandCrafter : ClientModInitializer {
                 editorConnectionManager.minecraftServerConnection = it
                 editorConnectionManager.showMessage(MessageParams(MessageType.Info, "Successfully connected to Minecraft server"))
             }.exceptionally {
-                editorConnectionManager.showMessage(MessageParams(MessageType.Warning, "Connecting to Minecraft server failed, keeping clientside connection: $it"))
+                val message = "Connecting to Minecraft server failed, keeping clientside connection: $it"
+                CommandCrafter.LOGGER.warn(message)
+                editorConnectionManager.showMessage(MessageParams(MessageType.Warning, message))
                 null
             }
         }

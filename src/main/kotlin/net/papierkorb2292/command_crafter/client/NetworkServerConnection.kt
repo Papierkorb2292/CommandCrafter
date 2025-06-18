@@ -15,6 +15,7 @@ import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.resource.ResourceFactory
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.helper.SyncedRegistriesListConsumer
 import net.papierkorb2292.command_crafter.editor.DirectServerConnection
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
@@ -82,7 +83,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             val requestId = UUID.randomUUID()
             val result = CompletableFuture<NetworkServerConnection>()
             currentConnectionRequest = requestId to result
-            ClientPlayNetworking.send(RequestNetworkServerConnectionC2SPacket(requestId))
+            ClientPlayNetworking.send(RequestNetworkServerConnectionC2SPacket(requestId, CommandCrafter.VERSION))
             return result
         }
 
@@ -93,7 +94,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 if(!payload.successful) {
                     currentRequest.second.completeExceptionally(
                         ServerConnectionNotSupportedException(
-                            "Server didn't permit editor connection"
+                            "Server didn't permit editor connection: ${payload.failReason}"
                         )
                     )
                     return@handler

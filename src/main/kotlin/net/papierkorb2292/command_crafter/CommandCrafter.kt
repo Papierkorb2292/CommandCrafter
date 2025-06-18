@@ -87,7 +87,7 @@ import java.util.concurrent.ExecutorService
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"
     val LOGGER = LogManager.getLogger(MOD_ID)
-    val VERSION = FabricLoader.getInstance().getModContainer(MOD_ID).get().metadata.version.friendlyString
+    val VERSION: String = FabricLoader.getInstance().getModContainer(MOD_ID).get().metadata.version.friendlyString
     lateinit var config: CommandCrafterConfig
         private set
 

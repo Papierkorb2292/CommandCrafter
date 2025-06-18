@@ -25,6 +25,7 @@ import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.Identifier
 import net.minecraft.world.SaveProperties
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -87,6 +88,19 @@ object NetworkServerConnectionHandler {
                 context.responseSender().sendPacket(
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
+                        "insufficient permissions",
+                        CommandTreeS2CPacket(RootCommandNode()),
+                        0,
+                        payload.requestId
+                    )
+                )
+                return@handler
+            }
+            if(payload.clientModVersion != CommandCrafter.VERSION) {
+                context.responseSender().sendPacket(
+                    InitializeNetworkServerConnectionS2CPacket(
+                        false,
+                        "mismatched mod version (client=${payload.clientModVersion},server=${CommandCrafter.VERSION})",
                         CommandTreeS2CPacket(RootCommandNode()),
                         0,
                         payload.requestId
@@ -282,6 +296,7 @@ object NetworkServerConnectionHandler {
 
         val responsePacket = InitializeNetworkServerConnectionS2CPacket(
             true,
+            null,
             CommandTreeS2CPacket(connection.commandDispatcher.root),
             server.functionPermissionLevel,
             requestPacket.requestId
