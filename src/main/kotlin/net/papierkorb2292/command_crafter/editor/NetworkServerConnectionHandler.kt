@@ -31,7 +31,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDe
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
-import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
+import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
@@ -60,6 +60,8 @@ object NetworkServerConnectionHandler {
     val SYNCED_REGISTRY_KEYS = SYNCED_REGISTRIES.mapTo(mutableSetOf()) { it.key }
 
     private val currentConnections = mutableMapOf<ServerPlayNetworkHandler, DirectServerConnection>()
+
+    private val scoreboardStorageWriteFileCombiner = PartialSequenceCombiner(PartialWriteFileParams::isLastPart, WriteFileParams::fromPartial)
 
     private val editorDebugConnections = mutableMapOf<ServerPlayNetworkHandler, MutableMap<UUID, ServerNetworkDebugConnection>>()
     private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
@@ -200,16 +202,34 @@ object NetworkServerConnectionHandler {
             ScoreboardStorageFileResponseS2CPacket.CREATE_DIRECTORY_RESPONSE_PACKET,
             ScoreboardStorageFileSystem::createDirectory
         )
-        registerScoreboardStorageRequestHandler(
-            ScoreboardStorageFileRequestC2SPacket.READ_FILE_PACKET,
-            ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET,
-            ScoreboardStorageFileSystem::readFile
-        )
-        registerScoreboardStorageRequestHandler(
-            ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET,
-            ScoreboardStorageFileResponseS2CPacket.WRITE_FILE_RESPONSE_PACKET,
-            ScoreboardStorageFileSystem::writeFile
-        )
+        // Can't use registerScoreboardStorageRequestHandler because requests can be spread across multiple packets when they're too big
+        registerAsyncServerPacketHandler(ScoreboardStorageFileRequestC2SPacket.READ_FILE_PACKET.id) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val fileSystem = getServerScoreboardStorageFileSystem(context.player, payload.fileSystemId) ?: return@registerAsyncServerPacketHandler
+            fileSystem.readFile(payload.params).thenAccept { readResult ->
+                when(readResult.type) {
+                    FileSystemResult.ResultType.FILE_NOT_FOUND_ERROR ->
+                        context.sendPacket(ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET.factory(
+                                payload.requestId,
+                                FileSystemResult(readResult.fileNotFoundError!!)
+                            ))
+                    FileSystemResult.ResultType.SUCCESS -> readResult.result!!.toPartial().forEach {
+                        context.sendPacket(ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET.factory(
+                            payload.requestId,
+                            FileSystemResult(it)
+                        ))
+                    }
+                }
+            }
+        }
+        registerAsyncServerPacketHandler(ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET.id) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val fileSystem = getServerScoreboardStorageFileSystem(context.player, payload.fileSystemId) ?: return@registerAsyncServerPacketHandler
+            val combined = scoreboardStorageWriteFileCombiner.consumePartial(payload.params, payload.requestId) ?: return@registerAsyncServerPacketHandler
+            fileSystem.writeFile(combined).thenAccept {
+                context.sendPacket(ScoreboardStorageFileResponseS2CPacket.WRITE_FILE_RESPONSE_PACKET.factory(payload.requestId, it))
+            }
+        }
         registerScoreboardStorageRequestHandler(
             ScoreboardStorageFileRequestC2SPacket.DELETE_PACKET,
             ScoreboardStorageFileResponseS2CPacket.DELETE_RESPONSE_PACKET,

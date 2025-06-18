@@ -16,7 +16,7 @@ class ScoreboardStorageFileRequestC2SPacket<TParams>(private val packetId: Custo
         val READ_DIRECTORY_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_directory_request"), UriParams.PACKET_CODEC)
         val CREATE_DIRECTORY_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_create_directory_request"), UriParams.PACKET_CODEC)
         val READ_FILE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_read_file_request"), UriParams.PACKET_CODEC)
-        val WRITE_FILE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_request"), WriteFileParams.PACKET_CODEC)
+        val WRITE_FILE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_write_file_request"), PartialWriteFileParams.PACKET_CODEC)
         val DELETE_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_delete_request"), DeleteParams.PACKET_CODEC)
         val RENAME_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_rename_request"), RenameParams.PACKET_CODEC)
         val LOADABLE_STORAGE_NAMESPACES_PACKET = createType(Identifier.of("command_crafter", "scoreboard_storage_file_get_loadable_storage_namespaces_request"), UNIT_CODEC)

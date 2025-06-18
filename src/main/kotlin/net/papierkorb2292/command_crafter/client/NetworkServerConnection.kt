@@ -63,6 +63,17 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         val currentScoreboardStorageDeleteRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
         val currentScoreboardStorageRenameRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Unit>>>()
         val currentScoreboardStorageLoadableStorageNamespacesRequests = mutableMapOf<UUID, CompletableFuture<LoadableStorageNamespaces>>()
+        val scoreboardStorageReadFileCombiner = PartialSequenceCombiner<FileSystemResult<PartialReadFileResult>, FileSystemResult<ReadFileResult>>({ it.result?.isLastPart ?: true }, { partials ->
+            if(partials.firstOrNull()?.type == FileSystemResult.ResultType.FILE_NOT_FOUND_ERROR)
+                FileSystemResult(partials.first().fileNotFoundError!!)
+            else {
+                FileSystemResult(ReadFileResult.fromPartial(partials.map {
+                    if(it.type !== FileSystemResult.ResultType.SUCCESS)
+                        throw IllegalArgumentException("Invalid result type in partial read file result: ${it.type}")
+                    it.result!!
+                }))
+            }
+        })
 
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
@@ -202,10 +213,11 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 ScoreboardStorageFileResponseS2CPacket.CREATE_DIRECTORY_RESPONSE_PACKET,
                 currentScoreboardStorageCreateDirectoryRequests
             )
-            registerScoreboardStorageResponseHandler(
-                ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET,
-                currentScoreboardStorageReadFileRequests
-            )
+            // Can't use registerScoreboardStorageResponseHandler because responses can be spread across multiple packets when they're too big
+            ClientPlayNetworking.registerGlobalReceiver(ScoreboardStorageFileResponseS2CPacket.READ_FILE_RESPONSE_PACKET.id) { payload, _ ->
+                val combined = scoreboardStorageReadFileCombiner.consumePartial(payload.params, payload.requestId) ?: return@registerGlobalReceiver
+                currentScoreboardStorageReadFileRequests.remove(payload.requestId)?.complete(combined)
+            }
             registerScoreboardStorageResponseHandler(
                 ScoreboardStorageFileResponseS2CPacket.WRITE_FILE_RESPONSE_PACKET,
                 currentScoreboardStorageWriteFileRequests
@@ -408,7 +420,15 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             val requestId = UUID.randomUUID()
             val future = CompletableFuture<FileSystemResult<Unit>>()
             currentScoreboardStorageWriteFileRequests[requestId] = future
-            ClientPlayNetworking.send(ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET.factory(fileSystemId, requestId, params))
+            for(partial in params.toPartial()) {
+                ClientPlayNetworking.send(
+                    ScoreboardStorageFileRequestC2SPacket.WRITE_FILE_PACKET.factory(
+                        fileSystemId,
+                        requestId,
+                        partial
+                    )
+                )
+            }
             return future
         }
 
