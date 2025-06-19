@@ -17,9 +17,9 @@ public class ClientPlayNetworkHandlerNodeFactoryMixin {
             method = "modifyNode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/builder/ArgumentBuilder;requires(Ljava/util/function/Predicate;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
-            ),
-            remap = false
+                    target = "Lcom/mojang/brigadier/builder/ArgumentBuilder;requires(Ljava/util/function/Predicate;)Lcom/mojang/brigadier/builder/ArgumentBuilder;",
+                    remap = false
+            )
     )
     private Predicate<PermissionLevelSource> command_crafter$allowAnySourceClassForCheckingElevatedPrivileges(Predicate<ClientCommandSource> predicate) {
         return PermissionLevelSource::hasElevatedPermissions;
