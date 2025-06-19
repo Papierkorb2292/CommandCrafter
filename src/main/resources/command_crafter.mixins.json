@@ -65,6 +65,7 @@
     "editor.processing.CodecsMixin",
     "editor.processing.CommandFunctionArgumentTypeMixin",
     "editor.processing.CommandNodeMixin",
+    "editor.processing.ComponentChangesTypeMixin",
     "editor.processing.DimensionArgumentTypeMixin",
     "editor.processing.EitherCodecMixin",
     "editor.processing.EntityArgumentTypeMixin",
