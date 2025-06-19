@@ -163,6 +163,7 @@ object CommandCrafter: ModInitializer {
 
         ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
         IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
+        DataObjectDecoding.registerDataObjectSourceAdditionalDataType()
 
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used
