@@ -1,9 +1,9 @@
-package net.papierkorb2292.command_crafter.editor
+package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.command.CommandSource
 import net.minecraft.registry.DynamicRegistryManager
-import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
+import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService

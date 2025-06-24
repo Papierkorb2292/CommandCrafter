@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.client
+package net.papierkorb2292.command_crafter.client.config
 
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.screen.Screen

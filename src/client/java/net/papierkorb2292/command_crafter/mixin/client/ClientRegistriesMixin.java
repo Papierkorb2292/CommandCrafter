@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin;
+package net.papierkorb2292.command_crafter.mixin.client;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -8,8 +8,8 @@ import net.minecraft.client.network.ClientRegistries;
 import net.minecraft.registry.*;
 import net.minecraft.registry.tag.TagPacketSerializer;
 import net.papierkorb2292.command_crafter.client.LoadedClientsideRegistries;
-import net.papierkorb2292.command_crafter.client.ShouldCopyRegistriesContainer;
-import net.papierkorb2292.command_crafter.client.helper.SyncedRegistriesListConsumer;
+import net.papierkorb2292.command_crafter.client.editor.SyncedRegistriesListConsumer;
+import net.papierkorb2292.command_crafter.client.helper.ShouldCopyRegistriesContainer;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

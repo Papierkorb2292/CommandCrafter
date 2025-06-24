@@ -28,6 +28,12 @@
         "value": "net.papierkorb2292.command_crafter.client.ClientCommandCrafter"
       }
     ],
+    "fabric-gametest": [
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.test.TestCommandCrafter"
+      }
+    ],
     "preLaunch": [
       {
         "adapter": "kotlin",
@@ -41,12 +47,16 @@
     "modmenu": [
       {
         "adapter": "kotlin",
-        "value": "net.papierkorb2292.command_crafter.client.CommandCrafterModMenu"
+        "value": "net.papierkorb2292.command_crafter.client.config.CommandCrafterModMenu"
       }
     ]
   },
   "mixins": [
-    "command_crafter.mixins.json"
+    "command_crafter.mixins.json",
+    {
+      "config": "command_crafter.client.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.16.0",

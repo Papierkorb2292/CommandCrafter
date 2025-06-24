@@ -1,3 +1,6 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id("fabric-loom") version System.getProperty("loom_version")
     id("java")
@@ -13,6 +16,9 @@ repositories {
         name = "Terraformers"
         setUrl("https://maven.terraformersmc.com/")
     }
+}
+sourceSets {
+    create("minecraftTest")
 }
 dependencies {
     minecraft("com.mojang", "minecraft", project.extra["minecraft_version"] as String)
@@ -37,6 +43,25 @@ dependencies {
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
+    splitEnvironmentSourceSets()
+    mods {
+        create("commandcrafter") {
+            sourceSet("main")
+            sourceSet("client")
+        }
+    }
+
+    runs {
+        create("gametest") {
+            server()
+            ideConfigGenerated(true)
+            source(sourceSets["main"])
+            name("Game Test")
+            vmArg("-Dfabric-api.gametest")
+            vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
+            runDir("build/gametest")
+        }
+    }
 }
 tasks {
     val javaVersion = JavaVersion.toVersion((project.extra["java_version"] as String).toInt())
@@ -46,14 +71,19 @@ tasks {
         targetCompatibility = javaVersion.toString()
         options.release.set(javaVersion.toString().toInt())
     }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> { kotlinOptions { jvmTarget = javaVersion.toString() } }
+    withType<KotlinCompile> {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(javaVersion.toString()))
+        }
+    }
     jar { from("LICENSE") { rename { "${it}_${base.archivesName.get()}" } } }
     jar { from("README.md") }
     jar { from("GSON_LICENSE") }
     jar { from("LSP4J_LICENSE") }
     processResources {
-        filesMatching("fabric.mod.json") { expand(mutableMapOf("version" to project.extra["mod_version"] as String, "fabricloader" to project.extra["loader_version"] as String, "fabric_api" to project.extra["fabric_version"] as String, "fabric_language_kotlin" to project.extra["fabric_language_kotlin_version"] as String, "minecraft" to project.extra["minecraft_version"] as String, "java" to project.extra["java_version"] as String)) }
-        filesMatching("*.mixins.json") { expand(mutableMapOf("java" to project.extra["java_version"] as String)) }
+        filesMatching("fabric.mod.json") {
+            expand("version" to project.extra["mod_version"] as String)
+        }
     }
 
     java {

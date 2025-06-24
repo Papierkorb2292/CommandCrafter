@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin.editor.shader;
+package net.papierkorb2292.command_crafter.mixin.client.editor.shader;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -9,7 +9,7 @@ import net.minecraft.client.gl.CompiledShaderPipeline;
 import net.minecraft.client.gl.GlBackend;
 import net.minecraft.client.gl.ShaderLoader;
 import net.minecraft.util.Identifier;
-import net.papierkorb2292.command_crafter.editor.DirectMinecraftClientConnection;
+import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 

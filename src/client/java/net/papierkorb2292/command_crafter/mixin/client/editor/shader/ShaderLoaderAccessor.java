@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin.editor.shader;
+package net.papierkorb2292.command_crafter.mixin.client.editor.shader;
 
 import net.minecraft.client.gl.ShaderLoader;
 import net.minecraft.resource.ResourceManager;

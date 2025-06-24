@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.debugger.client
+package net.papierkorb2292.command_crafter.client.editor.debugger
 
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.papierkorb2292.command_crafter.client.NetworkServerConnection

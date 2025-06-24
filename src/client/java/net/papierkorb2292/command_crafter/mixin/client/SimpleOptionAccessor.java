@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin;
+package net.papierkorb2292.command_crafter.mixin.client;
 
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.text.Text;

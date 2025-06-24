@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.client
+package net.papierkorb2292.command_crafter.client.config
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory
 import com.terraformersmc.modmenu.api.ModMenuApi

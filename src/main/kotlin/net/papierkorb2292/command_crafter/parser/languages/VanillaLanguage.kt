@@ -677,8 +677,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                             ?: emptyList()
                     }
-                    if(contextBuilder.source is AnalyzingClientCommandSource) {
-                        // Partial Completions are added clientside, so they aren't added twice
+                    if(completionReader.resourceCreator.languageServer != null) {
+                        // Partial Completions are added only on the side with the language server, so they aren't added twice
                         CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
                             completionItems,
                             completionReader.string.substring(

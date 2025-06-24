@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin.parser;
+package net.papierkorb2292.command_crafter.mixin.client.parser;
 
 import net.minecraft.client.network.ClientCommandSource;
 import net.minecraft.client.network.ClientPlayNetworkHandler;

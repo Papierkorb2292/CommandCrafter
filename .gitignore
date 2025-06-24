@@ -38,6 +38,10 @@ replay_*.log
 *.hprof
 *.jfr
 
+# kotlin
+
+.kotlin
+
 # editor extension
 
 dist

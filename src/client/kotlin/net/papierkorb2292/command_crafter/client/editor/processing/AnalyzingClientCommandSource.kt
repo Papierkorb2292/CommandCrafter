@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.client.editor.processing
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange

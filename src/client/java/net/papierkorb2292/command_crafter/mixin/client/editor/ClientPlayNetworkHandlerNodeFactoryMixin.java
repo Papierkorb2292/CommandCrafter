@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.mixin.editor;
+package net.papierkorb2292.command_crafter.mixin.client.editor;
 
 import net.minecraft.client.network.ClientCommandSource;
 import net.minecraft.command.PermissionLevelSource;

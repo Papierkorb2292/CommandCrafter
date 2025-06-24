@@ -12,7 +12,6 @@ import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.item.equipment.EquipmentType
 import net.minecraft.resource.featuretoggle.FeatureFlags
-import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandOutput
@@ -20,8 +19,9 @@ import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
 import net.papierkorb2292.command_crafter.editor.*
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingClientCommandSource
+import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
@@ -61,7 +61,7 @@ object ClientCommandCrafter : ClientModInitializer {
         var loadedClientsideRegistries = loadedClientsideRegistries
         if(loadedClientsideRegistries == null) {
             loadedClientsideRegistries = LoadedClientsideRegistries.load()
-            this.loadedClientsideRegistries = loadedClientsideRegistries
+            ClientCommandCrafter.loadedClientsideRegistries = loadedClientsideRegistries
         }
         return loadedClientsideRegistries
     }

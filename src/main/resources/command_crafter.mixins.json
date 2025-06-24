@@ -195,13 +195,5 @@
     "parser.vanilla_improved.StringLiteralMixin",
     "parser.vanilla_improved.TagGroupLoaderTrackedEntryMixin",
     "parser.vanilla_improved.TagKeyAccessor"
-  ],
-  "client": [
-    "ClientRegistriesMixin",
-    "SimpleOptionAccessor",
-    "editor.ClientPlayNetworkHandlerNodeFactoryMixin",
-    "editor.shader.GlBackendMixin",
-    "editor.shader.ShaderLoaderAccessor",
-    "parser.ClientPlayNetworkHandlerAccessor"
   ]
 }

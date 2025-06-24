@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.client;
+package net.papierkorb2292.command_crafter.client.config
 
 import com.mojang.serialization.Codec
 import net.minecraft.client.MinecraftClient
@@ -12,7 +12,7 @@ import net.minecraft.client.gui.widget.TextWidget
 import net.minecraft.client.option.GameOptions
 import net.minecraft.client.option.SimpleOption
 import net.minecraft.text.Text
-import net.papierkorb2292.command_crafter.mixin.SimpleOptionAccessor
+import net.papierkorb2292.command_crafter.mixin.client.SimpleOptionAccessor
 import java.util.*
 import java.util.function.Consumer
 import java.util.function.Function

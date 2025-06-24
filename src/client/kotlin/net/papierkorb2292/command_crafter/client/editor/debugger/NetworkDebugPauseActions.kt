@@ -1,9 +1,7 @@
-package net.papierkorb2292.command_crafter.editor.debugger.client
+package net.papierkorb2292.command_crafter.client.editor.debugger
 
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.papierkorb2292.command_crafter.client.NetworkServerConnection
-import net.papierkorb2292.command_crafter.editor.DirectServerConnection
-import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.networking.packets.DebugPauseActionC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.StepInTargetsRequestC2SPacket
@@ -14,15 +12,15 @@ import java.util.concurrent.CompletableFuture
 
 class NetworkDebugPauseActions(private val packetSender: PacketSender, private val pauseId: UUID) : DebugPauseActions {
     override fun next(granularity: SteppingGranularity) {
-        sendAction(DebugPauseAction.NEXT, granularity)
+        sendAction(DebugPauseActionC2SPacket.DebugPauseActionType.NEXT, granularity)
     }
 
     override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
-        sendAction(DebugPauseAction.STEP_IN, granularity, targetId)
+        sendAction(DebugPauseActionC2SPacket.DebugPauseActionType.STEP_IN, granularity, targetId)
     }
 
     override fun stepOut(granularity: SteppingGranularity) {
-        sendAction(DebugPauseAction.STEP_OUT, granularity)
+        sendAction(DebugPauseActionC2SPacket.DebugPauseActionType.STEP_OUT, granularity)
     }
 
     override fun stepInTargets(frameId: Int): CompletableFuture<StepInTargetsResponse> {
@@ -34,27 +32,11 @@ class NetworkDebugPauseActions(private val packetSender: PacketSender, private v
     }
 
     override fun continue_() {
-        sendAction(DebugPauseAction.CONTINUE, null)
+        sendAction(DebugPauseActionC2SPacket.DebugPauseActionType.CONTINUE, null)
     }
 
-    private fun sendAction(action: DebugPauseAction, granularity: SteppingGranularity?, additionalInfo: Int? = null) {
+    private fun sendAction(action: DebugPauseActionC2SPacket.DebugPauseActionType, granularity: SteppingGranularity?, additionalInfo: Int? = null) {
         packetSender.sendPacket(DebugPauseActionC2SPacket(action, granularity, additionalInfo, pauseId))
-    }
-
-    enum class DebugPauseAction {
-        NEXT,
-        STEP_IN,
-        STEP_OUT,
-        CONTINUE;
-
-        fun apply(actions: DebugPauseActions, packet: DebugPauseActionC2SPacket) {
-            when(this) {
-                NEXT -> actions.next(packet.granularity ?: SteppingGranularity.STATEMENT)
-                STEP_IN -> actions.stepIn(packet.granularity ?: SteppingGranularity.STATEMENT, packet.additionalInfo)
-                STEP_OUT -> actions.stepOut(packet.granularity ?: SteppingGranularity.STATEMENT)
-                CONTINUE -> actions.continue_()
-            }
-        }
     }
 
 }

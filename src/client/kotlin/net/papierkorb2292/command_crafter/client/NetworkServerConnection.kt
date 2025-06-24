@@ -16,7 +16,8 @@ import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
 import net.minecraft.resource.ResourceFactory
 import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.client.helper.SyncedRegistriesListConsumer
+import net.papierkorb2292.command_crafter.client.editor.SyncedRegistriesListConsumer
+import net.papierkorb2292.command_crafter.client.helper.ShouldCopyRegistriesContainer
 import net.papierkorb2292.command_crafter.editor.DirectServerConnection
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
@@ -24,8 +25,8 @@ import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
-import net.papierkorb2292.command_crafter.editor.debugger.client.NetworkDebugPauseActions
-import net.papierkorb2292.command_crafter.editor.debugger.client.NetworkVariablesReferencer
+import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkDebugPauseActions
+import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkVariablesReferencer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -36,7 +37,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
-import net.papierkorb2292.command_crafter.mixin.parser.ClientPlayNetworkHandlerAccessor
+import net.papierkorb2292.command_crafter.mixin.client.parser.ClientPlayNetworkHandlerAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
