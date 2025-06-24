@@ -17,9 +17,6 @@ repositories {
         setUrl("https://maven.terraformersmc.com/")
     }
 }
-sourceSets {
-    create("minecraftTest")
-}
 dependencies {
     minecraft("com.mojang", "minecraft", project.extra["minecraft_version"] as String)
     mappings("net.fabricmc", "yarn", project.extra["yarn_mappings"] as String, null, "v2")
