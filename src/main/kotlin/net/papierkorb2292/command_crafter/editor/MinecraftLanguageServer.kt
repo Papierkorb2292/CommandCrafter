@@ -198,6 +198,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             private val relodableDatapackFileTypes = setOf(
                 *PackContentFileType.tagTypes,
                 PackContentFileType.LOOT_TABLES_FILE_TYPE,
+                PackContentFileType.PREDICATES_FILE_TYPE,
+                PackContentFileType.ITEM_MODIFIER_FILE_TYPE,
                 PackContentFileType.RECIPES_FILE_TYPE,
                 PackContentFileType.FUNCTIONS_FILE_TYPE,
                 PackContentFileType.ADVANCEMENTS_FILE_TYPE
