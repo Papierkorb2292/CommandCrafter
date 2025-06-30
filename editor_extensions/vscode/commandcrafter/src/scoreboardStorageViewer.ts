@@ -234,7 +234,7 @@ class ScoreboardStorageTreeDataProvider implements vscode.TreeDataProvider<Score
                                     type: "storageLoad",
                                     namespace
                                 }))
-                            return storageItems.concat(loadableNamespaceItems)
+                            return loadableNamespaceItems.concat(storageItems)
                         })
                     })
         }
