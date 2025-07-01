@@ -1,5 +1,8 @@
 package net.papierkorb2292.command_crafter.helper
 
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import com.google.gson.stream.JsonWriter
 import java.util.*
 import kotlin.math.max
 
@@ -99,5 +102,26 @@ class IntList(capacity: Int) {
 
     private fun grow(minSize: Int = 1) {
         entries = entries.copyOf(max(entries.size * 2, minSize))
+    }
+
+    object TypeAdapter : com.google.gson.TypeAdapter<IntList>() {
+        override fun write(out: JsonWriter, value: IntList) {
+            out.beginArray()
+            for(i in 0 until value.size) {
+                out.value(value[i])
+            }
+            out.endArray()
+        }
+
+        override fun read(`in`: JsonReader): IntList {
+            val result = IntList()
+            `in`.beginArray()
+            while(`in`.peek() == JsonToken.NUMBER) {
+                result += `in`.nextInt()
+            }
+            `in`.endArray()
+            return result
+        }
+
     }
 }

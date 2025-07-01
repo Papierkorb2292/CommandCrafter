@@ -37,6 +37,9 @@ dependencies {
     modCompileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:1.2.0") {
         exclude("com.terraformersmc", "modmenu")
     }
+
+    // Only for tests in dev environment
+    implementation("io.github.java-diff-utils:java-diff-utils:4.12")
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
