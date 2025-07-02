@@ -416,7 +416,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun source(args: SourceArguments): CompletableFuture<SourceResponse> {
-        val reference = args.source.sourceReference ?: throw IllegalArgumentException("Source reference must be provided")
+        val reference = args.source.sourceReference ?: throw IllegalArgumentException("Source reference must be provided, argument was $args")
         val debugService = minecraftServer.debugService ?: throw UnsupportedOperationException(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
         return debugService.retrieveSourceReference(reference, editorDebugConnection).thenApply {
             it ?: throw IllegalArgumentException("Source reference not found")
