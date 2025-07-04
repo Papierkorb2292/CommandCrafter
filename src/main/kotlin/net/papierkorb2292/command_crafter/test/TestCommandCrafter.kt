@@ -5,6 +5,7 @@ import net.minecraft.test.TestContext
 import net.minecraft.text.Text
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
+import org.spongepowered.asm.mixin.MixinEnvironment
 
 object TestCommandCrafter {
     @GameTest
@@ -16,6 +17,12 @@ object TestCommandCrafter {
     @GameTest
     fun exampleSnapshotTest(context: TestContext) {
         context.assertEqualsSnapshot("foo", Text.literal("example_snapshot"))
+        context.complete()
+    }
+
+    @GameTest
+    fun auditMixins(context: TestContext) {
+        MixinEnvironment.getCurrentEnvironment().audit()
         context.complete()
     }
 }
