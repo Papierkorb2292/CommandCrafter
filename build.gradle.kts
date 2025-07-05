@@ -1,5 +1,16 @@
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import org.apache.log4j.LogManager
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.*
+import javax.net.ssl.HttpsURLConnection
+
+// Inspired by https://gitlab.com/supersaiyansubtlety-group/minecraft-mods/sss_mod_gradle/-/blob/18a6c4c0fa75603fe7ba0e508439a55381ead45e/plugin/src/main/java/net/sssubtlety/sss_mod_gradle/plugin/RunConfigHelperPlugin.java
+val mixinJavaagentArgFile = file(".gradle/mixin-javaagent-arg.txt")
 
 plugins {
     id("fabric-loom") version System.getProperty("loom_version")
@@ -61,6 +72,19 @@ loom {
             vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
             runDir("build/gametest")
         }
+
+        getByName("client") {
+            vmArg("@$mixinJavaagentArgFile")
+            val devUsername = project.extra["dev_username"] as String
+            programArg("--username=$devUsername")
+            val uuid = fetchPlayerUUID(devUsername)
+            if(uuid != null)
+                programArg("--uuid=$uuid")
+        }
+
+        getByName("server") {
+            vmArg("@$mixinJavaagentArgFile")
+        }
     }
 }
 tasks {
@@ -91,5 +115,43 @@ tasks {
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
         withSourcesJar()
+    }
+
+    val createMixinJavaArgFileTask = register("createMixinJavaAgentArgFile") {
+        val compileClasspathFiles = files(configurations.named("compileClasspath"))
+        val mixinLibraryFile = compileClasspathFiles.filter { file ->
+            file.toString().contains("sponge-mixin")
+        }.singleFile
+        Files.write(Path.of(mixinJavaagentArgFile.absolutePath), listOf("-javaagent:${mixinLibraryFile.absolutePath}"))
+    }
+    getByName("ideaSyncTask").dependsOn(createMixinJavaArgFileTask)
+    getByName("processResources").dependsOn(createMixinJavaArgFileTask)
+}
+
+fun fetchPlayerUUID(playerName: String): UUID? {
+    val logger = LogManager.getLogger("PlayerFetcher")
+    try {
+        val url = URI("https://api.mojang.com/users/profiles/minecraft/$playerName").toURL()
+        val con = url.openConnection() as HttpsURLConnection
+        con.requestMethod = "GET"
+        val statusCode = con.responseCode
+        if(statusCode != 200) {
+            logger.error("Received unexpected status code when fetching UUID for player $playerName: $statusCode")
+            return null
+        }
+        val responseJson = Gson().fromJson(con.inputStream.reader(), JsonObject::class.java)
+        if(responseJson.has("errorMessage")) {
+            logger.error("Received unexpected error when fetching UUID for player $playerName: ${responseJson.get("errorMessage").asString}")
+            return null
+        }
+        val uuidStringWithoutDashes = responseJson.get("id").asString
+        val mostSignificant =
+            uuidStringWithoutDashes.substring(0, uuidStringWithoutDashes.length / 2).toULong(16).toLong()
+        val leastSignificant =
+            uuidStringWithoutDashes.substring(uuidStringWithoutDashes.length / 2).toULong(16).toLong()
+        return UUID(mostSignificant, leastSignificant)
+    } catch(e: Exception) {
+        logger.error("Encountered unexpected error when fetching UUID for player $playerName", e)
+        return null
     }
 }
