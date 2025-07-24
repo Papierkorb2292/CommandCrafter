@@ -92,9 +92,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
                 resource.content += Either.left("$${macro}\n")
             } else {
-                reader.onlyReadEscapedMultiline = !easyNewLine
+                if(!easyNewLine)
+                    reader.convertInputToEscapedMultiline()
                 val parsed = parseCommand(reader, source)
-                reader.onlyReadEscapedMultiline = false
+                reader.disableEscapedMultiline()
                 val string = parsed.reader.string
                 val contextChain = ContextChain.tryFlatten(parsed.context.build(string))
                 if(contextChain.isEmpty) {
@@ -170,9 +171,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 //Let command start at cursor 0, so completions don't overlap with suggestRootNode
                 reader.cutReadChars()
 
-                reader.onlyReadEscapedMultiline = !easyNewLine
+                if(!easyNewLine)
+                    reader.convertInputToEscapedMultiline()
                 val parseResults = reader.dispatcher.parse(reader, source)
                 advanceToParseResults(parseResults, reader)
+                if(!easyNewLine) {
+                    // Add back trimmed chars so suggestions are placed correctly
+                    reader.disableTrimmingFromEscapedMultiline()
+                }
                 analyzeParsedCommand(parseResults, result, reader)
 
                 val exception = parseResults.exceptions.entries.maxByOrNull { it.value.cursor }
@@ -206,7 +212,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(reader)
                     } else reader.skip()
                 } else {
-                    reader.onlyReadEscapedMultiline = false
+                    reader.disableEscapedMultiline()
                     if(!reader.canRead() || reader.scopeStack.element().closure.endsClosure(reader)) {
                         // Analyze last whitespace and then loop should end
                         continue
@@ -221,7 +227,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 } else {
                     reader.cursor
                 }
-                reader.onlyReadEscapedMultiline = false
+                reader.disableEscapedMultiline()
                 val startPosition =
                     AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.readSkippingChars + exceptionCursor), reader.lines)
                 result.diagnostics += Diagnostic(
@@ -277,9 +283,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 if(reader.canRead(0) && reader.peek(-1) != '\n')
                     break
             }
-            reader.onlyReadEscapedMultiline = !easyNewLine
+            if(!easyNewLine)
+                reader.convertInputToEscapedMultiline()
             val parsed = parseCommand(reader, source)
-            reader.onlyReadEscapedMultiline = false
+            reader.disableEscapedMultiline()
             val string = parsed.reader.string
             val contextChain = ContextChain.tryFlatten(parsed.context.build(string)).orElseThrow {
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
@@ -352,9 +359,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     private fun readMacro(reader: DirectiveStringReader<*>): String {
         if(!reader.canRead()) return ""
         if(!easyNewLine) {
-            reader.onlyReadEscapedMultiline = true
+            if(!easyNewLine)
+                reader.convertInputToEscapedMultiline()
             val macro = reader.readLine()
-            reader.onlyReadEscapedMultiline = false
+            reader.disableEscapedMultiline()
             return if(macro.startsWith('$')) macro.substring(1) else macro
         }
         reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.nextLineEnd - reader.cursor)
