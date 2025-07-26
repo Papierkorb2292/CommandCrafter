@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.helper
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
+import jdk.internal.util.ArraysSupport
 import java.util.*
 import kotlin.math.max
 
@@ -100,11 +101,29 @@ class IntList(capacity: Int) {
 
     fun copy() = IntList().also { it.addAll(this) }
 
+    override fun equals(other: Any?): Boolean {
+        if(other !is IntList)
+            return false
+        if(size != other.size)
+            return false
+        for(i in 0 until size)
+            if(entries[i] != other.entries[i])
+                return false
+        return true
+    }
+
+    override fun hashCode(): Int = when(size) {
+        0 -> 1
+        1 -> 31 + entries[0]
+        else -> ArraysSupport.vectorizedHashCode(entries, 0, size, 1, ArraysSupport.T_INT)
+    }
+
     private fun grow(minSize: Int = 1) {
         entries = entries.copyOf(max(entries.size * 2, minSize))
     }
 
     object TypeAdapter : com.google.gson.TypeAdapter<IntList>() {
+
         override fun write(out: JsonWriter, value: IntList) {
             out.beginArray()
             for(i in 0 until value.size) {
@@ -122,6 +141,5 @@ class IntList(capacity: Int) {
             `in`.endArray()
             return result
         }
-
     }
 }
