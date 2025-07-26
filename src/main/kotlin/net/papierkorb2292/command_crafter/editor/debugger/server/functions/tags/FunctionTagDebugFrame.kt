@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Either
 import net.minecraft.command.CommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
@@ -38,7 +39,11 @@ class FunctionTagDebugFrame(
             macros: NbtCompound?,
             unpauseCallback: () -> Unit
         ): Boolean {
-            val functionArgument = CommandFunctionArgumentType.getFunctionOrTag(context, functionArgumentName)
+            val functionArgument = try {
+                CommandFunctionArgumentType.getFunctionOrTag(context, functionArgumentName)
+            } catch(e: CommandSyntaxException) {
+                return false
+            }
             if(functionArgument.second.right().isPresent) {
                 pauseContext.pushDebugFrame(FunctionTagDebugFrame(
                     pauseContext,

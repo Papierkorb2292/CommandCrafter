@@ -13,6 +13,7 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.ExpandedMacro;
 import net.minecraft.server.function.Macro;
+import net.papierkorb2292.command_crafter.CommandCrafter;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.PotentialDebugFrameInitiator;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
@@ -72,9 +73,15 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
             ContextChain<ServerCommandSource> contextChain,
             ExecutionFlags executionFlags,
             ExecutionControl<ServerCommandSource> executionControl
-    ) throws CommandSyntaxException {
+    ) {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
-        var macros = getArguments(functionContext);
+        NbtCompound macros = null;
+        try {
+            macros = getArguments(functionContext);
+        } catch(CommandSyntaxException e) {
+            CommandCrafter.INSTANCE.getLOGGER().debug("Error getting arguments for macro invocation when debugging /function", e);
+        }
+        final NbtCompound finalMacros = macros;
         executionControl.enqueueAction((context, frame) -> {
             FunctionDebugFrame.Companion.checkSimpleActionPause(contextChain.getTopContext(), serverCommandSource, FunctionDebugFrame.Companion.getCommandInfo(contextChain.getTopContext()));
             if(pauseContext != null)
@@ -82,7 +89,7 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
                     functionContext,
                     "name",
                     pauseContext,
-                    macros,
+                    finalMacros,
                     new CommandExecutionContextContinueCallback(context)
                 );
         });
