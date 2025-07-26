@@ -85,7 +85,7 @@ public class MacroInvocationMixin implements MacroCursorMapperProvider {
             var lastSegmentIndex = segments.size() - 1;
             var segmentLength = segments.get(lastSegmentIndex).length();
             var segmentStart = command_crafter$segmentCursorStarts.get(lastSegmentIndex);
-            mapper.addMapping(segmentStart, currentCommandLength, segmentStart + segmentLength);
+            mapper.addMapping(segmentStart, currentCommandLength, segmentLength);
         }
 
         return mapper;
