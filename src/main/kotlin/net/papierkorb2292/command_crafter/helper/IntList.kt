@@ -10,6 +10,13 @@ import kotlin.math.max
 class IntList(capacity: Int) {
     constructor() : this(10)
 
+    companion object {
+        fun intListOf(vararg content: Int) = IntList(content.size).apply {
+            size = content.size
+            content.copyInto(entries)
+        }
+    }
+
     private var entries = IntArray(capacity)
     var size = 0
         private set
