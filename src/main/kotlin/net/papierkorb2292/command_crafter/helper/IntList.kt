@@ -119,10 +119,12 @@ class IntList(capacity: Int) {
         return true
     }
 
-    override fun hashCode(): Int = when(size) {
-        0 -> 1
-        1 -> 31 + entries[0]
-        else -> ArraysSupport.vectorizedHashCode(entries, 0, size, 1, ArraysSupport.T_INT)
+    override fun hashCode(): Int {
+        var result = 1
+        for(i in 0 until size) {
+            result = 31 * result + entries[i]
+        }
+        return result
     }
 
     private fun grow(minSize: Int = 1) {
