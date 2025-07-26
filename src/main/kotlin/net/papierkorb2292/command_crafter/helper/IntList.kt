@@ -127,6 +127,16 @@ class IntList(capacity: Int) {
         return result
     }
 
+    override fun toString(): String {
+        val builder = StringBuilder("[")
+        for(i in 0 until size) {
+            if(i != 0) builder.append(',')
+            builder.append(entries[i])
+        }
+        builder.append(']')
+        return builder.toString()
+    }
+
     private fun grow(minSize: Int = 1) {
         entries = entries.copyOf(max(entries.size * 2, minSize))
     }
