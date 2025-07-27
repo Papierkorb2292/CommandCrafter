@@ -22,6 +22,7 @@
     "editor.debugger.CommandManagerMixin",
     "editor.debugger.ContextChainAccessor",
     "editor.debugger.ContextChainMixin",
+    "editor.debugger.ControlFlowAwareHelperMixin",
     "editor.debugger.ExecuteCommandMixin",
     "editor.debugger.ExecuteIfUnlessRedirectorMixin",
     "editor.debugger.ExpandedMacroMixin",
