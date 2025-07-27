@@ -829,8 +829,10 @@ class FunctionElementDebugInformation(
         ) {
             val action = (frame.procedure.entries()[elementIndex] as? SingleCommandAction.Sourced) ?: return
             val invocation = (macroLine as VariableLineAccessor).invocation
+            val variableIndices = macroLine.dependentVariables
+            val variableArguments = variableIndices.map { frame.macroArguments[it] }
             @Suppress("CAST_NEVER_SUCCEEDS")
-            val resolvedMacroCursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(frame.macroArguments)
+            val resolvedMacroCursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(variableArguments)
 
             @Suppress("UNCHECKED_CAST")
             val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
