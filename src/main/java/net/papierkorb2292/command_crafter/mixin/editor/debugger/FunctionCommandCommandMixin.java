@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -96,20 +98,26 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
         return functionContext;
     }
 
-    @Inject(
-            method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
-            at = @At("RETURN")
+    @WrapMethod(
+            method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V"
     )
-    private void command_crafter$enqueueExitTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, CallbackInfo ci) {
-        var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
-        if(pauseContext == null) return;
-        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
-        executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
-        executionControl.enqueueAction(new ExitDebugFrameCommandAction(
-                pauseContext.getDebugFrameDepth(),
-                FunctionDebugFrame.Companion.getCommandResult(),
-                !executionFlags.isInsideReturnRun(),
-                null
-        ));
+    private void command_crafter$enqueueExitTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, Operation<Void> op) {
+        try {
+            op.call(serverCommandSource, contextChain, executionFlags, executionControl);
+        } finally {
+            // This is done in 'finally' instead of injecting at return such that frames that might be created before the function throws an error are still removed.
+            // If they weren't removed, the current frame wouldn't resume. The next pause could only happen after the current frame is exited.
+            var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
+            if(pauseContext != null) {
+                executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
+                executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
+                executionControl.enqueueAction(new ExitDebugFrameCommandAction(
+                        pauseContext.getDebugFrameDepth(),
+                        FunctionDebugFrame.Companion.getCommandResult(),
+                        !executionFlags.isInsideReturnRun(),
+                        null
+                ));
+            }
+        }
     }
 }
