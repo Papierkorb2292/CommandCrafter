@@ -68,7 +68,7 @@ class FunctionTagDebugFrame(
                 if(tagDebugFrame != null) {
                     accumulatedResultUpdater(tagDebugFrame)
                     tagDebugFrame.checkPause(entryIndex)
-                    FunctionDebugFrame.commandResult.remove()
+                    pauseContext.commandResult = null
                 }
                 action.execute(context, frame)
             }
@@ -88,14 +88,14 @@ class FunctionTagDebugFrame(
         val COPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION = CommandAction<ServerCommandSource> { _, _ ->
             val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
             val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@CommandAction
-            FunctionDebugFrame.commandResult.set(CommandResult(tagDebugFrame.accumulatedResult))
+            pauseContext.commandResult = CommandResult(tagDebugFrame.accumulatedResult)
         }
 
         fun getAccumulatedResultSingleTimeUpdater(): (FunctionTagDebugFrame) -> Unit {
             var hasUpdatedAccumulatedResult = false
             return { frame ->
                 if(!hasUpdatedAccumulatedResult) {
-                    FunctionDebugFrame.commandResult.getOrNull()?.let {
+                    frame.pauseContext.commandResult?.let {
                         frame.addFunctionResult(it)
                     }
                     hasUpdatedAccumulatedResult = true

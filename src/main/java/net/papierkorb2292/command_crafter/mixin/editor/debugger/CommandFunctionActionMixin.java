@@ -77,7 +77,7 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
         commandExecutionContext.enqueueCommand((CommandQueueEntry<T>) new CommandQueueEntry<>(frame,
                 new ExitDebugFrameCommandAction(
                         pauseContext.getDebugFrameDepth(),
-                        FunctionDebugFrame.Companion.getCommandResult(),
+                        pauseContext,
                         !propagateReturn && !(pauseContext.peekDebugFrame() instanceof FunctionTagDebugFrame),
                         null
                 )));
@@ -129,7 +129,7 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
 
             private void setCommandResult(boolean successful, int returnValue) {
                 var result = new CommandResult(new Pair<>(successful, returnValue));
-                FunctionDebugFrame.Companion.getCommandResult().set(result);
+                pauseContext.setCommandResult(result);
             }
 
             private void enqueueFrameExitWithReturnValue() {
@@ -138,7 +138,7 @@ public class CommandFunctionActionMixin<T extends AbstractServerCommandSource<T>
                         null,
                         false,
                         () -> {
-                            var commandResult = FunctionDebugFrame.Companion.getCommandResult().get();
+                            var commandResult = pauseContext.getCommandResult();
                             if(commandResult == null) return Unit.INSTANCE;
                             var returnValue = commandResult.getReturnValue();
                             if(returnValue != null)

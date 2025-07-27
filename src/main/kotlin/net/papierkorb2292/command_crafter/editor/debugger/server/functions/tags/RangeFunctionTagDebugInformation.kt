@@ -226,7 +226,7 @@ class RangeFunctionTagDebugInformation(
                 debugFrame.commandSource
             ).createScope(COMMAND_SOURCE_SCOPE_NAME)
 
-            val lastFunctionResult = FunctionDebugFrame.commandResult.getOrNull() ?: CommandResult(null)
+            val lastFunctionResult = debugFrame.pauseContext.commandResult ?: CommandResult(null)
             val commandResultScope = TagResultValueReference(
                 variablesReferenceMapper,
                 CommandResultValueReference(variablesReferenceMapper, lastFunctionResult) { lastFunctionResult},

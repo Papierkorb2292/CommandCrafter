@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
@@ -20,7 +21,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.function.Supplier
 
-class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: EditorDebugConnection?, val pauseOnEntry: Boolean = false) {
+class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: EditorDebugConnection?, val pauseOnEntry: Boolean = false) : CommandResultContainer{
     companion object {
         val currentPauseContext = ThreadLocal<PauseContext>()
 
@@ -122,6 +123,8 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     private var pauseOnFrameEnter = false
     private var pauseOnFrameExit: Int? = null
     private var suspendedServer = false
+
+    override var commandResult: CommandResult? = null
 
     fun isDebugging(): Boolean {
         return debugConnection != null

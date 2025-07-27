@@ -28,6 +28,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.VariableLineAccessor
@@ -158,7 +159,10 @@ class FunctionElementDebugInformation(
         }
         override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
             val currentContext = debugFrame.currentContextChain[debugFrame.currentSectionIndex]
-            if(currentContext != null && currentContext.child == null && (currentContext.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(currentContext)) == true) {
+            if(currentContext != null && currentContext.child == null
+                && (currentContext.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(currentContext)) == true
+                && debugFrame.pauseContext.commandResult == null
+                ) {
                 if(!(currentContext.command as PotentialDebugFrameInitiator).`command_crafter$isInitializedDebugFrameEmpty`(addServerToContext(currentContext))) {
                     debugFrame.pauseContext.stepIntoFrame()
                     return
@@ -233,7 +237,7 @@ class FunctionElementDebugInformation(
             @Suppress("UNCHECKED_CAST")
             val executable = (debugFrame.currentContextChain as ContextChainAccessor<ServerCommandSource>).executable
             if(sectionContext == executable) {
-                if((executable.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(executable)) == true) {
+                if((executable.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(executable)) == true && debugFrame.pauseContext.commandResult == null) {
                     targets += StepInTarget().also {
                         it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
                             if((executable.command as PotentialDebugFrameInitiator).`command_crafter$isInitializedDebugFrameEmpty`(addServerToContext(executable))) {
@@ -264,7 +268,7 @@ class FunctionElementDebugInformation(
                     it.label = STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL
                 }
                 if((sectionContext.redirectModifier as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(sectionContext)) == true
-                    && FunctionDebugFrame.commandResult.get() == null) {
+                    && debugFrame.pauseContext.commandResult == null) {
 
                     targets += StepInTarget().also {
                         it.id = targetsManager.addStepInTarget(StepInTargetsManager.Target {
@@ -311,7 +315,7 @@ class FunctionElementDebugInformation(
         }
 
         override fun findNextPauseLocation() {
-            if(FunctionDebugFrame.commandResult.get() != null) {
+            if(debugFrame.pauseContext.commandResult != null) {
                 debugFrame.onReachedPauseLocation()
                 return
             }
@@ -428,11 +432,11 @@ class FunctionElementDebugInformation(
 
             fun addStackFrameForSection(context: CommandContext<*>, sectionIndex: Int, sourceIndex: Int) {
                 val firstParsedNode = context.nodes.firstOrNull()
-                val showsCommandResult = sectionIndex == debugFrame.currentSectionIndex && FunctionDebugFrame.commandResult.get() != null
+                val commandResult = debugFrame.pauseContext.commandResult
+                val showsCommandResult = sectionIndex == debugFrame.currentSectionIndex && commandResult != null
                 val commandResultScope = if(showsCommandResult) {
-                    val commandResult = FunctionDebugFrame.commandResult.get()!!
                     CommandResultValueReference(debugFrame.pauseContext.variablesReferenceMapper, commandResult) {
-                        FunctionDebugFrame.commandResult.set(it)
+                        debugFrame.pauseContext.commandResult = it
                         it
                     }.createScope(COMMAND_RESULT_SCOPE_NAME)
                 } else null

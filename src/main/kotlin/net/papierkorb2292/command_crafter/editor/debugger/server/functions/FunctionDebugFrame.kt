@@ -35,7 +35,6 @@ class FunctionDebugFrame(
     val functionLines: List<String>
 ) : PauseContext.DebugFrame, CommandFeedbackConsumer {
     companion object {
-        val commandResult = ThreadLocal<CommandResult?>()
         val sourceReferenceCursorMapper = mutableMapOf<Pair<EditorDebugConnection, Int>, ProcessedInputCursorMapper>()
         fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {
             val pauseContext = currentPauseContext.get() ?: return null
@@ -240,11 +239,11 @@ class FunctionDebugFrame(
         if(pauseContext.debugFrameDepth == 0 && pauseContext.oneTimeDebugConnection != null) {
             pauseContext.oneTimeDebugConnection.output(OutputEventArguments().apply {
                 category = OutputEventArgumentsCategory.IMPORTANT
-                val result = commandResult.get()
-                output = if(result == null) {
+                val commandResult = pauseContext.commandResult
+                output = if(commandResult == null) {
                     "No return information available"
                 } else {
-                    val returnValue = result.returnValue
+                    val returnValue = commandResult.returnValue
                     if(returnValue == null) {
                         "Function didn't return a value"
                     } else {

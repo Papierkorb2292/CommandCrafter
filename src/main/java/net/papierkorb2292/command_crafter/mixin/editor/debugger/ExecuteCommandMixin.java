@@ -113,7 +113,7 @@ public abstract class ExecuteCommandMixin {
                 //noinspection unchecked
                 control.enqueueAction((CommandAction<T>) new ExitDebugFrameCommandAction(
                         debugFrame.getPauseContext().getDebugFrameDepth() - 1,
-                        FunctionDebugFrame.Companion.getCommandResult(),
+                        debugFrame.getPauseContext(),
                         true,
                         null
                 ));

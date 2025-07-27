@@ -113,7 +113,7 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
                 executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
                 executionControl.enqueueAction(new ExitDebugFrameCommandAction(
                         pauseContext.getDebugFrameDepth(),
-                        FunctionDebugFrame.Companion.getCommandResult(),
+                        pauseContext,
                         !executionFlags.isInsideReturnRun(),
                         null
                 ));
