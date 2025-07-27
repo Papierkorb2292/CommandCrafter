@@ -40,6 +40,7 @@ dependencies {
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.19.0")
+    include("org.eclipse.xtext:org.eclipse.xtext.xbase.lib:2.28.0")
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.19.0")
