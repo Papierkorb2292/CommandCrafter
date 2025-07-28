@@ -13,12 +13,13 @@ import net.minecraft.registry.tag.TagGroupLoader;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
-import net.papierkorb2292.command_crafter.CommandCrafter;
 import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.TagFinalEntriesValueGetter;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonReader;
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
@@ -42,7 +43,7 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
 
     @Shadow @Final private String dataType;
     private final ThreadLocal<Map<Identifier, List<TagGroupLoader.TrackedEntry>>> command_crafter$parsedTags = new ThreadLocal<>();
-    private final Map<PackagedId, List<String>> command_crafter$tagFileLines = new ConcurrentHashMap<>(64);
+    private final Map<PackagedId, FileMappingInfo> command_crafter$tagFileLines = new ConcurrentHashMap<>(64);
     private final Map<Identifier, Collection<TagFinalEntriesValueGetter.FinalEntry>> command_crafter$finalEntries = new HashMap<>();
 
     @Inject(
@@ -63,7 +64,7 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
             try {
                 command_crafter$tagFileLines.put(
                         new PackagedId(id, PackagedId.Companion.getPackIdWithoutPrefix(resource.getPackId())),
-                        resource.getReader().lines().toList()
+                        new FileMappingInfo(resource.getReader().lines().toList(), new SplitProcessedInputCursorMapper(), 0, 0)
                 );
             } catch (IOException ignored) {
                 // The IO error will be handled once the TagGroupLoader tries to open the file as well
@@ -130,7 +131,7 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
 
     @NotNull
     @Override
-    public Map<PackagedId, List<String>> command_crafter$getFileContent() {
+    public Map<PackagedId, FileMappingInfo> command_crafter$getFileContent() {
         return command_crafter$tagFileLines;
     }
 }

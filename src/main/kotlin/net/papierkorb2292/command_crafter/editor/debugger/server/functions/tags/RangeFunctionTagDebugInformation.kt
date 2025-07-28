@@ -23,7 +23,6 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
-import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.InlineTagFunctionIdContainer
 import org.eclipse.lsp4j.Range
@@ -80,7 +79,7 @@ class RangeFunctionTagDebugInformation(
                         }
                         tagEntriesRangeFile = TagEntriesRangeFile(
                             packIdWithoutPrefix,
-                            FileMappingInfo(content),
+                            content,
                             mutableListOf()
                         )
                         tagEntriesRangeFilesForSource += tagEntriesRangeFile
@@ -103,7 +102,7 @@ class RangeFunctionTagDebugInformation(
                         while(entry != null) {
                             pathToEntry += TagEntrySourcePathSegment(
                                 getFullFileIdFromFinalEntry(entry),
-                                FileMappingInfo(fileContent[getFullFileIdFromFinalEntry(entry)]!!),
+                                fileContent[getFullFileIdFromFinalEntry(entry)]!!,
                                 entry.trackedEntry.entry
                             )
                             entry = entry.child
@@ -282,8 +281,16 @@ class RangeFunctionTagDebugInformation(
                             path = "**/${pathSegment.fileId.packPath}/data/${pathSegment.fileId.resourceId.namespace}/${pathSegment.fileId.resourceId.path}"
                         },
                         Range(
-                            AnalyzingResult.getPositionFromCursor(segmentStringRange.start, pathSegment.fileMappingInfo, false),
-                            AnalyzingResult.getPositionFromCursor(segmentStringRange.end, pathSegment.fileMappingInfo, false)
+                            AnalyzingResult.getPositionFromCursor(
+                                pathSegment.fileMappingInfo.cursorMapper.mapToSource(segmentStringRange.start),
+                                pathSegment.fileMappingInfo,
+                                false
+                            ),
+                            AnalyzingResult.getPositionFromCursor(
+                                pathSegment.fileMappingInfo.cursorMapper.mapToSource(segmentStringRange.end),
+                                pathSegment.fileMappingInfo,
+                                false
+                            )
                         )
                     ),
                     variableScopes

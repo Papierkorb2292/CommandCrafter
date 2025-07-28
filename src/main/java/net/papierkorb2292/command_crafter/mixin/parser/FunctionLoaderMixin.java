@@ -99,7 +99,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
                         Identifier.of(id.getNamespace(), PackContentFileType.FUNCTIONS_FILE_TYPE.getContentTypePath() + "/" + id.getPath() + FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()),
                         PackagedId.Companion.getPackIdWithoutPrefix(resourceEntry.getValue().getPackId())
                 ),
-                lines
+                reader.getFileMappingInfo()
         );
         //noinspection unchecked
         return (CommandFunction<T>) function;

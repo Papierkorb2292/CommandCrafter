@@ -46,6 +46,7 @@ import net.minecraft.util.math.MathHelper
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointCondition
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointConditionParser
@@ -1111,7 +1112,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val nbt = nbtReader.readAsArgument(reader)
             if(saveFunctionTagRanges) {
                 val tree = treeBuilder.build(nbt)
-                FunctionTagDebugHandler.TAG_PARSING_ELEMENT_RANGES.runWithValue(tree.ranges) {
+                val absoluteTargetRanges = tree.ranges.mapValues { it.value + reader.readSkippingChars }
+                FunctionTagDebugHandler.TAG_PARSING_ELEMENT_RANGES.runWithValue(absoluteTargetRanges) {
                     return tagEntryListCodec.decode(NbtOps.INSTANCE, nbt).orThrow.first
                 }
             }
