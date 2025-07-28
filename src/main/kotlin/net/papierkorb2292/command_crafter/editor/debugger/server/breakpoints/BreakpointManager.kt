@@ -331,6 +331,9 @@ class BreakpointManager<TBreakpointLocation>(
     }
 
     fun reloadBreakpoints() {
+        // Breakpoints must be cleared, because the reloaded parser probably
+        // uses new `BreakpointGroupKey`s (due to new `BreakpointParser` instances)
+        breakpoints.clear()
         for((debugConnection, editorFileBreakpoints) in fileBreakpoints) {
             for((fileBreakpointSource, breakpoints) in editorFileBreakpoints) {
                 parser(
