@@ -23,7 +23,6 @@ class ServerCommandSourceValueReference(
 
     init { updateVariableValueReferences() }
     private fun updateVariableValueReferences() {
-        //TODO
         content.clear()
         content[ENTITY_VARIABLE_NAME] = EntityValueReference(mapper, source.entity, this.source) { newEntity ->
             this.setter?.let {
