@@ -333,7 +333,7 @@ object CommandCrafter: ModInitializer {
         if(coreException is MinecraftDebuggerServer.EvaluationFailedThrowable)
             // Errors from evaluations are normal, so don't log them as exceptions
             return ResponseError(ResponseErrorCode.RequestFailed, coreException.message, null)
-        LOGGER.error("Error thrown by $serviceName", e)
+        LOGGER.error("Error thrown by $serviceName", coreException)
         return ResponseError(ResponseErrorCode.UnknownErrorCode, coreException.message, null)
     }
 
