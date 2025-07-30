@@ -163,6 +163,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         override fun output(args: OutputEventArguments) {
             val client = client ?: return
+            args.output += '\n'
             if(args.source == null) {
                 client.output(args)
                 return
