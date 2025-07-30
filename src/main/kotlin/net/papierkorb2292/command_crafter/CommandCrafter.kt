@@ -324,12 +324,16 @@ object CommandCrafter: ModInitializer {
     )
 
     private fun handleEditorServiceException(serviceName: String, e: Throwable): ResponseError {
-        LOGGER.error("Error thrown by $serviceName", e)
         var coreException = e;
         if(coreException is RuntimeException)
             coreException = coreException.cause ?: coreException
         if(coreException is InvocationTargetException)
             coreException = coreException.targetException
+
+        if(coreException is MinecraftDebuggerServer.EvaluationFailedThrowable)
+            // Errors from evaluations are normal, so don't log them as exceptions
+            return ResponseError(ResponseErrorCode.RequestFailed, coreException.message, null)
+        LOGGER.error("Error thrown by $serviceName", e)
         return ResponseError(ResponseErrorCode.UnknownErrorCode, coreException.message, null)
     }
 

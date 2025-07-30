@@ -28,9 +28,9 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         const val DYNAMIC_BREAKPOINT_MESSAGE = "Dynamic breakpoint will be validated once function is called"
 
         fun rejectAllBreakpoints(breakpoints: Array<UnparsedServerBreakpoint>, reason: String, source: Source? = null)
-            = Array(breakpoints.size) { rejectBreakpoint(breakpoints[it], reason, source) }
+                = Array(breakpoints.size) { rejectBreakpoint(breakpoints[it], reason, source) }
         fun <T> rejectAllBreakpoints(breakpoints: Iterable<ServerBreakpoint<T>>, reason: String, source: Source? = null)
-            = breakpoints.map { rejectBreakpoint(it.unparsed, reason, source) }
+                = breakpoints.map { rejectBreakpoint(it.unparsed, reason, source) }
 
         fun rejectBreakpoint(breakpoint: UnparsedServerBreakpoint, reason: String, source: Source? = null) = Breakpoint().apply {
             line = breakpoint.sourceBreakpoint.line
@@ -328,6 +328,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         return CompletableFuture.completedFuture(response)
     }
 
+    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluateResponse> {
+        return CompletableFuture.failedFuture(EvaluationFailedThrowable("CommandCrafter does not support evaluate yet :("))
+    }
+
     override fun next(args: NextArguments): CompletableFuture<Void> {
         debugPauseActions?.next(args.granularity ?: SteppingGranularity.STATEMENT)
         debugPauseActions = null
@@ -393,7 +397,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     override fun variables(args: VariablesArguments): CompletableFuture<VariablesResponse> {
         val variablesReferencer = variablesReferencer ?:
-            return CompletableFuture.completedFuture(VariablesResponse().apply { variables = arrayOf() })
+        return CompletableFuture.completedFuture(VariablesResponse().apply { variables = arrayOf() })
         return variablesReferencer.getVariables(args).thenApply { variables ->
             VariablesResponse().apply {
                 this.variables = variables
@@ -487,5 +491,6 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         this.client = client
     }
 
+    class EvaluationFailedThrowable(message: String, cause: Throwable? = null): Throwable(message, cause)
     private data class ClientBreakpointResource(val packContentFileType: PackContentFileType, val id: PackagedId, val sourceReference: Int?)
 }
