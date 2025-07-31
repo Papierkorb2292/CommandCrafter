@@ -161,6 +161,10 @@
               "suspendServer": {
                 "type": "boolean",
                 "description": "Optional: Whether to suspend the server when the debugger is paused. If 'false', the server will continue ticking. Defaults to 'true'."
+              },
+              "log": {
+                "type": "boolean",
+                "description": "Optional: Whether VSCode is supposed to log all DAP messages for this session"
               }
             }
           }

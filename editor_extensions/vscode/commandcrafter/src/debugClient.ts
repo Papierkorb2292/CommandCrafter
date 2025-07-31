@@ -24,9 +24,10 @@ export class DebugClient implements ConnectionFeature {
                 if(!connectionType) {
                     throw new Error("BUG: DebugClient didn't receive connectionType");
                 }
+                const shouldLog: boolean = session.configuration.log;
 
                 return connectionType.connect().then((streamInfo) => {
-                    return debugClient.connectToStream(streamInfo, connectionType);
+                    return debugClient.connectToStream(streamInfo, connectionType, shouldLog);
                 }, (error) => {
                     outputChannel?.appendLine("Error connecting to Minecraft debugger: " + error.stack)
                     throw new Error("Error connecting to Minecraft debugger: " + error.message);
@@ -35,13 +36,16 @@ export class DebugClient implements ConnectionFeature {
         }));
     }
 
-    private connectToStream(streamInfo: StreamInfo, connectionType: MinecraftConnectionType): vscode.DebugAdapterDescriptor {
+    private connectToStream(streamInfo: StreamInfo, connectionType: MinecraftConnectionType, shouldLog: boolean): vscode.DebugAdapterDescriptor {    
         const sendMessageEventEmitter = new vscode.EventEmitter<vscode.DebugProtocolMessage>()
 
         const debugAdapter: vscode.DebugAdapter = {
             onDidSendMessage: sendMessageEventEmitter.event,
             handleMessage(message) {
                 const json = JSON.stringify(message);
+                if(shouldLog) {
+                    outputChannel?.appendLine("VSCode --> Debug Adapter: " + JSON.stringify(message, null, 4))
+                }
                 streamInfo.writer.write(`Content-Length: ${Buffer.byteLength(json, 'utf8')}\r\n\r\n${json}`, 'utf8');
             },
             dispose() {
@@ -62,8 +66,12 @@ export class DebugClient implements ConnectionFeature {
                         contentLength = -1;
                         if(message.length > 0) {
                             try {
+                                const parsed = JSON.parse(message)
+                                if(shouldLog) {
+                                    outputChannel?.appendLine("VSCode <-- Debug Adapter: " + JSON.stringify(parsed, null, 4))
+                                }
                                 this.handleReceivedMessage(
-                                    JSON.parse(message),
+                                    parsed,
                                     sendMessageEventEmitter,
                                     debugAdapter.handleMessage
                                 );
