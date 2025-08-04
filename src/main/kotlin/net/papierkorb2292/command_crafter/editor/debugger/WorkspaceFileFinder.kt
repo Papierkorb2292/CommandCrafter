@@ -45,6 +45,12 @@ class WorkspaceFileFinder(private val fileFinder: EditorClientFileFinder) {
 
     private fun checkCacheForPattern(pattern: String): CompletableFuture<String?> {
         val cached = cache[pattern] ?: return CompletableFuture.completedFuture(null)
-        return fileFinder.fileExists(cached).thenApply { if(it) cached else null }
+        return fileFinder.fileExists(cached).thenApply {
+            if(it) cached
+            else {
+                cache.remove(pattern)
+                null
+            }
+        }
     }
 }
