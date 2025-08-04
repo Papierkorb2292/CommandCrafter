@@ -12,8 +12,12 @@ import java.util.*
 import java.util.concurrent.Semaphore
 
 fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
-    var low = fromIndex
-    var high = toIndex - 1
+    return (fromIndex until toIndex).binarySearch(comparison)
+}
+
+fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
+    var low = this.start
+    var high = this.endInclusive
 
     while (low <= high) {
         val mid = (low + high).ushr(1)
