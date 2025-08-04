@@ -10,5 +10,8 @@ interface CommandCrafterDebugClient : IDebugProtocolClient, EditorClientFileFind
     override fun findFiles(pattern: String): CompletableFuture<Array<String>>
 
     @JsonRequest
+    override fun fileExists(url: String): CompletableFuture<Boolean>
+
+    @Deprecated("This has issues with multi-root workspaces and it is no longer necessary")
     fun getWorkspaceRoot(): CompletableFuture<String>
 }

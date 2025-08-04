@@ -7,4 +7,6 @@ interface EditorClientFileFinder {
      * Searches the workspace for files matching the given pattern
      */
     fun findFiles(pattern: String): CompletableFuture<Array<String>>
+
+    fun fileExists(url: String): CompletableFuture<Boolean>
 }

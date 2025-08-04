@@ -51,6 +51,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     private var client: CommandCrafterDebugClient? = null
+    private var workspaceFileFinder: WorkspaceFileFinder? = null
 
     private var debugPauseActions: DebugPauseActions? = null
     private var variablesReferencer: VariablesReferencer? = null
@@ -64,8 +65,6 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     private var nextBreakpointId = 0
     private val nextBreakpointIdLock = SynchronizedObject()
-
-
 
     private val editorDebugConnection = object : EditorDebugConnection {
         override val lifecycle = EditorDebugConnection.Lifecycle()
@@ -103,29 +102,27 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
                 client?.breakpoint(update)
                 return
             }
-            mapSourceToDatapack(source).thenAccept {
-                val parsedPath = PackContentFileType.parsePath(source.path)
-                if(parsedPath != null) {
-                    val breakpointResource = ClientBreakpointResource(parsedPath.type, parsedPath.id, source.sourceReference)
-                    val resourceBreakpoints = breakpoints.getOrPut(breakpointResource) { mutableMapOf<SourceBreakpoint, UnparsedServerBreakpoint>() to source }.first
-                    val prevSourceBreakpoint = resourceBreakpoints.firstNotNullOfOrNull { (sourceBreakpoint, breakpoint) ->
-                        if(breakpoint.id == update.breakpoint.id) sourceBreakpoint else null
-                    }
-                    val sourceBreakpoint = SourceBreakpoint().apply {
-                        line = update.breakpoint.line
-                        column = update.breakpoint.column
-                        if(prevSourceBreakpoint != null) {
-                            hitCondition = prevSourceBreakpoint.hitCondition
-                            condition = prevSourceBreakpoint.condition
-                            logMessage = prevSourceBreakpoint.logMessage
-                        }
-                    }
-                    resourceBreakpoints[sourceBreakpoint] = UnparsedServerBreakpoint(
-                        update.breakpoint.id, source.sourceReference, sourceBreakpoint
-                    )
+            val parsedPath = PackContentFileType.parsePath(source.path)
+            if(parsedPath != null) {
+                val breakpointResource = ClientBreakpointResource(parsedPath.type, parsedPath.id, source.sourceReference)
+                val resourceBreakpoints = breakpoints.getOrPut(breakpointResource) { mutableMapOf<SourceBreakpoint, UnparsedServerBreakpoint>() to source }.first
+                val prevSourceBreakpoint = resourceBreakpoints.firstNotNullOfOrNull { (sourceBreakpoint, breakpoint) ->
+                    if(breakpoint.id == update.breakpoint.id) sourceBreakpoint else null
                 }
-                client?.breakpoint(update)
+                val sourceBreakpoint = SourceBreakpoint().apply {
+                    line = update.breakpoint.line
+                    column = update.breakpoint.column
+                    if(prevSourceBreakpoint != null) {
+                        hitCondition = prevSourceBreakpoint.hitCondition
+                        condition = prevSourceBreakpoint.condition
+                        logMessage = prevSourceBreakpoint.logMessage
+                    }
+                }
+                resourceBreakpoints[sourceBreakpoint] = UnparsedServerBreakpoint(
+                    update.breakpoint.id, source.sourceReference, sourceBreakpoint
+                )
             }
+            client?.breakpoint(update)
         }
 
         override fun reserveBreakpointIds(count: Int) =
@@ -198,16 +195,12 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
                 ?: emptyArray()
         )
 
-        val path = source.path ?: return mappingChildSourcesFuture
+        val path = source.path
+        if(path == null || !path.contains("*"))
+            return mappingChildSourcesFuture
 
-        val mappingCurrentSourceFuture = client.getWorkspaceRoot().thenApply { workspaceUri ->
-            if(workspaceUri == null) return@thenApply path
-            val workspacePath = EditorURI.parseURI(workspaceUri).path
-            val workspacePrefix = "**/" + workspacePath.substring(workspacePath.indexOfLast { it == '/' } + 1)
-            if(!path.startsWith(workspacePrefix)) return@thenApply path
-            return@thenApply "**" + path.substring(workspacePrefix.length)
-        }.thenCompose { client.findFiles(it) }.thenApply {
-            source.path = it?.firstOrNull() ?: return@thenApply
+        val mappingCurrentSourceFuture = workspaceFileFinder!!.findFileWithWorkspace(path).thenAccept {
+            source.path = it ?: source.path
         }
 
         return CompletableFuture.allOf(mappingCurrentSourceFuture, mappingChildSourcesFuture)
@@ -312,11 +305,6 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         }
         val debugService = minecraftServer.debugService ?: return rejectAll(SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON)
         return debugService.setBreakpoints(unparsedBreakpoints, args.source, parsedPath.type, parsedPath.id, editorDebugConnection)
-            .thenCompose { response ->
-                CompletableFuture.allOf(*response.breakpoints.toList().mapNotNull {
-                    mapSourceToDatapack(it.source ?: return@mapNotNull null)
-                }.toTypedArray()).thenApply { response }
-            }
     }
 
     override fun threads(): CompletableFuture<ThreadsResponse> {
@@ -466,14 +454,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         for((resource, data) in breakpoints) {
             debugService.setBreakpoints(data.first.values.toTypedArray(), data.second, resource.packContentFileType, resource.id, editorDebugConnection).thenAccept {
                 for(breakpoint in it.breakpoints) {
-                    val source = breakpoint.source
-                    if(source == null) {
-                        sendBreakpointToClient(breakpoint)
-                        continue
-                    }
-                    mapSourceToDatapack(source).thenAccept {
-                        sendBreakpointToClient(breakpoint)
-                    }
+                    sendBreakpointToClient(breakpoint)
                 }
             }
         }
@@ -489,6 +470,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     fun connect(client: CommandCrafterDebugClient) {
         this.client = client
+        this.workspaceFileFinder = WorkspaceFileFinder(client)
     }
 
     class EvaluationFailedThrowable(message: String, cause: Throwable? = null): Throwable(message, cause)

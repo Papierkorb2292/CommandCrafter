@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LanguageClientRunner, findFiles, getFeatureConfig } from './extension';
+import { LanguageClientRunner, fileExists, findFiles, getFeatureConfig } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
 import { MinecraftConsole } from './minecraftConsole';
@@ -133,6 +133,7 @@ export class DebugClient implements ConnectionFeature {
             });
             return;
         }
+        // Only here to support older mod versions...
         if(message.type === 'request' && message.command == 'getWorkspaceRoot') {
             const workspaceFolders = vscode.workspace.workspaceFolders
             messageSender({
@@ -140,6 +141,25 @@ export class DebugClient implements ConnectionFeature {
                 request_seq: message.seq,
                 success: true,
                 body: workspaceFolders == null || workspaceFolders.length != 1 ? null : workspaceFolders[0].uri.toString()
+            });
+            return;
+        }
+        if(message.type === 'request' && message.command == 'fileExists') {
+            fileExists(message.arguments as string).then(files => {
+                messageSender({
+                        type: 'response',
+                        request_seq: message.seq,
+                        success: true,
+                        body: files
+                    });
+            }, error => {
+                messageSender({
+                    type: 'response',
+                    request_seq: message.seq,
+                    success: false,
+                    message: 'cancelled',
+                    body: { error: error.message }
+                });
             });
             return;
         }

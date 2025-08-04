@@ -7,7 +7,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
-import { LanguageClientRunner, checkUpdateMinecraftAddress, findFiles, getFeatureConfig } from './extension';
+import { LanguageClientRunner, checkUpdateMinecraftAddress, fileExists, findFiles, getFeatureConfig } from './extension';
 import { DebugClient } from './debugClient';
 import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
 import { outputChannel } from './extensionLog';
@@ -143,6 +143,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                         outputChannel?.appendLine("LanguageClient is running")
                         this.connectionFeatures.forEach(feature => feature.onLanguageClientReady(languageClient));
                         languageClient.onRequest("findFiles", (filePattern: string) => findFiles(filePattern))
+                        languageClient.onRequest("fileExists", (filePattern: string) => fileExists(filePattern))
                         languageClient.onRequest("getFileContent", (path: string) =>
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
                         break;

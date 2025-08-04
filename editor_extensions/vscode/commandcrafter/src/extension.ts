@@ -55,6 +55,10 @@ export function findFiles(filePattern: string): Thenable<string[]> {
 	});
 }
 
+export function fileExists(file: string): Thenable<boolean> {
+	return vscode.workspace.fs.stat(vscode.Uri.parse(file)).then(() => true, () => false);
+}
+
 export function getFeatureConfig(): FeatureConfig | undefined {
 	return vscode.workspace.getConfiguration("CommandCrafter").get<FeatureConfig>("FeatureConfig")
 }
