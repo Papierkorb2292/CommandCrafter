@@ -14,6 +14,17 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
     private final String callbackObjectName = "net/papierkorb2292/command_crafter/editor/processing/PreLaunchDecoderOutputTracker";
     private final String callbackObjectDesc = "L" + callbackObjectName + ";";
 
+    @Override
+    String getName() {
+        return "command_crafter_decoder_output_tracker";
+    }
+
+    @Override
+    public boolean couldTransform(String className) {
+        // Can't know for sure without ClassNode, sorry :(
+        return true;
+    }
+
     public boolean postProcess(String name, ClassNode classNode) {
         // I *should* check if the class implements `Decoder`, but that doesn't work for inner classes of
         // Mixins, because it's not possible to get a `ClassInfo` for them, so I'll just leave it. Consistency ;)
