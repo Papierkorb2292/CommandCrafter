@@ -63,7 +63,11 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         stringEscaper: StringRangeTree.StringEscaper,
     ): StringRangeTree.ResolvedSuggestion {
         val baseString =
-            if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
+            if(suggestion.isNumberABoolean) {
+                suggestion.element.asBoolean().orElseThrow {
+                    IllegalArgumentException("Boolean suggestion didn't represent a boolean: $suggestion")
+                }.toString()
+            } else if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
                 suggestion.element.toString()
             else
                 suggestion.element.value

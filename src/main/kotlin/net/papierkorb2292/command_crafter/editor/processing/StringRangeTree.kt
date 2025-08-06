@@ -442,8 +442,8 @@ class StringRangeTree<TNode: Any>(
 
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
             getNodeStartSuggestions(input).run {
-                add(Suggestion(delegate.createBoolean(true)))
-                add(Suggestion(delegate.createBoolean(false)))
+                add(Suggestion(delegate.createBoolean(true), true))
+                add(Suggestion(delegate.createBoolean(false), true))
             }
             return delegate.getBooleanValue(input)
         }
@@ -587,7 +587,7 @@ class StringRangeTree<TNode: Any>(
             }
     }
 
-    data class Suggestion<TNode>(val element: TNode)
+    data class Suggestion<TNode>(val element: TNode, val isNumberABoolean: Boolean = false)
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: AnalyzingCompletionProvider)
     data class TokenInfo(val type: TokenType, val modifiers: Int)
     data class AdditionalToken(val range: StringRange, val tokenInfo: TokenInfo)
