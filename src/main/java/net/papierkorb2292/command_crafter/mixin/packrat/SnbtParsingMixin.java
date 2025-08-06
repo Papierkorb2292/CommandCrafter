@@ -217,6 +217,28 @@ public class SnbtParsingMixin {
         return command_crafter$wrapTermAllowReaderEndIfMalformed(term);
     }
 
+    @ModifyArg(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/packrat/Term;sequence([Lnet/minecraft/util/packrat/Term;)Lnet/minecraft/util/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=quoted_string_literal"
+                    ),
+                    to = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=unquoted_string"
+                    )
+            )
+    )
+    private static Term<StringReader>[] command_crafter$allowMissingQuotedStringEnd(Term<StringReader>[] terms) {
+        terms[terms.length - 1] = command_crafter$wrapTermAllowReaderEndIfMalformed(terms[terms.length - 1]);
+        return terms;
+    }
+
     @WrapOperation(
             method = "createParser",
             at = @At(
