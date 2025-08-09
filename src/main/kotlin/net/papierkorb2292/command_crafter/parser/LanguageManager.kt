@@ -155,6 +155,7 @@ object LanguageManager {
             if(!reader.canRead() || reader.peek() != '#')
                 return@trySkipWhitespace false
             while(reader.canRead() && reader.peek() == '#') {
+                var trailingBackslashIndex = -1
                 var highlightStart = reader.cursor
                 //Skip all leading '#' characters
                 while(reader.canRead() && reader.peek() == '#')
@@ -163,22 +164,25 @@ object LanguageManager {
                 while(reader.canRead()) {
                     val c = reader.read()
                     if(c == '\n') {
-                        if(reader.peek(-2) != '\\') {
+                        if(trailingBackslashIndex == -1)
                             break
-                        }
                         result.semanticTokens.addMultiline(
                             highlightStart,
                             reader.cursor - highlightStart,
                             TokenType.COMMENT,
                             0
                         )
-                        docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor - 2))
+                        docCommentBuilder.append(reader.string.subSequence(lineStart, trailingBackslashIndex))
+                        trailingBackslashIndex = -1 // Reset for next line
                         reader.skipSpaces()
                         lineStart = reader.cursor
                         highlightStart = lineStart
                     }
-                    if(c == ' ')
+                    if(c.isWhitespace())
                         continue
+                    // Trailing whitespace after \ is allowed, but anything else resets hasTrailingBackslash back to 'false' such that
+                    // a newline would end the comment
+                    trailingBackslashIndex = if(c == '\\') reader.cursor - 1 else -1
                     if(c == '@') {
                         result.semanticTokens.addMultiline(
                             highlightStart,
@@ -281,16 +285,27 @@ object LanguageManager {
             while(reader.canRead() && reader.peek() == '#') {
                 reader.skip()
                 var lineStart = reader.cursor
+                var trailingBackslashIndex = -1
                 while(reader.canRead()) {
                     val c = reader.read()
+                    if(c == '\\') {
+                        trailingBackslashIndex = reader.cursor - 1
+                        continue
+                    }
                     if(c == '\n') {
-                        if(reader.peek(-2) == '\\') {
-                            docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor - 2))
+                        if(trailingBackslashIndex != -1) {
+                            docCommentBuilder.append(reader.string.subSequence(lineStart, trailingBackslashIndex))
+                            trailingBackslashIndex = -1 // Reset for next line
                             reader.skipSpaces()
                             lineStart = reader.cursor
                             continue
                         }
                         break
+                    }
+                    if(!c.isWhitespace()) {
+                        // Only trailing whitespace is allowed after \, anything else resets hasTrailingBackslash such that
+                        // a newline would end the comment
+                        trailingBackslashIndex = -1
                     }
                 }
                 docCommentBuilder.append(reader.string.subSequence(lineStart, reader.cursor))
