@@ -19,7 +19,6 @@ import java.util.*
 class ParsedResourceCreator(
     val functionId: Identifier,
     val functionPackId: String,
-    val dataPackContents: DataPackContents,
 ) {
     companion object {
         val PLACEHOLDER_ID = Identifier.of("command_crafter", "placeholder")
