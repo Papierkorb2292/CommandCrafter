@@ -109,6 +109,8 @@ class DirectiveStringReader<out ResourceCreator>(
                 val hasBackslash = line[contentEnd] == '\\'
                 val trimmed = line.substring(indent, contentEnd+1)
                 escapedMultilineTrimmed = line.substring(contentEnd+1)
+                if(nextLine < lines.size)
+                    escapedMultilineTrimmed += '\n'
                 cursorMapper.addMapping(
                     readCharacters + string.length + indent + 2,
                     readSkippingChars + string.length,

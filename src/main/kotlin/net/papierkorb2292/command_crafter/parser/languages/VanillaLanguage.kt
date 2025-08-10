@@ -180,6 +180,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.disableTrimmingFromEscapedMultiline()
                 }
                 analyzeParsedCommand(parseResults, result, reader)
+                // Skip any spaces from disableTrimmingFromEscapedMultiline so they aren't interpreted as trailing data
+                reader.skipSpaces()
 
                 val exception = parseResults.exceptions.entries.maxByOrNull { it.value.cursor }
                 if(exception != null)
@@ -189,7 +191,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
                     }
-                } else if (reader.canRead()) {
+                } else if (reader.canRead() && reader.peek() != '\n' && !reader.scopeStack.element().closure.endsClosure(reader)) {
                     if(parseResults.context.range.isEmpty)
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
@@ -203,7 +205,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
 
                 if(easyNewLine) {
-                    reader.skipSpaces()
                     if(!reader.canRead() || reader.scopeStack.element().closure.endsClosure(reader)) {
                         // Analyze last whitespace and then loop should end
                         continue
@@ -286,7 +287,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(!easyNewLine)
                 reader.convertInputToEscapedMultiline()
             val parsed = parseCommand(reader, source)
-            reader.disableEscapedMultiline()
+            if(!easyNewLine) {
+                reader.disableEscapedMultiline()
+                reader.skipWhitespace()
+            }
             val string = parsed.reader.string
             val contextChain = ContextChain.tryFlatten(parsed.context.build(string)).orElseThrow {
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
@@ -359,8 +363,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     private fun readMacro(reader: DirectiveStringReader<*>): String {
         if(!reader.canRead()) return ""
         if(!easyNewLine) {
-            if(!easyNewLine)
-                reader.convertInputToEscapedMultiline()
+            reader.convertInputToEscapedMultiline()
             val macro = reader.readLine()
             reader.disableEscapedMultiline()
             return if(macro.startsWith('$')) macro.substring(1) else macro
