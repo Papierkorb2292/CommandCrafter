@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
@@ -274,7 +275,11 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
     }
 
-    class RangedDataProvider<out TData>(val cursorRange: StringRange, val dataProvider: AnalyzingDataProvider<TData>) {
+    class RangedDataProvider<out TData>(
+        val cursorRange: StringRange,
+        @JsonIgnore // Prevents some self references, because the provider could refer back to AnalyzingResult, and it probably just contains some cryptic stuff anyway
+        val dataProvider: AnalyzingDataProvider<TData>
+    ) {
         init {
             if(cursorRange.start > cursorRange.end) {
                 throw IllegalArgumentException("Start cursor must not be greater than end cursor")

@@ -1,9 +1,11 @@
 package net.papierkorb2292.command_crafter.helper
 
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.SerializerProvider
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
-import jdk.internal.util.ArraysSupport
 import java.util.*
 import kotlin.math.max
 
@@ -159,6 +161,16 @@ class IntList(capacity: Int) {
             }
             `in`.endArray()
             return result
+        }
+    }
+
+    object JacksonSerializer : JsonSerializer<IntList>() {
+        override fun serialize(
+            value: IntList,
+            gen: JsonGenerator,
+            serializers: SerializerProvider,
+        ) {
+            gen.writeArray(value.entries, 0, value.size)
         }
     }
 }
