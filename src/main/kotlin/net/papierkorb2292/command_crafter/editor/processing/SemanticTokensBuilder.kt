@@ -8,7 +8,6 @@ import kotlin.math.min
 
 class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     private val data = ArrayList<Int>(100)
-    private var dataSize = 100
     private var lastLine = 0
     private var lastCursor = 0
 
@@ -17,10 +16,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     }
 
     private fun add(line: Int, cursor: Int, length: Int, typeId: Int, modifiers: Int) {
-        if(data.size >= dataSize) {
-            dataSize += 100
-            data.ensureCapacity(dataSize)
-        }
         data.add(line - lastLine)
         if(lastLine != line) {
             lastLine = line
@@ -133,10 +128,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     }
 
     fun addRelative(lineDelta: Int, cursorDelta: Int, length: Int, type: TokenType, modifiers: Int) {
-        if(data.size >= dataSize) {
-            dataSize += 100
-            data.ensureCapacity(dataSize)
-        }
         data.add(lineDelta)
         lastLine += lineDelta
         data.add(cursorDelta)
@@ -157,9 +148,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     }
 
     fun combineWith(other: SemanticTokensBuilder) {
-        dataSize += other.dataSize
-        data.ensureCapacity(dataSize)
-
         // The line and cursor of the other's first entry must be made
         // relative to the last token of this builder
         if(other.data.size < 5)
@@ -297,7 +285,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
 
     fun clear() {
         data.clear()
-        dataSize = 100
         lastLine = 0
         lastCursor = 0
     }
