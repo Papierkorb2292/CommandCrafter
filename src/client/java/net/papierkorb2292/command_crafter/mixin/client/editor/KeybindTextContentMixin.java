@@ -20,7 +20,8 @@ public class KeybindTextContentMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/codecs/PrimitiveCodec;fieldOf(Ljava/lang/String;)Lcom/mojang/serialization/MapCodec;"
-            )
+            ),
+            remap = false
     )
     private static PrimitiveCodec<String> command_crafter$suggestKeybindNames(PrimitiveCodec<String> codec, String s) {
         return new PrimitiveCodecSuggestionWrapper<>(codec, new CodecSuggestionWrapper.SuggestionsProvider() {
