@@ -89,7 +89,7 @@ object TestSnapshotHelper {
         val testId = (this as TestContextAccessor).test.instanceEntry.registryKey()
         val fileSuffix = if(idSuffix == null) "" else "_$idSuffix"
         val fileExtension = ".json"
-        val fileName = testId.value.toString() + fileSuffix + fileExtension
+        val fileName = testId.value.namespace + "_" + testId.value.path + fileSuffix + fileExtension
         val file = testDirectory.resolve(fileName).toFile()
         val jsonValue = try {
             objectMapper.writeValueAsString(value)
