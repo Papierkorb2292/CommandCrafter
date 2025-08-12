@@ -36,11 +36,9 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
     private static final ThreadLocal<AnalyzingResult> command_crafter$analyzingResult = new ThreadLocal<>();
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
         command_crafter$analyzingResult.set(result);
         try {
-            parse(readerCopy);
+            parse(reader);
         } finally {
             command_crafter$analyzingResult.remove();
         }

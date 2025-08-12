@@ -20,8 +20,6 @@ import org.spongepowered.asm.mixin.Mixin;
 public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode {
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
         var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
@@ -29,7 +27,7 @@ public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode {
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         NbtElement nbt;
         try {
-            nbt = nbtReader.readAsArgument(readerCopy);
+            nbt = nbtReader.readAsArgument(reader);
         } catch(CommandSyntaxException e) {
             nbt = NbtEnd.INSTANCE;
             treeBuilder.addNode(nbt, range, range.getStart());
@@ -37,7 +35,7 @@ public class NbtElementArgumentTypeMixin implements AnalyzingCommandNode {
         var tree = treeBuilder.build(nbt);
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
-                readerCopy
+                reader
         ).analyzeFull(result, true, null);
     }
 }

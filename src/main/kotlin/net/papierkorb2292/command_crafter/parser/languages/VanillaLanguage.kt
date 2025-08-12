@@ -570,9 +570,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         contextBuilder: CommandContextBuilder<CommandSource>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        skipAnalyzedChars: Boolean = false,
     ) {
-        val initialReadCharacters = reader.readCharacters
-        val initialSkippedChars = reader.skippedChars
         val commandInput = reader.string
         val context = contextBuilder.build(commandInput)
         val node = parsedNode.node
@@ -584,46 +583,44 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             context.source
         )
         if (node is AnalyzingCommandNode) {
-            reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
-            reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
-            val completionReader = reader.copy()
+            val analyzeReader = reader.copy()
+            analyzeReader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
+            analyzeReader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+            analyzeReader.cursor = parsedNode.range.start;
+            val nodeAnalyzingResult = analyzingResult.copyInput()
             try {
-                val nodeAnalyzingResult = analyzingResult.copyInput()
-                try {
-                    node.`command_crafter$analyze`(
-                        context,
-                        StringRange(
-                            parsedNode.range.start,
-                            MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-                        ),
-                        reader,
-                        nodeAnalyzingResult,
-                        node.name
-                    )
-                } catch(e: Exception) {
-                    CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
-                }
-                if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
-                        context,
-                        node.name
-                    )
-                ) {
-                    analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
-                    addNodeSuggestions(
-                        parentNode,
-                        analyzingResult,
-                        parsedNode.range,
-                        completionReader,
-                        contextBuilder,
-                        nodeAnalyzingResult,
-                        rootSuggestionsResult
-                    )
-                } else {
-                    analyzingResult.combineWith(nodeAnalyzingResult)
-                }
-            } finally {
-                reader.readCharacters = initialReadCharacters
-                reader.skippedChars = initialSkippedChars
+                node.`command_crafter$analyze`(
+                    context,
+                    StringRange(
+                        parsedNode.range.start,
+                        MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                    ),
+                    analyzeReader,
+                    nodeAnalyzingResult,
+                    node.name
+                )
+            } catch(e: Exception) {
+                CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+            }
+            if(skipAnalyzedChars)
+                reader.cursor = analyzeReader.cursor
+            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
+                    context,
+                    node.name
+                )
+            ) {
+                analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
+                addNodeSuggestions(
+                    parentNode,
+                    analyzingResult,
+                    parsedNode.range,
+                    analyzeReader,
+                    contextBuilder,
+                    nodeAnalyzingResult,
+                    rootSuggestionsResult
+                )
+            } else {
+                analyzingResult.combineWith(nodeAnalyzingResult)
             }
         } else {
             analyzingResult.combineWithCompletionProviders(rootSuggestionsResult)
@@ -780,8 +777,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             parentNode,
             furthestParsedContext,
             analyzingResult,
-            furthestParsedReader
+            furthestParsedReader,
+            true // Ensure that the next command only starts after the end of this argument, so their AnalyzingResult contents don't intersect
         )
+        reader.copyFrom(furthestParsedReader)
     }
 
     object VanillaLanguageType : LanguageManager.LanguageType {

@@ -28,14 +28,12 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode, DataO
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
         var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = nbtReader.readAsArgument(readerCopy);
+        var nbt = nbtReader.readAsArgument(reader);
         var tree = treeBuilder.build(nbt);
 
         Decoder<?> decoder = null;
@@ -47,7 +45,7 @@ public class NbtCompoundArgumentTypeMixin implements AnalyzingCommandNode, DataO
 
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
-                readerCopy
+                reader
         )
                 .withDiagnosticSeverity(DiagnosticSeverity.Warning)
                 .analyzeFull(result, true, decoder);

@@ -25,15 +25,13 @@ public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingComma
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
         PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()));
         PackratParserAdditionalArgs.INSTANCE.setupFurthestAnalyzingResultStart();
         PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(true);
 
         try {
             try {
-                parse(readerCopy);
+                parse(reader);
             } catch(CommandSyntaxException ignored) {}
 
             var parsedAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get().getAnalyzingResult();
@@ -42,7 +40,7 @@ public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingComma
             result.combineWithExceptCompletions(furthestAnalyzingResult);
 
             result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, new AnalyzingResult.RangedDataProvider<>(range, cursor -> {
-                var sourceCursor = readerCopy.getCursorMapper().mapToSource(cursor, false);
+                var sourceCursor = reader.getCursorMapper().mapToSource(cursor, false);
                 var completionProvider = parsedAnalyzingResult.getCompletionProviderForCursor(sourceCursor);
                 if(completionProvider == null)
                     return CompletableFuture.completedFuture(Collections.emptyList());
