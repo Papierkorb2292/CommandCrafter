@@ -168,7 +168,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
      * meaning the tokens from the sortedOverlaps will be added to this builder starting at
      * the beginning of the file and split up existing tokens where necessary.
      */
-    fun overlap(sortedOverlaps: Iterator<SemanticTokensBuilder>) {
+    fun overlay(sortedOverlaps: Iterator<SemanticTokensBuilder>) {
         var currentTokenIndex = 0
         lastLine = 0
         lastCursor = 0

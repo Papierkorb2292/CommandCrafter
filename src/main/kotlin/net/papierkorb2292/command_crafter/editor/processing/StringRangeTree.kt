@@ -8,8 +8,6 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.nbt.*
 import net.minecraft.registry.RegistryWrapper
-import net.minecraft.text.TextCodecs
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.appendNullable
@@ -19,14 +17,11 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
-import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
-import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.*
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.function.BiConsumer
 import java.util.function.Consumer
-import java.util.stream.Collectors
 import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
@@ -342,7 +337,7 @@ class StringRangeTree<TNode: Any>(
             val analyzedStrings = tryAnalyzeStrings(analyzingResult)
             if(shouldGenerateSemanticTokens) {
                 generateSemanticTokens(analyzingResult.semanticTokens)
-                analyzingResult.semanticTokens.overlap(
+                analyzingResult.semanticTokens.overlay(
                     analyzedStrings.values
                         .asSequence()
                         .map { it.second.semanticTokens }
