@@ -49,9 +49,15 @@ class DirectiveStringReader<out ResourceCreator>(
     fun convertInputToEscapedMultiline() {
         if(!onlyReadEscapedMultiline) {
             onlyReadEscapedMultiline = true
+            // Newline characters are not saved in escapedMultilineTrimmed
+            // such that they are not added back in by disableTrimmingFromEscapedMultiline (only by disableEscapedMultiline),
+            // which means that parsers like VanillaLanguage.tryAnalyzeNextNode can use the trailing
+            // space without worrying about accidentally going to the next line
+            if(string.endsWith('\n'))
+                setString(string.substring(0, string.length - 1))
+
             val old = string
-            if(old.endsWith('\n'))
-                setString(old.substring(0, old.length - 1).trimEnd())
+            setString(old.trimEnd())
             escapedMultilineTrimmed = old.substring(string.length)
         }
     }
@@ -61,6 +67,8 @@ class DirectiveStringReader<out ResourceCreator>(
             onlyReadEscapedMultiline = false
             if(escapedMultilineTrimmed != null)
                 disableTrimmingFromEscapedMultiline()
+            if(nextLine < lines.size)
+                string += '\n'
         }
     }
 
@@ -86,9 +94,8 @@ class DirectiveStringReader<out ResourceCreator>(
             }
             if(firstLineMappingMissing)
                 cursorMapper.addMapping(absoluteCursor, skippingCursor, remainingLength - 1)
-            val a = escapedMultilineTrimmed!!.length - 1
-            skippedChars += a
-            readCharacters += a
+            skippedChars += escapedMultilineTrimmed!!.length
+            readCharacters += escapedMultilineTrimmed!!.length
             while(true) {
                 if(nextLine >= lines.size)
                     throw IllegalArgumentException("Line continuation at end of file")
@@ -104,16 +111,12 @@ class DirectiveStringReader<out ResourceCreator>(
                         0
                     )
                     escapedMultilineTrimmed = line
-                    if(nextLine < lines.size)
-                        escapedMultilineTrimmed += '\n'
                     break
                 }
                 val contentEnd = line.indexOfLast { !it.isWhitespace() }
                 val hasBackslash = line[contentEnd] == '\\'
                 val trimmed = line.substring(indent, contentEnd+1)
                 escapedMultilineTrimmed = line.substring(contentEnd+1)
-                if(nextLine < lines.size)
-                    escapedMultilineTrimmed += '\n'
                 cursorMapper.addMapping(
                     readCharacters + string.length + indent + 2,
                     readSkippingChars + string.length,
