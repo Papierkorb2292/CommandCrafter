@@ -103,6 +103,9 @@ class DirectiveStringReader<out ResourceCreator>(
                         readSkippingChars + string.length,
                         0
                     )
+                    escapedMultilineTrimmed = line
+                    if(nextLine < lines.size)
+                        escapedMultilineTrimmed += '\n'
                     break
                 }
                 val contentEnd = line.indexOfLast { !it.isWhitespace() }
