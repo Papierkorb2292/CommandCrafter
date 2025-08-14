@@ -1,28 +1,59 @@
 package net.papierkorb2292.command_crafter.test
 
-import com.github.difflib.patch.Chunk
-import com.github.difflib.patch.DeltaType
-import com.github.difflib.patch.Patch
+import com.fasterxml.jackson.annotation.JsonAutoDetect
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.PropertyAccessor
+import com.fasterxml.jackson.databind.JsonMappingException
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.databind.ser.std.NullSerializer
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializerBase
 import com.github.difflib.text.DiffRow
 import com.github.difflib.text.DiffRowGenerator
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.tree.CommandNode
+import net.minecraft.block.Block
+import net.minecraft.fluid.Fluid
+import net.minecraft.item.Item
+import net.minecraft.registry.Registry
+import net.minecraft.registry.entry.RegistryEntry
+import net.minecraft.server.MinecraftServer
 import net.minecraft.test.TestContext
 import net.minecraft.text.Text
+import net.minecraft.world.World
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.mixin.test.TestContextAccessor
 import org.apache.logging.log4j.core.pattern.AnsiEscape
 import java.nio.file.Path
+import javax.swing.text.html.parser.Entity
 
 object TestSnapshotHelper {
     val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
     val testDirectory = projectDirectory.resolve("__snapshots__")
 
-    val gson: Gson = GsonBuilder()
-        .setPrettyPrinting()
-        .registerTypeAdapter(IntList::class.java, IntList.TypeAdapter)
-        .create()
+    val simpleModule = SimpleModule()
+        .addSerializer(IntList::class.java, IntList.JacksonSerializer)
+        .addSerializer(CommandDispatcher::class.java, NullSerializer.instance)
+        .addSerializer(MinecraftServer::class.java, NullSerializer.instance)
+        .addSerializer(World::class.java, ToStringSerializer.instance)
+        .addSerializer(Registry::class.java, ToStringSerializer.instance)
+        .addSerializer(RegistryEntry::class.java, ToStringSerializer.instance)
+        .addSerializer(CommandNode::class.java, MappedToStringSerializer<CommandNode<*>> { it.name })
+        .addSerializer(Entity::class.java, ToStringSerializer.instance)
+        .addSerializer(Block::class.java, ToStringSerializer.instance)
+        .addSerializer(Fluid::class.java, ToStringSerializer.instance)
+        .addSerializer(Item::class.java, ToStringSerializer.instance)
+    val objectMapper = ObjectMapper()
+        .configure(SerializationFeature.INDENT_OUTPUT, true)
+        .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+        .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+        .setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
+        .setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
+        .registerModule(simpleModule)
 
     val ansiNormalSequence = AnsiEscape.createSequence("normal")
     val ansiInsertSequence = AnsiEscape.createSequence("green")
@@ -50,13 +81,21 @@ object TestSnapshotHelper {
         .build()
 
 
+    fun TestContext.assertEqualsSnapshot(value: Any?, idSuffix: String) {
+        assertEqualsSnapshot(value, Text.literal(idSuffix), idSuffix)
+    }
+
     fun TestContext.assertEqualsSnapshot(value: Any?, message: Text, idSuffix: String? = null) {
         val testId = (this as TestContextAccessor).test.instanceEntry.registryKey()
         val fileSuffix = if(idSuffix == null) "" else "_$idSuffix"
         val fileExtension = ".json"
-        val fileName = testId.value.toString() + fileSuffix + fileExtension
+        val fileName = testId.value.namespace + "_" + testId.value.path + fileSuffix + fileExtension
         val file = testDirectory.resolve(fileName).toFile()
-        val jsonValue = gson.toJson(value)
+        val jsonValue = try {
+            objectMapper.writeValueAsString(value)
+        } catch(e: JsonMappingException) {
+            throw createError("Failed to serialize snapshot: ${e.message}")
+        }
         if(!file.exists()) {
             CommandCrafter.LOGGER.warn(Text.translatable("Found no snapshot file for test '%s', creating new snapshot...", fileName).string)
             file.parentFile.mkdirs()
@@ -121,5 +160,12 @@ object TestSnapshotHelper {
             count++
         }
         return count
+    }
+
+    private class MappedToStringSerializer<T>(val mapper: (T) -> Any): ToStringSerializerBase(Any::class.java) {
+        override fun valueToString(value: Any?): String {
+            @Suppress("UNCHECKED_CAST")
+            return mapper(value as T).toString()
+        }
     }
 }

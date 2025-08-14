@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(RegistryEntryArgumentType.class)
 public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, CustomCompletionsCommandNode {
 
-    @Shadow @Final private Codec<RegistryEntry<T>> entryCodec;
+    @Shadow @Final private Codec<T> entryCodec;
     @Shadow @Final private RegistryWrapper.WrapperLookup registries;
     @Shadow @Final private PackratParser<RegistryEntryArgumentType.EntryParser<T, NbtElement>> parser;
     @Shadow @Final private RegistryKey<? extends Registry<T>> registryRef;
@@ -55,9 +55,6 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
-
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         var partialBuilder = new StringRangeTree.PartialBuilder<NbtElement>();
 
@@ -66,7 +63,7 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
         try {
             PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialBuilder));
             PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(true);
-            parsed = parser.parse(readerCopy);
+            parsed = parser.parse(reader);
         } catch(CommandSyntaxException e) {
             parsed = new RegistryEntryArgumentType.DirectParser<>(NbtEnd.INSTANCE);
             var node = partialBuilder.pushNode();
@@ -100,14 +97,14 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
         var isInline = parsed instanceof RegistryEntryArgumentType.DirectParser<T, NbtElement>;
 
         if(command_crafter$inlineOrReferenceCodec == null)
-            command_crafter$inlineOrReferenceCodec = RegistryElementCodec.of(registryRef, entryCodec.xmap(RegistryEntry::value, RegistryEntry::of));
+            command_crafter$inlineOrReferenceCodec = RegistryElementCodec.of(registryRef, entryCodec);
 
         var tree = treeBuilder.build(treeRoot);
         var treeOperations = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
-                readerCopy
+                reader
         )
-                .withSuggestionResolver(new NbtSuggestionResolver(readerCopy, nbtString -> Identifier.tryParse(nbtString.value()) == null))
+                .withSuggestionResolver(new NbtSuggestionResolver(reader, nbtString -> Identifier.tryParse(nbtString.value()) == null))
                 .withRegistry(registries);
         if(!isInline)
             treeOperations = treeOperations.withDiagnosticSeverity(null);

@@ -95,6 +95,19 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         return outputCursors[mappingIndex] + relativeCursor
     }
 
+    fun containsSourceCursor(sourceCursor: Int, endInclusive: Boolean = false) = containsCursor(sourceCursor, sourceCursors, endInclusive)
+
+    fun containsTargetCursor(targetCursor: Int, endInclusive: Boolean = false) = containsCursor(targetCursor, targetCursors, endInclusive)
+
+    private fun containsCursor(inputCursor: Int, inputCursors: IntList, endInclusive: Boolean): Boolean {
+        val endInclusiveOffset = if(endInclusive) 1 else 0
+        return 0 <= inputCursors.binarySearch { index ->
+            if(inputCursors[index] > inputCursor) 1
+            else if (inputCursors[index] + lengths[index] + endInclusiveOffset <= inputCursor) -1
+            else 0
+        }
+    }
+
     fun combineWith(targetMapper: OffsetProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
         val result = SplitProcessedInputCursorMapper()
         if(sourceCursors.isEmpty() || sourceCursors[0] > 0)

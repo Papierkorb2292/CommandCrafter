@@ -23,11 +23,9 @@ public class ItemStackArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> stringReader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = stringReader.copy();
-        readerCopy.setCursor(range.getStart());
         try {
             ((AnalyzingResultDataContainer) reader).command_crafter$setAnalyzingResult(result);
-            ((ItemStringReaderAccessor) reader).callConsume(readerCopy);
+            ((ItemStringReaderAccessor) reader).callConsume(stringReader);
         } finally {
             ((AnalyzingResultDataContainer) reader).command_crafter$setAnalyzingResult(null);
         }

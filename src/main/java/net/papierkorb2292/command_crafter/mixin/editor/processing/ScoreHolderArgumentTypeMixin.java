@@ -19,9 +19,7 @@ public class ScoreHolderArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
-        var selectorReader = new EntitySelectorReader(readerCopy, true);
+        var selectorReader = new EntitySelectorReader(reader, true);
         ((AnalyzingResultDataContainer)selectorReader).command_crafter$setAnalyzingResult(result);
         selectorReader.read();
     }

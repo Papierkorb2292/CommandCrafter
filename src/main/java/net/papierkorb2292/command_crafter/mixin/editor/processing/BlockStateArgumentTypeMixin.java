@@ -26,9 +26,7 @@ public class BlockStateArgumentTypeMixin implements AnalyzingCommandNode {
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
-        var blockArgumentParser = BlockArgumentParserAccessor.callInit(registryWrapper, readerCopy, false, true);
+        var blockArgumentParser = BlockArgumentParserAccessor.callInit(registryWrapper, reader, false, true);
         ((AnalyzingResultCreator)blockArgumentParser).command_crafter$setAnalyzingResult(result);
         ((BlockArgumentParserAccessor)blockArgumentParser).callParse();
     }

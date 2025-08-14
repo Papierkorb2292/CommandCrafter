@@ -64,15 +64,13 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             //noinspection MixinExtrasOperationParameters
             return op.call(id, dispatcher, source, lines);
         }
-        var resourceCreator = command_crafter$resourceCreatorContext == null ? null : new ParsedResourceCreator(id, resourceEntry.getValue().getPackId(), command_crafter$resourceCreatorContext);
+        var resourceCreator = new ParsedResourceCreator(id, resourceEntry.getValue().getPackId());
         var infoSetCallbacks = new ArrayList<Function1<? super ParsedResourceCreator.ResourceStackInfo, Unit>>();
-        if(resourceCreator != null) {
-            resourceCreator.getOriginResourceIdSetEventStack().push((idSetter) -> idSetter.invoke(id));
-            resourceCreator.getOriginResourceInfoSetEventStack().push((infoSetter) -> {
-                infoSetCallbacks.add(infoSetter);
-                return Unit.INSTANCE;
-            });
-        }
+        resourceCreator.getOriginResourceIdSetEventStack().push((idSetter) -> idSetter.invoke(id));
+        resourceCreator.getOriginResourceInfoSetEventStack().push((infoSetter) -> {
+            infoSetCallbacks.add(infoSetter);
+            return Unit.INSTANCE;
+        });
         @SuppressWarnings("unchecked")
         var reader = new DirectiveStringReader<>(new FileMappingInfo(lines, new SplitProcessedInputCursorMapper(), 0, 0), (CommandDispatcher<CommandSource>)(Object)dispatcher, resourceCreator);
         var startCursor = reader.getAbsoluteCursor();
@@ -91,9 +89,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             container.command_crafter$setFileSource(lines, UtilKt.withExtension(id, FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()));
         }
         ParsedResourceCreator.Companion.addResourceCreatorToFunction(function, resourceCreator);
-        if(resourceCreator != null) {
-            resourceCreator.getOriginResourceIdSetEventStack().pop();
-        }
+        resourceCreator.getOriginResourceIdSetEventStack().pop();
         ((FinalTagContentProvider)tagLoader).command_crafter$getFileContent().put(
                 new PackagedId(
                         Identifier.of(id.getNamespace(), PackContentFileType.FUNCTIONS_FILE_TYPE.getContentTypePath() + "/" + id.getPath() + FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()),

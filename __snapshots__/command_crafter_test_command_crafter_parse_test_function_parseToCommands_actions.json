@@ -1,0 +1,2718 @@
+{
+  "varNames" : [ "the_macro" ],
+  "cache" : { },
+  "id" : {
+    "namespace" : "minecraft",
+    "path" : "test"
+  },
+  "lines" : [ {
+    "action" : {
+      "command" : "execute as @a run say HI!",
+      "contextChain" : {
+        "modifiers" : [ {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute as @a run say HI!",
+          "arguments" : {
+            "targets" : {
+              "range" : {
+                "start" : 11,
+                "end" : 13
+              },
+              "result" : {
+                "limit" : 2147483647,
+                "includesNonPlayers" : false,
+                "localWorldOnly" : false,
+                "predicates" : [ ],
+                "distance" : {
+                  "min" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "max" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMin" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMax" : {
+                    "empty" : true,
+                    "present" : false
+                  }
+                },
+                "positionOffset" : { },
+                "sorter" : { },
+                "senderOnly" : false,
+                "entityFilter" : {
+                  "registryEntry" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
+                  "factory" : { },
+                  "spawnGroup" : "MISC",
+                  "canSpawnInside" : [ ],
+                  "saveable" : false,
+                  "summonable" : false,
+                  "fireImmune" : false,
+                  "spawnableFarFromPlayer" : true,
+                  "maxTrackDistance" : 32,
+                  "trackTickInterval" : 2,
+                  "translationKey" : "entity.minecraft.player",
+                  "lootTableKey" : {
+                    "empty" : false,
+                    "present" : true
+                  },
+                  "dimensions" : {
+                    "width" : 0.6,
+                    "height" : 1.8,
+                    "eyeHeight" : 1.62,
+                    "attachments" : {
+                      "points" : {
+                        "PASSENGER" : [ {
+                          "x" : 0.0,
+                          "y" : 1.7999999523162842,
+                          "z" : 0.0
+                        } ],
+                        "VEHICLE" : [ {
+                          "x" : 0.0,
+                          "y" : 0.6,
+                          "z" : 0.0
+                        } ],
+                        "NAME_TAG" : [ {
+                          "x" : 0.0,
+                          "y" : 1.7999999523162842,
+                          "z" : 0.0
+                        } ],
+                        "WARDEN_CHEST" : [ {
+                          "x" : 0.0,
+                          "y" : 0.8999999761581421,
+                          "z" : 0.0
+                        } ]
+                      }
+                    },
+                    "fixed" : false
+                  },
+                  "spawnBoxScale" : 1.0,
+                  "requiredFeatures" : {
+                    "universe" : {
+                      "name" : "main"
+                    },
+                    "featuresMask" : 1
+                  }
+                },
+                "usesAt" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "as",
+            "range" : {
+              "start" : 8,
+              "end" : 10
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "targets",
+            "range" : {
+              "start" : 11,
+              "end" : 13
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 13
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute as @a run say HI!",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 14,
+                "end" : 17
+              },
+              "command_crafter$readCharacters" : 34,
+              "command_crafter$skippedChars" : 0
+            } ],
+            "range" : {
+              "start" : 14,
+              "end" : 17
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute as @a run say HI!",
+              "command" : { },
+              "arguments" : {
+                "message" : {
+                  "range" : {
+                    "start" : 22,
+                    "end" : 25
+                  },
+                  "result" : {
+                    "contents" : "HI!",
+                    "selectors" : [ ]
+                  }
+                }
+              },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "say",
+                "range" : {
+                  "start" : 18,
+                  "end" : 21
+                },
+                "command_crafter$readCharacters" : 34,
+                "command_crafter$skippedChars" : 0
+              }, {
+                "node" : "message",
+                "range" : {
+                  "start" : 22,
+                  "end" : 25
+                },
+                "command_crafter$readCharacters" : 34,
+                "command_crafter$skippedChars" : 0
+              } ],
+              "range" : {
+                "start" : 18,
+                "end" : 25
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : { },
+          "forks" : true
+        }, {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute as @a run say HI!",
+          "arguments" : { },
+          "rootNode" : "execute",
+          "nodes" : [ {
+            "node" : "run",
+            "range" : {
+              "start" : 14,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 14,
+            "end" : 17
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute as @a run say HI!",
+            "command" : { },
+            "arguments" : {
+              "message" : {
+                "range" : {
+                  "start" : 22,
+                  "end" : 25
+                },
+                "result" : {
+                  "contents" : "HI!",
+                  "selectors" : [ ]
+                }
+              }
+            },
+            "rootNode" : "",
+            "nodes" : [ {
+              "node" : "say",
+              "range" : {
+                "start" : 18,
+                "end" : 21
+              },
+              "command_crafter$readCharacters" : 34,
+              "command_crafter$skippedChars" : 0
+            }, {
+              "node" : "message",
+              "range" : {
+                "start" : 22,
+                "end" : 25
+              },
+              "command_crafter$readCharacters" : 34,
+              "command_crafter$skippedChars" : 0
+            } ],
+            "range" : {
+              "start" : 18,
+              "end" : 25
+            },
+            "forks" : false
+          },
+          "forks" : false
+        } ],
+        "executable" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute as @a run say HI!",
+          "command" : { },
+          "arguments" : {
+            "message" : {
+              "range" : {
+                "start" : 22,
+                "end" : 25
+              },
+              "result" : {
+                "contents" : "HI!",
+                "selectors" : [ ]
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "say",
+            "range" : {
+              "start" : 18,
+              "end" : 21
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "message",
+            "range" : {
+              "start" : 22,
+              "end" : 25
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 18,
+            "end" : 25
+          },
+          "forks" : false
+        },
+        "command_crafter$pauseHandlerCreatorIndex" : 1,
+        "command_crafter$isMacro" : false
+      }
+    }
+  }, {
+    "action" : {
+      "command" : "execute if entity @s run tp @s ~ ~1 ~",
+      "contextChain" : {
+        "modifiers" : [ {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "command" : {
+            "arg$1" : { }
+          },
+          "arguments" : {
+            "entities" : {
+              "range" : {
+                "start" : 18,
+                "end" : 20
+              },
+              "result" : {
+                "limit" : 1,
+                "includesNonPlayers" : true,
+                "localWorldOnly" : false,
+                "predicates" : [ ],
+                "distance" : {
+                  "min" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "max" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMin" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMax" : {
+                    "empty" : true,
+                    "present" : false
+                  }
+                },
+                "positionOffset" : { },
+                "sorter" : { },
+                "senderOnly" : true,
+                "entityFilter" : { },
+                "usesAt" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "if",
+            "range" : {
+              "start" : 8,
+              "end" : 10
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entity",
+            "range" : {
+              "start" : 11,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entities",
+            "range" : {
+              "start" : 18,
+              "end" : 20
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 20
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 21,
+                "end" : 24
+              },
+              "command_crafter$readCharacters" : 67,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 21,
+              "end" : 24
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute if entity @s run tp @s ~ ~1 ~",
+              "arguments" : { },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "tp",
+                "range" : {
+                  "start" : 25,
+                  "end" : 27
+                },
+                "command_crafter$readCharacters" : 67,
+                "command_crafter$skippedChars" : 7
+              } ],
+              "range" : {
+                "start" : 25,
+                "end" : 27
+              },
+              "child" : {
+                "source" : {
+                  "output" : null,
+                  "position" : {
+                    "x" : 0.0,
+                    "y" : 0.0,
+                    "z" : 0.0
+                  },
+                  "world" : "ServerLevel[Test Level]",
+                  "level" : 4,
+                  "name" : "Server",
+                  "displayName" : {
+                    "content" : {
+                      "string" : "Server"
+                    },
+                    "siblings" : [ ],
+                    "style" : { },
+                    "ordered" : { }
+                  },
+                  "server" : null,
+                  "silent" : false,
+                  "returnValueConsumer" : { },
+                  "entityAnchor" : "FEET",
+                  "rotation" : {
+                    "x" : 0.0,
+                    "y" : 0.0
+                  },
+                  "signedArguments" : { },
+                  "messageChainTaskQueue" : { }
+                },
+                "input" : "execute if entity @s run tp @s ~ ~1 ~",
+                "command" : { },
+                "arguments" : {
+                  "targets" : {
+                    "range" : {
+                      "start" : 28,
+                      "end" : 30
+                    },
+                    "result" : {
+                      "limit" : 1,
+                      "includesNonPlayers" : true,
+                      "localWorldOnly" : false,
+                      "predicates" : [ ],
+                      "distance" : {
+                        "min" : {
+                          "empty" : true,
+                          "present" : false
+                        },
+                        "max" : {
+                          "empty" : true,
+                          "present" : false
+                        },
+                        "squaredMin" : {
+                          "empty" : true,
+                          "present" : false
+                        },
+                        "squaredMax" : {
+                          "empty" : true,
+                          "present" : false
+                        }
+                      },
+                      "positionOffset" : { },
+                      "sorter" : { },
+                      "senderOnly" : true,
+                      "entityFilter" : { },
+                      "usesAt" : true
+                    }
+                  },
+                  "location" : {
+                    "range" : {
+                      "start" : 31,
+                      "end" : 37
+                    },
+                    "result" : {
+                      "x" : {
+                        "relative" : true,
+                        "value" : 0.0
+                      },
+                      "y" : {
+                        "relative" : true,
+                        "value" : 1.0
+                      },
+                      "z" : {
+                        "relative" : true,
+                        "value" : 0.0
+                      }
+                    }
+                  }
+                },
+                "rootNode" : "teleport",
+                "nodes" : [ {
+                  "node" : "targets",
+                  "range" : {
+                    "start" : 28,
+                    "end" : 30
+                  },
+                  "command_crafter$readCharacters" : 67,
+                  "command_crafter$skippedChars" : 7
+                }, {
+                  "node" : "location",
+                  "range" : {
+                    "start" : 31,
+                    "end" : 37
+                  },
+                  "command_crafter$readCharacters" : 67,
+                  "command_crafter$skippedChars" : 7
+                } ],
+                "range" : {
+                  "start" : 28,
+                  "end" : 37
+                },
+                "forks" : false
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : {
+            "arg$1" : true
+          },
+          "forks" : true
+        }, {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "arguments" : { },
+          "rootNode" : "execute",
+          "nodes" : [ {
+            "node" : "run",
+            "range" : {
+              "start" : 21,
+              "end" : 24
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 21,
+            "end" : 24
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "arguments" : { },
+            "rootNode" : "",
+            "nodes" : [ {
+              "node" : "tp",
+              "range" : {
+                "start" : 25,
+                "end" : 27
+              },
+              "command_crafter$readCharacters" : 67,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 25,
+              "end" : 27
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute if entity @s run tp @s ~ ~1 ~",
+              "command" : { },
+              "arguments" : {
+                "targets" : {
+                  "range" : {
+                    "start" : 28,
+                    "end" : 30
+                  },
+                  "result" : {
+                    "limit" : 1,
+                    "includesNonPlayers" : true,
+                    "localWorldOnly" : false,
+                    "predicates" : [ ],
+                    "distance" : {
+                      "min" : {
+                        "empty" : true,
+                        "present" : false
+                      },
+                      "max" : {
+                        "empty" : true,
+                        "present" : false
+                      },
+                      "squaredMin" : {
+                        "empty" : true,
+                        "present" : false
+                      },
+                      "squaredMax" : {
+                        "empty" : true,
+                        "present" : false
+                      }
+                    },
+                    "positionOffset" : { },
+                    "sorter" : { },
+                    "senderOnly" : true,
+                    "entityFilter" : { },
+                    "usesAt" : true
+                  }
+                },
+                "location" : {
+                  "range" : {
+                    "start" : 31,
+                    "end" : 37
+                  },
+                  "result" : {
+                    "x" : {
+                      "relative" : true,
+                      "value" : 0.0
+                    },
+                    "y" : {
+                      "relative" : true,
+                      "value" : 1.0
+                    },
+                    "z" : {
+                      "relative" : true,
+                      "value" : 0.0
+                    }
+                  }
+                }
+              },
+              "rootNode" : "teleport",
+              "nodes" : [ {
+                "node" : "targets",
+                "range" : {
+                  "start" : 28,
+                  "end" : 30
+                },
+                "command_crafter$readCharacters" : 67,
+                "command_crafter$skippedChars" : 7
+              }, {
+                "node" : "location",
+                "range" : {
+                  "start" : 31,
+                  "end" : 37
+                },
+                "command_crafter$readCharacters" : 67,
+                "command_crafter$skippedChars" : 7
+              } ],
+              "range" : {
+                "start" : 28,
+                "end" : 37
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "forks" : false
+        }, {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "arguments" : { },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "tp",
+            "range" : {
+              "start" : 25,
+              "end" : 27
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 25,
+            "end" : 27
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "command" : { },
+            "arguments" : {
+              "targets" : {
+                "range" : {
+                  "start" : 28,
+                  "end" : 30
+                },
+                "result" : {
+                  "limit" : 1,
+                  "includesNonPlayers" : true,
+                  "localWorldOnly" : false,
+                  "predicates" : [ ],
+                  "distance" : {
+                    "min" : {
+                      "empty" : true,
+                      "present" : false
+                    },
+                    "max" : {
+                      "empty" : true,
+                      "present" : false
+                    },
+                    "squaredMin" : {
+                      "empty" : true,
+                      "present" : false
+                    },
+                    "squaredMax" : {
+                      "empty" : true,
+                      "present" : false
+                    }
+                  },
+                  "positionOffset" : { },
+                  "sorter" : { },
+                  "senderOnly" : true,
+                  "entityFilter" : { },
+                  "usesAt" : true
+                }
+              },
+              "location" : {
+                "range" : {
+                  "start" : 31,
+                  "end" : 37
+                },
+                "result" : {
+                  "x" : {
+                    "relative" : true,
+                    "value" : 0.0
+                  },
+                  "y" : {
+                    "relative" : true,
+                    "value" : 1.0
+                  },
+                  "z" : {
+                    "relative" : true,
+                    "value" : 0.0
+                  }
+                }
+              }
+            },
+            "rootNode" : "teleport",
+            "nodes" : [ {
+              "node" : "targets",
+              "range" : {
+                "start" : 28,
+                "end" : 30
+              },
+              "command_crafter$readCharacters" : 67,
+              "command_crafter$skippedChars" : 7
+            }, {
+              "node" : "location",
+              "range" : {
+                "start" : 31,
+                "end" : 37
+              },
+              "command_crafter$readCharacters" : 67,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 28,
+              "end" : 37
+            },
+            "forks" : false
+          },
+          "forks" : false
+        } ],
+        "executable" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "command" : { },
+          "arguments" : {
+            "targets" : {
+              "range" : {
+                "start" : 28,
+                "end" : 30
+              },
+              "result" : {
+                "limit" : 1,
+                "includesNonPlayers" : true,
+                "localWorldOnly" : false,
+                "predicates" : [ ],
+                "distance" : {
+                  "min" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "max" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMin" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMax" : {
+                    "empty" : true,
+                    "present" : false
+                  }
+                },
+                "positionOffset" : { },
+                "sorter" : { },
+                "senderOnly" : true,
+                "entityFilter" : { },
+                "usesAt" : true
+              }
+            },
+            "location" : {
+              "range" : {
+                "start" : 31,
+                "end" : 37
+              },
+              "result" : {
+                "x" : {
+                  "relative" : true,
+                  "value" : 0.0
+                },
+                "y" : {
+                  "relative" : true,
+                  "value" : 1.0
+                },
+                "z" : {
+                  "relative" : true,
+                  "value" : 0.0
+                }
+              }
+            }
+          },
+          "rootNode" : "teleport",
+          "nodes" : [ {
+            "node" : "targets",
+            "range" : {
+              "start" : 28,
+              "end" : 30
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "location",
+            "range" : {
+              "start" : 31,
+              "end" : 37
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 28,
+            "end" : 37
+          },
+          "forks" : false
+        },
+        "command_crafter$pauseHandlerCreatorIndex" : 1,
+        "command_crafter$isMacro" : false
+      }
+    }
+  }, {
+    "invocation" : {
+      "segments" : [ "say hi to ", " for me" ],
+      "variables" : [ "the_macro" ],
+      "command_crafter$segmentCursorStarts" : [ 0, 22 ]
+    },
+    "variableIndices" : [ 0 ],
+    "source" : {
+      "output" : null,
+      "position" : {
+        "x" : 0.0,
+        "y" : 0.0,
+        "z" : 0.0
+      },
+      "world" : "ServerLevel[Test Level]",
+      "level" : 4,
+      "name" : "Server",
+      "displayName" : {
+        "content" : {
+          "string" : "Server"
+        },
+        "siblings" : [ ],
+        "style" : { },
+        "ordered" : { }
+      },
+      "server" : null,
+      "silent" : false,
+      "returnValueConsumer" : { },
+      "entityAnchor" : "FEET",
+      "rotation" : {
+        "x" : 0.0,
+        "y" : 0.0
+      },
+      "signedArguments" : { },
+      "messageChainTaskQueue" : { }
+    },
+    "command_crafter$pauseHandlerCreatorIndex" : 1,
+    "command_crafter$readCharacters" : 105,
+    "command_crafter$skippedChars" : 7
+  }, {
+    "action" : {
+      "command" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+      "contextChain" : {
+        "modifiers" : [ {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+          "arguments" : {
+            "axes" : {
+              "range" : {
+                "start" : 18,
+                "end" : 21
+              },
+              "result" : [ "X", "Y", "Z" ]
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "align",
+            "range" : {
+              "start" : 12,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "axes",
+            "range" : {
+              "start" : 18,
+              "end" : 21
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 21
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 22,
+                "end" : 25
+              },
+              "command_crafter$readCharacters" : 171,
+              "command_crafter$skippedChars" : 15
+            } ],
+            "range" : {
+              "start" : 22,
+              "end" : 25
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+              "command" : { },
+              "arguments" : {
+                "entity" : {
+                  "range" : {
+                    "start" : 37,
+                    "end" : 58
+                  },
+                  "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+                }
+              },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "summon",
+                "range" : {
+                  "start" : 30,
+                  "end" : 36
+                },
+                "command_crafter$readCharacters" : 171,
+                "command_crafter$skippedChars" : 15
+              }, {
+                "node" : "entity",
+                "range" : {
+                  "start" : 37,
+                  "end" : 58
+                },
+                "command_crafter$readCharacters" : 171,
+                "command_crafter$skippedChars" : 15
+              } ],
+              "range" : {
+                "start" : 30,
+                "end" : 58
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : {
+            "arg$1" : { }
+          },
+          "forks" : false
+        }, {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+          "arguments" : { },
+          "rootNode" : "execute",
+          "nodes" : [ {
+            "node" : "run",
+            "range" : {
+              "start" : 22,
+              "end" : 25
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          } ],
+          "range" : {
+            "start" : 22,
+            "end" : 25
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+            "command" : { },
+            "arguments" : {
+              "entity" : {
+                "range" : {
+                  "start" : 37,
+                  "end" : 58
+                },
+                "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+              }
+            },
+            "rootNode" : "",
+            "nodes" : [ {
+              "node" : "summon",
+              "range" : {
+                "start" : 30,
+                "end" : 36
+              },
+              "command_crafter$readCharacters" : 171,
+              "command_crafter$skippedChars" : 15
+            }, {
+              "node" : "entity",
+              "range" : {
+                "start" : 37,
+                "end" : 58
+              },
+              "command_crafter$readCharacters" : 171,
+              "command_crafter$skippedChars" : 15
+            } ],
+            "range" : {
+              "start" : 30,
+              "end" : 58
+            },
+            "forks" : false
+          },
+          "forks" : false
+        } ],
+        "executable" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+          "command" : { },
+          "arguments" : {
+            "entity" : {
+              "range" : {
+                "start" : 37,
+                "end" : 58
+              },
+              "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "summon",
+            "range" : {
+              "start" : 30,
+              "end" : 36
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "entity",
+            "range" : {
+              "start" : 37,
+              "end" : 58
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          } ],
+          "range" : {
+            "start" : 30,
+            "end" : 58
+          },
+          "forks" : false
+        },
+        "command_crafter$pauseHandlerCreatorIndex" : 3,
+        "command_crafter$isMacro" : false
+      }
+    }
+  } ],
+  "command_crafter$documentation" : " This is a doc comment\n",
+  "command_crafter$debugInformation" : {
+    "delegateDebugInformations" : [ { }, {
+      "elements" : [ {
+        "rootContext" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute as @a run say HI!",
+          "arguments" : {
+            "targets" : {
+              "range" : {
+                "start" : 11,
+                "end" : 13
+              },
+              "result" : {
+                "limit" : 2147483647,
+                "includesNonPlayers" : false,
+                "localWorldOnly" : false,
+                "predicates" : [ ],
+                "distance" : {
+                  "min" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "max" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMin" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMax" : {
+                    "empty" : true,
+                    "present" : false
+                  }
+                },
+                "positionOffset" : { },
+                "sorter" : { },
+                "senderOnly" : false,
+                "entityFilter" : {
+                  "registryEntry" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
+                  "factory" : { },
+                  "spawnGroup" : "MISC",
+                  "canSpawnInside" : [ ],
+                  "saveable" : false,
+                  "summonable" : false,
+                  "fireImmune" : false,
+                  "spawnableFarFromPlayer" : true,
+                  "maxTrackDistance" : 32,
+                  "trackTickInterval" : 2,
+                  "translationKey" : "entity.minecraft.player",
+                  "lootTableKey" : {
+                    "empty" : false,
+                    "present" : true
+                  },
+                  "dimensions" : {
+                    "width" : 0.6,
+                    "height" : 1.8,
+                    "eyeHeight" : 1.62,
+                    "attachments" : {
+                      "points" : {
+                        "PASSENGER" : [ {
+                          "x" : 0.0,
+                          "y" : 1.7999999523162842,
+                          "z" : 0.0
+                        } ],
+                        "VEHICLE" : [ {
+                          "x" : 0.0,
+                          "y" : 0.6,
+                          "z" : 0.0
+                        } ],
+                        "NAME_TAG" : [ {
+                          "x" : 0.0,
+                          "y" : 1.7999999523162842,
+                          "z" : 0.0
+                        } ],
+                        "WARDEN_CHEST" : [ {
+                          "x" : 0.0,
+                          "y" : 0.8999999761581421,
+                          "z" : 0.0
+                        } ]
+                      }
+                    },
+                    "fixed" : false
+                  },
+                  "spawnBoxScale" : 1.0,
+                  "requiredFeatures" : {
+                    "universe" : {
+                      "name" : "main"
+                    },
+                    "featuresMask" : 1
+                  }
+                },
+                "usesAt" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "as",
+            "range" : {
+              "start" : 8,
+              "end" : 10
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "targets",
+            "range" : {
+              "start" : 11,
+              "end" : 13
+            },
+            "command_crafter$readCharacters" : 34,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 13
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute as @a run say HI!",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 14,
+                "end" : 17
+              },
+              "command_crafter$readCharacters" : 34,
+              "command_crafter$skippedChars" : 0
+            } ],
+            "range" : {
+              "start" : 14,
+              "end" : 17
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute as @a run say HI!",
+              "command" : { },
+              "arguments" : {
+                "message" : {
+                  "range" : {
+                    "start" : 22,
+                    "end" : 25
+                  },
+                  "result" : {
+                    "contents" : "HI!",
+                    "selectors" : [ ]
+                  }
+                }
+              },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "say",
+                "range" : {
+                  "start" : 18,
+                  "end" : 21
+                },
+                "command_crafter$readCharacters" : 34,
+                "command_crafter$skippedChars" : 0
+              }, {
+                "node" : "message",
+                "range" : {
+                  "start" : 22,
+                  "end" : 25
+                },
+                "command_crafter$readCharacters" : 34,
+                "command_crafter$skippedChars" : 0
+              } ],
+              "range" : {
+                "start" : 18,
+                "end" : 25
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : { },
+          "forks" : true
+        },
+        "isMacro" : false,
+        "argumentBreakpointParserSuppliers" : { }
+      }, {
+        "rootContext" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "command" : {
+            "arg$1" : { }
+          },
+          "arguments" : {
+            "entities" : {
+              "range" : {
+                "start" : 18,
+                "end" : 20
+              },
+              "result" : {
+                "limit" : 1,
+                "includesNonPlayers" : true,
+                "localWorldOnly" : false,
+                "predicates" : [ ],
+                "distance" : {
+                  "min" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "max" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMin" : {
+                    "empty" : true,
+                    "present" : false
+                  },
+                  "squaredMax" : {
+                    "empty" : true,
+                    "present" : false
+                  }
+                },
+                "positionOffset" : { },
+                "sorter" : { },
+                "senderOnly" : true,
+                "entityFilter" : { },
+                "usesAt" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "if",
+            "range" : {
+              "start" : 8,
+              "end" : 10
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entity",
+            "range" : {
+              "start" : 11,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entities",
+            "range" : {
+              "start" : 18,
+              "end" : 20
+            },
+            "command_crafter$readCharacters" : 67,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 20
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 21,
+                "end" : 24
+              },
+              "command_crafter$readCharacters" : 67,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 21,
+              "end" : 24
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute if entity @s run tp @s ~ ~1 ~",
+              "arguments" : { },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "tp",
+                "range" : {
+                  "start" : 25,
+                  "end" : 27
+                },
+                "command_crafter$readCharacters" : 67,
+                "command_crafter$skippedChars" : 7
+              } ],
+              "range" : {
+                "start" : 25,
+                "end" : 27
+              },
+              "child" : {
+                "source" : {
+                  "output" : null,
+                  "position" : {
+                    "x" : 0.0,
+                    "y" : 0.0,
+                    "z" : 0.0
+                  },
+                  "world" : "ServerLevel[Test Level]",
+                  "level" : 4,
+                  "name" : "Server",
+                  "displayName" : {
+                    "content" : {
+                      "string" : "Server"
+                    },
+                    "siblings" : [ ],
+                    "style" : { },
+                    "ordered" : { }
+                  },
+                  "server" : null,
+                  "silent" : false,
+                  "returnValueConsumer" : { },
+                  "entityAnchor" : "FEET",
+                  "rotation" : {
+                    "x" : 0.0,
+                    "y" : 0.0
+                  },
+                  "signedArguments" : { },
+                  "messageChainTaskQueue" : { }
+                },
+                "input" : "execute if entity @s run tp @s ~ ~1 ~",
+                "command" : { },
+                "arguments" : {
+                  "targets" : {
+                    "range" : {
+                      "start" : 28,
+                      "end" : 30
+                    },
+                    "result" : {
+                      "limit" : 1,
+                      "includesNonPlayers" : true,
+                      "localWorldOnly" : false,
+                      "predicates" : [ ],
+                      "distance" : {
+                        "min" : {
+                          "empty" : true,
+                          "present" : false
+                        },
+                        "max" : {
+                          "empty" : true,
+                          "present" : false
+                        },
+                        "squaredMin" : {
+                          "empty" : true,
+                          "present" : false
+                        },
+                        "squaredMax" : {
+                          "empty" : true,
+                          "present" : false
+                        }
+                      },
+                      "positionOffset" : { },
+                      "sorter" : { },
+                      "senderOnly" : true,
+                      "entityFilter" : { },
+                      "usesAt" : true
+                    }
+                  },
+                  "location" : {
+                    "range" : {
+                      "start" : 31,
+                      "end" : 37
+                    },
+                    "result" : {
+                      "x" : {
+                        "relative" : true,
+                        "value" : 0.0
+                      },
+                      "y" : {
+                        "relative" : true,
+                        "value" : 1.0
+                      },
+                      "z" : {
+                        "relative" : true,
+                        "value" : 0.0
+                      }
+                    }
+                  }
+                },
+                "rootNode" : "teleport",
+                "nodes" : [ {
+                  "node" : "targets",
+                  "range" : {
+                    "start" : 28,
+                    "end" : 30
+                  },
+                  "command_crafter$readCharacters" : 67,
+                  "command_crafter$skippedChars" : 7
+                }, {
+                  "node" : "location",
+                  "range" : {
+                    "start" : 31,
+                    "end" : 37
+                  },
+                  "command_crafter$readCharacters" : 67,
+                  "command_crafter$skippedChars" : 7
+                } ],
+                "range" : {
+                  "start" : 28,
+                  "end" : 37
+                },
+                "forks" : false
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : {
+            "arg$1" : true
+          },
+          "forks" : true
+        },
+        "isMacro" : false,
+        "argumentBreakpointParserSuppliers" : { }
+      }, {
+        "elementIndex" : 2,
+        "macroFileRange" : {
+          "start" : 105,
+          "end" : 143
+        },
+        "macroLine" : {
+          "invocation" : {
+            "segments" : [ "say hi to ", " for me" ],
+            "variables" : [ "the_macro" ],
+            "command_crafter$segmentCursorStarts" : [ 0, 22 ]
+          },
+          "variableIndices" : [ 0 ],
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "command_crafter$pauseHandlerCreatorIndex" : 1,
+          "command_crafter$readCharacters" : 105,
+          "command_crafter$skippedChars" : 7
+        },
+        "fileCursorMapper" : {
+          "sourceCursors" : [ 34, 60, 88, 105, 137 ],
+          "targetCursors" : [ 34, 60, 81, 98, 122 ],
+          "lengths" : [ 25, 21, 16, 24, 6 ],
+          "expandedCharEnds" : { },
+          "prevSourceEnd" : 143,
+          "prevTargetEnd" : 128
+        },
+        "macroSkippedChars" : 7
+      } ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand " ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 105, 137 ],
+            "targetCursors" : [ 34, 60, 81, 98, 122 ],
+            "lengths" : [ 25, 21, 16, 24, 6 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 143,
+            "prevTargetEnd" : 128
+          },
+          "readCharacters" : 231,
+          "skippedChars" : 15,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 11,
+        "onlyReadEscapedMultiline" : false,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 11,
+          "character" : 34
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand " ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 105, 137 ],
+            "targetCursors" : [ 34, 60, 81, 98, 122 ],
+            "lengths" : [ 25, 21, 16, 24, 6 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 143,
+            "prevTargetEnd" : 128
+          },
+          "readCharacters" : 231,
+          "skippedChars" : 15,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 11,
+        "onlyReadEscapedMultiline" : false,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 11,
+          "character" : 34
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ {
+        "rootContext" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+          "arguments" : {
+            "axes" : {
+              "range" : {
+                "start" : 18,
+                "end" : 21
+              },
+              "result" : [ "X", "Y", "Z" ]
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "align",
+            "range" : {
+              "start" : 12,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "axes",
+            "range" : {
+              "start" : 18,
+              "end" : 21
+            },
+            "command_crafter$readCharacters" : 171,
+            "command_crafter$skippedChars" : 15
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 21
+          },
+          "child" : {
+            "source" : {
+              "output" : null,
+              "position" : {
+                "x" : 0.0,
+                "y" : 0.0,
+                "z" : 0.0
+              },
+              "world" : "ServerLevel[Test Level]",
+              "level" : 4,
+              "name" : "Server",
+              "displayName" : {
+                "content" : {
+                  "string" : "Server"
+                },
+                "siblings" : [ ],
+                "style" : { },
+                "ordered" : { }
+              },
+              "server" : null,
+              "silent" : false,
+              "returnValueConsumer" : { },
+              "entityAnchor" : "FEET",
+              "rotation" : {
+                "x" : 0.0,
+                "y" : 0.0
+              },
+              "signedArguments" : { },
+              "messageChainTaskQueue" : { }
+            },
+            "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 22,
+                "end" : 25
+              },
+              "command_crafter$readCharacters" : 171,
+              "command_crafter$skippedChars" : 15
+            } ],
+            "range" : {
+              "start" : 22,
+              "end" : 25
+            },
+            "child" : {
+              "source" : {
+                "output" : null,
+                "position" : {
+                  "x" : 0.0,
+                  "y" : 0.0,
+                  "z" : 0.0
+                },
+                "world" : "ServerLevel[Test Level]",
+                "level" : 4,
+                "name" : "Server",
+                "displayName" : {
+                  "content" : {
+                    "string" : "Server"
+                  },
+                  "siblings" : [ ],
+                  "style" : { },
+                  "ordered" : { }
+                },
+                "server" : null,
+                "silent" : false,
+                "returnValueConsumer" : { },
+                "entityAnchor" : "FEET",
+                "rotation" : {
+                  "x" : 0.0,
+                  "y" : 0.0
+                },
+                "signedArguments" : { },
+                "messageChainTaskQueue" : { }
+              },
+              "input" : "execute\n    align xyz run\n    summon minecraft:armor_stand",
+              "command" : { },
+              "arguments" : {
+                "entity" : {
+                  "range" : {
+                    "start" : 37,
+                    "end" : 58
+                  },
+                  "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+                }
+              },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "summon",
+                "range" : {
+                  "start" : 30,
+                  "end" : 36
+                },
+                "command_crafter$readCharacters" : 171,
+                "command_crafter$skippedChars" : 15
+              }, {
+                "node" : "entity",
+                "range" : {
+                  "start" : 37,
+                  "end" : 58
+                },
+                "command_crafter$readCharacters" : 171,
+                "command_crafter$skippedChars" : 15
+              } ],
+              "range" : {
+                "start" : 30,
+                "end" : 58
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : {
+            "arg$1" : { }
+          },
+          "forks" : false
+        },
+        "isMacro" : false,
+        "argumentBreakpointParserSuppliers" : { }
+      } ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand " ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 105, 137 ],
+            "targetCursors" : [ 34, 60, 81, 98, 122 ],
+            "lengths" : [ 25, 21, 16, 24, 6 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 143,
+            "prevTargetEnd" : 128
+          },
+          "readCharacters" : 231,
+          "skippedChars" : 15,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 11,
+        "onlyReadEscapedMultiline" : false,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 11,
+          "character" : 34
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    } ],
+    "pauseHandlerSelector" : { }
+  }
+}

@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -19,22 +20,21 @@ class SimpleCompletionItemProvider(
     override fun invoke(offset: Int): CompletableFuture<List<CompletionItem>>
         = CompletableFuture.completedFuture(listOf(createCompletionItem(offset)))
 
-    private fun createCompletionItem(offset: Int): CompletionItem {
+    private fun createCompletionItem(sourceCursor: Int): CompletionItem {
         // Adjusting the insert start if the cursor is before the insert start
-        val adjustedInsertStart = min(insertStart + mappingInfo.readSkippingChars, offset)
+        val adjustedInsertStart = min(
+            mappingInfo.cursorMapper.mapToSource(insertStart + mappingInfo.readSkippingChars),
+            sourceCursor
+        )
         val insertStartPos = AnalyzingResult.getPositionFromCursor(
-            mappingInfo.cursorMapper.mapToSource(adjustedInsertStart),
+            adjustedInsertStart,
             mappingInfo
         )
         val insertEndPos = AnalyzingResult.getPositionFromCursor(
-            mappingInfo.cursorMapper.mapToSource(offset),
+            sourceCursor,
             mappingInfo
         )
-        val clampedInsertStartPos = if(insertStartPos.line < insertEndPos.line) {
-            Position(insertEndPos.line, 0)
-        } else {
-            insertStartPos
-        }
+        val clampedInsertStartPos = insertStartPos.clampCompletionToCursor(insertEndPos.line, sourceCursor, mappingInfo)
 
         val replaceEnd = replaceEndProvider()
             ?: return CompletionItem().also {
@@ -48,11 +48,8 @@ class SimpleCompletionItemProvider(
             mappingInfo.cursorMapper.mapToSource(replaceEnd + mappingInfo.readSkippingChars),
             mappingInfo
         )
-        val clampedReplaceEndPos = if(replaceEndPos.line > insertEndPos.line) {
-            Position(insertEndPos.line, mappingInfo.lines[insertEndPos.line].length)
-        } else {
-            replaceEndPos
-        }
+        val clampedReplaceEndPos = replaceEndPos.clampCompletionToCursor(insertEndPos.line, sourceCursor, mappingInfo)
+
         return CompletionItem().also {
             it.label = label
             it.filterText = text

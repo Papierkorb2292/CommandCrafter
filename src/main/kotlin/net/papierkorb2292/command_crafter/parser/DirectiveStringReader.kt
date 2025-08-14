@@ -43,17 +43,46 @@ class DirectiveStringReader<out ResourceCreator>(
     override val currentLine
         get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, lines, zeroBased = false).line
     var onlyReadEscapedMultiline = false
-        set(value) {
-            if(value == field) return
-            field = value
-            if(value) {
-                if(string.endsWith('\n'))
-                    setString(string.substring(0, string.length - 1))
-            } else if(nextLine < lines.size) {
-                setString(string + '\n')
-            }
-        }
+        private set
+    private var escapedMultilineTrimmed: String? = null
 
+    fun convertInputToEscapedMultiline() {
+        if(!onlyReadEscapedMultiline) {
+            onlyReadEscapedMultiline = true
+            // Newline characters are not saved in escapedMultilineTrimmed
+            // such that they are not added back in by disableTrimmingFromEscapedMultiline (only by disableEscapedMultiline),
+            // which means that parsers like VanillaLanguage.tryAnalyzeNextNode can use the trailing
+            // space without worrying about accidentally going to the next line
+            if(string.endsWith('\n'))
+                setString(string.substring(0, string.length - 1))
+
+            val old = string
+            setString(old.trimEnd())
+            escapedMultilineTrimmed = old.substring(string.length)
+        }
+    }
+
+    fun disableEscapedMultiline() {
+        if(onlyReadEscapedMultiline) {
+            onlyReadEscapedMultiline = false
+            if(escapedMultilineTrimmed != null)
+                disableTrimmingFromEscapedMultiline()
+            if(nextLine < lines.size)
+                string += '\n'
+        }
+    }
+
+    fun disableTrimmingFromEscapedMultiline() {
+        setString(string + escapedMultilineTrimmed!!)
+        // Extend cursorMapper to include the previously trimmed string.
+        // If this weren't done, a new mapping would be created upon reading the trimmed data,
+        // which would have an incorrect offset to an invalid readCharacters and skippedChars value (they already include skipping the trimmed string)
+        val trimmedLength = escapedMultilineTrimmed!!.length
+        cursorMapper.lengths[cursorMapper.lengths.size - 1] += trimmedLength
+        cursorMapper.prevTargetEnd += trimmedLength
+        cursorMapper.prevSourceEnd += trimmedLength
+        escapedMultilineTrimmed = null
+    }
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
         if(onlyReadEscapedMultiline) {
@@ -65,6 +94,8 @@ class DirectiveStringReader<out ResourceCreator>(
             }
             if(firstLineMappingMissing)
                 cursorMapper.addMapping(absoluteCursor, skippingCursor, remainingLength - 1)
+            skippedChars += escapedMultilineTrimmed!!.length
+            readCharacters += escapedMultilineTrimmed!!.length
             while(true) {
                 if(nextLine >= lines.size)
                     throw IllegalArgumentException("Line continuation at end of file")
@@ -79,12 +110,13 @@ class DirectiveStringReader<out ResourceCreator>(
                         readSkippingChars + string.length,
                         0
                     )
+                    escapedMultilineTrimmed = line
                     break
                 }
                 val contentEnd = line.indexOfLast { !it.isWhitespace() }
                 val hasBackslash = line[contentEnd] == '\\'
-                // Only remove ending whitespace if it is after a backslash, such that in lines without a backslash suggestions still work at the end
-                val trimmed = if(hasBackslash) line.substring(indent, contentEnd+1) else line.substring(indent)
+                val trimmed = line.substring(indent, contentEnd+1)
+                escapedMultilineTrimmed = line.substring(contentEnd+1)
                 cursorMapper.addMapping(
                     readCharacters + string.length + indent + 2,
                     readSkippingChars + string.length,
@@ -230,11 +262,12 @@ class DirectiveStringReader<out ResourceCreator>(
 
     inline fun <Result> withNoMultilineRestriction(reader: (DirectiveStringReader<ResourceCreator>) -> Result): Result {
         val prevOnlyReadEscapedMultiline = onlyReadEscapedMultiline
-        onlyReadEscapedMultiline = false
+        disableEscapedMultiline()
         try {
             return reader(this)
         } finally {
-            onlyReadEscapedMultiline = prevOnlyReadEscapedMultiline
+            if(prevOnlyReadEscapedMultiline)
+                convertInputToEscapedMultiline()
         }
     }
 
@@ -269,6 +302,7 @@ class DirectiveStringReader<out ResourceCreator>(
             it.currentIndentation = currentIndentation
             it.nextLine = nextLine
             it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
+            it.escapedMultilineTrimmed = escapedMultilineTrimmed
         }
     }
 
@@ -278,6 +312,7 @@ class DirectiveStringReader<out ResourceCreator>(
         skippedChars = other.skippedChars
         setString(other.string)
         nextLine = other.nextLine
+        escapedMultilineTrimmed = other.escapedMultilineTrimmed
     }
 
     fun onlyCurrentLine() : DirectiveStringReader<ResourceCreator> {

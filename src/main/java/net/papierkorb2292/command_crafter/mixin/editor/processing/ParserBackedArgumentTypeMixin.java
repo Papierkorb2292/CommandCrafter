@@ -25,15 +25,13 @@ public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingComma
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var readerCopy = reader.copy();
-        readerCopy.setCursor(range.getStart());
         PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()));
         PackratParserAdditionalArgs.INSTANCE.setupFurthestAnalyzingResultStart();
         PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(true);
 
         try {
             try {
-                parse(readerCopy);
+                parse(reader);
             } catch(CommandSyntaxException ignored) {}
 
             var parsedAnalyzingResult = PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().get().getAnalyzingResult();
@@ -41,15 +39,14 @@ public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingComma
             if(furthestAnalyzingResult == null) furthestAnalyzingResult = parsedAnalyzingResult;
             result.combineWithExceptCompletions(furthestAnalyzingResult);
 
-            result.addCompletionProvider(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, new AnalyzingResult.RangedDataProvider<>(range, cursor -> {
-                var sourceCursor = readerCopy.getCursorMapper().mapToSource(cursor, false);
+            result.addCompletionProviderWithContinuosMapping(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, new AnalyzingResult.RangedDataProvider<>(range, sourceCursor -> {
                 var completionProvider = parsedAnalyzingResult.getCompletionProviderForCursor(sourceCursor);
                 if(completionProvider == null)
                     return CompletableFuture.completedFuture(Collections.emptyList());
                 var completionFuture = completionProvider.getDataProvider().invoke(sourceCursor);
                 // Make completions unique, because packrat parsing can result in duplicated completions
                 return completionFuture.thenApply(completions -> new ArrayList<>(new LinkedHashSet<>(completions)));
-            }), true);
+            }));
         } finally {
             PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
             PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();

@@ -196,6 +196,7 @@
     "parser.vanilla_improved.StringLiteralMixin",
     "parser.vanilla_improved.TagGroupLoaderTrackedEntryMixin",
     "parser.vanilla_improved.TagKeyAccessor",
+    "parser.vanilla_improved.TokenParsingRuleMixin",
     "test.TestContextAccessor"
   ]
 }

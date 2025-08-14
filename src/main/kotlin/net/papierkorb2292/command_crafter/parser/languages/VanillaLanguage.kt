@@ -92,9 +92,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
                 resource.content += Either.left("$${macro}\n")
             } else {
-                reader.onlyReadEscapedMultiline = !easyNewLine
+                if(!easyNewLine)
+                    reader.convertInputToEscapedMultiline()
                 val parsed = parseCommand(reader, source)
-                reader.onlyReadEscapedMultiline = false
+                reader.disableEscapedMultiline()
                 val string = parsed.reader.string
                 val contextChain = ContextChain.tryFlatten(parsed.context.build(string))
                 if(contextChain.isEmpty) {
@@ -170,10 +171,17 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 //Let command start at cursor 0, so completions don't overlap with suggestRootNode
                 reader.cutReadChars()
 
-                reader.onlyReadEscapedMultiline = !easyNewLine
+                if(!easyNewLine)
+                    reader.convertInputToEscapedMultiline()
                 val parseResults = reader.dispatcher.parse(reader, source)
                 advanceToParseResults(parseResults, reader)
+                if(!easyNewLine) {
+                    // Add back trimmed chars so suggestions are placed correctly
+                    reader.disableTrimmingFromEscapedMultiline()
+                }
                 analyzeParsedCommand(parseResults, result, reader)
+                // Skip any spaces from disableTrimmingFromEscapedMultiline so they aren't interpreted as trailing data
+                reader.skipSpaces()
 
                 val exception = parseResults.exceptions.entries.maxByOrNull { it.value.cursor }
                 if(exception != null)
@@ -183,7 +191,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
                     }
-                } else if (reader.canRead()) {
+                } else if (reader.canRead() && reader.peek() != '\n' && !reader.scopeStack.element().closure.endsClosure(reader)) {
                     if(parseResults.context.range.isEmpty)
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand()
                             .createWithContext(parseResults.reader)
@@ -197,7 +205,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
 
                 if(easyNewLine) {
-                    reader.skipSpaces()
                     if(!reader.canRead() || reader.scopeStack.element().closure.endsClosure(reader)) {
                         // Analyze last whitespace and then loop should end
                         continue
@@ -206,7 +213,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(reader)
                     } else reader.skip()
                 } else {
-                    reader.onlyReadEscapedMultiline = false
+                    reader.disableEscapedMultiline()
                     if(!reader.canRead() || reader.scopeStack.element().closure.endsClosure(reader)) {
                         // Analyze last whitespace and then loop should end
                         continue
@@ -221,7 +228,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 } else {
                     reader.cursor
                 }
-                reader.onlyReadEscapedMultiline = false
+                reader.disableEscapedMultiline()
                 val startPosition =
                     AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.readSkippingChars + exceptionCursor), reader.lines)
                 result.diagnostics += Diagnostic(
@@ -277,9 +284,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 if(reader.canRead(0) && reader.peek(-1) != '\n')
                     break
             }
-            reader.onlyReadEscapedMultiline = !easyNewLine
+            if(!easyNewLine)
+                reader.convertInputToEscapedMultiline()
             val parsed = parseCommand(reader, source)
-            reader.onlyReadEscapedMultiline = false
+            if(!easyNewLine) {
+                reader.disableEscapedMultiline()
+                reader.skipWhitespace()
+            }
             val string = parsed.reader.string
             val contextChain = ContextChain.tryFlatten(parsed.context.build(string)).orElseThrow {
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
@@ -352,9 +363,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     private fun readMacro(reader: DirectiveStringReader<*>): String {
         if(!reader.canRead()) return ""
         if(!easyNewLine) {
-            reader.onlyReadEscapedMultiline = true
+            reader.convertInputToEscapedMultiline()
             val macro = reader.readLine()
-            reader.onlyReadEscapedMultiline = false
+            reader.disableEscapedMultiline()
             return if(macro.startsWith('$')) macro.substring(1) else macro
         }
         reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.nextLineEnd - reader.cursor)
@@ -494,6 +505,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 parsedRootNode.node,
                 parsedRootNode.range.start
             ),
+            false,
             completionsChannel = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL
         )
     }
@@ -559,9 +571,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         contextBuilder: CommandContextBuilder<CommandSource>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        skipAnalyzedChars: Boolean = false,
     ) {
-        val initialReadCharacters = reader.readCharacters
-        val initialSkippedChars = reader.skippedChars
         val commandInput = reader.string
         val context = contextBuilder.build(commandInput)
         val node = parsedNode.node
@@ -573,46 +584,45 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             context.source
         )
         if (node is AnalyzingCommandNode) {
-            reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
-            reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
-            val completionReader = reader.copy()
+            val analyzeReader = reader.copy()
+            analyzeReader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
+            analyzeReader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+            analyzeReader.cursor = parsedNode.range.start;
+            val nodeAnalyzingResult = analyzingResult.copyInput()
             try {
-                val nodeAnalyzingResult = analyzingResult.copyInput()
-                try {
-                    node.`command_crafter$analyze`(
-                        context,
-                        StringRange(
-                            parsedNode.range.start,
-                            MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-                        ),
-                        reader,
-                        nodeAnalyzingResult,
-                        node.name
-                    )
-                } catch(e: Exception) {
-                    CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
-                }
-                if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
-                        context,
-                        node.name
-                    )
-                ) {
-                    analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
-                    addNodeSuggestions(
-                        parentNode,
-                        analyzingResult,
-                        parsedNode.range,
-                        completionReader,
-                        contextBuilder,
-                        nodeAnalyzingResult,
-                        rootSuggestionsResult
-                    )
-                } else {
-                    analyzingResult.combineWith(nodeAnalyzingResult)
-                }
-            } finally {
-                reader.readCharacters = initialReadCharacters
-                reader.skippedChars = initialSkippedChars
+                node.`command_crafter$analyze`(
+                    context,
+                    StringRange(
+                        parsedNode.range.start,
+                        MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                    ),
+                    analyzeReader,
+                    nodeAnalyzingResult,
+                    node.name
+                )
+            } catch(e: Exception) {
+                CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+            }
+            if(skipAnalyzedChars)
+                reader.cursor = analyzeReader.cursor
+            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
+                    context,
+                    node.name
+                )
+            ) {
+                analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
+                addNodeSuggestions(
+                    parentNode,
+                    analyzingResult,
+                    parsedNode.range,
+                    analyzeReader,
+                    contextBuilder,
+                    !easyNewLine,
+                    nodeAnalyzingResult,
+                    rootSuggestionsResult
+                )
+            } else {
+                analyzingResult.combineWith(nodeAnalyzingResult)
             }
         } else {
             analyzingResult.combineWithCompletionProviders(rootSuggestionsResult)
@@ -625,25 +635,27 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         parsedNodeRange: StringRange,
         completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
         contextBuilder: CommandContextBuilder<CommandSource>,
+        clampInCursorMapperGaps: Boolean,
         additionalCompletions: AnalyzingResult? = null,
         rootCompletions: AnalyzingResult? = null,
         completionsChannel: String = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
-        analyzingResult.addCompletionProvider(
+        analyzingResult.addCompletionProviderWithContinuosMapping(
             completionsChannel,
             AnalyzingResult.RangedDataProvider(
                 StringRange(
                     parentNode.range.end + 1,
                     parsedNodeRange.end
                 )
-            ) { cursor ->
-                val sourceCursor = analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor)
+            ) { sourceCursor ->
                 val rootCompletionProvider = rootCompletions?.getCompletionProviderForCursor(sourceCursor)
                 if(rootCompletionProvider != null)
                     return@RangedDataProvider rootCompletionProvider.dataProvider(sourceCursor)
 
-                val endCursor = cursor - completionReader.readSkippingChars
+                val lineNumber = AnalyzingResult.getPositionFromCursor(sourceCursor, completionReader.fileMappingInfo).line
+                val targetCursor = completionReader.cursorMapper.mapToTarget(sourceCursor, clampInCursorMapperGaps)
+                val endCursor = targetCursor - completionReader.readSkippingChars
                 val truncatedInput = completionReader.string
                     .substring(0, min(endCursor, completionReader.string.length))
                 // The string is extended to a length that covers the cursor (only happens for root suggestions, otherwise the cursor is already contained),
@@ -673,7 +685,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }.thenApply {
                     SUGGESTIONS_FULL_INPUT.remove()
                     val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
-                        it.toCompletionItem(completionReader)
+                        it.toCompletionItem(completionReader, lineNumber, sourceCursor)
                     } + suggestionFutures.flatMap {
                         (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                             ?: emptyList()
@@ -700,8 +712,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 ) { commandCompletions, additionalCompletions ->
                     commandCompletions + additionalCompletions
                 }
-            },
-            true
+            }
         )
     }
 
@@ -769,8 +780,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             parentNode,
             furthestParsedContext,
             analyzingResult,
-            furthestParsedReader
+            furthestParsedReader,
+            true // Ensure that the next command only starts after the end of this argument, so their AnalyzingResult contents don't intersect
         )
+        reader.copyFrom(furthestParsedReader)
     }
 
     object VanillaLanguageType : LanguageManager.LanguageType {

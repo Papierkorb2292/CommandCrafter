@@ -171,7 +171,7 @@ class StringRangeTree<TNode: Any>(
             // Make sure to not overlap with the next entry
             val newEndCursor = if(i + 1 < sorted.size) {
                 val nextRange = sorted[i + 1].first
-                min(extendedEndCursor, nextRange.start)
+                min(extendedEndCursor, nextRange.start - 1)
             } else extendedEndCursor
 
             var suggestionStart = range.start
@@ -179,13 +179,12 @@ class StringRangeTree<TNode: Any>(
             while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= newEndCursor) {
                 if(suggestionStart <= nextSuggestionInsertRange.start) {
                     val preInsertEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
-                    result.addCompletionProvider(
+                    result.addCompletionProviderWithContinuosMapping(
                         AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                         AnalyzingResult.RangedDataProvider(
                             StringRange(suggestionStart, preInsertEndCursor),
                             CombinedCompletionItemProvider(suggestions.map { it.completionItemProvider })
-                        ),
-                        true
+                        )
                     )
                 }
                 result.combineWithCompletionProviders(nextSuggestionInsert)
@@ -199,13 +198,12 @@ class StringRangeTree<TNode: Any>(
                     nextSuggestionInsert = null
                 }
             }
-            result.addCompletionProvider(
+            result.addCompletionProviderWithContinuosMapping(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                 AnalyzingResult.RangedDataProvider(
                     StringRange(suggestionStart, newEndCursor),
                     CombinedCompletionItemProvider(suggestions.map { it.completionItemProvider })
-                ),
-                true
+                )
             )
         }
 
