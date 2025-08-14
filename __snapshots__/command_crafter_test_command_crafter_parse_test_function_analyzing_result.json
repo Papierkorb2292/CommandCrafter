@@ -4,10 +4,10 @@
     "cursorMapper" : {
       "sourceCursors" : [ 34, 60, 88, 105, 137 ],
       "targetCursors" : [ 34, 60, 81, 98, 122 ],
-      "lengths" : [ 26, 21, 17, 24, 7 ],
+      "lengths" : [ 25, 21, 16, 24, 6 ],
       "expandedCharEnds" : { },
-      "prevSourceEnd" : 144,
-      "prevTargetEnd" : 129
+      "prevSourceEnd" : 143,
+      "prevTargetEnd" : 128
     },
     "readCharacters" : 171,
     "skippedChars" : 15,
@@ -19,17 +19,16 @@
       "cursorMapper" : {
         "sourceCursors" : [ 34, 60, 88, 105, 137 ],
         "targetCursors" : [ 34, 60, 81, 98, 122 ],
-        "lengths" : [ 26, 21, 17, 24, 7 ],
+        "lengths" : [ 25, 21, 16, 24, 6 ],
         "expandedCharEnds" : { },
-        "prevSourceEnd" : 144,
-        "prevTargetEnd" : 129
+        "prevSourceEnd" : 143,
+        "prevTargetEnd" : 128
       },
       "readCharacters" : 171,
       "skippedChars" : 15,
       "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
     },
     "data" : [ 0, 0, 22, 17, 0, 1, 4, 8, 17, 0, 1, 0, 7, 15, 0, 0, 8, 2, 15, 0, 0, 3, 2, 1, 0, 0, 3, 3, 15, 0, 0, 4, 3, 15, 0, 0, 4, 3, 10, 0, 1, 0, 7, 15, 0, 0, 8, 2, 15, 0, 0, 3, 6, 19, 0, 0, 7, 2, 1, 0, 1, 4, 3, 15, 0, 0, 4, 2, 15, 0, 0, 3, 2, 1, 0, 0, 3, 6, 20, 0, 3, 0, 9, 4, 0, 0, 10, 7, 11, 0, 0, 8, 8, 18, 0, 1, 0, 7, 15, 0, 1, 4, 5, 15, 0, 0, 6, 3, 7, 0, 0, 4, 3, 15, 0, 1, 4, 6, 15, 0, 0, 7, 21, 7, 0 ],
-    "dataSize" : 2200,
     "lastLine" : 10,
     "lastCursor" : 11
   },
@@ -138,7 +137,7 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 88,
+        "start" : 81,
         "end" : 91
       }
     }, {

@@ -2342,10 +2342,10 @@
         "fileCursorMapper" : {
           "sourceCursors" : [ 34, 60, 88, 105, 137 ],
           "targetCursors" : [ 34, 60, 81, 98, 122 ],
-          "lengths" : [ 26, 21, 17, 24, 7 ],
+          "lengths" : [ 25, 21, 16, 24, 6 ],
           "expandedCharEnds" : { },
-          "prevSourceEnd" : 144,
-          "prevTargetEnd" : 129
+          "prevSourceEnd" : 143,
+          "prevTargetEnd" : 128
         },
         "macroSkippedChars" : 7
       } ],
@@ -2357,10 +2357,10 @@
           "cursorMapper" : {
             "sourceCursors" : [ 34, 60, 88, 105, 137 ],
             "targetCursors" : [ 34, 60, 81, 98, 122 ],
-            "lengths" : [ 26, 21, 17, 24, 7 ],
+            "lengths" : [ 25, 21, 16, 24, 6 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 144,
-            "prevTargetEnd" : 129
+            "prevSourceEnd" : 143,
+            "prevTargetEnd" : 128
           },
           "readCharacters" : 231,
           "skippedChars" : 15,
@@ -2415,10 +2415,10 @@
           "cursorMapper" : {
             "sourceCursors" : [ 34, 60, 88, 105, 137 ],
             "targetCursors" : [ 34, 60, 81, 98, 122 ],
-            "lengths" : [ 26, 21, 17, 24, 7 ],
+            "lengths" : [ 25, 21, 16, 24, 6 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 144,
-            "prevTargetEnd" : 129
+            "prevSourceEnd" : 143,
+            "prevTargetEnd" : 128
           },
           "readCharacters" : 231,
           "skippedChars" : 15,
@@ -2664,10 +2664,10 @@
           "cursorMapper" : {
             "sourceCursors" : [ 34, 60, 88, 105, 137 ],
             "targetCursors" : [ 34, 60, 81, 98, 122 ],
-            "lengths" : [ 26, 21, 17, 24, 7 ],
+            "lengths" : [ 25, 21, 16, 24, 6 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 144,
-            "prevTargetEnd" : 129
+            "prevSourceEnd" : 143,
+            "prevTargetEnd" : 128
           },
           "readCharacters" : 231,
           "skippedChars" : 15,
