@@ -14,6 +14,7 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
@@ -71,6 +72,44 @@ object TestCommandCrafter {
         context.assertTrue(cursorMapper.containsTargetCursor(25), Text.literal("target cursor in second mapping"))
         context.assertFalse(cursorMapper.containsSourceCursor(22), Text.literal("source cursor at exclusive end of second mapping"))
         context.assertTrue(cursorMapper.containsSourceCursor(22, true), Text.literal("source cursor at inclusive end of second mapping"))
+        context.complete()
+    }
+
+    @GameTest
+    fun testClampCompletionToCursor(context: TestContext) {
+        val mappingInfo = FileMappingInfo(listOf(
+            "first line",
+            "second line",
+            "third line",
+        ))
+        // A mapping that covers all the second line except the first and last character
+        mappingInfo.cursorMapper.addMapping(
+            mappingInfo.lines[0].length+2,
+            mappingInfo.lines[0].length+2,
+            mappingInfo.lines[1].length-2
+        )
+
+        context.assertEquals(
+            Position(0, mappingInfo.lines[0].length),
+            Position(1, 5).clampCompletionToCursor(0, 0, mappingInfo),
+            Text.literal("Clamp to previous line without cursor mapper")
+        )
+        context.assertEquals(
+            Position(2, 0),
+            Position(1, 5).clampCompletionToCursor(2, mappingInfo.accumulatedLineLengths[1], mappingInfo),
+            Text.literal("Clamp to later line without cursor mapper")
+        )
+        context.assertEquals(
+            Position(1, mappingInfo.lines[1].length - 1),
+            Position(2, 5).clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            Text.literal("Clamp to previous line with cursor mapper")
+        )
+        context.assertEquals(
+            Position(1, 1),
+            Position(0, 5).clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            Text.literal("Clamp to later line with cursor mapper")
+        )
+
         context.complete()
     }
 

@@ -505,6 +505,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 parsedRootNode.node,
                 parsedRootNode.range.start
             ),
+            false,
             completionsChannel = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL
         )
     }
@@ -616,6 +617,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     parsedNode.range,
                     analyzeReader,
                     contextBuilder,
+                    !easyNewLine,
                     nodeAnalyzingResult,
                     rootSuggestionsResult
                 )
@@ -633,25 +635,27 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         parsedNodeRange: StringRange,
         completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
         contextBuilder: CommandContextBuilder<CommandSource>,
+        clampInCursorMapperGaps: Boolean,
         additionalCompletions: AnalyzingResult? = null,
         rootCompletions: AnalyzingResult? = null,
         completionsChannel: String = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
-        analyzingResult.addCompletionProvider(
+        analyzingResult.addCompletionProviderWithContinuosMapping(
             completionsChannel,
             AnalyzingResult.RangedDataProvider(
                 StringRange(
                     parentNode.range.end + 1,
                     parsedNodeRange.end
                 )
-            ) { cursor ->
-                val sourceCursor = analyzingResult.mappingInfo.cursorMapper.mapToSource(cursor)
+            ) { sourceCursor ->
                 val rootCompletionProvider = rootCompletions?.getCompletionProviderForCursor(sourceCursor)
                 if(rootCompletionProvider != null)
                     return@RangedDataProvider rootCompletionProvider.dataProvider(sourceCursor)
 
-                val endCursor = cursor - completionReader.readSkippingChars
+                val lineNumber = AnalyzingResult.getPositionFromCursor(sourceCursor, completionReader.fileMappingInfo).line
+                val targetCursor = completionReader.cursorMapper.mapToTarget(sourceCursor, clampInCursorMapperGaps)
+                val endCursor = targetCursor - completionReader.readSkippingChars
                 val truncatedInput = completionReader.string
                     .substring(0, min(endCursor, completionReader.string.length))
                 // The string is extended to a length that covers the cursor (only happens for root suggestions, otherwise the cursor is already contained),
@@ -681,7 +685,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }.thenApply {
                     SUGGESTIONS_FULL_INPUT.remove()
                     val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
-                        it.toCompletionItem(completionReader)
+                        it.toCompletionItem(completionReader, lineNumber, sourceCursor)
                     } + suggestionFutures.flatMap {
                         (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                             ?: emptyList()
@@ -708,8 +712,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 ) { commandCompletions, additionalCompletions ->
                     commandCompletions + additionalCompletions
                 }
-            },
-            true
+            }
         )
     }
 

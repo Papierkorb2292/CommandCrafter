@@ -352,7 +352,7 @@ object LanguageManager {
                 }
                 val languageIdEndCursor = reader.cursor
 
-                analyzingResult.addCompletionProvider(
+                analyzingResult.addCompletionProviderWithContinuosMapping(
                     AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
                     AnalyzingResult.RangedDataProvider(
                         StringRange(startCursor, languageIdEndCursor),
@@ -365,8 +365,7 @@ object LanguageManager {
                                     analyzingResult.mappingInfo.copy(),
                                 )
                             }
-                        )),
-                    true
+                        ))
                 )
 
                 val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)

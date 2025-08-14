@@ -7,9 +7,11 @@ import net.minecraft.registry.RegistryOps
 import net.minecraft.util.packrat.ParsingRules
 import net.minecraft.util.packrat.Symbol
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
 import net.papierkorb2292.command_crafter.mixin.packrat.ParsingRulesAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -27,6 +29,57 @@ fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
         if(line != 0) character
         else character + other.character - oneBasedOffset
     )
+}
+
+/**
+ * Makes sure the position is on the same line as requested so the completion is valid
+ * (if the position was on a previous line, it will be moved to the start of this line,
+ * if it was on a later line, it will be moved to the end of this line)
+ *
+ * Also, if the requested cursor is in a cursor mapping, the position will be moved inside
+ * a mapping as well (for example, this means the completion won't override the \ at the end of vanilla commands)
+ */
+fun Position.clampCompletionToCursor(requestedLine: Int, requestedSourceCursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
+    if(line == requestedLine)
+        return this
+
+    val hasMapping = mappingInfo.cursorMapper.containsSourceCursor(requestedSourceCursor, true)
+
+    if(line <= requestedLine) {
+        val lineStart = Position(requestedLine, 0)
+        if(!hasMapping)
+            return lineStart
+        // Find the first mapping in the line
+        val lineStartCursor = AnalyzingResult.getCursorFromPosition(lineStart, mappingInfo, zeroBased)
+        var mappingIndex = mappingInfo.cursorMapper.sourceCursors.binarySearch { index ->
+            if(mappingInfo.cursorMapper.sourceCursors[index] > lineStartCursor) 1
+            else if (mappingInfo.cursorMapper.sourceCursors[index] + mappingInfo.cursorMapper.lengths[index] <= lineStartCursor) -1
+            else 0
+        }
+        if(mappingIndex >= 0)
+            // This mapping directly contains the start of the line
+            return lineStart
+        // No mapping contains the start of the line, use the start of the next mapping instead (it must be in the same line since requestedSourceCursor does have a mapping)
+        mappingIndex = -(mappingIndex + 1)
+        return AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.sourceCursors[mappingIndex], mappingInfo, zeroBased)
+    }
+
+    val oneBasedOffset = if(zeroBased) 0 else 1
+    val lineEnd = Position(requestedLine, mappingInfo.lines[requestedLine - oneBasedOffset].length + oneBasedOffset)
+    if(!hasMapping)
+        return lineEnd
+    val lineEndCursor = AnalyzingResult.getCursorFromPosition(lineEnd, mappingInfo, zeroBased)
+    var mappingIndex = mappingInfo.cursorMapper.sourceCursors.binarySearch { index ->
+        if(mappingInfo.cursorMapper.sourceCursors[index] > lineEndCursor) 1
+        else if (mappingInfo.cursorMapper.sourceCursors[index] + mappingInfo.cursorMapper.lengths[index] <= lineEndCursor) -1
+        else 0
+    }
+    if(mappingIndex >= 0)
+        // This mapping directly contains the end of the line
+        return lineEnd
+    // No mapping contains the end of the line, use the end of the previous mapping instead (it must be in the same line since requestedSourceCursor does have a mapping)
+    mappingIndex = -(mappingIndex + 2)
+    return AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.sourceCursors[mappingIndex] + mappingInfo.cursorMapper.lengths[mappingIndex], mappingInfo, zeroBased)
 }
 
 operator fun Int.compareTo(range: StringRange): Int {
@@ -57,14 +110,18 @@ fun standardizeKeyword(keyword: String): String {
     else lower
 }
 
-fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>): CompletionItem {
+fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>, completionCursorLine: Int, completionAbsoluteCursor: Int): CompletionItem {
+    fun toPosition(cursor: Int): Position =
+        AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(cursor + reader.readSkippingChars), reader.fileMappingInfo)
+            .clampCompletionToCursor(completionCursorLine, completionAbsoluteCursor, reader.fileMappingInfo)
+
     val replaceEndCursor = (this as SuggestionReplaceEndContainer).`command_crafter$getReplaceEnd`()
     return CompletionItem().apply {
         label = text
         detail = tooltip?.string
         val insertRange = Range(
-            AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.start + reader.readSkippingChars), reader.lines),
-            AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(range.end + reader.readSkippingChars), reader.lines)
+            toPosition(range.start),
+            toPosition(range.end)
         )
         textEdit = if(replaceEndCursor != null) Either.forRight(
             InsertReplaceEdit(
@@ -72,7 +129,7 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
                 insertRange,
                 Range(
                     insertRange.start,
-                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(replaceEndCursor + reader.readSkippingChars), reader.lines)
+                    toPosition(replaceEndCursor)
                 )
             )
         ) else Either.forLeft(

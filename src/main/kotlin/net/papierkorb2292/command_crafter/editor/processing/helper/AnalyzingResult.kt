@@ -3,9 +3,11 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
@@ -48,6 +50,52 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             return
         }
         addRangedDataProvider(channel, provider)
+    }
+
+    /**
+     * This applies [ProcessedInputCursorMapper.mapToSource] only on the start and end of the provider range after adding readSkippingChars,
+     * whereas [addCompletionProvider] with shouldMap=true would split the range up into multiple parts that fit the mapping.
+     *
+     * The cursor given to the data provider will be the absolute position in the file.
+     */
+    fun addCompletionProviderWithContinuosMapping(
+        completionChannelName: String,
+        provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>
+    ) {
+        val mappedStart = getEarliestSourceCursorWithInclusiveEndMapping(provider.cursorRange.start + mappingInfo.readSkippingChars)
+        //val mappedStart = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.start + mappingInfo.readSkippingChars)
+        val mappedEnd = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.end + mappingInfo.readSkippingChars)
+        addCompletionProvider(
+            completionChannelName,
+            RangedDataProvider(
+                StringRange(mappedStart, mappedEnd),
+                provider.dataProvider
+            ),
+            false
+        )
+    }
+
+    private fun getEarliestSourceCursorWithInclusiveEndMapping(targetCursor: Int): Int {
+        // Find the matching mapping with exclusive end like normal
+        var mappingIndex = mappingInfo.cursorMapper.targetCursors.binarySearch { index ->
+            if(mappingInfo.cursorMapper.targetCursors[index] > targetCursor) 1
+            else if (mappingInfo.cursorMapper.targetCursors[index] + mappingInfo.cursorMapper.lengths[index] <= targetCursor) -1
+            else 0
+        }
+        if(mappingIndex < 0) {
+            if(mappingIndex == -1) {
+                return targetCursor
+            }
+            mappingIndex = -(mappingIndex + 2)
+        }
+
+        // Find the earliest mapping where an inclusive end includes the target cursor
+        while(mappingIndex > 0 && mappingInfo.cursorMapper.targetCursors[mappingIndex - 1] + mappingInfo.cursorMapper.lengths[mappingIndex - 1] >= targetCursor)
+            mappingIndex--
+
+        val startInputCursor = mappingInfo.cursorMapper.targetCursors[mappingIndex]
+        val relativeCursor = targetCursor - startInputCursor
+        return mappingInfo.cursorMapper.sourceCursors[mappingIndex] + relativeCursor
     }
 
     fun addHoverProvider(provider: RangedDataProvider<CompletableFuture<Hover>>, shouldMap: Boolean) {

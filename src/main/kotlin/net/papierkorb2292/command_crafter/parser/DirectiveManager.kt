@@ -98,7 +98,7 @@ class DirectiveManager {
      * and don't replace any text.
      */
     fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult, replaceRange: Boolean = false) {
-        analyzingResult.addCompletionProvider(
+        analyzingResult.addCompletionProviderWithContinuosMapping(
             AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
             AnalyzingResult.RangedDataProvider(range, CombinedCompletionItemProvider(
                 DIRECTIVES.ids.map {
@@ -109,8 +109,7 @@ class DirectiveManager {
                         analyzingResult.mappingInfo.copy(),
                     )
                 }
-            )),
-            true
+            ))
         )
     }
 
