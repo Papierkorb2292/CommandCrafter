@@ -76,37 +76,64 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testClampCompletionToCursor(context: TestContext) {
-        val mappingInfo = FileMappingInfo(listOf(
+    fun testGetAndRemoveLocationsOfInterest(context: TestContext) {
+        val lines = listOf(
+            "§first line",
+            "second§ §line",
+            "third line§",
+        )
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(lines)
+
+        context.assertEquals(listOf(
             "first line",
             "second line",
             "third line",
-        ))
+        ), processedLines, Text.literal("Removing marker characters"))
+
+        context.assertEquals(listOf(
+            FileLocation(Position(0, 0), 0),
+            FileLocation(Position(1, 6), 17),
+            FileLocation(Position(1, 7), 18),
+            FileLocation(Position(2, 10), 33)
+        ), markedLocations, Text.literal("Parsing marked locations"))
+
+        context.complete()
+    }
+
+    @GameTest
+    fun testClampCompletionToCursor(context: TestContext) {
+        val markedLines = listOf(
+            "first line§",
+            "s§econd lin§e",
+            "§third line",
+        )
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+        val mappingInfo = FileMappingInfo(processedLines)
         // A mapping that covers all the second line except the first and last character
         mappingInfo.cursorMapper.addMapping(
-            mappingInfo.lines[0].length+2,
-            mappingInfo.lines[0].length+2,
-            mappingInfo.lines[1].length-2
+            markedLocations[1].absoluteCursor,
+            markedLocations[1].absoluteCursor,
+            markedLocations[2].absoluteCursor - markedLocations[1].absoluteCursor
         )
 
         context.assertEquals(
-            Position(0, mappingInfo.lines[0].length),
-            Position(1, 5).clampCompletionToCursor(0, 0, mappingInfo),
+            markedLocations[0].position,
+            markedLocations[1].position.clampCompletionToCursor(0, 0, mappingInfo),
             Text.literal("Clamp to previous line without cursor mapper")
         )
         context.assertEquals(
-            Position(2, 0),
-            Position(1, 5).clampCompletionToCursor(2, mappingInfo.accumulatedLineLengths[1], mappingInfo),
+            markedLocations[3].position,
+            markedLocations[1].position.clampCompletionToCursor(2, mappingInfo.accumulatedLineLengths[1], mappingInfo),
             Text.literal("Clamp to later line without cursor mapper")
         )
         context.assertEquals(
-            Position(1, mappingInfo.lines[1].length - 1),
-            Position(2, 5).clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            markedLocations[2].position,
+            markedLocations[3].position.clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
             Text.literal("Clamp to previous line with cursor mapper")
         )
         context.assertEquals(
-            Position(1, 1),
-            Position(0, 5).clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            markedLocations[1].position,
+            markedLocations[0].position.clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
             Text.literal("Clamp to later line with cursor mapper")
         )
 
@@ -191,4 +218,31 @@ object TestCommandCrafter {
         )
         context.assertEqualsSnapshot(analyzingResult, "analyzing_result")
     }
+
+    /**
+     * To make it easier to reference locations in lines, this method can find any location marked with '§'.
+     * Those locations will be returned in order and the '§' characters will be removed from the returned lines.
+     */
+    private fun getAndRemoveMarkedLocations(lines: List<String>): Pair<List<String>, List<FileLocation>> {
+        val processedLines = mutableListOf<String>()
+        val foundLocations = mutableListOf<FileLocation>()
+
+        var readCharacters = 0
+        for((lineNumber, line) in lines.withIndex()) {
+            var locationCount = 0
+            line.mapIndexedNotNullTo(foundLocations) { column, c ->
+                if(c == '§') {
+                    val location = FileLocation(Position(lineNumber, column - locationCount), readCharacters + column - locationCount)
+                    locationCount++
+                    location
+                } else null
+            }
+            processedLines += line.replace("§", "")
+            readCharacters += line.length + 1 - locationCount
+        }
+
+        return processedLines to foundLocations
+    }
+
+    private data class FileLocation(val position: Position, val absoluteCursor: Int)
 }
