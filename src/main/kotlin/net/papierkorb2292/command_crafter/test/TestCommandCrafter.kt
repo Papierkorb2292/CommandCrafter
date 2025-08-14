@@ -8,6 +8,7 @@ import net.minecraft.command.MacroInvocation
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.minecraft.command.CommandSource
+import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.test.TestContext
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
@@ -141,6 +142,82 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testCommandSuggestions(context: TestContext) {
+        val markedLines = """
+            §execute §\
+                §if predicate {§\
+                    §\
+                §}
+            
+            @language vanilla improved
+            §execute
+            §    §if predicate {§
+                    §
+                §}
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val rootIndices = listOf(0, 6, 7)
+        val subcommandIndices = listOf(1, 2, 8)
+        val predicateIndices = listOf(3, 4, 5, 9, 10, 11)
+
+        @Suppress("UNCHECKED_CAST")
+        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val source = getParsingCommandSource(context)
+        val analyzingResult = AnalyzingResult(FileMappingInfo(processedLines), Position())
+
+        LanguageManager.analyse(
+            DirectiveStringReader(
+                analyzingResult.mappingInfo,
+                commandDispatcher,
+                AnalyzingResourceCreator(
+                    null,
+                    "testPack/data/minecraft/function/test.mcfunction"
+                )
+            ),
+            source,
+            analyzingResult,
+            Language.TopLevelClosure(VanillaLanguage())
+        )
+
+        for(rootIndex in rootIndices) {
+            val absoluteCursor = markedLocations[rootIndex].absoluteCursor
+            context.assertTrue(
+                analyzingResult
+                    .getCompletionProviderForCursor(absoluteCursor)!!
+                    .dataProvider(absoluteCursor)
+                    .get()
+                    .any { it.label == "execute" },
+                Text.literal("Root suggestions for marker at index $rootIndex")
+            )
+        }
+        for(rootIndex in subcommandIndices) {
+            val absoluteCursor = markedLocations[rootIndex].absoluteCursor
+            context.assertTrue(
+                analyzingResult
+                    .getCompletionProviderForCursor(absoluteCursor)!!
+                    .dataProvider(absoluteCursor)
+                    .get()
+                    .any { it.label == "if" },
+                Text.literal("Subcommand suggestions for marker at index $rootIndex")
+            )
+        }
+        for(rootIndex in predicateIndices) {
+            val absoluteCursor = markedLocations[rootIndex].absoluteCursor
+            context.assertTrue(
+                analyzingResult
+                    .getCompletionProviderForCursor(absoluteCursor)!!
+                    .dataProvider(absoluteCursor)
+                    .get()
+                    .any { it.label == "condition" },
+                Text.literal("Predicate suggestions for marker at index $rootIndex")
+            )
+        }
+
+        context.complete()
+    }
+
+    @GameTest
     fun parseTestFunction(context: TestContext) {
         val lines = """
             # This is a doc \    
@@ -167,8 +244,7 @@ object TestCommandCrafter {
         val id = Identifier.of("test")
         @Suppress("UNCHECKED_CAST")
         val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
-        val source = context.world.server.commandSource
-            .withPosition(Vec3d.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
+        val source = getParsingCommandSource(context)
 
         val parsedResourceCreator = ParsedResourceCreator(
             id,
@@ -218,6 +294,10 @@ object TestCommandCrafter {
         )
         context.assertEqualsSnapshot(analyzingResult, "analyzing_result")
     }
+
+    private fun getParsingCommandSource(context: TestContext): ServerCommandSource =
+        context.world.server.commandSource
+            .withPosition(Vec3d.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
 
     /**
      * To make it easier to reference locations in lines, this method can find any location marked with '§'.
