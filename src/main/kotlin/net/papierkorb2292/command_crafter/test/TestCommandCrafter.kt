@@ -21,6 +21,7 @@ import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
 import org.eclipse.lsp4j.Position
@@ -54,6 +55,22 @@ object TestCommandCrafter {
         context.assertEquals(intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length), cursorMapper.sourceCursors,Text.literal("source_cursors"))
         context.assertEquals(intListOf("".length, "say What's up".length, "say What's up, your highness".length), cursorMapper.targetCursors, Text.literal("target_cursors"))
         context.assertEquals(intListOf("say ".length, ", ".length, "!".length), cursorMapper.lengths, Text.literal("lengths"))
+        context.complete()
+    }
+
+    @GameTest
+    fun testSplitProcessedInputCursorMapperContainsCursor(context: TestContext) {
+        val cursorMapper = SplitProcessedInputCursorMapper()
+        cursorMapper.addMapping(10, 12, 5)
+        cursorMapper.addMapping(20, 25, 2)
+        context.assertTrue(cursorMapper.containsSourceCursor(11), Text.literal("source cursor in first mapping"))
+        context.assertTrue(cursorMapper.containsTargetCursor(16), Text.literal("target cursor in first mapping"))
+        context.assertFalse(cursorMapper.containsSourceCursor(17), Text.literal("source cursor between mappings"))
+        context.assertFalse(cursorMapper.containsTargetCursor(20), Text.literal("target cursor between mappings"))
+        context.assertTrue(cursorMapper.containsSourceCursor(21), Text.literal("source cursor in second mapping"))
+        context.assertTrue(cursorMapper.containsTargetCursor(25), Text.literal("target cursor in second mapping"))
+        context.assertFalse(cursorMapper.containsSourceCursor(22), Text.literal("source cursor at exclusive end of second mapping"))
+        context.assertTrue(cursorMapper.containsSourceCursor(22, true), Text.literal("source cursor at inclusive end of second mapping"))
         context.complete()
     }
 
