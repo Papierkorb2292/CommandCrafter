@@ -63,4 +63,11 @@ export function getFeatureConfig(): FeatureConfig | undefined {
 	return vscode.workspace.getConfiguration("CommandCrafter").get<FeatureConfig>("FeatureConfig")
 }
 
+export function insertDefaultFeatureConfig(defaultConfig: FeatureConfig) {
+	const settings = vscode.workspace.getConfiguration("CommandCrafter")
+	const previous = settings.get<FeatureConfig>("FeatureConfig")
+	const merged = Object.assign(defaultConfig, previous)
+	settings.update("FeatureConfig", merged, vscode.ConfigurationTarget.Global)
+}
+
 export type FeatureConfig = { [key: string]: string }

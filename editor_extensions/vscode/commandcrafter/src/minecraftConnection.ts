@@ -7,7 +7,7 @@ import {
 } from 'vscode-languageclient/node';
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
-import { LanguageClientRunner, checkUpdateMinecraftAddress, fileExists, findFiles, getFeatureConfig } from './extension';
+import { FeatureConfig, LanguageClientRunner, checkUpdateMinecraftAddress, fileExists, findFiles, getFeatureConfig, insertDefaultFeatureConfig } from './extension';
 import { DebugClient } from './debugClient';
 import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
 import { outputChannel } from './extensionLog';
@@ -146,6 +146,8 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                         languageClient.onRequest("fileExists", (filePattern: string) => fileExists(filePattern))
                         languageClient.onRequest("getFileContent", (path: string) =>
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
+                        languageClient.sendRequest<FeatureConfig>("defaultFeatureConfig").then(defaultConfig =>
+                            insertDefaultFeatureConfig(defaultConfig))
                         break;
                     case State.Stopped:
                         outputChannel?.appendLine("LanguageClient is stopping")

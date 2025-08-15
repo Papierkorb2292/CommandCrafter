@@ -28,6 +28,7 @@ import org.eclipse.lsp4j.jsonrpc.Endpoint
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.jsonrpc.services.JsonDelegate
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
+import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
@@ -467,6 +468,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             return
         }
         minecraftClient.reloadResources(params)
+    }
+
+    @JsonRequest
+    fun defaultFeatureConfig(): CompletableFuture<Map<String, String>> {
+        return CompletableFuture.completedFuture(FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() })
     }
 
     override fun connect(client: CommandCrafterLanguageClient) {
