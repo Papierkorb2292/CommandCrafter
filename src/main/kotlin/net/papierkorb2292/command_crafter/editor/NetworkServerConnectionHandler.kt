@@ -84,7 +84,7 @@ object NetworkServerConnectionHandler {
         return true
     }
 
-    private fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
+    fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
         player.hasPermissionLevel(2)
 
     fun registerPacketHandlers() {
@@ -125,6 +125,8 @@ object NetworkServerConnectionHandler {
                 context.responseSender(),
                 context.player().networkHandler
             )
+
+            context.responseSender().sendPacket(NotifyCanReloadWorldgenS2CPacket(connection.canReloadWorldgen))
 
             connection.serverLog?.addMessageCallback(
                 object : SizeLimitedCallbackLinkedBlockingQueue.Callback<String> {
@@ -293,6 +295,7 @@ object NetworkServerConnectionHandler {
         }
         registerAsyncServerPacketHandler(ReloadDatapacksC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            context.sendPacket(ReloadDatapacksAcknowledgementS2CPacket)
             val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
             serverConnection.datapackReloader()
         }
@@ -304,6 +307,8 @@ object NetworkServerConnectionHandler {
             }
             ServerScoreboardStorageFileSystem.createdFileSystems.remove(networkHandler)
         }
+
+
     }
 
     private fun <T> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =

@@ -96,6 +96,7 @@ object CommandCrafter: ModInitializer {
         initializeConfig()
         initializeEditor()
         NetworkServerConnectionHandler.registerPacketHandlers()
+        DirectServerConnection.registerReconfigureCompletedCheck()
         initializeParser()
 
         LOGGER.info("Loaded CommandCrafter!")

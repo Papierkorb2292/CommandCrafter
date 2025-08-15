@@ -18,6 +18,7 @@ interface MinecraftServerConnection {
     val contextCompletionProvider: ContextCompletionProvider?
     val dynamicRegistryManager: DynamicRegistryManager
     val datapackReloader: (() -> Unit)?
+    val canReloadWorldgen: Boolean
 
     fun createScoreboardStorageFileSystem(): ScoreboardStorageFileSystem?
 }

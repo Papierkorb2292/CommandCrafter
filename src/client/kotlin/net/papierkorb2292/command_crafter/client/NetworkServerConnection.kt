@@ -5,6 +5,9 @@ import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
 import io.netty.channel.local.LocalChannel
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents
+import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.minecraft.client.MinecraftClient
@@ -48,6 +51,7 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 class NetworkServerConnection private constructor(private val client: MinecraftClient, private val initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
     companion object {
@@ -88,6 +92,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private var receivedRegistryManager: DynamicRegistryManager? = null
 
         private val currentConnections = mutableListOf<NetworkServerConnection>()
+
+        private var hasPendingReload = false
+        private val reloadTimeoutExecutor = CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS)
 
         fun requestAndCreate(): CompletableFuture<NetworkServerConnection> {
             if(!ClientPlayNetworking.canSend(RequestNetworkServerConnectionC2SPacket.ID)) {
@@ -236,6 +243,14 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 ScoreboardStorageFileResponseS2CPacket.LOADABLE_STORAGE_NAMESPACES_RESPONSE_PACKET,
                 currentScoreboardStorageLoadableStorageNamespacesRequests
             )
+            ClientPlayNetworking.registerGlobalReceiver(NotifyCanReloadWorldgenS2CPacket.ID) { payload, _ ->
+                currentConnections.forEach {
+                    it.canReloadWorldgen = payload.canReloadWorldgen
+                }
+            }
+            ClientPlayNetworking.registerGlobalReceiver(ReloadDatapacksAcknowledgementS2CPacket.ID) { _, _ ->
+                hasPendingReload = false
+            }
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 editorDebugConnections.clear()
                 scoreboardStorageFileSystems.clear()
@@ -250,6 +265,16 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
             ClientPlayNetworking.registerGlobalReceiver(responseType.id) { payload, _ ->
                 responseFutureMap.remove(payload.requestId)?.complete(payload.params)
             }
+        }
+
+        private fun trySendDatapackReload() {
+            if(!hasPendingReload) return
+            // Server might not be able to receive the packet right now
+            // (for example when Worldgen Devtools is used and the reload
+            // is triggered while syncing data to the client), so retry until an
+            // acknowledgement is received
+            ClientPlayNetworking.send(ReloadDatapacksC2SPacket)
+            reloadTimeoutExecutor.execute(::trySendDatapackReload)
         }
     }
 
@@ -348,8 +373,12 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
     }
 
     override val datapackReloader = {
-        ClientPlayNetworking.send(ReloadDatapacksC2SPacket)
+        hasPendingReload = true
+        trySendDatapackReload()
     }
+
+    override var canReloadWorldgen: Boolean = false
+        private set
 
     override fun createScoreboardStorageFileSystem(): NetworkScoreboardStorageFileSystem {
         val fileSystem = NetworkScoreboardStorageFileSystem(UUID.randomUUID())

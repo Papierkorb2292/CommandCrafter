@@ -1,6 +1,9 @@
 package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
 import net.minecraft.command.CommandSource
 import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.resource.ResourcePackManager
@@ -9,9 +12,11 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.text.Text
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.GameRules
 import net.minecraft.world.SaveProperties
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
@@ -40,13 +45,61 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
-import java.util.function.Supplier
 import kotlin.collections.set
 
 class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConnection {
     companion object {
         const val SERVER_LOG_CHANNEL = "server"
         private const val COMMAND_EXECUTOR_NAME = "{DirectServerConnection}"
+
+        val WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_KEY = GameRules.Key<GameRules.BooleanRule>("reloadRegistries", GameRules.Category.MISC)
+
+        private var datapackReloadWaitFuture: CompletableFuture<Unit>? = CompletableFuture.completedFuture(Unit)
+        private var datapackReloadReconfigureFuture: CompletableFuture<Unit>? = null
+
+        fun registerReconfigureCompletedCheck() {
+            ServerTickEvents.END_SERVER_TICK.register {
+                checkCompletedReconfigureAfterReload(it)
+            }
+        }
+
+        @Synchronized
+        private fun reloadDatapacks(server: MinecraftServer) {
+            val datapackReloadWaitFuture = datapackReloadWaitFuture
+            if(datapackReloadWaitFuture != null) {
+                this.datapackReloadWaitFuture = null // No other reloads should be scheduled until this one starts
+                datapackReloadWaitFuture.whenCompleteAsync({ _, _ ->
+                    val completableFuture = CompletableFuture<Unit>()
+                    this.datapackReloadWaitFuture = completableFuture
+                    val resourcePackManager: ResourcePackManager = server.dataPackManager
+                    val saveProperties: SaveProperties = server.saveProperties
+                    val previouslyEnabledDatapacks = resourcePackManager.enabledIds
+                    val allEnabledDatapacks = ReloadCommandAccessor.callFindNewDataPacks(resourcePackManager, saveProperties, previouslyEnabledDatapacks)
+
+                    server.commandSource.sendFeedback({ Text.translatable("commands.reload.success") }, true)
+                    server.reloadResources(allEnabledDatapacks).whenComplete { _, _ ->
+                        datapackReloadReconfigureFuture = completableFuture
+                        checkCompletedReconfigureAfterReload(server)
+                    }
+                }, server)
+            }
+        }
+
+        @Synchronized
+        private fun checkCompletedReconfigureAfterReload(server: MinecraftServer) {
+            val future = datapackReloadReconfigureFuture ?: return
+            // Wait until all players are done logging into the world, because otherwise mods like
+            // Worldgen Devtools would push them back into configuration phase while still sending them some of
+            // the initial play packets, leading to a disconnect due to unknown packets
+            val allPlayersConfigured = server.networkIo.connections.all {
+                val packetListener = it.packetListener
+                packetListener is ServerPlayNetworkHandler && packetListener.isConnectionOpen // isConnectionOpen would be false if a reconfiguration has been requested and no new network handler has been created yet
+            }
+            if(allPlayersConfigured) {
+                datapackReloadReconfigureFuture = null
+                future.complete(Unit)
+            }
+        }
     }
 
     private val commandDispatcherFactory: (CommandManager) -> CommandDispatcher<CommandSource> = { commandManager: CommandManager ->
@@ -190,27 +243,11 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         }
     }
 
-    private var datapackReloadWaitFuture: CompletableFuture<*>? = CompletableFuture.completedFuture(Unit)
+    override val datapackReloader = { reloadDatapacks(server) }
 
-    override val datapackReloader: () -> Unit = {
-        val datapackReloadWaitFuture = datapackReloadWaitFuture
-        if(datapackReloadWaitFuture != null) {
-            this.datapackReloadWaitFuture = null // No other reloads should be scheduled until this one starts
-            datapackReloadWaitFuture.whenCompleteAsync({ _, _ ->
-                val completableFuture = CompletableFuture<Unit>()
-                this.datapackReloadWaitFuture = completableFuture
-                val resourcePackManager: ResourcePackManager = server.dataPackManager
-                val saveProperties: SaveProperties = server.saveProperties
-                val previouslyEnabledDatapacks = resourcePackManager.enabledIds
-                val allEnabledDatapacks = ReloadCommandAccessor.callFindNewDataPacks(resourcePackManager, saveProperties, previouslyEnabledDatapacks)
-
-                server.commandSource.sendFeedback({ Text.translatable("commands.reload.success") }, true)
-                server.reloadResources(allEnabledDatapacks).whenComplete { _, _ ->
-                    completableFuture.complete(Unit)
-                }
-            }, server)
-        }
-    }
+    override val canReloadWorldgen: Boolean
+        get() = GameRuleRegistry.hasRegistration(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_KEY.name)
+                && server.gameRules.getBoolean(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_KEY)
 
     override fun createScoreboardStorageFileSystem() =
         ServerScoreboardStorageFileSystem(server)

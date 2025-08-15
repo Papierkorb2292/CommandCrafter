@@ -4,7 +4,11 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
+import net.fabricmc.fabric.api.networking.v1.ServerConfigurationConnectionEvents
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
+import net.minecraft.registry.RegistryLoader
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
@@ -205,6 +209,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 PackContentFileType.ADVANCEMENTS_FILE_TYPE
             )
 
+            private val worldgenDatapackFileTypes = (RegistryLoader.DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES)
+                .mapNotNullTo(mutableSetOf()) {
+                    val registryPath = it.key.value.path
+                    PackContentFileType.types[registryPath]
+                }
+
             override fun didSave(params: DidSaveTextDocumentParams) {
                 // If enabled: Automatically reload files
                 val file = openFiles[params.textDocument.uri] ?: return
@@ -219,9 +229,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                         if(!featureConfig.isEnabled(configPath, false))
                             return
                         if(packContentFileType !in relodableDatapackFileTypes) {
-                            if(minecraftClient?.isConnectedToServer != false)
-                                client!!.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, "${AnsiEscape.createSequence("green")}[AutoReload] World has to be restarted to reload saved file"))
-                            return
+                            if(!minecraftServer.canReloadWorldgen || packContentFileType !in worldgenDatapackFileTypes) {
+                                if(minecraftClient?.isConnectedToServer != false)
+                                    client!!.logMinecraftMessage(
+                                        ConsoleMessage(
+                                            CLIENT_LOG_CHANNEL,
+                                            "${AnsiEscape.createSequence("green")}[AutoReload] World has to be restarted to reload saved file"
+                                        )
+                                    )
+                                return
+                            }
                         }
                         minecraftServer.datapackReloader?.invoke()
                     }
