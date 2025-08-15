@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.0
+
+### Added
+- `fileExists` request for language client and debug client, which is used when finding files
+- `log` option in debug config, which can enable a log of all DAP messages
+
+### Changed
+- Move "Load namespace:" entries to the top
+
 ## 0.4.0
 
 ### Added
