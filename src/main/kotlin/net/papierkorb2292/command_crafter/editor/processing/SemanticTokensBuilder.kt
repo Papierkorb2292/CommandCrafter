@@ -168,19 +168,19 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
      * meaning the tokens from the sortedOverlaps will be added to this builder starting at
      * the beginning of the file and split up existing tokens where necessary.
      */
-    fun overlay(sortedOverlaps: Iterator<SemanticTokensBuilder>) {
+    fun overlay(sortedOverlays: Iterator<SemanticTokensBuilder>) {
         var currentTokenIndex = 0
         lastLine = 0
         lastCursor = 0
-        for(overlap in sortedOverlaps) {
+        for(overlay in sortedOverlays) {
             var srcLine = 0
             var srcCursor = 0
-            srcTokens@for(i in 0 until overlap.data.size step 5) {
-                srcLine += overlap.data[i]
-                srcCursor = overlap.data[i + 1] + if(overlap.data[i] == 0) srcCursor else 0
-                val srcLength = overlap.data[i + 2]
-                val srcTypeId = overlap.data[i + 3]
-                val srcModifiers = overlap.data[i + 4]
+            srcTokens@for(i in 0 until overlay.data.size step 5) {
+                srcLine += overlay.data[i]
+                srcCursor = overlay.data[i + 1] + if(overlay.data[i] == 0) srcCursor else 0
+                val srcLength = overlay.data[i + 2]
+                val srcTypeId = overlay.data[i + 3]
+                val srcModifiers = overlay.data[i + 4]
 
                 while(currentTokenIndex < data.size) {
                     val newDestLine = lastLine + data[currentTokenIndex]
@@ -211,20 +211,24 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
 
                         // Tokens must be on the same line and overlap
                         val cursorDiff: Int
+                        val lineDiff: Int
 
                         if(newDestCursor < srcCursor) {
                             // Src token doesn't cover start of dest token, so trim dest token length
                             cursorDiff = srcCursor - newDestCursor
+                            lineDiff = 0 // The two tokens must be on the same line
                             data[currentTokenIndex + 2] = cursorDiff
                             currentTokenIndex += 5
                         } else {
                             // Token is removed, becaise its start is covered by the src token. The remaining part of the dest token will be added back later
                             data.subList(currentTokenIndex, currentTokenIndex + 5).clear()
                             // Use previous destCursor because the token that starts at newDestCursor has been removed
-                            cursorDiff = srcCursor - lastCursor
+                            // But if the previous token was on a separate line, the column value is just the srcCursor, because this token will advance to the next line
+                            cursorDiff = srcCursor - (if(lastLine == srcLine) lastCursor else 0)
+                            lineDiff = srcLine - lastLine
                         }
 
-                        data.add(currentTokenIndex, 0)
+                        data.add(currentTokenIndex, lineDiff)
                         data.add(currentTokenIndex + 1, cursorDiff)
                         data.add(currentTokenIndex + 2, srcLength)
                         data.add(currentTokenIndex + 3, srcTypeId)
@@ -246,7 +250,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
                             // that has just been placed at currentTokenIndex
                             lastLine = srcLine
                             lastCursor = srcCursor
-                        } else {
+                        } else if(newDestCursor < srcCursor) {
                             // Set position to dest, because the dest token is going to be the previous token when reading the src token that has just been placed at currentTokenIndex
                             lastLine = newDestLine
                             lastCursor = newDestCursor

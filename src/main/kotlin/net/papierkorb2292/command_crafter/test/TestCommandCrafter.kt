@@ -14,6 +14,8 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -138,6 +140,38 @@ object TestCommandCrafter {
             Text.literal("Clamp to later line with cursor mapper")
         )
 
+        context.complete()
+    }
+
+    @GameTest
+    fun testSemanticTokensOverlay(context: TestContext) {
+        val baseTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+        val overlayTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+        val expectedTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+
+        baseTokens.add(0, 5, 10, TokenType.NUMBER, 0)
+        overlayTokens.add(1, 5, 10, TokenType.STRING, 0)
+        baseTokens.add(2, 0, 20, TokenType.NUMBER, 0)
+        overlayTokens.add(2, 5, 10, TokenType.STRING, 0)
+        baseTokens.add(3, 5, 10, TokenType.NUMBER, 0)
+        overlayTokens.add(3, 0, 20, TokenType.STRING, 0)
+        baseTokens.add(4, 0, 20, TokenType.NUMBER, 0)
+        overlayTokens.add(4, 0, 5, TokenType.STRING, 0)
+        overlayTokens.add(4, 15, 5, TokenType.STRING, 0)
+
+        expectedTokens.add(0, 5, 10, TokenType.NUMBER, 0)
+        expectedTokens.add(1, 5, 10, TokenType.STRING, 0)
+        expectedTokens.add(2, 0, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(2, 5, 10, TokenType.STRING, 0)
+        expectedTokens.add(2, 15, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(3, 0, 20, TokenType.STRING, 0)
+        expectedTokens.add(4, 0, 5, TokenType.STRING, 0)
+        expectedTokens.add(4, 5, 10, TokenType.NUMBER, 0)
+        expectedTokens.add(4, 15, 5, TokenType.STRING, 0)
+
+        baseTokens.overlay(listOf(overlayTokens).iterator())
+
+        context.assertEquals(expectedTokens.build().data, baseTokens.build().data, Text.literal("token data"))
         context.complete()
     }
 
