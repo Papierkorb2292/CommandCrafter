@@ -1690,6 +1690,82 @@
         "command_crafter$isMacro" : false
       }
     }
+  }, {
+    "action" : {
+      "command" : "function ",
+      "contextChain" : {
+        "modifiers" : [ ],
+        "executable" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "function ",
+          "command" : { },
+          "arguments" : {
+            "name" : {
+              "range" : {
+                "start" : 9,
+                "end" : 9
+              },
+              "result" : {
+                "isTag" : false
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "function",
+            "range" : {
+              "start" : 0,
+              "end" : 8
+            },
+            "command_crafter$readCharacters" : 230,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "name",
+            "range" : {
+              "start" : 9,
+              "end" : 9
+            },
+            "command_crafter$readCharacters" : 257,
+            "command_crafter$skippedChars" : 15
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 9
+          },
+          "forks" : false
+        },
+        "command_crafter$pauseHandlerCreatorIndex" : 3,
+        "command_crafter$isMacro" : false
+      }
+    }
   } ],
   "command_crafter$documentation" : " This is a doc comment\n",
   "command_crafter$debugInformation" : {
@@ -2340,12 +2416,12 @@
           "command_crafter$skippedChars" : 7
         },
         "fileCursorMapper" : {
-          "sourceCursors" : [ 34, 60, 88, 105, 137 ],
-          "targetCursors" : [ 34, 60, 81, 98, 122 ],
-          "lengths" : [ 25, 21, 16, 24, 6 ],
+          "sourceCursors" : [ 34, 60, 88, 105, 137, 249 ],
+          "targetCursors" : [ 34, 60, 81, 98, 122, 234 ],
+          "lengths" : [ 25, 21, 16, 24, 6, 15 ],
           "expandedCharEnds" : { },
-          "prevSourceEnd" : 143,
-          "prevTargetEnd" : 128
+          "prevSourceEnd" : 264,
+          "prevTargetEnd" : 249
         },
         "macroSkippedChars" : 7
       } ],
@@ -2353,18 +2429,18 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand " ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 105, 137 ],
-            "targetCursors" : [ 34, 60, 81, 98, 122 ],
-            "lengths" : [ 25, 21, 16, 24, 6 ],
+            "sourceCursors" : [ 34, 60, 88, 105, 137, 249 ],
+            "targetCursors" : [ 34, 60, 81, 98, 122, 234 ],
+            "lengths" : [ 25, 21, 16, 24, 6, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 143,
-            "prevTargetEnd" : 128
+            "prevSourceEnd" : 264,
+            "prevTargetEnd" : 249
           },
-          "readCharacters" : 231,
+          "readCharacters" : 267,
           "skippedChars" : 15,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 230, 241, 265, 267 ]
         },
         "dispatcher" : null,
         "resourceCreator" : {
@@ -2373,13 +2449,93 @@
             "path" : "test"
           },
           "functionPackId" : "testPack",
-          "functions" : [ ],
+          "functions" : [ {
+            "resource" : {
+              "actions" : [ {
+                "command" : "say HI!",
+                "contextChain" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "output" : null,
+                      "position" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "world" : "ServerLevel[Test Level]",
+                      "level" : 4,
+                      "name" : "Server",
+                      "displayName" : {
+                        "content" : {
+                          "string" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "ordered" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "returnValueConsumer" : { },
+                      "entityAnchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signedArguments" : { },
+                      "messageChainTaskQueue" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "contents" : "HI!",
+                          "selectors" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 245,
+                      "command_crafter$skippedChars" : 15
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 245,
+                      "command_crafter$skippedChars" : 15
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "usedVariables" : [ ]
+            }
+          } ],
           "functionTags" : [ ],
           "originResourceIdSetEventStack" : [ ],
           "originResourceInfoSetEventStack" : [ ]
         },
         "directiveManager" : { },
-        "nextLine" : 11,
+        "nextLine" : 14,
         "onlyReadEscapedMultiline" : false,
         "currentIndentation" : 0,
         "scopeStack" : [ ]
@@ -2395,8 +2551,8 @@
           "character" : 1
         },
         "end" : {
-          "line" : 11,
-          "character" : 34
+          "line" : 14,
+          "character" : 2
         }
       },
       "dynamicBreakpoints" : { },
@@ -2411,18 +2567,18 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand " ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 105, 137 ],
-            "targetCursors" : [ 34, 60, 81, 98, 122 ],
-            "lengths" : [ 25, 21, 16, 24, 6 ],
+            "sourceCursors" : [ 34, 60, 88, 105, 137, 249 ],
+            "targetCursors" : [ 34, 60, 81, 98, 122, 234 ],
+            "lengths" : [ 25, 21, 16, 24, 6, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 143,
-            "prevTargetEnd" : 128
+            "prevSourceEnd" : 264,
+            "prevTargetEnd" : 249
           },
-          "readCharacters" : 231,
+          "readCharacters" : 267,
           "skippedChars" : 15,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 230, 241, 265, 267 ]
         },
         "dispatcher" : null,
         "resourceCreator" : {
@@ -2431,13 +2587,93 @@
             "path" : "test"
           },
           "functionPackId" : "testPack",
-          "functions" : [ ],
+          "functions" : [ {
+            "resource" : {
+              "actions" : [ {
+                "command" : "say HI!",
+                "contextChain" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "output" : null,
+                      "position" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "world" : "ServerLevel[Test Level]",
+                      "level" : 4,
+                      "name" : "Server",
+                      "displayName" : {
+                        "content" : {
+                          "string" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "ordered" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "returnValueConsumer" : { },
+                      "entityAnchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signedArguments" : { },
+                      "messageChainTaskQueue" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "contents" : "HI!",
+                          "selectors" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 245,
+                      "command_crafter$skippedChars" : 15
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 245,
+                      "command_crafter$skippedChars" : 15
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "usedVariables" : [ ]
+            }
+          } ],
           "functionTags" : [ ],
           "originResourceIdSetEventStack" : [ ],
           "originResourceInfoSetEventStack" : [ ]
         },
         "directiveManager" : { },
-        "nextLine" : 11,
+        "nextLine" : 14,
         "onlyReadEscapedMultiline" : false,
         "currentIndentation" : 0,
         "scopeStack" : [ ]
@@ -2453,8 +2689,8 @@
           "character" : 1
         },
         "end" : {
-          "line" : 11,
-          "character" : 34
+          "line" : 14,
+          "character" : 2
         }
       },
       "dynamicBreakpoints" : { },
@@ -2655,23 +2891,97 @@
         },
         "isMacro" : false,
         "argumentBreakpointParserSuppliers" : { }
+      }, {
+        "rootContext" : {
+          "source" : {
+            "output" : null,
+            "position" : {
+              "x" : 0.0,
+              "y" : 0.0,
+              "z" : 0.0
+            },
+            "world" : "ServerLevel[Test Level]",
+            "level" : 4,
+            "name" : "Server",
+            "displayName" : {
+              "content" : {
+                "string" : "Server"
+              },
+              "siblings" : [ ],
+              "style" : { },
+              "ordered" : { }
+            },
+            "server" : null,
+            "silent" : false,
+            "returnValueConsumer" : { },
+            "entityAnchor" : "FEET",
+            "rotation" : {
+              "x" : 0.0,
+              "y" : 0.0
+            },
+            "signedArguments" : { },
+            "messageChainTaskQueue" : { }
+          },
+          "input" : "function ",
+          "command" : { },
+          "arguments" : {
+            "name" : {
+              "range" : {
+                "start" : 9,
+                "end" : 9
+              },
+              "result" : {
+                "isTag" : false
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "function",
+            "range" : {
+              "start" : 0,
+              "end" : 8
+            },
+            "command_crafter$readCharacters" : 230,
+            "command_crafter$skippedChars" : 15
+          }, {
+            "node" : "name",
+            "range" : {
+              "start" : 9,
+              "end" : 9
+            },
+            "command_crafter$readCharacters" : 257,
+            "command_crafter$skippedChars" : 15
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 9
+          },
+          "forks" : false
+        },
+        "isMacro" : false,
+        "argumentBreakpointParserSuppliers" : {
+          "net.minecraft.command.argument.CommandFunctionArgumentType@73acb6f3" : {
+            "isTag" : false
+          }
+        }
       } ],
       "reader" : {
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand " ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 105, 137 ],
-            "targetCursors" : [ 34, 60, 81, 98, 122 ],
-            "lengths" : [ 25, 21, 16, 24, 6 ],
+            "sourceCursors" : [ 34, 60, 88, 105, 137, 249 ],
+            "targetCursors" : [ 34, 60, 81, 98, 122, 234 ],
+            "lengths" : [ 25, 21, 16, 24, 6, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 143,
-            "prevTargetEnd" : 128
+            "prevSourceEnd" : 264,
+            "prevTargetEnd" : 249
           },
-          "readCharacters" : 231,
+          "readCharacters" : 267,
           "skippedChars" : 15,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 231 ]
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 230, 241, 265, 267 ]
         },
         "dispatcher" : null,
         "resourceCreator" : {
@@ -2680,13 +2990,93 @@
             "path" : "test"
           },
           "functionPackId" : "testPack",
-          "functions" : [ ],
+          "functions" : [ {
+            "resource" : {
+              "actions" : [ {
+                "command" : "say HI!",
+                "contextChain" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "output" : null,
+                      "position" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "world" : "ServerLevel[Test Level]",
+                      "level" : 4,
+                      "name" : "Server",
+                      "displayName" : {
+                        "content" : {
+                          "string" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "ordered" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "returnValueConsumer" : { },
+                      "entityAnchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signedArguments" : { },
+                      "messageChainTaskQueue" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "contents" : "HI!",
+                          "selectors" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 245,
+                      "command_crafter$skippedChars" : 15
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 245,
+                      "command_crafter$skippedChars" : 15
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "usedVariables" : [ ]
+            }
+          } ],
           "functionTags" : [ ],
           "originResourceIdSetEventStack" : [ ],
           "originResourceInfoSetEventStack" : [ ]
         },
         "directiveManager" : { },
-        "nextLine" : 11,
+        "nextLine" : 14,
         "onlyReadEscapedMultiline" : false,
         "currentIndentation" : 0,
         "scopeStack" : [ ]
@@ -2702,8 +3092,8 @@
           "character" : 1
         },
         "end" : {
-          "line" : 11,
-          "character" : 34
+          "line" : 14,
+          "character" : 2
         }
       },
       "dynamicBreakpoints" : { },

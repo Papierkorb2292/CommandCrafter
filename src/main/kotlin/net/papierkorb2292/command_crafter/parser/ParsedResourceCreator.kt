@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.collect.ImmutableMap
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
@@ -101,7 +102,7 @@ class ParsedResourceCreator(
         originResourceInfoSetEventStack.pop()
     }
 
-    class AutomaticResource<T>(val idSetter: (Identifier) -> Unit, val resource: T)
+    class AutomaticResource<T>(@JsonIgnore val idSetter: (Identifier) -> Unit, val resource: T)
 
     private fun getPath(id: Int) = Identifier.of(functionId.namespace, "${functionId.path}--$id--craftergen")
 
