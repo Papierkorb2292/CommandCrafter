@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.datafixers.util.Either
 import com.mojang.datafixers.util.Pair
@@ -12,6 +13,7 @@ import net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved.CommandF
 class MutableFunctionArgument(val isTag: Boolean): CommandFunctionArgumentType.FunctionArgument {
 
     var id: Identifier? = null
+    @JsonIgnore
     val idSetter: (Identifier) -> Unit = { id = it }
 
     override fun getFunctions(context: CommandContext<ServerCommandSource>): Collection<CommandFunction<ServerCommandSource>> {

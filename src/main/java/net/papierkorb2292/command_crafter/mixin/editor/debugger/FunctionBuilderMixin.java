@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.command.SourcedCommandAction;
 import net.minecraft.server.command.AbstractServerCommandSource;
@@ -20,7 +21,9 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 @Mixin(FunctionBuilder.class)
 public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> implements DebugPauseHandlerCreatorIndexConsumer, DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame> {
 
+    @JsonIgnore
     private @Nullable Integer command_crafter$pauseHandlerCreatorIndex;
+    @JsonIgnore
     private @Nullable DebugInformation<FunctionBreakpointLocation, FunctionDebugFrame> command_crafter$debugInformation;
 
     @Override

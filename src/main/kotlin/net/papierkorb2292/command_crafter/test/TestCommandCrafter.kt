@@ -230,7 +230,10 @@ object TestCommandCrafter {
             @language vanilla improved
             execute
                 align xyz run
-                summon minecraft:armor_stand 
+                summon minecraft:armor_stand
+            function {
+                say HI!            
+            }
         """.trimIndent().lines()
         try {
             testAllFunctionParsers(lines, context)

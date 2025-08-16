@@ -573,6 +573,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         skipAnalyzedChars: Boolean = false,
     ) {
+        val initialReadCharacters = reader.readCharacters
+        val initialSkippedChars = reader.skippedChars
         val commandInput = reader.string
         val context = contextBuilder.build(commandInput)
         val node = parsedNode.node
@@ -584,45 +586,51 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             context.source
         )
         if (node is AnalyzingCommandNode) {
+            // Modify the mapping info of the original reader, not just the analyzeReader, because the original mapping info is still used in the AnalyzingResult
+            reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+            reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
             val analyzeReader = reader.copy()
-            analyzeReader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
-            analyzeReader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
-            analyzeReader.cursor = parsedNode.range.start;
-            val nodeAnalyzingResult = analyzingResult.copyInput()
+            analyzeReader.cursor = parsedNode.range.start
             try {
-                node.`command_crafter$analyze`(
-                    context,
-                    StringRange(
-                        parsedNode.range.start,
-                        MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-                    ),
-                    analyzeReader,
-                    nodeAnalyzingResult,
-                    node.name
-                )
-            } catch(e: Exception) {
-                CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
-            }
-            if(skipAnalyzedChars)
-                reader.cursor = analyzeReader.cursor
-            if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
-                    context,
-                    node.name
-                )
-            ) {
-                analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
-                addNodeSuggestions(
-                    parentNode,
-                    analyzingResult,
-                    parsedNode.range,
-                    analyzeReader,
-                    contextBuilder,
-                    !easyNewLine,
-                    nodeAnalyzingResult,
-                    rootSuggestionsResult
-                )
-            } else {
-                analyzingResult.combineWith(nodeAnalyzingResult)
+                val nodeAnalyzingResult = analyzingResult.copyInput()
+                try {
+                    node.`command_crafter$analyze`(
+                        context,
+                        StringRange(
+                            parsedNode.range.start,
+                            MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                        ),
+                        analyzeReader,
+                        nodeAnalyzingResult,
+                        node.name
+                    )
+                } catch(e: Exception) {
+                    CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                }
+                if(skipAnalyzedChars)
+                    reader.cursor = analyzeReader.cursor
+                if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
+                        context,
+                        node.name
+                    )
+                ) {
+                    analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
+                    addNodeSuggestions(
+                        parentNode,
+                        analyzingResult,
+                        parsedNode.range,
+                        analyzeReader,
+                        contextBuilder,
+                        !easyNewLine,
+                        nodeAnalyzingResult,
+                        rootSuggestionsResult
+                    )
+                } else {
+                    analyzingResult.combineWith(nodeAnalyzingResult)
+                }
+            } finally {
+                reader.readCharacters = initialReadCharacters
+                reader.skippedChars = initialSkippedChars
             }
         } else {
             analyzingResult.combineWithCompletionProviders(rootSuggestionsResult)

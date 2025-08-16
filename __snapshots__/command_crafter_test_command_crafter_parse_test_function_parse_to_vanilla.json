@@ -6,4 +6,18 @@
   "value" : "$say hi to $(the_macro) for me\n"
 }, {
   "value" : "execute align xyz run summon minecraft:armor_stand\n"
+}, {
+  "value" : "function "
+}, {
+  "value" : {
+    "type" : {
+      "prefix" : "function",
+      "fileExtension" : "mcfunction"
+    },
+    "content" : [ {
+      "value" : "say HI!\n"
+    } ]
+  }
+}, {
+  "value" : "\n"
 } ]
