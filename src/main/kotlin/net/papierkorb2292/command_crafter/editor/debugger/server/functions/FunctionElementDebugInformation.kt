@@ -12,7 +12,7 @@ import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.Macro
 import net.minecraft.util.Identifier
-import net.minidev.json.annotate.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnore
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer

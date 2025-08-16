@@ -2041,8 +2041,7 @@
           "modifier" : { },
           "forks" : true
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : { }
+        "isMacro" : false
       }, {
         "rootContext" : {
           "source" : {
@@ -2367,8 +2366,7 @@
           },
           "forks" : true
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : { }
+        "isMacro" : false
       }, {
         "elementIndex" : 2,
         "macroFileRange" : {
@@ -2889,8 +2887,7 @@
           },
           "forks" : false
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : { }
+        "isMacro" : false
       }, {
         "rootContext" : {
           "source" : {
@@ -2959,12 +2956,7 @@
           },
           "forks" : false
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : {
-          "net.minecraft.command.argument.CommandFunctionArgumentType@73acb6f3" : {
-            "isTag" : false
-          }
-        }
+        "isMacro" : false
       } ],
       "reader" : {
         "string" : "",
