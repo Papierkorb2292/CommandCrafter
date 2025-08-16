@@ -23,7 +23,7 @@ public class TokenParsingRuleMixin {
         final var reader = parsingState.getReader();
         if(reader instanceof DirectiveStringReader<?>) {
             // Extend to cursor
-            reader.canRead(j);
+            reader.canRead(j - reader.getCursor());
             return reader.getString();
         }
         return string;
