@@ -2,11 +2,16 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.command.EntitySelectorOptions;
 import net.minecraft.command.EntitySelectorReader;
+import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
@@ -104,5 +109,25 @@ public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
         return CompletableFuture.allOf(original, lastSuggestions).thenApply(v ->
                 Suggestions.merge(builder.getInput(), ImmutableList.of(original.join(), lastSuggestions.join()))
         );
+    }
+
+    @WrapOperation(
+            method = "readArguments",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;handle(Lnet/minecraft/command/EntitySelectorReader;)V"
+            )
+    )
+    private void command_crafter$skipMalformedOptions(EntitySelectorOptions.SelectorHandler instance, EntitySelectorReader entitySelectorReader, Operation<Void> op) {
+        if(command_crafter$analyzingResult == null) {
+            op.call(instance, entitySelectorReader);
+            return;
+        }
+        try {
+            MixinUtil.<Void, CommandSyntaxException>callWithThrows(op, instance, entitySelectorReader);
+        } catch (CommandSyntaxException e) {
+            while(reader.canRead() && reader.peek() != ',' && reader.peek() != ']' && reader.peek() != '\n')
+                reader.skip();
+        }
     }
 }
