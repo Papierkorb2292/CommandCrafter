@@ -260,7 +260,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
             if(hasClosingParentheses) {
                 variablesSemanticTokens.addMultiline(variableNameEnd, 1, TokenType.MACRO, 0)
-                // Only check if the macro has closing parentheses, otherwise it might be including too many chars anyway
+                // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
                 // that aren't actually intended to be part of the name
                 if(!MacroInvocation.isValidMacroName(variable)) {
                     result.diagnostics += Diagnostic(
