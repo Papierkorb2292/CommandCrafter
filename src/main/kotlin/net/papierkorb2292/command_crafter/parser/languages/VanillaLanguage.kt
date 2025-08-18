@@ -17,6 +17,7 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
 import net.minecraft.command.CommandSource
+import net.minecraft.command.MacroInvocation
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.util.packrat.ParsingRule
@@ -33,9 +34,7 @@ import net.minecraft.registry.entry.RegistryEntry
 import net.minecraft.registry.entry.RegistryEntryList
 import net.minecraft.registry.tag.TagEntry
 import net.minecraft.registry.tag.TagKey
-import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.FunctionBuilder
 import net.minecraft.server.function.Macro
@@ -43,8 +42,6 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.StringIdentifiable
 import net.minecraft.util.math.MathHelper
-import net.minecraft.util.math.Vec2f
-import net.minecraft.util.math.Vec3d
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
@@ -145,27 +142,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.skip()
                 }
                 if(reader.canRead() && reader.peek() == '$') {
-                    //Macros aren't analyzed, but FunctionBuilder does some validation
-                    val startCursor = reader.cursor
-                    try {
-                        FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
-                            readMacro(reader),
-                            reader.currentLine,
-                            ServerCommandSource(
-                                CommandOutput.DUMMY,
-                                Vec3d.ZERO,
-                                Vec2f.ZERO,
-                                null,
-                                4,
-                                "",
-                                ScreenTexts.EMPTY,
-                                null,
-                                null
-                            )
-                        )
-                    } catch(e: IllegalArgumentException) {
-                        throw CursorAwareExceptionWrapper(e, startCursor)
-                    }
+                    readAndAnalyzeMacro(reader, result)
                     continue
                 }
                 //Let command start at cursor 0, so completions don't overlap with suggestRootNode
@@ -250,6 +227,78 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         break
                 }
             }
+        }
+    }
+
+    private fun readAndAnalyzeMacro(
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        result: AnalyzingResult,
+    ) {
+        val startCursor = reader.cursor
+        val macroStartOffset = startCursor + 1 //Include '$'
+        val macro = readMacro(reader)
+        val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
+            MacroInvocation.parse(macro)
+        }
+
+        @Suppress("CAST_NEVER_SUCCEEDS")
+        val resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
+            .`command_crafter$getCursorMapper`(macroInvocation.variables.map { "" })
+        for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
+            resolvedMacroCursorMapper.sourceCursors[i] += macroStartOffset
+
+        result.semanticTokens.addMultiline(startCursor, 1, TokenType.MACRO, 0)
+        result.semanticTokens.addMultiline(macroStartOffset, reader.cursor, TokenType.STRING, 0)
+
+        val variablesSemanticTokens = SemanticTokensBuilder(result.mappingInfo)
+        for((i, variable) in macroInvocation.variables.withIndex()) {
+            val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
+            variablesSemanticTokens.addMultiline(variableStart, 2, TokenType.MACRO, 0)
+            variablesSemanticTokens.addMultiline(variableStart + 2, variable.length, TokenType.ENUM, 0)
+            val variableNameStart = variableStart + 2
+            val variableNameEnd = variableNameStart + variable.length
+            val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
+            if(hasClosingParentheses) {
+                variablesSemanticTokens.addMultiline(variableNameEnd, 1, TokenType.MACRO, 0)
+                // Only check if the macro has closing parentheses, otherwise it might be including too many chars anyway
+                // that aren't actually intended to be part of the name
+                if(!MacroInvocation.isValidMacroName(variable)) {
+                    result.diagnostics += Diagnostic(
+                        Range(
+                            AnalyzingResult.getPositionFromCursor(
+                                reader.cursorMapper.mapToSource(variableNameStart + reader.readSkippingChars),
+                                result.mappingInfo
+                            ),
+                            AnalyzingResult.getPositionFromCursor(
+                                reader.cursorMapper.mapToSource(variableNameEnd + reader.readSkippingChars),
+                                result.mappingInfo
+                            )
+                        ),
+                        "Invalid macro variable name '$variable'"
+                    )
+                }
+            } else {
+                val endPosition = AnalyzingResult.getPositionFromCursor(
+                    reader.cursorMapper.mapToSource(variableNameEnd + reader.readSkippingChars),
+                    result.mappingInfo
+                )
+                result.diagnostics += Diagnostic(
+                    Range(endPosition, endPosition.advance()),
+                    "Unterminated macro variable"
+                )
+            }
+        }
+        result.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
+
+        if(macroInvocation.variables.isEmpty()) {
+            val macroStart = AnalyzingResult.getPositionFromCursor(
+                reader.cursorMapper.mapToSource(startCursor + reader.readSkippingChars),
+                result.mappingInfo
+            )
+            result.diagnostics += Diagnostic(
+                Range(macroStart, macroStart.advance()), // Mark '$'
+                "No variables in macro"
+            )
         }
     }
 
@@ -820,6 +869,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         const val ID = "vanilla"
 
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
+        val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
