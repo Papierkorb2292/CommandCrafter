@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -18,6 +19,7 @@ import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.util.Identifier;
+import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
@@ -225,5 +227,30 @@ public class BlockArgumentParserMixin implements AnalyzingResultCreator {
                 .withDiagnosticSeverity(DiagnosticSeverity.Warning)
                 .analyzeFull(command_crafter$analyzingResult, true, decoder);
         return nbt instanceof NbtCompound ? (NbtCompound)nbt : null;
+    }
+
+    @WrapMethod(
+            method = { "parseTagProperties", "parseBlockProperties" }
+    )
+    private void command_crafter$allowMalformedProperties(Operation<Void> op) {
+        if(command_crafter$analyzingResult == null) {
+            op.call();
+            return;
+        }
+        try {
+            MixinUtil.<Void, CommandSyntaxException>callWithThrows(op);
+        } catch (CommandSyntaxException e) {
+            // Skip to next property
+            while(reader.canRead() && reader.peek() != ',' && reader.peek() != ']')
+                reader.skip();
+            if(!reader.canRead())
+                return;
+
+            // Go one back, because the beginning of the parser method will skip a char (the comma is supposed to be skipped)
+            if(reader.peek() == ']')
+                reader.setCursor(reader.getCursor() - 1);
+            // Invoke the parser again
+            command_crafter$allowMalformedProperties(op);
+        }
     }
 }

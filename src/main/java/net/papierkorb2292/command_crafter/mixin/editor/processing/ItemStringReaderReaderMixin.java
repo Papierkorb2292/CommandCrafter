@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Cancellable;
@@ -134,5 +136,49 @@ public class ItemStringReaderReaderMixin {
             ci.cancel();
         }
         return original;
+    }
+
+    @WrapMethod(
+            method = "readComponents"
+    )
+    private void command_crafter$allowMalformedComponents(Operation<Void> op) throws CommandSyntaxException {
+        if(command_crafter$analyzingResult == null) {
+            op.call();
+            return;
+        }
+        // This is usually done by the readComponents method, but it's disabled when generating
+        // an analyzing result, because it would interfere with the recursion
+        reader.expect('[');
+        command_crafter$parseMalformedComponents(op);
+    }
+
+    private void command_crafter$parseMalformedComponents(Operation<Void> op) {
+        try {
+            MixinUtil.<Void, CommandSyntaxException>callWithThrows(op);
+        } catch (CommandSyntaxException e) {
+            // Skip to next property
+            while(reader.canRead() && reader.peek() != ',' && reader.peek() != ']')
+                reader.skip();
+            if(!reader.canRead())
+                return;
+
+            if(reader.peek() == ',')
+                reader.skip();
+            // Invoke the parser again
+            command_crafter$parseMalformedComponents(op);
+        }
+    }
+
+    @WrapWithCondition(
+            method = "readComponents",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;expect(C)V",
+                    ordinal = 0,
+                    remap = false
+            )
+    )
+    private boolean command_crafter$removeStartingBracketsForMalformedComponents(StringReader instance, char c) {
+        return command_crafter$analyzingResult == null;
     }
 }

@@ -26,9 +26,10 @@ import org.spongepowered.asm.mixin.injection.Slice;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
+import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermAddEntryRanges;
+import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermSkipToNextEntryIfMalformed;
 
 @Mixin(SnbtParsing.class)
 public class SnbtParsingMixin {
@@ -98,8 +99,8 @@ public class SnbtParsingMixin {
         var wrappedSymbol = new Symbol<NbtElement>("command_crafter:allow_malformed_" + symbol.name());
         rules.set(
                 wrappedSymbol,
-                command_crafter$wrapTermSkipToNextEntryIfMalformedAndAddEntryRanges(
-                        rules.term(symbol),
+                wrapTermSkipToNextEntryIfMalformed(
+                        wrapTermAddEntryRanges(rules.term(symbol)),
                         CharSet.of(',', ']'),
                         symbol,
                         SnbtParsingMixin::command_crafter$createPlaceholder
@@ -160,8 +161,8 @@ public class SnbtParsingMixin {
         var wrappedSymbol = new Symbol<Map.Entry<String, NbtElement>>("command_crafter:allow_malformed_" + symbol.name());
         return rules.set(
                 wrappedSymbol,
-                SnbtParsingMixin.command_crafter$wrapTermSkipToNextEntryIfMalformedAndAddEntryRanges(
-                        rules.term(symbol),
+                wrapTermSkipToNextEntryIfMalformed(
+                        wrapTermAddEntryRanges(rules.term(symbol)),
                         CharSet.of(',', '}'),
                         symbol,
                         // No tag could be parsed, but the rule needs to return something, so a placeholder is added that can be removed when building the compound
@@ -300,32 +301,6 @@ public class SnbtParsingMixin {
             return NbtStringAccessor.callInit("");
         }
         return element;
-    }
-
-    private static <TElement> Term<StringReader> command_crafter$wrapTermSkipToNextEntryIfMalformedAndAddEntryRanges(Term<StringReader> term, CharSet entryDelimiters, Symbol<TElement> elementName, Supplier<TElement> errorDefaultProvider) {
-        return (state, results, cut) -> {
-            var reader = state.getReader();
-            var stringRangeTreeBuilderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
-            if(stringRangeTreeBuilderArg != null) {
-                var node = stringRangeTreeBuilderArg.getStringRangeTreeBuilder().peekNode();
-                if(node != null) {
-                    var cursor = reader.getCursor();
-                    reader.skipWhitespace();
-                    node.addRangeBetweenEntries(new StringRange(cursor, reader.getCursor()));
-                    reader.setCursor(cursor);
-                }
-            }
-
-            var originalMatches = term.matches(state, results, cut);
-            if(!PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed())
-                return originalMatches;
-            if(!originalMatches)
-                results.put(elementName, errorDefaultProvider.get());
-            while(reader.canRead() && !entryDelimiters.contains(reader.peek()))
-                reader.skip();
-            // Since malformed elements are allowed, the term always matches
-            return true;
-        };
     }
 
     private static Term<StringReader> command_crafter$wrapTermAllowReaderEndIfMalformed(Term<StringReader> term) {
