@@ -9,12 +9,12 @@
     "ClientRegistriesMixin",
     "SimpleOptionAccessor",
     "editor.ClientPlayNetworkHandlerNodeFactoryMixin",
+    "editor.KeyBindingAccessor",
     "editor.KeybindTextContentMixin",
+    "editor.TranslatableTextContentMixin",
     "editor.shader.GlBackendMixin",
     "editor.shader.ShaderLoaderAccessor",
+    "editor.TranslationStorageAccessor",
     "parser.ClientPlayNetworkHandlerAccessor"
-  ],
-  "mixins": [
-    "editor.KeyBindingAccessor"
   ]
 }
