@@ -15,6 +15,7 @@ import net.minecraft.command.argument.ItemStringReader;
 import net.minecraft.component.ComponentType;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtEnd;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.registry.RegistryOps;
 import net.papierkorb2292.command_crafter.MixinUtil;
@@ -90,12 +91,13 @@ public class ItemStringReaderReaderMixin {
                     target = "Lnet/minecraft/nbt/StringNbtReader;readAsArgument(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
             )
     )
-    private <O, T> O command_crafter$analyzeComponentNbt(StringNbtReader<O> instance, StringReader reader, Operation<O> op, StringNbtReader<O> nbtReader,  RegistryOps<O> ops, ComponentType<T> type) {
+    private <O, T> O command_crafter$analyzeComponentNbt(StringNbtReader<O> instance, StringReader reader, Operation<O> op, StringNbtReader<O> originalNbtReader,  RegistryOps<O> ops, ComponentType<T> type) {
         if (command_crafter$analyzingResult == null || type.getCodec() == null || !(ops.empty() instanceof NbtElement)) {
             return op.call(instance, reader);
         }
         //noinspection unchecked
         final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
+        final var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
@@ -103,7 +105,7 @@ public class ItemStringReaderReaderMixin {
         final var startCursor = reader.getCursor();
         NbtElement nbt;
         try {
-            nbt = (NbtElement)MixinUtil.<O, CommandSyntaxException>callWithThrows(op, instance, reader);
+            nbt = (NbtElement)MixinUtil.<O, CommandSyntaxException>callWithThrows(op, nbtReader, reader);
         } catch(CommandSyntaxException e) {
             nbt = NbtEnd.INSTANCE;
             treeBuilder.addNode(nbt, new StringRange(startCursor, reader.getCursor()), startCursor);
