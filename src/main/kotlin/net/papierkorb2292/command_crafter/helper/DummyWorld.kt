@@ -10,6 +10,7 @@ import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.fluid.Fluid
 import net.minecraft.item.FuelRegistry
 import net.minecraft.item.map.MapState
+import net.minecraft.particle.BlockParticleEffect
 import net.minecraft.particle.ParticleEffect
 import net.minecraft.recipe.BrewingRecipeRegistry
 import net.minecraft.recipe.RecipeManager
@@ -19,6 +20,7 @@ import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.scoreboard.Scoreboard
 import net.minecraft.sound.SoundCategory
 import net.minecraft.sound.SoundEvent
+import net.minecraft.util.collection.Pool
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
 import net.minecraft.util.math.Vec3d
@@ -115,7 +117,8 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         explosionSourceType: ExplosionSourceType?,
         smallParticle: ParticleEffect?,
         largeParticle: ParticleEffect?,
-        soundEvent: RegistryEntry<SoundEvent>?,
+        blockParticles: Pool<BlockParticleEffect?>?,
+        soundEvent: RegistryEntry<SoundEvent?>?,
     ) {
         throw NotImplementedError("Not supported by dummy")
     }
