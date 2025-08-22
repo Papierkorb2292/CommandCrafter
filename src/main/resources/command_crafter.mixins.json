@@ -134,6 +134,8 @@
     "editor.processing.TagParsingRuleMixin",
     "editor.processing.TextColorMixin",
     "editor.processing.TranslatableTextContentMixin",
+    "editor.processing.macros.CommandContextBuilderAccessor",
+    "editor.processing.macros.CommandDispatcherAccessor",
     "editor.scoreboardStorageViewer.ContextLootNbtProviderEntityTargetMixin",
     "editor.scoreboardStorageViewer.DataCommandStorageAccessor",
     "editor.scoreboardStorageViewer.DataCommandStorageMixin",

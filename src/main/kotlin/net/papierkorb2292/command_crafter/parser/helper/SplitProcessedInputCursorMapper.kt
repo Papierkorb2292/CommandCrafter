@@ -129,11 +129,14 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         while(!targetMapper.lengths.isEmpty() && !sourceMapper.lengths.isEmpty()) {
             val start = max(sourceMapper.targetCursors[0], targetMapper.sourceCursors[0])
             val end = min(sourceMapper.targetCursors[0] + sourceMapper.lengths[0], targetMapper.sourceCursors[0] + targetMapper.lengths[0])
-            result.addMapping(
-                start - sourceMapper.targetCursors[0] + sourceMapper.sourceCursors[0],
-                start - targetMapper.sourceCursors[0] + targetMapper.targetCursors[0],
-                end - start
-            )
+            val length = end - start
+            if(length != 0) {
+                result.addMapping(
+                    start - sourceMapper.targetCursors[0] + sourceMapper.sourceCursors[0],
+                    start - targetMapper.sourceCursors[0] + targetMapper.targetCursors[0],
+                    length
+                )
+            }
 
             // Mappings should only be kept, if they also intersect the next mapping in the other mapper
             val canDiscardSourceMapping = targetMapper.sourceCursors.size <= 1 || sourceMapper.targetCursors[0] + sourceMapper.lengths[0] < targetMapper.sourceCursors[1]

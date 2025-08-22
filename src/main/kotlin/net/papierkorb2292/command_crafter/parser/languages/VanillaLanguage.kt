@@ -20,8 +20,6 @@ import net.minecraft.command.CommandSource
 import net.minecraft.command.MacroInvocation
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.util.packrat.ParsingRule
-import net.minecraft.util.packrat.ParsingState
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtEnd
 import net.minecraft.nbt.NbtOps
@@ -42,6 +40,7 @@ import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.StringIdentifiable
 import net.minecraft.util.math.MathHelper
+import net.minecraft.util.packrat.*
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
@@ -53,10 +52,8 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
-import net.papierkorb2292.command_crafter.helper.StringIdentifiableUnit
-import net.papierkorb2292.command_crafter.helper.getOrNull
-import net.papierkorb2292.command_crafter.helper.orEmpty
-import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.helper.*
+import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
@@ -142,7 +139,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.skip()
                 }
                 if(reader.canRead() && reader.peek() == '$') {
-                    readAndAnalyzeMacro(reader, result)
+                    readAndAnalyzeMacro(reader, source, result)
                     continue
                 }
                 //Let command start at cursor 0, so completions don't overlap with suggestRootNode
@@ -232,6 +229,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     private fun readAndAnalyzeMacro(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        source: CommandSource,
         result: AnalyzingResult,
     ) {
         val startCursor = reader.cursor
@@ -240,15 +238,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
             MacroInvocation.parse(macro)
         }
-
+        val macroVariableValues = macroInvocation.variables.map { "" }
         @Suppress("CAST_NEVER_SUCCEEDS")
         val resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
-            .`command_crafter$getCursorMapper`(macroInvocation.variables.map { "" })
+            .`command_crafter$getCursorMapper`(macroVariableValues)
         for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
             resolvedMacroCursorMapper.sourceCursors[i] += macroStartOffset
 
         result.semanticTokens.addMultiline(startCursor, 1, TokenType.MACRO, 0)
-        result.semanticTokens.addMultiline(macroStartOffset, reader.cursor, TokenType.STRING, 0)
 
         val variablesSemanticTokens = SemanticTokensBuilder(result.mappingInfo)
         for((i, variable) in macroInvocation.variables.withIndex()) {
@@ -288,6 +285,30 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 )
             }
         }
+
+        val replacedMacro = macroInvocation.apply(macroVariableValues)
+        // A macro variable is present at the beginning of every segment except for the first one
+        val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
+        macroVariableLocations.remove(0)
+
+        val macroMappingInfo = FileMappingInfo(
+            reader.lines,
+            reader.fileMappingInfo.cursorMapper
+                .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
+                .combineWith(resolvedMacroCursorMapper)
+        )
+        val macroAnalyzingResult = analyzeMacroCommand(
+            DirectiveStringReader(macroMappingInfo, reader.dispatcher, reader.resourceCreator).apply {
+                // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
+                toCompleted()
+                string = replacedMacro
+            },
+            source,
+            AnalyzingResult(macroMappingInfo, result.filePosition),
+            macroVariableLocations
+        )
+
+        result.combineWith(macroAnalyzingResult)
         result.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
 
         if(macroInvocation.variables.isEmpty()) {
@@ -413,24 +434,34 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         if(!reader.canRead()) return ""
         if(!easyNewLine) {
             reader.convertInputToEscapedMultiline()
+            reader.peek()
+            // Add back trailing whitespace for analyzing (suggestions might use them)
+            if(reader.resourceCreator is AnalyzingResourceCreator)
+                reader.disableTrimmingFromEscapedMultiline()
             val macro = reader.readLine()
             reader.disableEscapedMultiline()
             return if(macro.startsWith('$')) macro.substring(1) else macro
         }
-        reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.nextLineEnd - reader.cursor)
+        val lineStart = reader.cursor
+        val lineReadCharacters = reader.readCharacters
+        val lineSkippedChars = reader.skippedChars
         if(reader.peek() == '$')
             reader.skip()
         val macroBuilder = StringBuilder(reader.readLine())
-        var indentStartCursor = reader.cursor - 1
+        reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - lineStart)
+        var indentStartCursor = reader.cursor
         while(reader.tryReadIndentation { it > reader.currentIndentation }) {
-            val skippedChars = reader.cursor - indentStartCursor
+            val skippedChars = reader.cursor - indentStartCursor // Note that skippedChars doesn't include newline characters. By not skipping this char, the mapping accounts for the additional ' ' characters.
             reader.string = reader.string.substring(0, indentStartCursor - 1) + ' ' + reader.string.substring(reader.cursor) //Also removes newline
             reader.cursor = indentStartCursor
             reader.skippedChars += skippedChars
             reader.readCharacters += skippedChars
             macroBuilder.append(' ')
-            reader.cursorMapper.addMapping(reader.absoluteCursor, reader.skippingCursor, reader.nextLineEnd - reader.cursor)
+            val lineStart = reader.cursor
+            val lineReadCharacters = reader.readCharacters
+            val lineSkippedChars = reader.skippedChars
             macroBuilder.append(reader.readLine())
+            reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - lineStart)
             indentStartCursor = reader.cursor
         }
         return macroBuilder.toString()
@@ -589,7 +620,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         gapRange: StringRange,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        commandSource: CommandSource
+        commandSource: CommandSource,
     ) {
         if(!isReaderEasyNextLine(reader))
             // There can't be any improved command gaps
@@ -874,6 +905,72 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
 
+        private val MACRO_ANALYZER: PackratParser<Unit> = createMacroAnalyzer()
+        private val MACRO_VARIABLE_LOCATIONS = ThreadLocal<IntList>()
+
+        // Use packrat parser because there are already mixins for branching the
+        // analyzing result, which macros have to do when trying to match the next segment
+        private fun createMacroAnalyzer(): PackratParser<Unit> {
+            val parsingRules = ParsingRules<StringReader>()
+
+            val segmentSymbol = Symbol.of<Unit>("segment")
+
+            val segmentRule = parsingRules.set(segmentSymbol, delegatingTerm { state, results, cut ->
+                val startCursor = state.cursor
+                val context = PackratParserAdditionalArgs.commandContextBuilder.get()!!.commandContextBuilder
+                val analyzingResult = PackratParserAdditionalArgs.analyzingResult.get()!!.analyzingResult
+                val variableLocations = MACRO_VARIABLE_LOCATIONS.get()!!
+                val lastChild = context.lastChild
+                val node = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
+
+                val restoreArgs = PackratParserAdditionalArgs.temporarilyClearArgs()
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    val commandParseResults = (context.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
+                        node,
+                        state.reader,
+                        context
+                    )
+                    @Suppress("UNCHECKED_CAST")
+                    VanillaLanguage().analyzeParsedCommand(
+                        commandParseResults,
+                        analyzingResult,
+                        commandParseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
+                    )
+                    // TODO: Fail on error
+                    Term.epsilon()
+                } finally {
+                    restoreArgs()
+                }
+            }) { result: net.minecraft.util.packrat.ParseResults -> }
+
+            return PackratParser(parsingRules, segmentRule)
+        }
+
+        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList): AnalyzingResult {
+            reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
+            val errors = ParseErrorList.Impl<StringReader>()
+            val state = ReaderBackedParsingState(errors, reader)
+            try {
+                PackratParserAdditionalArgs.analyzingResult.set(
+                    PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(
+                        baseAnalyzingResult.copyInput()
+                    )
+                )
+                PackratParserAdditionalArgs.setupFurthestAnalyzingResultStart()
+                MACRO_VARIABLE_LOCATIONS.set(macroVariableLocations)
+                PackratParserAdditionalArgs.commandContextBuilder.set(PackratParserAdditionalArgs.CommandContextBuilderBranchingArgument(
+                    CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor)
+                ))
+                MACRO_ANALYZER.startParsing(state)
+                // The furthest analyzing result can be null if the parser never failed, in which case the current analyzing result should contain all the data
+                return PackratParserAdditionalArgs.getAndRemoveFurthestAnalyzingResult() ?: PackratParserAdditionalArgs.analyzingResult.get()!!.analyzingResult
+            } finally {
+                PackratParserAdditionalArgs.analyzingResult.remove()
+                MACRO_VARIABLE_LOCATIONS.remove()
+            }
+        }
+
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
             var foundAny = false
             while(true) {
@@ -991,7 +1088,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             registry: RegistryWrapper.Impl<T>,
             throwSyntaxErrors: Boolean = true,
             hasNegationChar: Boolean = false,
-            suggestNegationChar: Boolean = false
+            suggestNegationChar: Boolean = false,
         ): AnalyzedRegistryEntryList<T> {
             val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             val codec = if(suggestNegationChar) Codec.either(
@@ -1104,7 +1201,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         fun analyzeImprovedFunctionReference(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: CommandSource,
-            isAnalyzingParsedNode: Boolean = false
+            isAnalyzingParsedNode: Boolean = false,
         ): AnalyzedFunctionArgument? {
             val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
             if(reader.canRead() && reader.peek() == '[') {

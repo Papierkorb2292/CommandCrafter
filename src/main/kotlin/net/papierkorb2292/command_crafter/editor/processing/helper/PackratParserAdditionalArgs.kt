@@ -1,8 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
+import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
+import net.minecraft.command.CommandSource
 import net.minecraft.nbt.NbtElement
 import net.minecraft.util.packrat.ParsingStateImpl
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
@@ -16,12 +18,14 @@ object PackratParserAdditionalArgs {
     val furthestAnalyzingResult = ThreadLocal<Pair<Int, AnalyzingResult?>>()
     val stringifiedArgument = ThreadLocal<StringifiedBranchingArgument>()
     val nbtStringRangeTreeBuilder = ThreadLocal<StringRangeTreeBranchingArgument<NbtElement>>()
+    val commandContextBuilder = ThreadLocal<CommandContextBuilderBranchingArgument>()
     val allowMalformed = ThreadLocal<Boolean>()
 
     private val branchingArgs = listOf(
         BranchingArgumentContainer(analyzingResult, ::AnalyzingResultBranchingArgument),
         BranchingArgumentContainer(stringifiedArgument, ::StringifiedBranchingArgument),
-        BranchingArgumentContainer(nbtStringRangeTreeBuilder, ::StringRangeTreeBranchingArgument)
+        BranchingArgumentContainer(nbtStringRangeTreeBuilder, ::StringRangeTreeBranchingArgument),
+        BranchingArgumentContainer(commandContextBuilder, ::CommandContextBuilderBranchingArgument)
     )
 
     val delayedDecodeNbtAnalyzeCallback = ThreadLocal<(DynamicOps<NbtElement>, Decoder<*>) -> Unit>()
@@ -49,6 +53,8 @@ object PackratParserAdditionalArgs {
         furthestAnalyzingResult.remove()
         val delayedDecodeNbtAnalyzeCallbackVal = delayedDecodeNbtAnalyzeCallback.getOrNull()
         delayedDecodeNbtAnalyzeCallback.remove()
+        val commandContextBuilderVal = commandContextBuilder.getOrNull()
+        commandContextBuilder.remove()
         return {
             analyzingResult.set(analyzingResultVal)
             stringifiedArgument.set(stringifiedArgumentVal)
@@ -56,6 +62,7 @@ object PackratParserAdditionalArgs {
             allowMalformed.set(allowMalformedVal)
             furthestAnalyzingResult.set(furthestAnalyzingResultVal)
             delayedDecodeNbtAnalyzeCallback.set(delayedDecodeNbtAnalyzeCallbackVal)
+            commandContextBuilder.set(commandContextBuilderVal)
         }
     }
 
@@ -128,6 +135,15 @@ object PackratParserAdditionalArgs {
         override fun mergeBranch(argument: StringRangeTree.PartialBuilder<TNode>, success: Boolean) {
             if(success)
                 stringRangeTreeBuilder.popBuilder(argument)
+        }
+    }
+
+    data class CommandContextBuilderBranchingArgument(var commandContextBuilder: CommandContextBuilder<CommandSource>): BranchingArgument<CommandContextBuilder<CommandSource>> {
+        override fun get() = commandContextBuilder
+        override fun createBranch(): CommandContextBuilder<CommandSource> = commandContextBuilder.copy()
+        override fun mergeBranch(argument: CommandContextBuilder<CommandSource>, success: Boolean) {
+            if(success)
+                commandContextBuilder = argument
         }
     }
 }
