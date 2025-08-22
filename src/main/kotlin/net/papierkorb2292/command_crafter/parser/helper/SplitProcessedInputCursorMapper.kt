@@ -3,6 +3,8 @@ package net.papierkorb2292.command_crafter.parser.helper
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import kotlin.collections.component1
+import kotlin.collections.component2
 import kotlin.math.max
 import kotlin.math.min
 
@@ -110,63 +112,38 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
 
     fun combineWith(targetMapper: OffsetProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
         val result = SplitProcessedInputCursorMapper()
-        if(sourceCursors.isEmpty() || sourceCursors[0] > 0)
-            result.addMapping(0, targetMapper.offset, 0)
         for(i in 0 until sourceCursors.size) {
             result.addMapping(sourceCursors[i], targetCursors[i] + targetMapper.offset, lengths[i])
         }
+        for((startCursor, endCursor) in expandedCharEnds)
+            result.addExpandedChar(startCursor + targetMapper.offset, endCursor + targetMapper.offset)
         return result
     }
 
-    fun combineWith(targetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
+    fun combineWith(originalTargetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
         val result = SplitProcessedInputCursorMapper()
-        if(sourceCursors.isEmpty()) {
-            for(i in 0 until targetMapper.sourceCursors.size) {
-                result.addMapping(targetMapper.sourceCursors[i], targetMapper.targetCursors[i], 0)
-            }
-            for((start, end) in targetMapper.expandedCharEnds) {
-                result.addExpandedChar(start, end)
-            }
-            return result
+        // Make mappers mutable so any processed mappings can be removed, which makes the computation easier
+        val targetMapper = originalTargetMapper.copy()
+        val sourceMapper = this.copy()
+
+        while(!targetMapper.lengths.isEmpty() && !sourceMapper.lengths.isEmpty()) {
+            val start = max(sourceMapper.targetCursors[0], targetMapper.sourceCursors[0])
+            val end = min(sourceMapper.targetCursors[0] + sourceMapper.lengths[0], targetMapper.sourceCursors[0] + targetMapper.lengths[0])
+            result.addMapping(
+                start - sourceMapper.targetCursors[0] + sourceMapper.sourceCursors[0],
+                start - targetMapper.sourceCursors[0] + targetMapper.targetCursors[0],
+                end - start
+            )
+
+            // Mappings should only be kept, if they also intersect the next mapping in the other mapper
+            val canDiscardSourceMapping = targetMapper.sourceCursors.size <= 1 || sourceMapper.targetCursors[0] + sourceMapper.lengths[0] < targetMapper.sourceCursors[1]
+            val canDiscardTargetMapping = sourceMapper.targetCursors.size <= 1 || targetMapper.sourceCursors[0] + targetMapper.lengths[0] < sourceMapper.targetCursors[1]
+            if(canDiscardSourceMapping)
+                sourceMapper.popFirstMapping()
+            if(canDiscardTargetMapping)
+                targetMapper.popFirstMapping()
         }
-        var currentOtherIndex = if(targetMapper.lengths.isEmpty()) -1 else 0
-        for(i in 0 until sourceCursors.size) {
-            val sourceCursor = sourceCursors[i]
-            val targetCursor = targetCursors[i]
-            // Skip targetMapper mappings that are before the range of mapping i
-            while(currentOtherIndex != -1 && targetMapper.sourceCursors[currentOtherIndex] + targetMapper.lengths[currentOtherIndex] < targetCursor) {
-                currentOtherIndex = if(targetMapper.lengths.size > currentOtherIndex + 1) currentOtherIndex + 1 else -1
-            }
-            if(currentOtherIndex == -1 || targetMapper.sourceCursors[currentOtherIndex] > targetCursor) {
-                // targetMapper has no mapping at the start of this range
-                // Thus, a mapping of length=0 is added at the start,
-                // such that all cursors up until the next mapping are part of a gap but are still translated correctly
-                if(targetMapper.sourceCursors.isEmpty() || currentOtherIndex == 0) {
-                    result.addMapping(sourceCursor, targetCursor, 0)
-                } else {
-                    val prevOtherIndex = if(currentOtherIndex == -1) targetMapper.sourceCursors.size - 1 else currentOtherIndex - 1
-                    val translation = targetMapper.targetCursors[prevOtherIndex] - targetMapper.sourceCursors[prevOtherIndex]
-                    result.addMapping(sourceCursor, targetCursor + translation, 0)
-                }
-            }
-            if(currentOtherIndex == -1)
-                continue
-            var nextMappingMinSourceStart = sourceCursor
-            // Go through targetMapper mappings that intersect with mapping i
-            while(currentOtherIndex != -1 && (targetMapper.sourceCursors[currentOtherIndex] <= targetCursor + lengths[i] || i == sourceCursors.size - 1)) {
-                val mappedOtherStart = targetMapper.sourceCursors[currentOtherIndex] - targetCursor + sourceCursor
-                val sourceStart = max(mappedOtherStart, sourceCursor)
-                val mappingLength = min(min(mappedOtherStart - sourceCursor, 0) + targetMapper.lengths[currentOtherIndex], max(sourceCursor + lengths[i] - nextMappingMinSourceStart, 0))
-                result.addMapping(sourceStart, targetMapper.targetCursors[currentOtherIndex] - mappedOtherStart + sourceStart, mappingLength)
-                nextMappingMinSourceStart = sourceStart + mappingLength
-                currentOtherIndex = if(targetMapper.lengths.size > currentOtherIndex + 1) currentOtherIndex + 1 else -1
-            }
-            // Reset currentOtherIndex by one in case the last other mapping is covered by multiple source mappings
-            if(currentOtherIndex == -1)
-                currentOtherIndex = targetMapper.sourceCursors.size - 1
-            else
-                currentOtherIndex--
-        }
+
         val expandedCharCursors = targetMapper.expandedCharEnds.keys.iterator()
         while(expandedCharCursors.hasNext()) {
             val startCursor = expandedCharCursors.nextInt()
@@ -195,5 +172,11 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         expandedCharEnds.putAll(other.expandedCharEnds)
         prevSourceEnd = other.prevSourceEnd
         prevTargetEnd = other.prevTargetEnd
+    }
+
+    private fun popFirstMapping() {
+        sourceCursors.remove(0)
+        targetCursors.remove(0)
+        lengths.remove(0)
     }
 }
