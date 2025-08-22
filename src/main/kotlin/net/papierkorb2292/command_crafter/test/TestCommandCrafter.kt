@@ -176,6 +176,22 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testSplitProcessedInputCursorMapperCombineWith(context: TestContext) {
+        val sourceMapper = SplitProcessedInputCursorMapper()
+        val targetMapper = SplitProcessedInputCursorMapper()
+        val expectedMapper = SplitProcessedInputCursorMapper()
+
+        sourceMapper.addMapping(0, 0, 10)
+        sourceMapper.addMapping(12, 10, 10)
+        targetMapper.addMapping(0, 0, 8)
+        targetMapper.addMapping(15, 8, 5)
+
+        context.assertEqualsSnapshot(sourceMapper.combineWith(targetMapper), Text.literal("result"))
+
+        context.complete()
+    }
+
+    @GameTest
     fun testCommandSuggestions(context: TestContext) {
         val markedLines = """
             §execute §\

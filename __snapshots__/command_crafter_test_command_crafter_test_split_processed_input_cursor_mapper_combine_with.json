@@ -1,0 +1,8 @@
+{
+  "sourceCursors" : [ 0, 17 ],
+  "targetCursors" : [ 0, 8 ],
+  "lengths" : [ 8, 5 ],
+  "expandedCharEnds" : { },
+  "prevSourceEnd" : 22,
+  "prevTargetEnd" : 13
+}
