@@ -101,8 +101,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             }
 
             // Go through the lines that the mapping covers and add semantic tokens
+            lastLineCursor += cursorDelta
             while(remainingLengthCoveredByMapping > 0) {
-                lastLineCursor += cursorDelta
                 if(remainingLengthCoveredByMapping <= remainingLineLength) {
                     add(lineNumber, lastLineCursor, remainingLengthCoveredByMapping, type, modifiers)
                     //remainingLineLength -= remainingLengthCoveredByMapping
@@ -115,7 +115,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
                 remainingLineLength = lines[lineNumber].length + 1
                 remainingLengthCoveredByMapping -= sectionLength
                 lastLineCursor = 0
-                cursorDelta = 0
             }
 
             mappingRelativeCursor = 0
