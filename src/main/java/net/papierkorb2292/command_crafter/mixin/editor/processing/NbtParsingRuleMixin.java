@@ -6,10 +6,7 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import kotlin.Unit;
-import net.minecraft.nbt.NbtParsingRule;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtEnd;
-import net.minecraft.nbt.StringNbtReader;
+import net.minecraft.nbt.*;
 import net.minecraft.util.packrat.ParsingState;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
@@ -40,17 +37,18 @@ public class NbtParsingRuleMixin<T> {
         // at which point it might be a different instance.
         if (getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult()) == null)
             return op.call(instance, reader);
+        final var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.getReader();
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
-        ((StringRangeTreeCreator<NbtElement>)instance).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        ((AllowMalformedContainer)instance).command_crafter$setAllowMalformed(true);
+        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         final var startCursor = state.getReader().getCursor();
         T parsed = null;
         NbtElement nbt;
         try {
-            parsed = MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
+            parsed = MixinUtil.<T, CommandSyntaxException>callWithThrows(op, nbtReader, reader);
             if (!(parsed instanceof NbtElement))
                 return parsed;
             nbt = (NbtElement) parsed;
