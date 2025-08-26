@@ -112,8 +112,11 @@ object PackratParserAdditionalArgs {
         override fun get() = analyzingResult
         override fun createBranch() = analyzingResult.copyExceptCompletions()
         override fun mergeBranch(argument: AnalyzingResult, success: Boolean) {
-            if(success)
+            if(success) {
+                val prev = analyzingResult
                 analyzingResult = argument.copyExceptCompletions()
+                analyzingResult.combineWithCompletionProviders(prev)
+            }
             // Completions are copied separately even if the branch was successful because the mergedBranchCount is not copied from the branch,
             // which could otherwise lead to duplicate completion names if the branch had a higher count
             analyzingResult.combineWithCompletionProviders(argument, (mergedBranchCount++).toString())
