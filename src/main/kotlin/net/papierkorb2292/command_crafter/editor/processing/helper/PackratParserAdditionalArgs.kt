@@ -119,7 +119,7 @@ object PackratParserAdditionalArgs {
             }
             // Completions are copied separately even if the branch was successful because the mergedBranchCount is not copied from the branch,
             // which could otherwise lead to duplicate completion names if the branch had a higher count
-            analyzingResult.combineWithCompletionProviders(argument, (mergedBranchCount++).toString())
+            analyzingResult.combineWithCompletionProviders(argument, '_' + (mergedBranchCount++).toString())
         }
     }
 
