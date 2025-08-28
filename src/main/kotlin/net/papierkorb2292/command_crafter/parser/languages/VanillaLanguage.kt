@@ -51,14 +51,17 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult.RangedDataProvider
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.*
+import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Function
 import java.util.function.Predicate
 import java.util.stream.Collectors
 import kotlin.math.max
@@ -297,14 +300,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
                 .combineWith(resolvedMacroCursorMapper)
         )
-        val macroAnalyzingResult = analyzeMacroCommand(
+        val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, result.filePosition)
+        analyzeMacroCommand(
             DirectiveStringReader(macroMappingInfo, reader.dispatcher, reader.resourceCreator).apply {
                 // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
                 toCompleted()
                 string = replacedMacro
             },
             source,
-            AnalyzingResult(macroMappingInfo, result.filePosition),
+            macroAnalyzingResult,
             macroVariableLocations
         )
 
@@ -592,7 +596,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         var contextBuilder = result.context
-        var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode, 0)
+        var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode, contextBuilder.range.start)
         while(contextBuilder != null) {
             for (parsedNode in contextBuilder.nodes) {
                 analyzeCommandNode(
@@ -824,7 +828,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     }
                 }
             }
-        } else if(reader.canRead() && reader.peek() == ' ')
+        } else if(reader.canRead() && reader.peek() == ' ' && reader.cursor > 0 && reader.peek(-1) != ' ')
             reader.skip()
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
@@ -905,70 +909,162 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
 
-        private val MACRO_ANALYZER: PackratParser<Unit> = createMacroAnalyzer()
-        private val MACRO_VARIABLE_LOCATIONS = ThreadLocal<IntList>()
+        private fun tryAnalyzeMacro(
+            baseContext: CommandContextBuilder<CommandSource>,
+            rootNode: CommandNode<CommandSource>,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            variableLocations: IntList,
+            attemptPositions: IntList,
+            analyzingResult: AnalyzingResult,
+        ): MacroAnalyzingCrawlerRunner.CrawlerParserResult {
+            val startCursor = reader.cursor
+            @Suppress("UNCHECKED_CAST")
+            val originalString = reader.string
 
-        // Use packrat parser because there are already mixins for branching the
-        // analyzing result, which macros have to do when trying to match the next segment
-        private fun createMacroAnalyzer(): PackratParser<Unit> {
-            val parsingRules = ParsingRules<StringReader>()
+            // Only let the parser read up to the next variable location, because what comes after that doesn't matter in this call anyway, it will only be parsed later
+            // (either when analyzing the last node of this segment or when trying to parse nodes in other segments)
+            var nextVariableLocationIndex = variableLocations.binarySearch {
+                variableLocations[it].compareTo(startCursor)
+            }
+            if(nextVariableLocationIndex < 0) {
+                nextVariableLocationIndex = -(nextVariableLocationIndex + 1)
+            }
+            val nextVariableLocation = if(nextVariableLocationIndex >= variableLocations.size) originalString.length else variableLocations[nextVariableLocationIndex]
+            reader.setString(originalString.substring(0, nextVariableLocation))
 
-            val segmentSymbol = Symbol.of<Unit>("segment")
+            val commandParseResults: ParseResults<CommandSource>
+            @Suppress("UNCHECKED_CAST")
+            commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
+                rootNode,
+                reader,
+                CommandContextBuilder(baseContext.dispatcher, baseContext.source, rootNode, reader.cursor)
+            )
+            reader.copyFrom(commandParseResults.reader as DirectiveStringReader<*>)
+            reader.setString(originalString)
 
-            val segmentRule = parsingRules.set(segmentSymbol, delegatingTerm { state, results, cut ->
-                val startCursor = state.cursor
-                val context = PackratParserAdditionalArgs.commandContextBuilder.get()!!.commandContextBuilder
-                val analyzingResult = PackratParserAdditionalArgs.analyzingResult.get()!!.analyzingResult
-                val variableLocations = MACRO_VARIABLE_LOCATIONS.get()!!
-                val lastChild = context.lastChild
-                val node = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
+            // Remove the nodes that contain the macro variable, because the macro variable is supposed to be read with
+            // all available leniency by analyzing the node
+            removeNodesAfterCursor(commandParseResults, nextVariableLocation)
+            reader.cursor = commandParseResults.context.lastChild.range.end
 
-                val restoreArgs = PackratParserAdditionalArgs.temporarilyClearArgs()
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    val commandParseResults = (context.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
-                        node,
-                        state.reader,
-                        context
-                    )
-                    @Suppress("UNCHECKED_CAST")
-                    VanillaLanguage().analyzeParsedCommand(
-                        commandParseResults,
-                        analyzingResult,
-                        commandParseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
-                    )
-                    // TODO: Fail on error
-                    Term.epsilon()
-                } finally {
-                    restoreArgs()
-                }
-            }) { result: net.minecraft.util.packrat.ParseResults -> }
+            // This can also skip more characters when trying to analyze the next command node
+            VanillaLanguage().analyzeParsedCommand(
+                commandParseResults,
+                analyzingResult,
+                reader
+            )
 
-            return PackratParser(parsingRules, segmentRule)
+            // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
+            // because that should still be part of the argument
+            reader.cursor = max(reader.cursor, commandParseResults.reader.cursor)
+
+            val hasAccessedMacro = nextVariableLocationIndex < variableLocations.size && reader.furthestAccessedCursor >= nextVariableLocation
+
+            if(!hasAccessedMacro || !reader.canRead())
+                // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
+                // or because the command is done
+                return MacroAnalyzingCrawlerRunner.CrawlerParserResult.fromParseResults(commandParseResults, analyzingResult)
+
+            // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
+            // since the macro could have contained any data. Use MacroAnalyzingCrawlerRunner to find the best match to continue parsing.
+            val lastChild = commandParseResults.context.lastChild
+            val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
+
+            return MacroAnalyzingCrawlerRunner(
+                lastNode,
+                getMacroAnalyzingAttemptPositionsAfterCursor(attemptPositions, reader.cursor + 1),
+                analyzingResult
+            ).runCrawlers { startCursor, parserRootNode, branchAnalyzingResult ->
+                reader.cursor = startCursor
+                reader.furthestAccessedCursor = 0
+                tryAnalyzeMacro(baseContext, parserRootNode, reader, variableLocations, attemptPositions, branchAnalyzingResult)
+            } ?: MacroAnalyzingCrawlerRunner.CrawlerParserResult.fromParseResults(commandParseResults, analyzingResult)
         }
 
-        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList): AnalyzingResult {
+        //TODO: Error on trailing data
+        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
-            val errors = ParseErrorList.Impl<StringReader>()
-            val state = ReaderBackedParsingState(errors, reader)
-            try {
-                PackratParserAdditionalArgs.analyzingResult.set(
-                    PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(
-                        baseAnalyzingResult.copyInput()
-                    )
-                )
-                PackratParserAdditionalArgs.setupFurthestAnalyzingResultStart()
-                MACRO_VARIABLE_LOCATIONS.set(macroVariableLocations)
-                PackratParserAdditionalArgs.commandContextBuilder.set(PackratParserAdditionalArgs.CommandContextBuilderBranchingArgument(
-                    CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor)
-                ))
-                MACRO_ANALYZER.startParsing(state)
-                // The furthest analyzing result can be null if the parser never failed, in which case the current analyzing result should contain all the data
-                return PackratParserAdditionalArgs.getAndRemoveFurthestAnalyzingResult() ?: PackratParserAdditionalArgs.analyzingResult.get()!!.analyzingResult
-            } finally {
-                PackratParserAdditionalArgs.analyzingResult.remove()
-                MACRO_VARIABLE_LOCATIONS.remove()
+
+            val attemptPositions = IntList()
+            for(i in 0 until reader.string.length)
+                if(reader.string[i] == ' ' && i + 1 < reader.string.length)
+                    attemptPositions.add(i + 1)
+
+            val analyzingResult = baseAnalyzingResult.copyInput()
+            val parserResult = tryAnalyzeMacro(
+                CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor),
+                reader.dispatcher.root,
+                reader,
+                macroVariableLocations,
+                attemptPositions,
+                analyzingResult
+            )
+
+            // TODO: Have some warnings when the command appears to be wrong
+            // Remove all errors for now, because no proper error handling is implemented yet
+            analyzingResult.diagnostics.clear()
+
+            baseAnalyzingResult.addCompletionProviderWithContinuosMapping(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                RangedDataProvider(StringRange(0, reader.string.length)) { sourceCursor: Int ->
+                    val completionProvider = analyzingResult.getCompletionProviderForCursor(sourceCursor)
+                    if(completionProvider == null) return@RangedDataProvider CompletableFuture.completedFuture(mutableListOf())
+                    val completionFuture = completionProvider.dataProvider.invoke(sourceCursor)
+                    completionFuture.thenApply {
+                        it.distinct()
+                    }
+                }
+            )
+            baseAnalyzingResult.combineWithExceptCompletions(parserResult.analyzingResult)
+        }
+
+        fun <TNode> removeNodesAfterCursor(parseResults: ParseResults<TNode>, endCursor: Int) {
+            var contextBuilder: CommandContextBuilder<TNode>? = parseResults.context
+            while(contextBuilder != null) {
+                for((i, node) in contextBuilder.nodes.withIndex()) {
+                    val shouldRemove = endCursor <= node.range
+                    if(shouldRemove) {
+                        val prevNode = contextBuilder.nodes.getOrNull(i - 1) ?: ParsedCommandNode(
+                            contextBuilder.rootNode,
+                            StringRange.at(contextBuilder.range.start)
+                        )
+                        val childNodes = contextBuilder.nodes.subList(i, contextBuilder.nodes.size)
+                        for(childNode in childNodes) {
+                            parseResults.exceptions.remove(childNode.node)
+                            if(childNode.node is ArgumentCommandNode<*, *>)
+                                contextBuilder.arguments.remove(childNode.node.name)
+                        }
+                        childNodes.clear()
+
+                        @Suppress("UNCHECKED_CAST")
+                        val contextBuilderAccessor =
+                            contextBuilder as CommandContextBuilderAccessor<TNode>
+                        contextBuilderAccessor.setForks(prevNode.node.isFork)
+                        contextBuilderAccessor.setModifier(prevNode.node.redirectModifier)
+                        contextBuilderAccessor.setRange(
+                            StringRange(
+                                contextBuilder.range.start,
+                                prevNode.range.end
+                            )
+                        )
+                        return
+                    }
+                }
+                contextBuilder = contextBuilder.child
             }
+        }
+
+        fun getMacroAnalyzingAttemptPositionsAfterCursor(attemptPositions: IntList, cursor: Int): IntList {
+            var startIndex = attemptPositions.binarySearch { attemptPositions[it].compareTo(cursor) }
+            if(startIndex < 0)
+                startIndex = -(startIndex + 1)
+            if(startIndex >= attemptPositions.size)
+                return IntList()
+
+            val result = IntList(attemptPositions.size - startIndex)
+            for(i in startIndex until attemptPositions.size)
+                result.add(attemptPositions[i])
+            return result
         }
 
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
@@ -1267,7 +1363,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         private fun parseTagTupleEntries(
             reader: DirectiveStringReader<*>,
-            saveFunctionTagRanges: Boolean = false
+            saveFunctionTagRanges: Boolean = false,
         ): List<TagEntry> {
             val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
             val treeBuilder = StringRangeTree.Builder<NbtElement>()

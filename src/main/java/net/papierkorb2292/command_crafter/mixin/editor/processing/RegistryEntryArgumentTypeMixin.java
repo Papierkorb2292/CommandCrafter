@@ -13,7 +13,6 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryElementCodec;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.packrat.PackratParser;
 import net.papierkorb2292.command_crafter.editor.processing.*;
@@ -80,13 +79,22 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
 
         switch(parsed) {
             case RegistryEntryArgumentType.ReferenceParser<T, NbtElement>(RegistryKey<T> key) -> {
+                // Analyze up until the next space instead of just analyzing the given range,
+                // because otherwise it can analyze the entire rest of the line when invoked through tryAnalyzeNextNode,
+                // which is especially problematic for macros, where there might be more nodes later in the line
+                var argumentEndCursor = range.getStart();
+                while(argumentEndCursor < reader.getString().length() && reader.getString().charAt(argumentEndCursor) != ' ')
+                    argumentEndCursor++;
+
+                var argumentRange = new StringRange(range.getStart(), argumentEndCursor);
+
                 if(command_crafter$packContentFileType != null)
-                    IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(key.getValue(), command_crafter$packContentFileType, range, result, reader);
+                    IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(key.getValue(), command_crafter$packContentFileType, argumentRange, result, reader);
                 else
-                    result.getSemanticTokens().addMultiline(range, TokenType.Companion.getPARAMETER(), 0);
+                    result.getSemanticTokens().addMultiline(argumentRange, TokenType.Companion.getPARAMETER(), 0);
 
                 treeRoot = NbtString.of(key.getValue().toString());
-                treeBuilder.addNode(treeRoot, range, range.getStart());
+                treeBuilder.addNode(treeRoot, argumentRange, argumentRange.getStart());
             }
             case RegistryEntryArgumentType.DirectParser<T, NbtElement>(NbtElement value) -> {
                 treeRoot = value;

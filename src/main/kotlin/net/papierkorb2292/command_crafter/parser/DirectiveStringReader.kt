@@ -44,6 +44,7 @@ class DirectiveStringReader<out ResourceCreator>(
         get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, lines, zeroBased = false).line
     var onlyReadEscapedMultiline = false
         private set
+    var furthestAccessedCursor = 0
     private var escapedMultilineTrimmed: String? = null
 
     fun convertInputToEscapedMultiline() {
@@ -85,6 +86,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
+        furthestAccessedCursor = cursor + length
         if(onlyReadEscapedMultiline) {
             val firstLineMappingMissing = cursorMapper.prevTargetEnd <= skippingCursor
             if(!string.endsWith('\\')) {
@@ -189,6 +191,7 @@ class DirectiveStringReader<out ResourceCreator>(
         setString(string.substring(min(cursor, string.length)))
         readCharacters += cursor
         cursor = 0
+        furthestAccessedCursor = 0
     }
 
     fun endStatement(skipNewLine: Boolean = true): Boolean {
@@ -303,6 +306,7 @@ class DirectiveStringReader<out ResourceCreator>(
             it.nextLine = nextLine
             it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
             it.escapedMultilineTrimmed = escapedMultilineTrimmed
+            it.furthestAccessedCursor = furthestAccessedCursor
         }
     }
 
@@ -313,6 +317,7 @@ class DirectiveStringReader<out ResourceCreator>(
         setString(other.string)
         nextLine = other.nextLine
         escapedMultilineTrimmed = other.escapedMultilineTrimmed
+        furthestAccessedCursor = other.furthestAccessedCursor
     }
 
     fun onlyCurrentLine() : DirectiveStringReader<ResourceCreator> {
