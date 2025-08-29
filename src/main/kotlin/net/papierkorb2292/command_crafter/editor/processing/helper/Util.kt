@@ -26,10 +26,14 @@ fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
     val oneBasedOffset = if(zeroBased) 0 else 1
     return Position(
         line + other.line - oneBasedOffset,
-        if(line != 0) character
+        if(other.line != oneBasedOffset) other.character
         else character + other.character - oneBasedOffset
     )
 }
+
+operator fun Position.compareTo(other: Position): Int =
+    if(line != other.line) line.compareTo(other.line)
+    else character.compareTo(other.character)
 
 /**
  * Makes sure the position is on the same line as requested so the completion is valid

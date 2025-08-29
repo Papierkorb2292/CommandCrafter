@@ -1,8 +1,13 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
+import net.papierkorb2292.command_crafter.editor.processing.helper.advance
+import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLines
+import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
+import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.SemanticTokens
 import kotlin.math.min
 
@@ -283,6 +288,29 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             lastLine += data[currentTokenIndex]
             lastCursor = (if(data[currentTokenIndex] == 0) lastCursor else 0) + data[currentTokenIndex + 1]
             currentTokenIndex += 5
+        }
+    }
+
+    fun cutAfter(cutPosition: Position) {
+        var tokenPosition = Position()
+        for(i in 0 until data.size step 5) {
+            val previousPos = tokenPosition
+            tokenPosition = tokenPosition.offsetBy(Position(data[i], data[i + 1]))
+
+            if(tokenPosition >= cutPosition) {
+                data.subList(i, data.size).clear()
+                lastLine = previousPos.line
+                lastCursor = previousPos.character
+                return
+            }
+            val tokenLength = data[i + 2]
+            if(tokenPosition.advance(tokenLength) >= cutPosition) {
+                data[i + 2] = cutPosition.character - tokenPosition.character
+                data.subList(i + 5, data.size).clear()
+                lastLine = tokenPosition.line
+                lastCursor = tokenPosition.character
+                return
+            }
         }
     }
 

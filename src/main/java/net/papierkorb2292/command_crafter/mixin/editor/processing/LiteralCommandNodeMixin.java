@@ -27,12 +27,6 @@ public abstract class LiteralCommandNodeMixin<S> extends CommandNode<S> implemen
 
     @Override
     public void command_crafter$analyze(@NotNull CommandContext<CommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) {
-        // Highlight up until the next space instead of just highlighting the given range,
-        // because otherwise it can highlight the entire rest of the line when invoked through tryAnalyzeNextNode,
-        // which is especially problematic for macros, where there might be more nodes later in the line
-        final var startCursor = reader.getCursor();
-        while(reader.canRead() && reader.peek() != ' ')
-            reader.skip();
-        result.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, command_crafter$isRedirectTargetChild() ? TokenType.Companion.getMACRO() : TokenType.Companion.getKEYWORD(), 0);
+        result.getSemanticTokens().addMultiline(range, command_crafter$isRedirectTargetChild() ? TokenType.Companion.getMACRO() : TokenType.Companion.getKEYWORD(), 0);
     }
 }

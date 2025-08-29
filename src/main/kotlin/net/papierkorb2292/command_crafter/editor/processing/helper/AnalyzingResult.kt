@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
-import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -130,6 +129,31 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
 
     fun getDefinitionProviderForCursor(cursor: Int) =
         getRangedDataProviderForCursor(definitionProviders, cursor) ?: getRangedDataProviderForCursor(definitionProviders, cursor - 1)
+
+    fun cutAfterTargetCursor(targetCursor: Int) {
+        cutAfterSourceCursor(mappingInfo.cursorMapper.mapToSource(targetCursor + mappingInfo.readSkippingChars))
+    }
+
+    fun cutAfterSourceCursor(sourceCursor: Int) {
+        val position = getPositionFromCursor(sourceCursor, mappingInfo)
+        semanticTokens.cutAfter(position)
+        cutRangedDataProviderAfterCursor(hoverProviders, sourceCursor)
+        cutRangedDataProviderAfterCursor(definitionProviders, sourceCursor)
+        completionProviders.values.forEach {
+            cutRangedDataProviderAfterCursor(it, sourceCursor)
+        }
+    }
+
+    private fun <TData> cutRangedDataProviderAfterCursor(providers: MutableList<RangedDataProvider<TData>>, sourceCursor: Int) {
+        var providerIndex = providers.binarySearch { -sourceCursor.compareTo(it.cursorRange) }
+        if(providerIndex >= 0) {
+            val provider = providers[providerIndex]
+            providers[providerIndex] = RangedDataProvider(StringRange(provider.cursorRange.start, sourceCursor), provider.dataProvider)
+        } else {
+            providerIndex = -providerIndex - 1
+        }
+        providers.subList(providerIndex, providers.size).clear()
+    }
 
     fun copyInput(): AnalyzingResult {
         val newMappingInfo = mappingInfo.copy()

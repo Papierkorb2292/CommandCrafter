@@ -102,7 +102,7 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
                     val startCursor = attemptPositions[attemptIndex]
                     val results = crawler.getNodesForAttemptIndex(attemptIndex)
                         .map { node ->
-                            parseCallback(startCursor, node, baseAnalyzingResult.copyExceptCompletions())
+                            parseCallback(startCursor, node, baseAnalyzingResult.copyInput())
                         }.toList()
 
                     val crawlerBestResult = results.maxOrNull() ?: continue
@@ -118,19 +118,28 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
                 }
                 if(bestResult?.shouldStopCrawling() == true) {
                     addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, resultsPerAttemptPositionIndex)
-                    return bestResult
+                    return buildCombinedCrawlerResult(bestResult, bestResultAttemptPositionIndex)
                 }
             }
         } while(pushCrawler())
-        if(bestResultAttemptPositionIndex != -1)
-            addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, resultsPerAttemptPositionIndex)
-        return bestResult
+        if(bestResult == null)
+            return null
+        addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, resultsPerAttemptPositionIndex)
+        return buildCombinedCrawlerResult(bestResult, bestResultAttemptPositionIndex)
     }
 
     private fun addCompletionProvidersUpToAttemptPosition(attemptIndex: Int, resultsPerAttemptPositionIndex: List<List<CrawlerParserResult>>) {
         resultsPerAttemptPositionIndex.asSequence().take(attemptIndex + 1).flatten().forEachIndexed { i, result ->
             baseAnalyzingResult.combineWithCompletionProviders(result.analyzingResult, "_$i")
         }
+    }
+
+    private fun buildCombinedCrawlerResult(bestResult: CrawlerParserResult, bestResultAttemptPositionIndex: Int): CrawlerParserResult {
+        val attemptPosition = attemptPositions[bestResultAttemptPositionIndex]
+        val analyzingResult = baseAnalyzingResult.copy()
+        analyzingResult.cutAfterTargetCursor(attemptPosition)
+        analyzingResult.combineWithExceptCompletions(bestResult.analyzingResult)
+        return bestResult.copy(analyzingResult = analyzingResult)
     }
 
     /**
