@@ -1,11 +1,13 @@
 package net.papierkorb2292.command_crafter.parser
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLine
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
+import org.eclipse.lsp4j.Position
 import java.io.IOException
 import java.io.Reader
 import java.util.*
@@ -15,6 +17,7 @@ class FileMappingInfo(
     val cursorMapper: SplitProcessedInputCursorMapper = SplitProcessedInputCursorMapper(),
     var readCharacters: Int = 0,
     var skippedChars: Int = 0,
+    val positionFromCursorFIFOCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
 ) {
     val accumulatedLineLengths = IntList(lines.size)
     init {
@@ -28,8 +31,7 @@ class FileMappingInfo(
     val readSkippingChars
         get() = readCharacters - skippedChars
 
-    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars)
-
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorFIFOCache)
 
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false

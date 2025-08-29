@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Dynamic;
+import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 import net.minecraft.registry.tag.TagEntry;
 import net.minecraft.registry.tag.TagFile;
 import net.minecraft.registry.tag.TagGroupLoader;
@@ -64,7 +65,7 @@ public class TagGroupLoaderMixin<T> implements FinalTagContentProvider {
             try {
                 command_crafter$tagFileLines.put(
                         new PackagedId(id, PackagedId.Companion.getPackIdWithoutPrefix(resource.getPackId())),
-                        new FileMappingInfo(resource.getReader().lines().toList(), new SplitProcessedInputCursorMapper(), 0, 0)
+                        new FileMappingInfo(resource.getReader().lines().toList(), new SplitProcessedInputCursorMapper(), 0, 0, new Int2ObjectLinkedOpenHashMap<>())
                 );
             } catch (IOException ignored) {
                 // The IO error will be handled once the TagGroupLoader tries to open the file as well

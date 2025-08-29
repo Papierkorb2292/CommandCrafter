@@ -252,6 +252,10 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
 
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
+            val cached = mappingInfo.positionFromCursorFIFOCache.getAndMoveToLast(cursor)
+            if(cached != null)
+                return cached
+
             val oneBasedOffset = if(zeroBased) 0 else 1
             var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
                 mappingInfo.accumulatedLineLengths[index].compareTo(cursor)
@@ -260,17 +264,23 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
                 // No line has the exact accumulated length, so select the previous line
                 lineIndex = -lineIndex - 2
             }
-            if(lineIndex == -1) {
+            val pos =if (lineIndex == -1) {
                 // Position is on the first line
-                return Position(oneBasedOffset, cursor)
+                Position(oneBasedOffset, cursor)
+            } else {
+                val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
+                Position(
+                    // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
+                    // start of the next line, so the actual line that the position is on is also the next line
+                    lineIndex + 1 + oneBasedOffset,
+                    cursor - accumulatedLineLength + oneBasedOffset
+                )
             }
-            val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
-            return Position(
-                // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
-                // start of the next line, so the actual line that the position is on is also the next line
-                lineIndex + 1 + oneBasedOffset,
-                cursor - accumulatedLineLength + oneBasedOffset
-            )
+
+            if(mappingInfo.positionFromCursorFIFOCache.size >= 7)
+                mappingInfo.positionFromCursorFIFOCache.removeFirst()
+            mappingInfo.positionFromCursorFIFOCache.put(cursor, pos)
+            return pos
         }
 
         @Deprecated("Replaced with an overload using FileMappingInfo for better performance")
