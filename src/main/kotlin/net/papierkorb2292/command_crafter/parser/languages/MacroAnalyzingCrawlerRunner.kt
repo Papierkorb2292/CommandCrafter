@@ -20,7 +20,6 @@ import net.minecraft.command.argument.ColorArgumentType
 import net.minecraft.command.argument.CommandFunctionArgumentType
 import net.minecraft.command.argument.DimensionArgumentType
 import net.minecraft.command.argument.EntityAnchorArgumentType
-import net.minecraft.command.argument.EnumArgumentType
 import net.minecraft.command.argument.GameModeArgumentType
 import net.minecraft.command.argument.HeightmapArgumentType
 import net.minecraft.command.argument.HexColorArgumentType
@@ -84,7 +83,7 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
     fun runCrawlers(parseCallback: (startCursor: Int, parserRootNode: CommandNode<CommandSource>, analyzingResult: AnalyzingResult) -> CrawlerParserResult): CrawlerParserResult? {
         var bestResult: CrawlerParserResult? = null
         var bestResultAttemptPositionIndex = -1
-        val resultsPerAttemptPositionIndex = mutableListOf<MutableList<CrawlerParserResult>>()
+        val analyzingResultsPerAttemptPositionIndex = mutableListOf<MutableList<AnalyzingResult>>()
         do {
             // Run each crawler for a few steps before adding another crawler
             for(step in 0 until stepsPerCrawlerBeforePush) {
@@ -98,11 +97,16 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
                         finishedCrawlerIndex = i
                         break // All following crawlers should have already finished anyway
                     }
+                    while(analyzingResultsPerAttemptPositionIndex.size <= attemptIndex) {
+                        analyzingResultsPerAttemptPositionIndex.add(mutableListOf())
+                    }
 
                     val startCursor = attemptPositions[attemptIndex]
                     val results = crawler.getNodesForAttemptIndex(attemptIndex)
                         .map { node ->
-                            parseCallback(startCursor, node, baseAnalyzingResult.copyInput())
+                            val childAnalyzingResult = baseAnalyzingResult.copyInput()
+                            analyzingResultsPerAttemptPositionIndex[attemptIndex] += childAnalyzingResult
+                            parseCallback(startCursor, node, childAnalyzingResult)
                         }.toList()
 
                     val crawlerBestResult = results.maxOrNull() ?: continue
@@ -110,27 +114,22 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
                         bestResult = crawlerBestResult
                         bestResultAttemptPositionIndex = attemptIndex
                     }
-
-                    while(resultsPerAttemptPositionIndex.size <= attemptIndex) {
-                        resultsPerAttemptPositionIndex.add(mutableListOf())
-                    }
-                    resultsPerAttemptPositionIndex[attemptIndex] += results
                 }
                 if(bestResult?.shouldStopCrawling() == true) {
-                    addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, resultsPerAttemptPositionIndex)
+                    addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, analyzingResultsPerAttemptPositionIndex)
                     return buildCombinedCrawlerResult(bestResult, bestResultAttemptPositionIndex)
                 }
             }
         } while(pushCrawler())
         if(bestResult == null)
             return null
-        addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, resultsPerAttemptPositionIndex)
+        addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, analyzingResultsPerAttemptPositionIndex)
         return buildCombinedCrawlerResult(bestResult, bestResultAttemptPositionIndex)
     }
 
-    private fun addCompletionProvidersUpToAttemptPosition(attemptIndex: Int, resultsPerAttemptPositionIndex: List<List<CrawlerParserResult>>) {
-        resultsPerAttemptPositionIndex.asSequence().take(attemptIndex + 1).flatten().forEachIndexed { i, result ->
-            baseAnalyzingResult.combineWithCompletionProviders(result.analyzingResult, "_$i")
+    private fun addCompletionProvidersUpToAttemptPosition(attemptIndex: Int, analyzingResultsPerAttemptPositionIndex: List<List<AnalyzingResult>>) {
+        analyzingResultsPerAttemptPositionIndex.asSequence().take(attemptIndex + 1).flatten().forEachIndexed { i, result ->
+            baseAnalyzingResult.combineWithCompletionProviders(result, "_$i")
         }
     }
 
