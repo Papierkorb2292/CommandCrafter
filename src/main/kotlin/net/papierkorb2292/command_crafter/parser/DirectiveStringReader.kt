@@ -41,7 +41,7 @@ class DirectiveStringReader<out ResourceCreator>(
         get() = cursor + readSkippingChars
         set(value) { cursor = value - readSkippingChars }
     override val currentLine
-        get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, lines, zeroBased = false).line
+        get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo, zeroBased = false).line
     var onlyReadEscapedMultiline = false
         private set
     var furthestAccessedCursor = 0
@@ -359,8 +359,8 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun getMultilineString(absoluteStart: Int, absoluteEnd: Int, lineSeparator: String = OpenFile.LINE_SEPARATOR): String {
-        val startPos = AnalyzingResult.getPositionFromCursor(absoluteStart, lines)
-        val endPos = AnalyzingResult.getPositionFromCursor(absoluteEnd, lines)
+        val startPos = AnalyzingResult.getPositionFromCursor(absoluteStart, fileMappingInfo)
+        val endPos = AnalyzingResult.getPositionFromCursor(absoluteEnd, fileMappingInfo)
         val startLine = startPos.line
         val endLine = endPos.line
         val startColumn = startPos.character

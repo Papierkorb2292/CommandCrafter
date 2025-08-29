@@ -37,7 +37,7 @@ class DirectiveManager {
         fun endDirective() {
             if(!reader.canRead()) return
             if(reader.peek() != '\n') {
-                val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 analyzingResult.diagnostics += Diagnostic(
                     Range(endPos, endPos.advance()),
                     "Expected newline after directive"
@@ -51,14 +51,14 @@ class DirectiveManager {
         }
 
         val directiveStartCursor = reader.cursor - 1 // Subtract 1 to include '@'
-        val directiveStartPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - 1, reader.lines)
+        val directiveStartPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - 1, reader.fileMappingInfo)
         val id = try {
             Identifier.fromCommandInput(reader)
         } catch(e: CommandSyntaxException) {
             analyzingResult.diagnostics += Diagnostic(
                 Range(
                     directiveStartPos,
-                    AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 ),
                 e.message
             )
@@ -66,7 +66,7 @@ class DirectiveManager {
             return
         }
         val directiveEndCursor = reader.cursor
-        val directiveEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+        val directiveEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
         analyzingResult.semanticTokens.add(directiveStartPos.line, directiveStartPos.character, directiveEndCursor - directiveStartCursor, TokenType.STRUCT, 0)
 
         suggestDirectives(StringRange(directiveStartCursor, directiveEndCursor), analyzingResult, true)

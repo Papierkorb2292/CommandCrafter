@@ -29,11 +29,11 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
-import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.VariableLineAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator
 import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.Position
@@ -65,19 +65,17 @@ class FunctionElementDebugInformation(
 
     private val sourceReferenceDebugHandlers = mutableMapOf<Int, FunctionElementDebugPauseHandler>()
 
-    val lines get() = reader.lines
-
     fun setFunctionStringRange(stringRange: StringRange) {
         functionStackFrameRange = Range(
-            AnalyzingResult.getPositionFromCursor(stringRange.start, lines, false),
-            AnalyzingResult.getPositionFromCursor(stringRange.end, lines, false)
+            AnalyzingResult.getPositionFromCursor(stringRange.start, reader.fileMappingInfo, false),
+            AnalyzingResult.getPositionFromCursor(stringRange.end, reader.fileMappingInfo, false)
         )
     }
 
     var functionId: Identifier? = null
 
-    private fun getLinesForSourceReference(server: MinecraftServer, debugConnection: EditorDebugConnection, sourceReference: Int?) =
-        server.getDebugManager().getSourceReferenceLines(debugConnection, sourceReference) ?: lines
+    private fun getFileMappingInfoForSourceReference(server: MinecraftServer, debugConnection: EditorDebugConnection, sourceReference: Int?) =
+        server.getDebugManager().getSourceReferenceFileMappingInfo(debugConnection, sourceReference) ?: reader.fileMappingInfo
 
     override fun parseBreakpoints(
         breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,
@@ -109,8 +107,8 @@ class FunctionElementDebugInformation(
             BreakpointManager.BreakpointGroupKey(this, sourceFile.fileId),
             addedBreakpoints,
             object : BreakpointManager.SourceReferenceMappingSupplier {
-                override val originalLines: List<String>
-                    get() = lines
+                override val originalFileMappingInfo: FileMappingInfo
+                    get() = reader.fileMappingInfo
 
                 override fun getCursorMapper(sourceReference: Int): ProcessedInputCursorMapper? =
                     FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceFile.sourceReference]
@@ -354,7 +352,7 @@ class FunctionElementDebugInformation(
             val firstParsedNode = context.nodes.first()
             val lastParsedNode = context.nodes.last()
 
-            val lines = getLinesForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, debugFrame.currentSourceReference)
+            val mappingInfo = getFileMappingInfoForSourceReference(debugFrame.pauseContext.server, debugFrame.pauseContext.debugConnection!!, debugFrame.currentSourceReference)
             val sourceReferenceCursorMapper = debugFrame.currentSourceReferenceCursorMapper
 
             if((contextChain as IsMacroContainer).`command_crafter$getIsMacro`()) {
@@ -365,12 +363,12 @@ class FunctionElementDebugInformation(
                 return Range(
                     AnalyzingResult.getPositionFromCursor(
                         sourceReferenceCursor + firstParsedNode.range.start,
-                        lines,
+                        mappingInfo,
                         false
                     ),
                     AnalyzingResult.getPositionFromCursor(
                         sourceReferenceCursor + lastParsedNode.range.end,
-                        lines,
+                        mappingInfo,
                         false
                     )
                 )
@@ -385,12 +383,12 @@ class FunctionElementDebugInformation(
             return Range(
                 AnalyzingResult.getPositionFromCursor(
                     sourceReferenceCursorMapper?.mapToTarget(startAbsoluteCursor) ?: startAbsoluteCursor,
-                    lines,
+                    mappingInfo,
                     false
                 ),
                 AnalyzingResult.getPositionFromCursor(
                     sourceReferenceCursorMapper?.mapToTarget(endAbsoluteCursor) ?: endAbsoluteCursor,
-                    lines,
+                    mappingInfo,
                     false
                 )
             )
@@ -627,7 +625,7 @@ class FunctionElementDebugInformation(
                 val breakpointRange = breakpointRangeGetter?.invoke(breakpoint, sourceReference)
                     ?: getFileBreakpointRange(
                         breakpoint,
-                        debugInformation.getLinesForSourceReference(server, breakpoint.debugConnection, sourceReference)
+                        debugInformation.getFileMappingInfoForSourceReference(server, breakpoint.debugConnection, sourceReference)
                     )
                 val comparedToCurrentElement =
                     breakpointRange.compareTo(sourceReferenceFunctionFileRange)
@@ -769,7 +767,7 @@ class FunctionElementDebugInformation(
             CommandContextElementProcessor(context, true) { breakpoint, _ ->
                 getFileBreakpointRange(
                     breakpoint,
-                    debugInformation.getLinesForSourceReference(server, breakpoint.debugConnection, sourceReference)
+                    debugInformation.getFileMappingInfoForSourceReference(server, breakpoint.debugConnection, sourceReference)
                 )}.parseBreakpoints(
                     breakpoints,
                     server,
@@ -793,7 +791,7 @@ class FunctionElementDebugInformation(
             val dynamicBreakpoints = mutableListOf<ServerBreakpoint<FunctionBreakpointLocation>>()
             breakpoints@while(breakpoints.isNotEmpty()) {
                 val breakpoint = breakpoints.peek()
-                val breakpointRange = getFileBreakpointRange(breakpoint, debugInformation.lines)
+                val breakpointRange = getFileBreakpointRange(breakpoint, debugInformation.reader.fileMappingInfo)
                 val comparedToCurrentElement =
                     breakpointRange.compareTo(macroFileRange)
                 if(comparedToCurrentElement <= 0) {
@@ -843,7 +841,7 @@ class FunctionElementDebugInformation(
             @Suppress("UNCHECKED_CAST")
             val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
             CommandContextElementProcessor(context, true) { breakpoint, _ ->
-                val breakpointFileRange = getFileBreakpointRange(breakpoint, debugInformation.lines)
+                val breakpointFileRange = getFileBreakpointRange(breakpoint, debugInformation.reader.fileMappingInfo)
                 val macroCursorOffset = macroFileRange.start - macroSkippedChars
                 val unresolvedMacroRange = fileCursorMapper.mapToTarget(breakpointFileRange, true) - macroCursorOffset
                 resolvedMacroCursorMapper.mapToTarget(unresolvedMacroRange - 1, true) + macroCursorOffset
@@ -866,8 +864,8 @@ class FunctionElementDebugInformation(
             val action = frame.procedure.entries()[elementIndex] as? SingleCommandActionAccessor<*> ?: return null
             val commandString = action.contextChain.topContext.input
 
-            val startPos = AnalyzingResult.getPositionFromCursor(macroFileRange.start, debugInformation.lines)
-            val endPos = AnalyzingResult.getPositionFromCursor(macroFileRange.end, debugInformation.lines)
+            val startPos = AnalyzingResult.getPositionFromCursor(macroFileRange.start, debugInformation.reader.fileMappingInfo)
+            val endPos = AnalyzingResult.getPositionFromCursor(macroFileRange.end, debugInformation.reader.fileMappingInfo)
 
             val invocation = (macroLine as VariableLineAccessor).invocation
             val variableIndices = macroLine.dependentVariables

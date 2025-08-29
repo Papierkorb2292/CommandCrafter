@@ -130,7 +130,7 @@ class RangeFunctionTagDebugInformation(
         var nextEntryIndex = 0
         breakpoints@while(breakpoints.isNotEmpty()) {
             val breakpoint = breakpoints.peek()
-            val breakpointRange = getFileBreakpointRange(breakpoint, file.mappingInfo.lines)
+            val breakpointRange = getFileBreakpointRange(breakpoint, file.mappingInfo)
             // Skip all entries that are before this breakpoint
             while(breakpointRange > entries[nextEntryIndex].range) {
                 if(++nextEntryIndex >= file.entries.size) {

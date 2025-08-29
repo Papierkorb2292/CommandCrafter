@@ -75,7 +75,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 languageServer: MinecraftLanguageServer,
             ): AnalyzingResult {
                 val reader = DirectiveStringReader(
-                    FileMappingInfo(file.stringifyLines()),
+                    file.createFileMappingInfo(),
                     languageServer.minecraftServer.commandDispatcher,
                     AnalyzingResourceCreator(languageServer, file.uri)
                 )

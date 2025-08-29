@@ -242,8 +242,8 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         val startCursor = stringRange.start + mappingInfo.readSkippingChars
         val endCursor = stringRange.end + mappingInfo.readSkippingChars
         return Range(
-            getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(startCursor), mappingInfo.lines),
-            getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(endCursor), mappingInfo.lines)
+            getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(startCursor), mappingInfo),
+            getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(endCursor), mappingInfo)
         )
     }
 
@@ -254,6 +254,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
             getPositionFromCursor(cursor, mappingInfo.lines, zeroBased)
 
+        @Deprecated("Replaced with an overload using FileMappingInfo for better performance")
         fun getPositionFromCursor(cursor: Int, lines: List<String>, zeroBased: Boolean = true): Position {
             if(lines.isEmpty()) return Position()
             var charactersLeft = cursor
@@ -274,6 +275,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         fun getCursorFromPosition(position: Position, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
             getCursorFromPosition(mappingInfo.lines, position, zeroBased)
 
+        @Deprecated("Replaced with an overload using FileMappingInfo for better performance")
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
             if(lines.isEmpty()) return 0
             var cursor = 0

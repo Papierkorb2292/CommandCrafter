@@ -337,14 +337,14 @@ object LanguageManager {
 
             override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
                 val startCursor = reader.cursor
-                val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 val language = try {
                     Identifier.fromCommandInput(reader)
                 } catch(e: CommandSyntaxException) {
                     analyzingResult.diagnostics += Diagnostic(
                         Range(
                             startPos,
-                            AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                            AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                         ),
                         e.message
                     )
@@ -368,7 +368,7 @@ object LanguageManager {
                         ))
                 )
 
-                val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 val languageType = LANGUAGES.get(language)
                 if(languageType == null) {
                     analyzingResult.diagnostics += Diagnostic(
@@ -387,9 +387,9 @@ object LanguageManager {
                 if(reader.trySkipWhitespace(false) {
                     reader.canRead() && reader.peek() == '('
                 }) {
-                    val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                     reader.cursor = reader.nextLineEnd
-                    val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                     analyzingResult.diagnostics += Diagnostic(
                         Range(startPos, endPos),
                         "Error while parsing function: Since CommandCrafter version 0.2, language arguments are specified as SNBT instead of the previous format with enclosing parentheses on line ${reader.currentLine} (see https://github.com/Papierkorb2292/CommandCrafter/wiki/Parser#Languages)."
@@ -435,9 +435,9 @@ object LanguageManager {
                 try {
                     StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
                 } catch(e: CommandSyntaxException) {
-                    val startPos = AnalyzingResult.getPositionFromCursor(e.cursor + reader.readCharacters, reader.lines)
+                    val startPos = AnalyzingResult.getPositionFromCursor(e.cursor + reader.readCharacters, reader.fileMappingInfo)
                     reader.cursor = reader.nextLineEnd
-                    val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    val endPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                     analyzingResult.diagnostics += Diagnostic(
                         Range(startPos, endPos),
                         e.message

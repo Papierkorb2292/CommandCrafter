@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import java.util.concurrent.CompletableFuture
@@ -19,6 +20,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
     }
 
     fun stringifyLines() = lines.map { it.toString() }
+    fun createFileMappingInfo() = FileMappingInfo(stringifyLines())
 
     fun applyContentChange(change: TextDocumentContentChangeEvent) =
         applyContentChange(

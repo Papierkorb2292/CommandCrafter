@@ -134,7 +134,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     if (reader.canRead(2) && reader.peek(1) == '/') {
                         throw DOUBLE_SLASH_EXCEPTION.createWithContext(reader)
                     }
-                    val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines)
+                    val position = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                     result.diagnostics += Diagnostic(
                         Range(position, position.advance()),
                         "Unknown or invalid command on line \"${position.line + 1}\" (Do not use a preceding forwards slash.)"
@@ -207,7 +207,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 reader.disableEscapedMultiline()
                 val startPosition =
-                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.readSkippingChars + exceptionCursor), reader.lines)
+                    AnalyzingResult.getPositionFromCursor(reader.cursorMapper.mapToSource(reader.readSkippingChars + exceptionCursor), reader.fileMappingInfo)
                 result.diagnostics += Diagnostic(
                     Range(
                         startPosition,
@@ -1186,7 +1186,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             hasNegationChar: Boolean = false,
             suggestNegationChar: Boolean = false,
         ): AnalyzedRegistryEntryList<T> {
-            val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+            val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo))
             val codec = if(suggestNegationChar) Codec.either(
                 tagEntryListCodec,
                 // Also suggest inverted lists
@@ -1299,7 +1299,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             source: CommandSource,
             isAnalyzingParsedNode: Boolean = false,
         ): AnalyzedFunctionArgument? {
-            val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.lines))
+            val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo))
             if(reader.canRead() && reader.peek() == '[') {
                 analyzeTagTupleEntries(reader, analyzingResult, analyzeFunctionReferenceCodec, throwSyntaxErrors = !isAnalyzingParsedNode)
                 return AnalyzedFunctionArgument(analyzingResult)

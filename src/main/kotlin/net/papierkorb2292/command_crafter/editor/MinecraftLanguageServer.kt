@@ -22,6 +22,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.Fil
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.apache.logging.log4j.core.pattern.AnsiEscape
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
@@ -255,7 +256,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val file = openFiles[position.textDocument.uri] ?: return emptyCompletionsDefault
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
 
-                val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, position.position)
+                val cursor = AnalyzingResult.getCursorFromPosition(position.position, file.createFileMappingInfo())
                 return analyzer.thenCompose { analyzingResult ->
                     val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenCompose emptyCompletionsDefault
                     provider.dataProvider(cursor).thenApply {
@@ -311,7 +312,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val file = openFiles[params.textDocument.uri] ?: return emptyHoverDefault
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyHoverDefault
 
-                val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, params.position)
+                val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenCompose {
                     val provider = it.getHoverProviderForCursor(cursor) ?: return@thenCompose emptyHoverDefault
                     provider.dataProvider(cursor)
@@ -322,7 +323,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val file = openFiles[params.textDocument.uri] ?: return emptyDefinitionDefault
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyDefinitionDefault
 
-                val cursor = AnalyzingResult.getCursorFromPosition(file.lines.map { it.toString() }, params.position)
+                val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenCompose {
                     val provider = it.getDefinitionProviderForCursor(cursor) ?: return@thenCompose emptyDefinitionDefault
                     provider.dataProvider(cursor)

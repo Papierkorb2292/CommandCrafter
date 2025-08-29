@@ -14,6 +14,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.Breakpoint
 import org.eclipse.lsp4j.debug.SourceResponse
@@ -24,16 +25,15 @@ class ServerDebugManager(private val server: MinecraftServer) {
 
         private val additionalDebugHandlers = mutableMapOf<PackContentFileType, DebugHandlerFactory>()
 
-        // TODO: Use FileMappingInfo instead of raw lines
-        fun <TBreakpointLocation> getFileBreakpointRange(breakpoint: ServerBreakpoint<TBreakpointLocation>, lines: List<String>): StringRange {
+        fun <TBreakpointLocation> getFileBreakpointRange(breakpoint: ServerBreakpoint<TBreakpointLocation>, fileMappingInfo: FileMappingInfo): StringRange {
             val sourceBreakpoint = breakpoint.unparsed.sourceBreakpoint
             val column = sourceBreakpoint.column
             return if (column == null) {
-                AnalyzingResult.getLineCursorRange(sourceBreakpoint.line, lines)
+                AnalyzingResult.getLineCursorRange(sourceBreakpoint.line, fileMappingInfo)
             } else {
                 val breakpointCursor = AnalyzingResult.getCursorFromPosition(
-                    lines,
                     Position(sourceBreakpoint.line, column),
+                    fileMappingInfo,
                     false
                 )
                 StringRange.at(breakpointCursor)
@@ -99,10 +99,10 @@ class ServerDebugManager(private val server: MinecraftServer) {
         return sourceReferences.sources[sourceReference ?: return null]
     }
 
-    fun getSourceReferenceLines(debugConnection: EditorDebugConnection, sourceReference: Int?): List<String>? {
+    fun getSourceReferenceFileMappingInfo(debugConnection: EditorDebugConnection, sourceReference: Int?): FileMappingInfo? {
         val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
         val sourceReferenceId = sourceReference ?: return null
-        return sourceReferences.sources[sourceReferenceId]?.getLinesOrGenerate(sourceReferenceId)
+        return sourceReferences.sources[sourceReferenceId]?.getFileMappingInfoOrGenerate(sourceReferenceId)
     }
 
     fun retrieveSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int): SourceResponse? {
@@ -115,15 +115,19 @@ class ServerDebugManager(private val server: MinecraftServer) {
     class SourceReferenceGenerator(private val responseCallback: SourceReferenceSupplier) {
         var generatedResponse: SourceResponse? = null
             private set
-        val generatedLines: List<String>?
-            get() = generatedResponse?.content?.lines()
+        var generatedFileMappingInfo: FileMappingInfo? = null
+            private set
 
         fun generateSourceReference(id: Int) =
             generatedResponse ?: responseCallback(id).also { response ->
                 generatedResponse = response
+                generatedFileMappingInfo = FileMappingInfo(response.content.lines())
             }
 
-        fun getLinesOrGenerate(id: Int) = generatedLines ?: generateSourceReference(id).content.lines()
+        fun getFileMappingInfoOrGenerate(id: Int): FileMappingInfo {
+            generateSourceReference(id)
+            return generatedFileMappingInfo!!
+        }
     }
 }
 

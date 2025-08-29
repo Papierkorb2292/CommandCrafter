@@ -10,6 +10,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.copy
 import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.Breakpoint
@@ -90,12 +91,12 @@ class BreakpointManager<TBreakpointLocation>(
                         val sourceReferenceEntry = server.getDebugManager().getSourceReferenceEntry(debugConnection, subSourceReference)
                             ?: throw IllegalArgumentException("Couldn't retrieve entry for source reference when adding new breakpoints to original file")
                         val initialSourceCursor = AnalyzingResult.getCursorFromPosition(
-                            sourceReferenceMapping.originalLines,
                             Position(newSourceBreakpoint.line, newSourceBreakpoint.column ?: 0),
+                            sourceReferenceMapping.originalFileMappingInfo,
                             false
                         )
                         val mappedCursor = cursorMapper.mapToTarget(initialSourceCursor, true)
-                        val newPosition = AnalyzingResult.getPositionFromCursor(mappedCursor, sourceReferenceEntry.getLinesOrGenerate(subSourceReference), false)
+                        val newPosition = AnalyzingResult.getPositionFromCursor(mappedCursor, sourceReferenceEntry.getFileMappingInfoOrGenerate(subSourceReference), false)
                         newSourceBreakpoint.line = newPosition.line
                         newSourceBreakpoint.column = newPosition.character
                         UnparsedServerBreakpoint(addedIdStart + index, subSourceReference, newSourceBreakpoint, original.unparsed.id)
@@ -388,7 +389,7 @@ class BreakpointManager<TBreakpointLocation>(
     data class BreakpointGroupKey<TBreakpointLocation>(val parser: BreakpointParser<TBreakpointLocation>, val fileId: PackagedId)
 
     interface SourceReferenceMappingSupplier {
-        val originalLines: List<String>
+        val originalFileMappingInfo: FileMappingInfo
         fun getCursorMapper(sourceReference: Int): ProcessedInputCursorMapper?
     }
 }

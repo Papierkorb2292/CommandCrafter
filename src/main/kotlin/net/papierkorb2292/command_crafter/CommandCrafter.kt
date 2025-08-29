@@ -179,7 +179,7 @@ object CommandCrafter: ModInitializer {
                     val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
                         ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
                     val reader = DirectiveStringReader(
-                        FileMappingInfo(file.stringifyLines()),
+                        file.createFileMappingInfo(),
                         languageServer.minecraftServer.commandDispatcher,
                         AnalyzingResourceCreator(languageServer, file.uri)
                     )
