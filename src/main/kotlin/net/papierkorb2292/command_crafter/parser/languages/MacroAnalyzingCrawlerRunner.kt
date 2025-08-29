@@ -1,10 +1,46 @@
 package net.papierkorb2292.command_crafter.parser.languages
 
 import com.mojang.brigadier.ParseResults
+import com.mojang.brigadier.arguments.ArgumentType
+import com.mojang.brigadier.arguments.BoolArgumentType
+import com.mojang.brigadier.arguments.DoubleArgumentType
+import com.mojang.brigadier.arguments.FloatArgumentType
+import com.mojang.brigadier.arguments.IntegerArgumentType
+import com.mojang.brigadier.arguments.LongArgumentType
+import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import net.minecraft.command.CommandSource
+import net.minecraft.command.argument.AngleArgumentType
+import net.minecraft.command.argument.BlockMirrorArgumentType
+import net.minecraft.command.argument.BlockRotationArgumentType
+import net.minecraft.command.argument.ColorArgumentType
+import net.minecraft.command.argument.CommandFunctionArgumentType
+import net.minecraft.command.argument.DimensionArgumentType
+import net.minecraft.command.argument.EntityAnchorArgumentType
+import net.minecraft.command.argument.EnumArgumentType
+import net.minecraft.command.argument.GameModeArgumentType
+import net.minecraft.command.argument.HeightmapArgumentType
+import net.minecraft.command.argument.HexColorArgumentType
+import net.minecraft.command.argument.IdentifierArgumentType
+import net.minecraft.command.argument.ItemSlotArgumentType
+import net.minecraft.command.argument.NumberRangeArgumentType
+import net.minecraft.command.argument.OperationArgumentType
+import net.minecraft.command.argument.RegistryEntryPredicateArgumentType
+import net.minecraft.command.argument.RegistryEntryReferenceArgumentType
+import net.minecraft.command.argument.RegistryKeyArgumentType
+import net.minecraft.command.argument.RegistryPredicateArgumentType
+import net.minecraft.command.argument.RegistrySelectorArgumentType
+import net.minecraft.command.argument.ScoreboardCriterionArgumentType
+import net.minecraft.command.argument.ScoreboardObjectiveArgumentType
+import net.minecraft.command.argument.ScoreboardSlotArgumentType
+import net.minecraft.command.argument.SlotRangeArgumentType
+import net.minecraft.command.argument.SwizzleArgumentType
+import net.minecraft.command.argument.TeamArgumentType
+import net.minecraft.command.argument.TimeArgumentType
+import net.minecraft.command.argument.UuidArgumentType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
@@ -116,23 +152,22 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
 
     private fun createStartCrawler(): Crawler {
         val children = startNode.resolveRedirects().children
-        val advanceable = children.filter { it !is LiteralCommandNode }.map { it.resolveRedirects() }
-        val unadvanceable = children.filter { it is LiteralCommandNode }.map { it.resolveRedirects() }
+        val advanceable = children.filter { canNodeHaveSpaces(it) }.map { it.resolveRedirects() }
+        val unadvanceable = children.filter { !canNodeHaveSpaces(it) }.map { it.resolveRedirects() }
         consumedAdvanceableNodes += advanceable
         consumedUnadvanceableNodes += unadvanceable
         return Crawler(advanceable, unadvanceable)
     }
 
-    // TODO: Instead of only using literals for optimizations, maybe also keep a list of other arguments that are known not to contain spaces
     /**
      * Stores the [advanceableNodes] and [unadvanceableNodes] that are used as the root nodes for the parsing attempt
      *
      * The difference between [advanceableNodes] and [unadvanceableNodes] is that [unadvanceableNodes] are only applied at the very first attempt position,
-     * because it is known ahead of time that they won't match any later position well. This is the case for all nodes that are descendants of a literal node,
-     * because a literal node never includes spaces. Thus, if a child of a literal node appears somewhere in the command, then the literal node must also appear before it,
-     * meaning it isn't necessary to try and parse the child since that should have already been attempted when parsing the literal at an earlier position.
-     * The only exception is when the literal is given through a macro variable, in which case its child would have to be directly after the next space, meaning
-     * only the next space actually has to checked.
+     * because it is known ahead of time that they won't match any later position well. This is the case for all nodes that are descendants of a node which can not contain any spaces,
+     * Because if a child of such a node appears somewhere in the command, then the parent node must also appear before it,
+     * meaning it isn't necessary to try and parse the child since that should have already been attempted when parsing the parent at an earlier position.
+     * The only exception is when the parent is given through a macro variable, in which case its child would have to be directly after the next space, meaning
+     * only the next space actually has to be checked.
      */
     private inner class Crawler(val advanceableNodes: List<CommandNode<CommandSource>>, val unadvanceableNodes: List<CommandNode<CommandSource>>) {
         fun createChildrenCrawler(): Crawler {
@@ -154,7 +189,7 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
             advanceableNodes.forEach { node ->
                 val childNodes = node.children
                     .map { child -> child.resolveRedirects() }
-                if(node is LiteralCommandNode)
+                if(!canNodeHaveSpaces(node))
                     childUnadvanceableNodes += childNodes.filter {
                         consumedUnadvanceableNodes.add(it) && it !in consumedAdvanceableNodes
                     }
@@ -203,5 +238,56 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
         override fun compareTo(other: CrawlerParserResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
             else parsedNodeCount.compareTo(other.parsedNodeCount)
+    }
+
+    companion object {
+        fun canNodeHaveSpaces(node: CommandNode<*>): Boolean {
+            if(node is LiteralCommandNode)
+                return false
+            if(node !is ArgumentCommandNode<*, *>)
+                return true
+            val argumentType: ArgumentType<*> = node.type
+            if(argumentType.javaClass in KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES)
+                return false
+            if(argumentType is StringArgumentType && argumentType.type == StringArgumentType.StringType.SINGLE_WORD)
+                return false
+            return true
+        }
+
+        val KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES = setOf(
+            BoolArgumentType::class.java,
+            FloatArgumentType::class.java,
+            DoubleArgumentType::class.java,
+            IntegerArgumentType::class.java,
+            LongArgumentType::class.java,
+            ColorArgumentType::class.java,
+            HexColorArgumentType::class.java,
+            ScoreboardObjectiveArgumentType::class.java,
+            ScoreboardCriterionArgumentType::class.java,
+            OperationArgumentType::class.java,
+            AngleArgumentType::class.java,
+            ScoreboardSlotArgumentType::class.java,
+            SwizzleArgumentType::class.java,
+            TeamArgumentType::class.java,
+            ItemSlotArgumentType::class.java,
+            SlotRangeArgumentType::class.java,
+            IdentifierArgumentType::class.java,
+            CommandFunctionArgumentType::class.java,
+            EntityAnchorArgumentType::class.java,
+            NumberRangeArgumentType.IntRangeArgumentType::class.java,
+            NumberRangeArgumentType.FloatRangeArgumentType::class.java,
+            DimensionArgumentType::class.java,
+            GameModeArgumentType::class.java,
+            TimeArgumentType::class.java,
+            RegistryEntryPredicateArgumentType::class.java,
+            RegistryPredicateArgumentType::class.java,
+            RegistryEntryReferenceArgumentType::class.java,
+            RegistryKeyArgumentType::class.java,
+            RegistrySelectorArgumentType::class.java,
+            BlockMirrorArgumentType::class.java,
+            BlockRotationArgumentType::class.java,
+            HeightmapArgumentType::class.java,
+            UuidArgumentType::class.java
+        )
     }
 }
