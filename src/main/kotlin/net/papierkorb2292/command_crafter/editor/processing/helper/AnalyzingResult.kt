@@ -251,8 +251,27 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         const val LANGUAGE_COMPLETION_CHANNEL = "language"
         const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
 
-        fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
-            getPositionFromCursor(cursor, mappingInfo.lines, zeroBased)
+        fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
+            val oneBasedOffset = if(zeroBased) 0 else 1
+            var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
+                mappingInfo.accumulatedLineLengths[index].compareTo(cursor)
+            }
+            if(lineIndex < 0) {
+                // No line has the exact accumulated length, so select the previous line
+                lineIndex = -lineIndex - 2
+            }
+            if(lineIndex == -1) {
+                // Position is on the first line
+                return Position(oneBasedOffset, cursor)
+            }
+            val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
+            return Position(
+                // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
+                // start of the next line, so the actual line that the position is on is also the next line
+                lineIndex + 1 + oneBasedOffset,
+                cursor - accumulatedLineLength + oneBasedOffset
+            )
+        }
 
         @Deprecated("Replaced with an overload using FileMappingInfo for better performance")
         fun getPositionFromCursor(cursor: Int, lines: List<String>, zeroBased: Boolean = true): Position {
@@ -272,8 +291,12 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             else Position(lastLineNumber, lastColumnNumber + 1)
         }
 
-        fun getCursorFromPosition(position: Position, mappingInfo: FileMappingInfo, zeroBased: Boolean = true) =
-            getCursorFromPosition(mappingInfo.lines, position, zeroBased)
+        fun getCursorFromPosition(position: Position, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Int {
+            val oneBasedOffset = if(zeroBased) 0 else 1
+            if(position.line - oneBasedOffset == 0)
+                return position.character
+            return mappingInfo.accumulatedLineLengths[position.line - 1 - oneBasedOffset] + position.character - oneBasedOffset
+        }
 
         @Deprecated("Replaced with an overload using FileMappingInfo for better performance")
         fun getCursorFromPosition(lines: List<String>, position: Position, zeroBased: Boolean = true): Int {
