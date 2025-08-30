@@ -979,7 +979,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.cursor = startCursor
                 reader.furthestAccessedCursor = 0
                 tryAnalyzeMacro(baseContext, parserRootNode, reader, variableLocations, attemptPositions, branchAnalyzingResult)
-            } ?: MacroAnalyzingCrawlerRunner.CrawlerParserResult.fromParseResults(commandParseResults, analyzingResult)
+            }?.addNodeCountFromParseResults(commandParseResults)
+                ?: MacroAnalyzingCrawlerRunner.CrawlerParserResult.fromParseResults(commandParseResults, analyzingResult)
         }
 
         //TODO: Error on trailing data

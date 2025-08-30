@@ -216,25 +216,10 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
         fun isEmpty() = advanceableNodes.isEmpty() && unadvanceableNodes.isEmpty()
     }
 
-    data class CrawlerParserResult(val parsedNodeCount: Int, val literalNodeCount: Int, val commandContext: CommandContextBuilder<*>, val analyzingResult: AnalyzingResult): Comparable<CrawlerParserResult> {
+    data class CrawlerParserResult(val parsedNodeCount: Int, val literalNodeCount: Int, val analyzingResult: AnalyzingResult): Comparable<CrawlerParserResult> {
         companion object {
-            fun fromParseResults(parseResults: ParseResults<*>, analyzingResult: AnalyzingResult): CrawlerParserResult {
-                var parsedNodeCount = 0
-                var literalNodeCount = 0
-                var context: CommandContextBuilder<*>? = parseResults.context
-                while(context != null) {
-                    parsedNodeCount += context.nodes.size
-                    literalNodeCount += context.nodes.count { it.node is LiteralCommandNode }
-                    context = context.child
-                }
-
-                return CrawlerParserResult(
-                    parsedNodeCount,
-                    literalNodeCount,
-                    parseResults.context,
-                    analyzingResult
-                )
-            }
+            fun fromParseResults(parseResults: ParseResults<*>, analyzingResult: AnalyzingResult): CrawlerParserResult =
+                CrawlerParserResult(0, 0, analyzingResult).addNodeCountFromParseResults(parseResults)
         }
 
         fun shouldStopCrawling(): Boolean {
@@ -246,6 +231,18 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
         override fun compareTo(other: CrawlerParserResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
             else parsedNodeCount.compareTo(other.parsedNodeCount)
+
+        fun addNodeCountFromParseResults(parseResults: ParseResults<*>): CrawlerParserResult {
+            var parsedNodeCount = parsedNodeCount
+            var literalNodeCount = literalNodeCount
+            var context: CommandContextBuilder<*>? = parseResults.context
+            while(context != null) {
+                parsedNodeCount += context.nodes.size
+                literalNodeCount += context.nodes.count { it.node is LiteralCommandNode }
+                context = context.child
+            }
+            return copy(parsedNodeCount = parsedNodeCount, literalNodeCount = literalNodeCount)
+        }
     }
 
     companion object {
