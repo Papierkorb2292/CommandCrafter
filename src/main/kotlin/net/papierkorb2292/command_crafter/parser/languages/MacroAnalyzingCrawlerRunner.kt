@@ -75,8 +75,7 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
 
     private val stepsPerCrawlerBeforePush = 5
 
-    private val consumedUnadvanceableNodes = mutableSetOf<CommandNode<CommandSource>>()
-    private val consumedAdvanceableNodes = mutableSetOf<CommandNode<CommandSource>>()
+    private val consumedNodes = mutableSetOf<CommandNode<CommandSource>>()
     private val crawlers = mutableListOf<Crawler>(createStartCrawler())
     private var finishedCrawlerIndex = 1
 
@@ -159,61 +158,24 @@ class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSour
     }
 
     private fun createStartCrawler(): Crawler {
-        val children = startNode.resolveRedirects().children
-        val advanceable = children.filter { canNodeHaveSpaces(it) }.map { it.resolveRedirects() }
-        val unadvanceable = children.filter { !canNodeHaveSpaces(it) }.map { it.resolveRedirects() }
-        consumedAdvanceableNodes += advanceable
-        consumedUnadvanceableNodes += unadvanceable
-        return Crawler(advanceable, unadvanceable)
+        val children = startNode.resolveRedirects().children.toList()
+        consumedNodes += children
+        return Crawler(children)
     }
 
-    /**
-     * Stores the [advanceableNodes] and [unadvanceableNodes] that are used as the root nodes for the parsing attempt
-     *
-     * The difference between [advanceableNodes] and [unadvanceableNodes] is that [unadvanceableNodes] are only applied at the very first attempt position,
-     * because it is known ahead of time that they won't match any later position well. This is the case for all nodes that are descendants of a node which can not contain any spaces,
-     * Because if a child of such a node appears somewhere in the command, then the parent node must also appear before it,
-     * meaning it isn't necessary to try and parse the child since that should have already been attempted when parsing the parent at an earlier position.
-     * The only exception is when the parent is given through a macro variable, in which case its child would have to be directly after the next space, meaning
-     * only the next space actually has to be checked.
-     */
-    private inner class Crawler(val advanceableNodes: List<CommandNode<CommandSource>>, val unadvanceableNodes: List<CommandNode<CommandSource>>) {
+    private inner class Crawler(val nodes: List<CommandNode<CommandSource>>) {
         fun createChildrenCrawler(): Crawler {
-            val childAdvanceableNodes = mutableListOf<CommandNode<CommandSource>>()
-            val childUnadvanceableNodes = mutableListOf<CommandNode<CommandSource>>()
-
-            // unadvanceable nodes can only add more unadvanceable nodes, since all of their children would
-            // have the nodes parent as a grandparent still.
-            // Unadvanceable nodes are only added if there isn't already another crawler with that node either
-            // as an advanceable node or as an unadvanceable node, since either option would mean all the potential attempts
-            // have already been done.
-            childUnadvanceableNodes += unadvanceableNodes.flatMap { node ->
+            return Crawler(nodes.flatMap { node ->
                 node.children
                     .map { child -> child.resolveRedirects() }
-                    .filter {
-                        consumedUnadvanceableNodes.add(it) && it !in consumedAdvanceableNodes
-                    }
-            }
-            advanceableNodes.forEach { node ->
-                val childNodes = node.children
-                    .map { child -> child.resolveRedirects() }
-                if(!canNodeHaveSpaces(node))
-                    childUnadvanceableNodes += childNodes.filter {
-                        consumedUnadvanceableNodes.add(it) && it !in consumedAdvanceableNodes
-                    }
-                else {
-                    childAdvanceableNodes += childNodes.filter(consumedAdvanceableNodes::add)
-                }
-            }
-
-            return Crawler(childAdvanceableNodes, childUnadvanceableNodes)
+            })
         }
 
         fun getNodesForAttemptIndex(index: Int): Sequence<CommandNode<CommandSource>> =
-            if(index == 0) advanceableNodes.asSequence() + unadvanceableNodes.asSequence()
-            else advanceableNodes.asSequence()
+            if(index == 0) nodes.asSequence()
+            else nodes.asSequence().filter(::canNodeHaveSpaces)
 
-        fun isEmpty() = advanceableNodes.isEmpty() && unadvanceableNodes.isEmpty()
+        fun isEmpty() = nodes.isEmpty()
     }
 
     data class CrawlerParserResult(val parsedNodeCount: Int, val literalNodeCount: Int, val analyzingResult: AnalyzingResult): Comparable<CrawlerParserResult> {
