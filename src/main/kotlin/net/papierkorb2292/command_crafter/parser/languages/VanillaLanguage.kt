@@ -691,9 +691,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 } catch(e: Exception) {
                     CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
                 }
-                if(skipAnalyzedChars)
+                if(skipAnalyzedChars) {
                     // Choose maximum because the analyzer might not have an implementation that reads anything
                     reader.cursor = max(reader.cursor, analyzeReader.cursor)
+                    reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
+                }
                 if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
                         context,
                         node.name
