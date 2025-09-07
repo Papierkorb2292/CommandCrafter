@@ -126,7 +126,7 @@ class MacroAnalyzingCrawlerRunner(
         return bestGlobalSpawner!!.buildCombinedAnalyzingResult(reader.string.length)
     }
 
-    private fun createRootSpawner() = Spawner(null, listOf(), 0).apply {
+    private fun createRootSpawner() = Spawner(null, listOf(), 0, baseContext).apply {
         addRootCrawler(baseContext.dispatcher.root)
     }
 
@@ -163,7 +163,7 @@ class MacroAnalyzingCrawlerRunner(
         commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
             rootNode,
             reader,
-            CommandContextBuilder(baseContext.dispatcher, baseContext.source, rootNode, reader.cursor)
+            spawner.baseContext
         )
         reader.copyFrom(commandParseResults.reader as DirectiveStringReader<*>)
         reader.setString(originalString)
@@ -197,8 +197,8 @@ class MacroAnalyzingCrawlerRunner(
         val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
 
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
-        val childSpawner = Spawner(spawner, lastNode.resolveRedirects().children.toList(), nextAttemptIndex)
         if(childSpawner.nextNodes.isEmpty() || nextAttemptIndex >= attemptPositions.size)
+        val childSpawner = Spawner(spawner, lastNode.resolveRedirects().children.toList(), nextAttemptIndex, commandParseResults.context.lastChild)
             return convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, null)
         childSpawner.pushCrawler()
 
@@ -257,6 +257,7 @@ class MacroAnalyzingCrawlerRunner(
         val parent: Spawner?,
         var nextNodes: List<CommandNode<CommandSource>>,
         val startAttemptIndex: Int,
+        val baseContext: CommandContextBuilder<CommandSource>
     ) {
         val consumedCrawlerNodes = mutableSetOf<CommandNode<CommandSource>>()
         val accessedChildNodes = mutableSetOf<CommandNode<CommandSource>>()
