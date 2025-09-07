@@ -412,9 +412,9 @@ class MacroAnalyzingCrawlerRunner(
             val lockedInLiterals = literalNodeCount - minLiteralCountForConfidence
             var cutOffPoint: Spawner? = null
             var root = parentSpawner
-            while(root.parent != null && root.baseResult!!.literalNodeCount > lockedInLiterals) {
+            while((root.baseResult ?: return).literalNodeCount > lockedInLiterals) {
                 cutOffPoint = root
-                root = root.parent
+                root = root.parent!!
             }
             // Loop ran at least once, because the case where it wouldn't was already covered by the `if` before it
             check(cutOffPoint != null)
