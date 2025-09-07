@@ -612,7 +612,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         tryAnalyzeNextNode(
             analyzingResult,
             parentNode,
-            result.context,
+            result.context.lastChild,
             reader
         )
     }
