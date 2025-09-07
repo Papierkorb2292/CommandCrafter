@@ -221,7 +221,7 @@ class MacroAnalyzingCrawlerRunner(
         var contextBuilder: CommandContextBuilder<TNode>? = parseResults.context
         while(contextBuilder != null) {
             for((i, node) in contextBuilder.nodes.withIndex()) {
-                val shouldRemove = endCursor <= node.range
+                val shouldRemove = endCursor <= node.range.end
                 if(shouldRemove) {
                     val prevNode = contextBuilder.nodes.getOrNull(i - 1) ?: ParsedCommandNode(
                         contextBuilder.rootNode,
