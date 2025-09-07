@@ -28,6 +28,7 @@ import net.minecraft.command.argument.HeightmapArgumentType
 import net.minecraft.command.argument.HexColorArgumentType
 import net.minecraft.command.argument.IdentifierArgumentType
 import net.minecraft.command.argument.ItemSlotArgumentType
+import net.minecraft.command.argument.MessageArgumentType
 import net.minecraft.command.argument.NumberRangeArgumentType
 import net.minecraft.command.argument.OperationArgumentType
 import net.minecraft.command.argument.RegistryEntryPredicateArgumentType
@@ -90,6 +91,7 @@ class MacroAnalyzingCrawlerRunner(
             if(reader.string[i] == ' ' && i + 1 < reader.string.length)
                 attemptPositions.add(i + 1)
     }
+    private val invalidAttemptPositionsMarker = BooleanArray(attemptPositions.size)
 
     private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
@@ -105,8 +107,12 @@ class MacroAnalyzingCrawlerRunner(
 
             mostPromisingSpawners.forEach {
                 it.runCrawlersOnce(spawnersIndex)
+                it.bestResult?.markInvalidAttemptPositions()
             }
-            val bestMatchingSpawner = mostPromisingSpawners.maxBy { it.bestResult!! }
+            val bestMatchingSpawner = mostPromisingSpawners.asSequence()
+                .filter { it.bestResult != null }
+                .maxByOrNull { it.bestResult!! }
+                ?: continue
 
             if(bestGlobalSpawner == null || bestMatchingSpawner.bestResult!! > bestGlobalSpawner.bestResult!!) {
                 bestGlobalSpawner = bestMatchingSpawner
@@ -189,7 +195,12 @@ class MacroAnalyzingCrawlerRunner(
         if(!hasAccessedMacro || !reader.canRead())
             // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
             // or because the command is done
-            return convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
+
+        if(reader.furthestAccessedCursor <= startCursor + 1)
+            // The parser doesn't seem to have found anything, there's no need to create a new spawner, since the parent spawner is also going to try
+            // the following whitespaces
+            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
 
         // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
         // since the macro could have contained any data whatsoever. Create a new spawner to find the best match to continue parsing.
@@ -197,9 +208,11 @@ class MacroAnalyzingCrawlerRunner(
         val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
 
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
-        if(childSpawner.nextNodes.isEmpty() || nextAttemptIndex >= attemptPositions.size)
+        if(nextAttemptIndex >= attemptPositions.size || invalidAttemptPositionsMarker[nextAttemptIndex])
+            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
         val childSpawner = Spawner(spawner, lastNode.resolveRedirects().children.toList(), nextAttemptIndex, commandParseResults.context.lastChild)
-            return convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, null)
+        if(childSpawner.nextNodes.isEmpty())
+            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
         childSpawner.pushCrawler()
 
         // Use the difference in the attempt index from the parent spawner to add the child spawner instead of just using nextAttemptIndex
@@ -212,7 +225,7 @@ class MacroAnalyzingCrawlerRunner(
         }
         weightedSpawners[childSpawnerIndex] += childSpawner
 
-        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, childSpawner)
+        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, childSpawner)
         childSpawner.baseResult = crawlerResult
         return crawlerResult
     }
@@ -275,12 +288,16 @@ class MacroAnalyzingCrawlerRunner(
         var bestResultSkippedNodeCount: Int = -1
 
         fun advance(): Boolean {
+            if(isStartInvalid())
+                return false
             if(crawlers.isEmpty() || crawlers.last().attemptCount >= 5)
                 pushCrawler()
             return crawlers.isNotEmpty()
         }
 
         fun runCrawlersOnce(spawnerIndex: Int) {
+            if(isStartInvalid())
+                return
             var i = 0
             while(i < crawlers.size) {
                 val crawler = crawlers[i]
@@ -296,7 +313,16 @@ class MacroAnalyzingCrawlerRunner(
                 }
 
                 val attemptIndex = startAttemptIndex + attemptCount
+                if(invalidAttemptPositionsMarker[attemptIndex]) {
+                    if(attemptIndex + 1 >= attemptPositions.size || crawler.nodesWithSpaces.isEmpty())
+                        crawlers.removeAt(i)
+                    else
+                        i++
+
+                    continue
+                }
                 val startCursor = attemptPositions[attemptIndex]
+
                 val results = crawlerNodes.map { node ->
                         reader.cursor = startCursor
                         reader.furthestAccessedCursor = 0
@@ -307,9 +333,8 @@ class MacroAnalyzingCrawlerRunner(
 
                 if(attemptIndex + 1 >= attemptPositions.size || crawler.nodesWithSpaces.isEmpty())
                     crawlers.removeAt(i)
-                else {
+                else
                     i++
-                }
 
                 val crawlerBestResult = results.maxOrNull() ?: continue
                 if(bestResult == null || crawlerBestResult > bestResult!!) {
@@ -356,6 +381,8 @@ class MacroAnalyzingCrawlerRunner(
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
             return parentAnalyzingResult
         }
+
+        private fun isStartInvalid(): Boolean = invalidAttemptPositionsMarker[startAttemptIndex]
 
         /**
          * Adds all completions from parsing attempts with an attemptCount less than or equal
@@ -436,19 +463,47 @@ class MacroAnalyzingCrawlerRunner(
             }
         }
 
+        fun markInvalidAttemptPositions() {
+            var attemptIndex = 0
+            for(parsedNode in contextBuilder.nodes) {
+                if(attemptIndex >= attemptPositions.size)
+                    return
+                if(!canNodeHaveSpaces(parsedNode.node) || isGreedyString(parsedNode.node))
+                    continue
+                while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.start)
+                    attemptIndex++
+                while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.end) {
+                    invalidAttemptPositionsMarker[attemptIndex] = true
+                    attemptIndex++
+                }
+            }
+            // Also set invalidAttemptPositionMarkers for the last that contains macros, which we know ends where the next spawner starts
+            val childSpawner = childSpawner ?: return
+            while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= contextBuilder.range.end + 1)
+                attemptIndex++
+            while(attemptIndex < childSpawner.startAttemptIndex) {
+                invalidAttemptPositionsMarker[attemptIndex] = true
+                attemptIndex++
+            }
+        }
+
         override fun compareTo(other: CrawlerResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
             else parsedNodeCount.compareTo(other.parsedNodeCount)
     }
 
-    private fun convertParseResultsToCrawlerResult(parseResults: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, parentSpawner: Spawner, childSpawner: Spawner?): CrawlerResult {
+    private fun convertParseResultsToCrawlerResult(parseResults: ParseResults<CommandSource>, baseContext: CommandContextBuilder<CommandSource>, analyzingResult: AnalyzingResult, parentSpawner: Spawner, childSpawner: Spawner?): CrawlerResult {
+        var previouslyCountedNodes = baseContext.nodes.size
+
         var parsedNodeCount = parentSpawner.baseResult?.parsedNodeCount ?: 0
         var literalNodeCount = parentSpawner.baseResult?.literalNodeCount ?: 0
         var context: CommandContextBuilder<*>? = parseResults.context
         while(context != null) {
-            parsedNodeCount += context.nodes.size
-            literalNodeCount += context.nodes.count { it.node is LiteralCommandNode }
+            parsedNodeCount += context.nodes.size - previouslyCountedNodes
+            literalNodeCount += context.nodes.subList(previouslyCountedNodes, context.nodes.size)
+                .count { it.node is LiteralCommandNode }
             context = context.child
+            previouslyCountedNodes = 0
         }
         return CrawlerResult(
             parsedNodeCount,
@@ -474,6 +529,17 @@ class MacroAnalyzingCrawlerRunner(
             if(argumentType is StringArgumentType && argumentType.type == StringArgumentType.StringType.SINGLE_WORD)
                 return false
             return true
+        }
+
+        fun isGreedyString(node: CommandNode<*>): Boolean {
+            if(node !is ArgumentCommandNode<*, *>)
+                return false
+            val argumentType = node.type
+            if(argumentType is StringArgumentType && argumentType.type == StringArgumentType.StringType.GREEDY_PHRASE)
+                return true
+            if(argumentType is MessageArgumentType)
+                return true
+            return false
         }
 
         val KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES = setOf(
