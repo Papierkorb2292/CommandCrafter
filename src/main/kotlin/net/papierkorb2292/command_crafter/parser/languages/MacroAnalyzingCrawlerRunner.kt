@@ -9,9 +9,12 @@ import com.mojang.brigadier.arguments.IntegerArgumentType
 import com.mojang.brigadier.arguments.LongArgumentType
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.ParsedCommandNode
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
+import com.mojang.brigadier.tree.RootCommandNode
 import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.AngleArgumentType
 import net.minecraft.command.argument.BlockMirrorArgumentType
@@ -40,174 +43,425 @@ import net.minecraft.command.argument.SwizzleArgumentType
 import net.minecraft.command.argument.TeamArgumentType
 import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.command.argument.UuidArgumentType
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.IntList
+import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
+import kotlin.collections.plusAssign
+import kotlin.math.max
 
 /**
- * This class runs parsing attempts for macro analyzing in a certain order such that the analyzer
- * uses the best matching command node to continue after it has encountered an argument which depends on a macro variable.
  *
  * The algorithm for determining the order of parsing attempts might be changed in the future if other algorithms turn out to perform better.
- * Currently, the order of parsing attempts are determined the following way:
- * It is assumed that every argument starts after a space character, so every position of a space character in the remaining macro command
- * is a potential start position. These positions are given through [attemptPositions].
+ * Currently, analyzing macros works the following way:
  *
- * Most of the time, a macro variable is just going to cover one argument, in which case the next argument (after the next space character)
- * would be matched by a direct child node of the previous command node, so this should be attempted first.
- * If this fails, there are multiple options for the next attempts:
- *  - The last argument might consist of multiple parts separated by spaces, so maybe the direct child nodes only match a later [attemptPositions] entry
- *  - The macro variable could also resolve to multiple nodes (for example when an entire `execute` subcommand is
- *  passed as a macro variable), in which case it would be good to also match the grand children and such against the first [attemptPositions].
- *  Since this second case probably happens less, it should be given less priority.
+ * When a macro variable is encountered by the normal parser, the parser will stop there. Afterward, all the nodes that have been read before that are
+ * analyzed. Additionally, the analyzer is used to read the node that contains the macro with more leniency. The next node is then assumed to start at one
+ * of the whitespaces after that (in most cases it will start directly at the next whitespace, but there might be cases where the node with the macro contains whitespaces
+ * itself but the lenient parser failed to read them in). To go through all following whitespaces and attempt to start parsing there, a `Crawler` is created, which tries
+ * out all possible nodes that the macro could resolve to and then start parsing with them at each of the following whitespaces. Since some macro variables might also
+ * resolve to multiple nodes, it might not work to try parsing any direct child of the parent node. Thus, a [Spawner] is created when a macro is encountered, which can
+ * create multiple [Spawner.Crawler]s (one for the direct children, one for the grand-children, and so on). The next crawler in the sequence is only created after the previous
+ * one already had a few unsuccessful attempts.
  *
- *  To determine the order of parsing attempts, this class has 'crawlers' that go through the [attemptPositions] one by one and try to match each one
- *  with some set of command nodes. This starts by trying to match the first [attemptPositions] entry with the children of [startNode], which means the children of [startNode]
- *  will be used as root nodes by the parser and thus the parser will try to parse the grand children of [startNode] at that position. This is because [startNode] is the
- *  parent of the macro argument, so even though the parser might have recognized the argument with the macro variable as some command node, the crawlers still try out
- *  all other possible command nodes that could have gone there and then try to match their children at the next position. If that fails, the crawler advances
- *  to the next [attemptPositions] entry and tries again. This is repeated until either one of the parsing attempts is good enough or the crawler did five failed
- *  attempts, at which point a second crawler will be spawned back at the beginning of [attemptPositions] which tries to match the children of the previous crawler
- *  (but making sure that it doesn't repeat any command nodes that a previous crawler already tried).
- *  The two (or more) crawlers are then advanced in an alternating manner.
+ * To try to find the best matching nodes as quickly as possible, the algorithm doesn't use a straightforward BSF or DSF (the former would quickly slow done with many macros
+ * and the latter has a chance to hang on incorrect attempts for a long time). Instead, all spawners are weighted depending on how far they've parsed (positive) and how many
+ * attempts that spawner has already made (negative). The best spawners according to this metric are chosen to make another attempt. Additionally, if the result of an attempt
+ * was successful enough, some previous spawners can be removed (see [CrawlerResult.cutSpawnerTree])
+ *
+ * @param reader The [DirectiveStringReader] containing the macro command contents where all macro variables have been resolved as an empty string
+ * @param variableLocations A list of all cursor positions in the input where a macro variable was.
  */
-class MacroAnalyzingCrawlerRunner(private val startNode: CommandNode<CommandSource>, private val attemptPositions: IntList, private val baseAnalyzingResult: AnalyzingResult) {
+class MacroAnalyzingCrawlerRunner(
+    private val baseContext: CommandContextBuilder<CommandSource>,
+    private val reader: DirectiveStringReader<AnalyzingResourceCreator>,
+    private val variableLocations: IntList,
+    private val baseAnalyzingResult: AnalyzingResult
+) {
+    private val attemptPositions = IntList()
+    init {
+        attemptPositions.add(0)
+        for(i in 0 until reader.string.length)
+            if(reader.string[i] == ' ' && i + 1 < reader.string.length)
+                attemptPositions.add(i + 1)
+    }
 
-    private val stepsPerCrawlerBeforePush = 5
+    private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
-    private val consumedNodes = mutableSetOf<CommandNode<CommandSource>>()
-    private val crawlers = mutableListOf<Crawler>(createStartCrawler())
-    private var finishedCrawlerIndex = 1
+    private var mergedCompletionsCount = 0
 
-    fun runCrawlers(parseCallback: (startCursor: Int, parserRootNode: CommandNode<CommandSource>, analyzingResult: AnalyzingResult) -> CrawlerParserResult): CrawlerParserResult? {
-        var bestResult: CrawlerParserResult? = null
-        var bestResultAttemptPositionIndex = -1
-        val analyzingResultsPerAttemptPositionIndex = mutableListOf<MutableList<AnalyzingResult>>()
-        do {
-            // Run each crawler for a few steps before adding another crawler
-            for(step in 0 until stepsPerCrawlerBeforePush) {
-                if(finishedCrawlerIndex == 0)
-                    // All current crawlers are finished, so just push a new one
-                    break
+    fun run(): AnalyzingResult {
+        var bestGlobalSpawner: Spawner? = null
+        while(weightedSpawners.isNotEmpty()) {
+            val mostPromisingSpawners = weightedSpawners.removeLast()
+            if(mostPromisingSpawners.isEmpty())
+                continue
+            val spawnersIndex = weightedSpawners.size
 
-                for((i, crawler) in crawlers.subList(0, finishedCrawlerIndex).withIndex()) {
-                    val attemptIndex = i * stepsPerCrawlerBeforePush + step
-                    if(attemptIndex >= attemptPositions.size) {
-                        finishedCrawlerIndex = i
-                        break // All following crawlers should have already finished anyway
+            mostPromisingSpawners.forEach {
+                it.runCrawlersOnce(spawnersIndex)
+            }
+            val bestMatchingSpawner = mostPromisingSpawners.maxBy { it.bestResult!! }
+
+            if(bestGlobalSpawner == null || bestMatchingSpawner.bestResult!! > bestGlobalSpawner.bestResult!!) {
+                bestGlobalSpawner = bestMatchingSpawner
+            }
+
+            val advancedSpawners = mostPromisingSpawners.filterTo(mutableListOf()) { it.advance() }
+            if(advancedSpawners.isNotEmpty()) {
+                // Advancing the spawners decreases their weight by one
+                if(spawnersIndex > 0)
+                    weightedSpawners[spawnersIndex - 1] += advancedSpawners
+                else
+                    weightedSpawners.add(0, advancedSpawners)
+            }
+
+            bestMatchingSpawner.bestResult!!.cutSpawnerTree()
+        }
+        return bestGlobalSpawner!!.buildCombinedAnalyzingResult(reader.string.length)
+    }
+
+    private fun createRootSpawner() = Spawner(null, listOf(), 0).apply {
+        addRootCrawler(baseContext.dispatcher.root)
+    }
+
+    private fun getAttemptIndexForCursor(cursor: Int): Int {
+        val index = attemptPositions.binarySearch { attemptPositions[it].compareTo(cursor) }
+        return if(index >= 0)
+            index + 1 // Advance the index by one, because the position that the cursor is currently at was already tried in the previous attempt
+        else
+            -(index + 1) // Get the next attempt position
+    }
+
+    private fun tryParse(
+        rootNode: CommandNode<CommandSource>,
+        spawner: Spawner,
+        spawnerIndex: Int
+    ): CrawlerResult {
+        val analyzingResult = baseAnalyzingResult.copyInput()
+        val startCursor = reader.cursor
+        val originalString = reader.string
+
+        // Only let the parser read up to the next variable location, because what comes after that doesn't matter in this call anyway, it will only be parsed later
+        // (either when analyzing the last node of this segment or when trying to parse nodes in other segments)
+        var nextVariableLocationIndex = variableLocations.binarySearch {
+            variableLocations[it].compareTo(startCursor)
+        }
+        if(nextVariableLocationIndex < 0) {
+            nextVariableLocationIndex = -(nextVariableLocationIndex + 1)
+        }
+        val nextVariableLocation = if(nextVariableLocationIndex >= variableLocations.size) originalString.length else variableLocations[nextVariableLocationIndex]
+        reader.setString(originalString.substring(0, nextVariableLocation))
+
+        val commandParseResults: ParseResults<CommandSource>
+        @Suppress("UNCHECKED_CAST")
+        commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
+            rootNode,
+            reader,
+            CommandContextBuilder(baseContext.dispatcher, baseContext.source, rootNode, reader.cursor)
+        )
+        reader.copyFrom(commandParseResults.reader as DirectiveStringReader<*>)
+        reader.setString(originalString)
+
+        // Remove the nodes that contain the macro variable, because the macro variable is supposed to be read with
+        // all available leniency by analyzing the node
+        removeNodesAfterCursor(commandParseResults, nextVariableLocation)
+        reader.cursor = commandParseResults.context.lastChild.range.end
+
+        // This can also skip more characters when trying to analyze the next command node
+        VanillaLanguage().analyzeParsedCommand(
+            commandParseResults,
+            analyzingResult,
+            reader
+        )
+
+        // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
+        // because that should still be part of the argument
+        reader.cursor = max(reader.cursor, commandParseResults.reader.cursor)
+
+        val hasAccessedMacro = nextVariableLocationIndex < variableLocations.size && reader.furthestAccessedCursor >= nextVariableLocation
+
+        if(!hasAccessedMacro || !reader.canRead())
+            // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
+            // or because the command is done
+            return convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, null)
+
+        // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
+        // since the macro could have contained any data whatsoever. Create a new spawner to find the best match to continue parsing.
+        val lastChild = commandParseResults.context.lastChild
+        val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
+
+        val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
+        val childSpawner = Spawner(spawner, lastNode.resolveRedirects().children.toList(), nextAttemptIndex)
+        if(childSpawner.nextNodes.isEmpty() || nextAttemptIndex >= attemptPositions.size)
+            return convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, null)
+        childSpawner.pushCrawler()
+
+        // Use the difference in the attempt index from the parent spawner to add the child spawner instead of just using nextAttemptIndex
+        // as index for weightedSpawners, because the parent spawner might have already been moved back some steps, which should also apply
+        // to its children
+        val attemptIndexDiff = nextAttemptIndex - spawner.startAttemptIndex
+        val childSpawnerIndex = spawnerIndex + attemptIndexDiff
+        while(weightedSpawners.size <= childSpawnerIndex) {
+            weightedSpawners += mutableListOf<Spawner>()
+        }
+        weightedSpawners[childSpawnerIndex] += childSpawner
+
+        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, analyzingResult, spawner, childSpawner)
+        childSpawner.baseResult = crawlerResult
+        return crawlerResult
+    }
+
+    private fun <TNode> removeNodesAfterCursor(parseResults: ParseResults<TNode>, endCursor: Int) {
+        var contextBuilder: CommandContextBuilder<TNode>? = parseResults.context
+        while(contextBuilder != null) {
+            for((i, node) in contextBuilder.nodes.withIndex()) {
+                val shouldRemove = endCursor <= node.range
+                if(shouldRemove) {
+                    val prevNode = contextBuilder.nodes.getOrNull(i - 1) ?: ParsedCommandNode(
+                        contextBuilder.rootNode,
+                        StringRange.at(contextBuilder.range.start)
+                    )
+                    val childNodes = contextBuilder.nodes.subList(i, contextBuilder.nodes.size)
+                    for(childNode in childNodes) {
+                        parseResults.exceptions.remove(childNode.node)
+                        if(childNode.node is ArgumentCommandNode<*, *>)
+                            contextBuilder.arguments.remove(childNode.node.name)
                     }
-                    while(analyzingResultsPerAttemptPositionIndex.size <= attemptIndex) {
-                        analyzingResultsPerAttemptPositionIndex.add(mutableListOf())
-                    }
+                    childNodes.clear()
 
-                    val startCursor = attemptPositions[attemptIndex]
-                    val results = crawler.getNodesForAttemptIndex(attemptIndex)
-                        .map { node ->
-                            val childAnalyzingResult = baseAnalyzingResult.copyInput()
-                            analyzingResultsPerAttemptPositionIndex[attemptIndex] += childAnalyzingResult
-                            parseCallback(startCursor, node, childAnalyzingResult)
-                        }.toList()
-
-                    val crawlerBestResult = results.maxOrNull() ?: continue
-                    if(bestResult == null || crawlerBestResult > bestResult) {
-                        bestResult = crawlerBestResult
-                        bestResultAttemptPositionIndex = attemptIndex
-                    }
-                }
-                if(bestResult?.shouldStopCrawling() == true) {
-                    addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, analyzingResultsPerAttemptPositionIndex)
-                    return buildCombinedCrawlerResult(bestResult, bestResultAttemptPositionIndex)
+                    @Suppress("UNCHECKED_CAST")
+                    val contextBuilderAccessor =
+                        contextBuilder as CommandContextBuilderAccessor<TNode>
+                    contextBuilderAccessor.setForks(prevNode.node.isFork)
+                    contextBuilderAccessor.setModifier(prevNode.node.redirectModifier)
+                    contextBuilderAccessor.setRange(
+                        StringRange(
+                            contextBuilder.range.start,
+                            prevNode.range.end
+                        )
+                    )
+                    return
                 }
             }
-        } while(pushCrawler())
-        if(bestResult == null)
-            return null
-        addCompletionProvidersUpToAttemptPosition(bestResultAttemptPositionIndex, analyzingResultsPerAttemptPositionIndex)
-        return buildCombinedCrawlerResult(bestResult, bestResultAttemptPositionIndex)
-    }
-
-    private fun addCompletionProvidersUpToAttemptPosition(attemptIndex: Int, analyzingResultsPerAttemptPositionIndex: List<List<AnalyzingResult>>) {
-        analyzingResultsPerAttemptPositionIndex.asSequence().take(attemptIndex + 1).flatten().forEachIndexed { i, result ->
-            baseAnalyzingResult.combineWithCompletionProviders(result, "_$i")
+            contextBuilder = contextBuilder.child
         }
     }
 
-    private fun buildCombinedCrawlerResult(bestResult: CrawlerParserResult, bestResultAttemptPositionIndex: Int): CrawlerParserResult {
-        val attemptPosition = attemptPositions[bestResultAttemptPositionIndex]
-        val analyzingResult = baseAnalyzingResult.copy()
-        analyzingResult.cutAfterTargetCursor(attemptPosition)
-        analyzingResult.combineWithExceptCompletions(bestResult.analyzingResult)
-        return bestResult.copy(analyzingResult = analyzingResult)
-    }
+    private inner class Spawner(
+        val parent: Spawner?,
+        var nextNodes: List<CommandNode<CommandSource>>,
+        val startAttemptIndex: Int,
+    ) {
+        val consumedCrawlerNodes = mutableSetOf<CommandNode<CommandSource>>()
+        val accessedChildNodes = mutableSetOf<CommandNode<CommandSource>>()
+        val crawlers = mutableListOf<Crawler>()
 
-    /**
-     * Adds a new crawler at the beginning that matches the children of the previous children
-     * (unless those children have already been covered by another crawler)
-     *
-     * If there are no remaining children, no new crawler will be added.
-     *
-     * @return `true` if remaining children were found, otherwise `false`
-     */
-    private fun pushCrawler(): Boolean {
-        val newCrawler = crawlers.first().createChildrenCrawler()
-        if(newCrawler.isEmpty())
-            return false
-        crawlers.add(0, newCrawler)
-        finishedCrawlerIndex++
-        return true
-    }
+        /**
+         * Stores all analyzing results from a crawler attempt at `analyzingResultsPerAttemptCount[attemptCount][skippedNodeCount]`
+         */
+        val attemptAnalyzingResults = mutableListOf<MutableList<List<AnalyzingResult>?>>()
+        var baseResult: CrawlerResult? = null
+        var skippedNodeCount: Int = 0
 
-    private fun createStartCrawler(): Crawler {
-        val children = startNode.resolveRedirects().children.toList()
-        consumedNodes += children
-        return Crawler(children)
-    }
+        var bestResult: CrawlerResult? = null
+        var bestResultAttemptCount: Int = -1
+        var bestResultSkippedNodeCount: Int = -1
 
-    private inner class Crawler(val nodes: List<CommandNode<CommandSource>>) {
-        fun createChildrenCrawler(): Crawler {
-            return Crawler(nodes.flatMap { node ->
-                node.children
-                    .map { child -> child.resolveRedirects() }
-            })
+        fun advance(): Boolean {
+            if(crawlers.isEmpty() || crawlers.last().attemptCount >= 5)
+                pushCrawler()
+            return crawlers.isNotEmpty()
         }
 
-        fun getNodesForAttemptIndex(index: Int): Sequence<CommandNode<CommandSource>> =
-            if(index == 0) nodes.asSequence()
-            else nodes.asSequence().filter(::canNodeHaveSpaces)
+        fun runCrawlersOnce(spawnerIndex: Int) {
+            var i = 0
+            while(i < crawlers.size) {
+                val crawler = crawlers[i]
+                val crawlerNodes = crawler.getNodesForAttempt()
 
-        fun isEmpty() = nodes.isEmpty()
+                val attemptCount = crawler.attemptCount++
+                while(attemptAnalyzingResults.size <= attemptCount) {
+                    attemptAnalyzingResults.add(mutableListOf())
+                }
+                val attemptAnalyzingResultsForAttemptCount = attemptAnalyzingResults[attemptCount]
+                while(attemptAnalyzingResultsForAttemptCount.size <= crawler.skippedNodeCount) {
+                    attemptAnalyzingResultsForAttemptCount.add(null)
+                }
+
+                val attemptIndex = startAttemptIndex + attemptCount
+                val startCursor = attemptPositions[attemptIndex]
+                val results = crawlerNodes.map { node ->
+                        reader.cursor = startCursor
+                        reader.furthestAccessedCursor = 0
+                        tryParse(node, this, spawnerIndex)
+                    }
+
+                attemptAnalyzingResultsForAttemptCount[crawler.skippedNodeCount] = results.map { it.analyzingResult }
+
+                if(attemptIndex + 1 >= attemptPositions.size || crawler.nodesWithSpaces.isEmpty())
+                    crawlers.removeAt(i)
+                else {
+                    i++
+                }
+
+                val crawlerBestResult = results.maxOrNull() ?: continue
+                if(bestResult == null || crawlerBestResult > bestResult!!) {
+                    bestResult = crawlerBestResult
+                    bestResultAttemptCount = attemptCount
+                    bestResultSkippedNodeCount = crawler.skippedNodeCount
+                }
+            }
+        }
+
+        fun pushCrawler() {
+            if(nextNodes.isEmpty())
+                return
+            val redirectedNodes = nextNodes.map { it.resolveRedirects() }
+            crawlers += Crawler(
+                redirectedNodes,
+                nextNodes.mapIndexedNotNull { i, node ->
+                    if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirectedNodes[i]))
+                        redirectedNodes[i]
+                    else null
+                },
+                skippedNodeCount++
+            )
+            nextNodes = redirectedNodes.flatMap { it.children }.filter(accessedChildNodes::add)
+        }
+
+        // Root node for the start of the command is added separately, because it is known that this node
+        // must match the first position, so it's unnecessary to check its children or to try to match it on a later attempt position
+        fun addRootCrawler(node: RootCommandNode<CommandSource>) {
+            crawlers.add(Crawler(listOf(node), listOf()))
+        }
+
+        fun buildCombinedAnalyzingResult(cutTargetCursor: Int): AnalyzingResult {
+            val bestResult = bestResult!!
+            val attemptPosition = attemptPositions[startAttemptIndex + bestResultAttemptCount]
+            val parentAnalyzingResult = parent?.buildCombinedAnalyzingResult(attemptPosition)
+                ?: baseAnalyzingResult.copy().also {
+                    it.cutAfterTargetCursor(attemptPosition + reader.readSkippingChars)
+                }
+            val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
+            crawlerAnalyzingResult.combineWithExceptCompletions(bestResult.analyzingResult)
+            addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
+            crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor + reader.readSkippingChars)
+            parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
+            return parentAnalyzingResult
+        }
+
+        /**
+         * Adds all completions from parsing attempts with an attemptCount less than or equal
+         * to the best result and a skippedNodeCount less than or equal to the best result.
+         * Other completions are deemed not necessary and maybe confusing.
+         */
+        private fun addCompletionProvidersUpToAttemptPosition(analyzingResult: AnalyzingResult) {
+            attemptAnalyzingResults.asSequence()
+                .take(bestResultAttemptCount + 1)
+                .flatMap { it.asSequence().take(bestResultSkippedNodeCount + 1) }
+                .filterNotNull()
+                .flatten()
+                .forEach { result ->
+                    analyzingResult.combineWithCompletionProviders(result, "_${mergedCompletionsCount++}")
+                }
+        }
+
+        private inner class Crawler(val nodes: List<CommandNode<CommandSource>>, val nodesWithSpaces: List<CommandNode<CommandSource>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
+            // For any attemptCount > 0 only parent nodes that contain spaces are tried. This is because if the parent
+            // node can not contain spaces, then it's either contained by the macro variable, in which case its children
+            // would appear at the first attempt position after the macro only, or the parent node could also be part of
+            // the input, in which case it's unnecessary to try and parse its children, because a previous crawler would
+            // have already foud the parent node.
+            fun getNodesForAttempt() = if(attemptCount == 0) nodes else nodesWithSpaces
+        }
     }
 
-    data class CrawlerParserResult(val parsedNodeCount: Int, val literalNodeCount: Int, val analyzingResult: AnalyzingResult): Comparable<CrawlerParserResult> {
-        companion object {
-            fun fromParseResults(parseResults: ParseResults<*>, analyzingResult: AnalyzingResult): CrawlerParserResult =
-                CrawlerParserResult(0, 0, analyzingResult).addNodeCountFromParseResults(parseResults)
+    private inner class CrawlerResult(val parsedNodeCount: Int, val literalNodeCount: Int, val contextBuilder: CommandContextBuilder<CommandSource>, val analyzingResult: AnalyzingResult, val parentSpawner: Spawner, val childSpawner: Spawner?): Comparable<CrawlerResult> {
+        /**
+         * Rate how successful this parsing attempt was and based on that remove any previous spawner that don't seem useful enough anymore.
+         *
+         * With the current algorithm, that means that if more than three literals have been parsed after a certain point, then
+         * an any spawners before that point are removed, effectively "locking them in". This is done because parsing three literals
+         * seems like a good indication that the parser is on the right path.
+         */
+        fun cutSpawnerTree() {
+            // Exact conditions for where to cut off are more or less arbitrary, just see what works well
+            val minLiteralCountForConfidence = 3
+            if(literalNodeCount < minLiteralCountForConfidence)
+                return
+
+            if(parentSpawner.baseResult == null && literalNodeCount > minLiteralCountForConfidence) {
+                weightedSpawners.clear()
+                if(childSpawner != null)
+                    weightedSpawners += mutableListOf(childSpawner)
+                return
+            }
+            if(parentSpawner.baseResult != null && literalNodeCount - parentSpawner.baseResult!!.literalNodeCount >= minLiteralCountForConfidence) {
+                weightedSpawners.clear()
+                if(childSpawner != null)
+                    weightedSpawners += mutableListOf(childSpawner)
+                return
+            }
+
+            val lockedInLiterals = literalNodeCount - minLiteralCountForConfidence
+            var cutOffPoint: Spawner? = null
+            var root = parentSpawner
+            while(root.parent != null && root.baseResult!!.literalNodeCount > lockedInLiterals) {
+                cutOffPoint = root
+                root = root.parent
+            }
+            // Loop ran at least once, because the case where it wouldn't was already covered by the `if` before it
+            check(cutOffPoint != null)
+
+            val cutOffIndex = weightedSpawners.indexOfFirst { it.contains(cutOffPoint) }
+            if(cutOffIndex == -1)
+                // The tree was already cut at or after this spawner
+                return
+            weightedSpawners.subList(0, cutOffIndex).clear()
+            weightedSpawners[0] = mutableListOf(cutOffPoint)
+            val addedNodes = mutableSetOf(cutOffPoint)
+
+            for(spawners in weightedSpawners.subList(1, weightedSpawners.size)) {
+                spawners.removeAll {
+                    it.parent !in addedNodes
+                }
+                addedNodes += spawners
+            }
         }
 
-        fun shouldStopCrawling(): Boolean {
-            // If this is the case the node is assumed to match well enough.
-            // The exact condition is more or less arbitrary, just see what works well
-            return literalNodeCount >= 3
-        }
-
-        override fun compareTo(other: CrawlerParserResult): Int =
+        override fun compareTo(other: CrawlerResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
             else parsedNodeCount.compareTo(other.parsedNodeCount)
+    }
 
-        fun addNodeCountFromParseResults(parseResults: ParseResults<*>): CrawlerParserResult {
-            var parsedNodeCount = parsedNodeCount
-            var literalNodeCount = literalNodeCount
-            var context: CommandContextBuilder<*>? = parseResults.context
-            while(context != null) {
-                parsedNodeCount += context.nodes.size
-                literalNodeCount += context.nodes.count { it.node is LiteralCommandNode }
-                context = context.child
-            }
-            return copy(parsedNodeCount = parsedNodeCount, literalNodeCount = literalNodeCount)
+    private fun convertParseResultsToCrawlerResult(parseResults: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, parentSpawner: Spawner, childSpawner: Spawner?): CrawlerResult {
+        var parsedNodeCount = parentSpawner.baseResult?.parsedNodeCount ?: 0
+        var literalNodeCount = parentSpawner.baseResult?.literalNodeCount ?: 0
+        var context: CommandContextBuilder<*>? = parseResults.context
+        while(context != null) {
+            parsedNodeCount += context.nodes.size
+            literalNodeCount += context.nodes.count { it.node is LiteralCommandNode }
+            context = context.child
         }
+        return CrawlerResult(
+            parsedNodeCount,
+            literalNodeCount,
+            parseResults.context,
+            analyzingResult,
+            parentSpawner,
+            childSpawner
+        )
     }
 
     companion object {
+        private const val STEPS_PER_CRAWLER_BEFORE_PUSH = 5
+
         fun canNodeHaveSpaces(node: CommandNode<*>): Boolean {
             if(node is LiteralCommandNode)
                 return false

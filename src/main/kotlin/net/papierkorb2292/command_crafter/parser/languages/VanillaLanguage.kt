@@ -61,7 +61,6 @@ import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import java.util.function.Function
 import java.util.function.Predicate
 import java.util.stream.Collectors
 import kotlin.math.max
@@ -912,97 +911,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
 
-        private fun tryAnalyzeMacro(
-            baseContext: CommandContextBuilder<CommandSource>,
-            rootNode: CommandNode<CommandSource>,
-            reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            variableLocations: IntList,
-            attemptPositions: IntList,
-            analyzingResult: AnalyzingResult,
-        ): MacroAnalyzingCrawlerRunner.CrawlerParserResult {
-            val startCursor = reader.cursor
-            @Suppress("UNCHECKED_CAST")
-            val originalString = reader.string
-
-            // Only let the parser read up to the next variable location, because what comes after that doesn't matter in this call anyway, it will only be parsed later
-            // (either when analyzing the last node of this segment or when trying to parse nodes in other segments)
-            var nextVariableLocationIndex = variableLocations.binarySearch {
-                variableLocations[it].compareTo(startCursor)
-            }
-            if(nextVariableLocationIndex < 0) {
-                nextVariableLocationIndex = -(nextVariableLocationIndex + 1)
-            }
-            val nextVariableLocation = if(nextVariableLocationIndex >= variableLocations.size) originalString.length else variableLocations[nextVariableLocationIndex]
-            reader.setString(originalString.substring(0, nextVariableLocation))
-
-            val commandParseResults: ParseResults<CommandSource>
-            @Suppress("UNCHECKED_CAST")
-            commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
-                rootNode,
-                reader,
-                CommandContextBuilder(baseContext.dispatcher, baseContext.source, rootNode, reader.cursor)
-            )
-            reader.copyFrom(commandParseResults.reader as DirectiveStringReader<*>)
-            reader.setString(originalString)
-
-            // Remove the nodes that contain the macro variable, because the macro variable is supposed to be read with
-            // all available leniency by analyzing the node
-            removeNodesAfterCursor(commandParseResults, nextVariableLocation)
-            reader.cursor = commandParseResults.context.lastChild.range.end
-
-            // This can also skip more characters when trying to analyze the next command node
-            VanillaLanguage().analyzeParsedCommand(
-                commandParseResults,
-                analyzingResult,
-                reader
-            )
-
-            // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
-            // because that should still be part of the argument
-            reader.cursor = max(reader.cursor, commandParseResults.reader.cursor)
-
-            val hasAccessedMacro = nextVariableLocationIndex < variableLocations.size && reader.furthestAccessedCursor >= nextVariableLocation
-
-            if(!hasAccessedMacro || !reader.canRead())
-                // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
-                // or because the command is done
-                return MacroAnalyzingCrawlerRunner.CrawlerParserResult.fromParseResults(commandParseResults, analyzingResult)
-
-            // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
-            // since the macro could have contained any data. Use MacroAnalyzingCrawlerRunner to find the best match to continue parsing.
-            val lastChild = commandParseResults.context.lastChild
-            val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
-
-            return MacroAnalyzingCrawlerRunner(
-                lastNode,
-                getMacroAnalyzingAttemptPositionsAfterCursor(attemptPositions, reader.cursor + 1),
-                analyzingResult
-            ).runCrawlers { startCursor, parserRootNode, branchAnalyzingResult ->
-                reader.cursor = startCursor
-                reader.furthestAccessedCursor = 0
-                tryAnalyzeMacro(baseContext, parserRootNode, reader, variableLocations, attemptPositions, branchAnalyzingResult)
-            }?.addNodeCountFromParseResults(commandParseResults)
-                ?: MacroAnalyzingCrawlerRunner.CrawlerParserResult.fromParseResults(commandParseResults, analyzingResult)
-        }
-
         //TODO: Error on trailing data
         fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
 
-            val attemptPositions = IntList()
-            for(i in 0 until reader.string.length)
-                if(reader.string[i] == ' ' && i + 1 < reader.string.length)
-                    attemptPositions.add(i + 1)
-
-            val analyzingResult = baseAnalyzingResult.copyInput()
-            val parserResult = tryAnalyzeMacro(
+            val analyzingResult = MacroAnalyzingCrawlerRunner(
                 CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor),
-                reader.dispatcher.root,
                 reader,
                 macroVariableLocations,
-                attemptPositions,
-                analyzingResult
-            )
+                baseAnalyzingResult
+            ).run()
 
             // TODO: Have some warnings when the command appears to be wrong
             // Remove all errors for now, because no proper error handling is implemented yet
@@ -1019,56 +937,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     }
                 }
             )
-            baseAnalyzingResult.combineWithExceptCompletions(parserResult.analyzingResult)
-        }
-
-        fun <TNode> removeNodesAfterCursor(parseResults: ParseResults<TNode>, endCursor: Int) {
-            var contextBuilder: CommandContextBuilder<TNode>? = parseResults.context
-            while(contextBuilder != null) {
-                for((i, node) in contextBuilder.nodes.withIndex()) {
-                    val shouldRemove = endCursor <= node.range
-                    if(shouldRemove) {
-                        val prevNode = contextBuilder.nodes.getOrNull(i - 1) ?: ParsedCommandNode(
-                            contextBuilder.rootNode,
-                            StringRange.at(contextBuilder.range.start)
-                        )
-                        val childNodes = contextBuilder.nodes.subList(i, contextBuilder.nodes.size)
-                        for(childNode in childNodes) {
-                            parseResults.exceptions.remove(childNode.node)
-                            if(childNode.node is ArgumentCommandNode<*, *>)
-                                contextBuilder.arguments.remove(childNode.node.name)
-                        }
-                        childNodes.clear()
-
-                        @Suppress("UNCHECKED_CAST")
-                        val contextBuilderAccessor =
-                            contextBuilder as CommandContextBuilderAccessor<TNode>
-                        contextBuilderAccessor.setForks(prevNode.node.isFork)
-                        contextBuilderAccessor.setModifier(prevNode.node.redirectModifier)
-                        contextBuilderAccessor.setRange(
-                            StringRange(
-                                contextBuilder.range.start,
-                                prevNode.range.end
-                            )
-                        )
-                        return
-                    }
-                }
-                contextBuilder = contextBuilder.child
-            }
-        }
-
-        fun getMacroAnalyzingAttemptPositionsAfterCursor(attemptPositions: IntList, cursor: Int): IntList {
-            var startIndex = attemptPositions.binarySearch { attemptPositions[it].compareTo(cursor) }
-            if(startIndex < 0)
-                startIndex = -(startIndex + 1)
-            if(startIndex >= attemptPositions.size)
-                return IntList()
-
-            val result = IntList(attemptPositions.size - startIndex)
-            for(i in startIndex until attemptPositions.size)
-                result.add(attemptPositions[i])
-            return result
+            baseAnalyzingResult.combineWithExceptCompletions(analyzingResult)
         }
 
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
