@@ -83,11 +83,19 @@ class DataObjectDecoding(private val registries: DynamicRegistryManager) {
         .toMap()
 
     fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<CommandSource>): Decoder<Unit>? {
-        return when(dataObjectSource.kind) {
-            DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
-                @Suppress("UNCHECKED_CAST")
-                dummyEntityDecoder[RegistryEntryReferenceArgumentType.getEntityType(context as CommandContext<ServerCommandSource>, dataObjectSource.argumentName).value()]
+        return try {
+            when(dataObjectSource.kind) {
+                DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
+                    @Suppress("UNCHECKED_CAST")
+                    dummyEntityDecoder[RegistryEntryReferenceArgumentType.getEntityType(
+                        context as CommandContext<ServerCommandSource>,
+                        dataObjectSource.argumentName
+                    ).value()]
+                }
             }
+        } catch(_: IllegalArgumentException) {
+            //TODO: This can happen when accessing an argument that contains a macro variable. Maybe this case should be handled by trying out all possible values?
+            null
         }
     }
 
