@@ -106,6 +106,8 @@ class MacroAnalyzingCrawlerRunner(
             val spawnersIndex = weightedSpawners.size
 
             mostPromisingSpawners.forEach {
+                if(Thread.currentThread().isInterrupted)
+                    return baseAnalyzingResult
                 it.runCrawlersOnce(spawnersIndex)
                 it.bestResult?.markInvalidAttemptPositions()
             }

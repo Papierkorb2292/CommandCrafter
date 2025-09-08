@@ -4,11 +4,8 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.fabricmc.fabric.api.networking.v1.ServerConfigurationConnectionEvents
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.minecraft.registry.RegistryLoader
 import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
@@ -22,7 +19,6 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.Fil
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.apache.logging.log4j.core.pattern.AnsiEscape
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.Endpoint
@@ -112,7 +108,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private fun analyzeAllFiles() {
         for (file in openFiles.values) {
-            file.analyzingResult = null
+            file.stopAnalyzing()
             file.analyzeFile(this)
         }
     }
@@ -179,7 +175,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun didChange(params: DidChangeTextDocumentParams?) {
                 if(params == null) return
                 val file = openFiles[params.textDocument.uri] ?: return
-                file.analyzingResult = null
+                file.stopAnalyzing()
                 file.version = params.textDocument.version
                 for(change in params.contentChanges) {
                     file.applyContentChange(change)
@@ -190,7 +186,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun didClose(params: DidCloseTextDocumentParams?) {
                 if(params == null) return
                 openFiles.remove(params.textDocument.uri)?.run {
-                    analyzingResult = null
+                    stopAnalyzing()
                 }
             }
 

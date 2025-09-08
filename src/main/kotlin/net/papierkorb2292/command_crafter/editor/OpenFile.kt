@@ -5,13 +5,17 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var version: Int = 0) {
     val parsedUri = EditorURI.parseURI(uri)
     var analyzingResult: CompletableFuture<AnalyzingResult>? = null
+    var analyzerFuture: Future<*>? = null
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
+        val analyzerExecutor = Executors.newFixedThreadPool(5)
 
         fun linesFromString(content: String) = linesFromStrings(content.lines())
         fun linesFromStrings(lines: List<String>): MutableList<StringBuffer> = lines.mapTo(ArrayList(lines.size), ::StringBuffer)
@@ -96,19 +100,30 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         for(analyzer in MinecraftLanguageServer.analyzers) {
             if(analyzer.canHandle(this)) {
                 val version = version
-                return CompletableFuture.supplyAsync {
-                    analyzer.analyze(this, languageServer)
-                }.also { newRunningAnalyzer ->
-                    analyzingResult = newRunningAnalyzer
-                    newRunningAnalyzer.thenAccept {
-                        if(this.version != version)
-                            return@thenAccept
-                        MinecraftLanguageServer.fillDiagnosticsSource(it.diagnostics)
-                        languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, it.diagnostics, version))
+                val completableFuture = CompletableFuture<AnalyzingResult>()
+                analyzerFuture = analyzerExecutor.submit {
+                    val result = analyzer.analyze(this, languageServer)
+                    if(Thread.currentThread().isInterrupted) {
+                        completableFuture.cancel(false)
+                        return@submit
                     }
+                    completableFuture.complete(result)
+                    if(this.version != version)
+                        return@submit
+
+                    MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
+                    languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
                 }
+                analyzingResult = completableFuture
+                return completableFuture
             }
         }
         return null
+    }
+
+    fun stopAnalyzing() {
+        analyzerFuture?.cancel(true)
+        analyzerFuture = null
+        analyzingResult = null
     }
 }
