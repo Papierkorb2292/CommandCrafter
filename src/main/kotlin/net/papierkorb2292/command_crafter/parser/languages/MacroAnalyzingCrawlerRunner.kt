@@ -292,7 +292,7 @@ class MacroAnalyzingCrawlerRunner(
         fun advance(): Boolean {
             if(isStartInvalid())
                 return false
-            if(crawlers.isEmpty() || crawlers.last().attemptCount >= 5)
+            if(crawlers.isEmpty() || crawlers.last().attemptCount >= STEPS_PER_CRAWLER_BEFORE_PUSH)
                 pushCrawler()
             return crawlers.isNotEmpty()
         }
