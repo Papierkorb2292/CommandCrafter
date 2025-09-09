@@ -141,7 +141,7 @@ class MacroAnalyzingCrawlerRunner(
     private fun getAttemptIndexForCursor(cursor: Int): Int {
         val index = attemptPositions.binarySearch { attemptPositions[it].compareTo(cursor) }
         return if(index >= 0)
-            index + 1 // Advance the index by one, because the position that the cursor is currently at was already tried in the previous attempt
+            index
         else
             -(index + 1) // Get the next attempt position
     }
