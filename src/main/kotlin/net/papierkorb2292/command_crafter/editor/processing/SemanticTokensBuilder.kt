@@ -321,6 +321,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     }
 
     fun isEmpty() = data.isEmpty()
+    val size get() = data.size
 
     fun build() = SemanticTokens(data)
 }

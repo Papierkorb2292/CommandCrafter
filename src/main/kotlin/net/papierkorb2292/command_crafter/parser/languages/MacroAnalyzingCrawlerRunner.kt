@@ -412,7 +412,7 @@ class MacroAnalyzingCrawlerRunner(
         }
     }
 
-    private inner class CrawlerResult(val parsedNodeCount: Int, val literalNodeCount: Int, val contextBuilder: CommandContextBuilder<CommandSource>, val analyzingResult: AnalyzingResult, val parentSpawner: Spawner, val childSpawner: Spawner?): Comparable<CrawlerResult> {
+    private inner class CrawlerResult(val parsedNodeCount: Int, val literalNodeCount: Int, val semanticTokensCount: Int, val contextBuilder: CommandContextBuilder<CommandSource>, val analyzingResult: AnalyzingResult, val parentSpawner: Spawner, val childSpawner: Spawner?): Comparable<CrawlerResult> {
         /**
          * Rate how successful this parsing attempt was and based on that remove any previous spawner that don't seem useful enough anymore.
          *
@@ -491,7 +491,7 @@ class MacroAnalyzingCrawlerRunner(
 
         override fun compareTo(other: CrawlerResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
-            else parsedNodeCount.compareTo(other.parsedNodeCount)
+            else semanticTokensCount.compareTo(other.semanticTokensCount)
     }
 
     private fun convertParseResultsToCrawlerResult(parseResults: ParseResults<CommandSource>, baseContext: CommandContextBuilder<CommandSource>, analyzingResult: AnalyzingResult, parentSpawner: Spawner, childSpawner: Spawner?): CrawlerResult {
@@ -499,6 +499,7 @@ class MacroAnalyzingCrawlerRunner(
 
         var parsedNodeCount = parentSpawner.baseResult?.parsedNodeCount ?: 0
         var literalNodeCount = parentSpawner.baseResult?.literalNodeCount ?: 0
+        var semanticTokensCount = parentSpawner.baseResult?.semanticTokensCount ?: 0
         var context: CommandContextBuilder<*>? = parseResults.context
         while(context != null) {
             parsedNodeCount += context.nodes.size - previouslyCountedNodes
@@ -507,9 +508,11 @@ class MacroAnalyzingCrawlerRunner(
             context = context.child
             previouslyCountedNodes = 0
         }
+        semanticTokensCount += analyzingResult.semanticTokens.size
         return CrawlerResult(
             parsedNodeCount,
             literalNodeCount,
+            semanticTokensCount,
             parseResults.context,
             analyzingResult,
             parentSpawner,
