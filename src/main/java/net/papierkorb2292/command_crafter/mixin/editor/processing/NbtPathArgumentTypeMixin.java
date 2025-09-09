@@ -48,7 +48,8 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             method = "parseNode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;"
+                    target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;",
+                    ordinal = 0
             ),
             slice = @Slice(
                     from = @At(
@@ -69,7 +70,8 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             method = "parseNode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;"
+                    target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;",
+                    ordinal = 0
             ),
             slice = @Slice(
                     from = @At(
