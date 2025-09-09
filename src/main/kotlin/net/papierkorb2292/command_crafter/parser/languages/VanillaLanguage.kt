@@ -39,6 +39,7 @@ import net.minecraft.server.function.Macro
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.StringIdentifiable
+import net.minecraft.util.Util
 import net.minecraft.util.math.MathHelper
 import net.minecraft.util.packrat.*
 import net.papierkorb2292.command_crafter.CommandCrafter
@@ -54,8 +55,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult.RangedDataProvider
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.*
-import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
@@ -261,7 +260,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
             if(hasClosingParentheses) {
                 variablesSemanticTokens.addMultiline(variableNameEnd, 1, TokenType.MACRO, 0)
-                // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
+                // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too manyf chars anyway
                 // that aren't actually intended to be part of the name
                 if(!MacroInvocation.isValidMacroName(variable)) {
                     result.diagnostics += Diagnostic(
@@ -302,6 +301,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 .combineWith(resolvedMacroCursorMapper)
         )
         val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, result.filePosition)
+        val startTime = Util.getMeasuringTimeMs()
         analyzeMacroCommand(
             DirectiveStringReader(macroMappingInfo, reader.dispatcher, reader.resourceCreator).apply {
                 // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
@@ -312,6 +312,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             macroAnalyzingResult,
             macroVariableLocations
         )
+        val duration = Util.getMeasuringTimeMs() - startTime
+        println("Took ${duration}ms to analyze macro: $macro")
 
         result.combineWith(macroAnalyzingResult)
         result.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
@@ -595,18 +597,28 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         )
     }
 
-    fun analyzeParsedCommand(result: ParseResults<CommandSource>, analyzingResult: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    fun analyzeParsedCommand(
+        result: ParseResults<CommandSource>,
+        analyzingResult: AnalyzingResult,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        firstContextSkipNodesAmount: Int = 0
+    ) {
+        var skipNodesAmount = firstContextSkipNodesAmount
         var contextBuilder = result.context
         var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode, contextBuilder.range.start)
         while(contextBuilder != null) {
-            for (parsedNode in contextBuilder.nodes) {
-                analyzeCommandNode(
-                    parsedNode,
-                    parentNode,
-                    contextBuilder,
-                    analyzingResult,
-                    reader
-                )
+            for(parsedNode in contextBuilder.nodes) {
+                if(skipNodesAmount == 0) {
+                    analyzeCommandNode(
+                        parsedNode,
+                        parentNode,
+                        contextBuilder,
+                        analyzingResult,
+                        reader
+                    )
+                } else {
+                    --skipNodesAmount
+                }
                 parentNode = parsedNode
             }
             contextBuilder = contextBuilder.child

@@ -185,7 +185,8 @@ class MacroAnalyzingCrawlerRunner(
         macroLanguage.analyzeParsedCommand(
             commandParseResults,
             analyzingResult,
-            reader
+            reader,
+            spawner.baseContext.nodes.size
         )
 
         // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
