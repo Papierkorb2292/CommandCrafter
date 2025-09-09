@@ -60,16 +60,15 @@ public class MacroInvocationMixin implements MacroCursorMapperProvider {
         return beginIndex;
     }
 
-    @ModifyArg(
+    @Inject(
             method = "parse",
             at = @At(
-                    value = "INVOKE",
-                    target = "Ljava/lang/String;substring(I)Ljava/lang/String;"
+                    value = "NEW",
+                    target = "(Ljava/util/List;Ljava/util/List;)Lnet/minecraft/command/MacroInvocation;"
             )
     )
-    private static int command_crafter$addLastSegmentCursorMapping(int beginIndex, @Share("cursorStarts") LocalRef<IntList> cursorStartsRef) {
+    private static void command_crafter$addLastSegmentCursorMapping(String command, CallbackInfoReturnable<MacroInvocation> cir, @Local(ordinal = 1) int beginIndex, @Share("cursorStarts") LocalRef<IntList> cursorStartsRef) {
         cursorStartsRef.get().add(beginIndex);
-        return beginIndex;
     }
 
     @ModifyReturnValue(
@@ -94,12 +93,11 @@ public class MacroInvocationMixin implements MacroCursorMapperProvider {
             mapper.addMapping(segmentStart, currentCommandLength, segmentLen);
             currentCommandLength += segmentLen + variableLen;
         }
-        if(segments.size() > variables.size()) {
-            var lastSegmentIndex = segments.size() - 1;
-            var segmentLength = segments.get(lastSegmentIndex).length();
-            var segmentStart = command_crafter$segmentCursorStarts.get(lastSegmentIndex);
-            mapper.addMapping(segmentStart, currentCommandLength, segmentLength);
-        }
+        // Add mapper for anything after the last variable, even if there is just an empty string there
+        var lastSegmentIndex = command_crafter$segmentCursorStarts.getSize() - 1;
+        var segmentLength = lastSegmentIndex < segments.size() ? segments.get(lastSegmentIndex).length() : 0;
+        var segmentStart = command_crafter$segmentCursorStarts.get(lastSegmentIndex);
+        mapper.addMapping(segmentStart, currentCommandLength, segmentLength);
 
         return mapper;
     }

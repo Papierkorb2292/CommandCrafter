@@ -51,7 +51,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testMacroInvocationCursorMapper(context: TestContext) {
+    fun testMacroInvocationCursorMapperEndingWithSegment(context: TestContext) {
         val macroInvocation = MacroInvocation.parse("say $(greeting), $(name)!")
         val arguments = listOf("What's up", "your highness")
         @Suppress("CAST_NEVER_SUCCEEDS")
@@ -59,6 +59,18 @@ object TestCommandCrafter {
         context.assertEquals(intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length), cursorMapper.sourceCursors,Text.literal("source_cursors"))
         context.assertEquals(intListOf("".length, "say What's up".length, "say What's up, your highness".length), cursorMapper.targetCursors, Text.literal("target_cursors"))
         context.assertEquals(intListOf("say ".length, ", ".length, "!".length), cursorMapper.lengths, Text.literal("lengths"))
+        context.complete()
+    }
+
+    @GameTest
+    fun testMacroInvocationCursorMapperEndingWithVariable(context: TestContext) {
+        val macroInvocation = MacroInvocation.parse("say $(message)")
+        val arguments = listOf("foo")
+        @Suppress("CAST_NEVER_SUCCEEDS")
+        val cursorMapper = (macroInvocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(arguments)
+        context.assertEquals(intListOf("".length, "say $(message)".length), cursorMapper.sourceCursors,Text.literal("source_cursors"))
+        context.assertEquals(intListOf("".length, "say foo".length), cursorMapper.targetCursors, Text.literal("target_cursors"))
+        context.assertEquals(intListOf("say ".length, "".length), cursorMapper.lengths, Text.literal("lengths"))
         context.complete()
     }
 
