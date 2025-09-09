@@ -182,7 +182,7 @@ class MacroAnalyzingCrawlerRunner(
         reader.cursor = commandParseResults.context.lastChild.range.end
 
         // This can also skip more characters when trying to analyze the next command node
-        VanillaLanguage().analyzeParsedCommand(
+        macroLanguage.analyzeParsedCommand(
             commandParseResults,
             analyzingResult,
             reader
@@ -522,6 +522,7 @@ class MacroAnalyzingCrawlerRunner(
 
     companion object {
         private const val STEPS_PER_CRAWLER_BEFORE_PUSH = 5
+        private val macroLanguage = VanillaLanguage()
 
         fun canNodeHaveSpaces(node: CommandNode<*>): Boolean {
             if(node is LiteralCommandNode)
