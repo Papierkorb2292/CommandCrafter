@@ -166,12 +166,18 @@ class MacroAnalyzingCrawlerRunner(
         val nextVariableLocation = if(nextVariableLocationIndex >= variableLocations.size) originalString.length else variableLocations[nextVariableLocationIndex]
         reader.setString(originalString.substring(0, nextVariableLocation))
 
+        // The parent node isn't in the context yet, since it can vary for each attempt, but the parser expects it to be there
+        // (for example analyzeParsedCommand will use the last node in the context to determine the candidates for tryAnalyzeNextNode)
+        val attemptBaseContext = spawner.baseContext.copy()
+        if(spawner.parent != null)
+            attemptBaseContext.withNode(rootNode, StringRange(attemptBaseContext.range.end + 1, startCursor - 1)) // Adds and subtracts one to exclude spaces
+
         val commandParseResults: ParseResults<CommandSource>
         @Suppress("UNCHECKED_CAST")
         commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
             rootNode,
             reader,
-            spawner.baseContext
+            attemptBaseContext
         )
         reader.copyFrom(commandParseResults.reader as DirectiveStringReader<*>)
         reader.setString(originalString)
@@ -186,7 +192,7 @@ class MacroAnalyzingCrawlerRunner(
             commandParseResults,
             analyzingResult,
             reader,
-            spawner.baseContext.nodes.size
+            attemptBaseContext.nodes.size
         )
 
         // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
@@ -198,12 +204,12 @@ class MacroAnalyzingCrawlerRunner(
         if(!hasAccessedMacro || !reader.canRead())
             // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
             // or because the command is done
-            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
 
         if(reader.furthestAccessedCursor <= startCursor + 1)
             // The parser doesn't seem to have found anything, there's no need to create a new spawner, since the parent spawner is also going to try
             // the following whitespaces
-            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
 
         // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
         // since the macro could have contained any data whatsoever. Create a new spawner to find the best match to continue parsing.
@@ -212,10 +218,10 @@ class MacroAnalyzingCrawlerRunner(
 
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
         if(nextAttemptIndex >= attemptPositions.size || invalidAttemptPositionsMarker[nextAttemptIndex])
-            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
         val childSpawner = Spawner(spawner, lastNode.resolveRedirects().children.toList(), nextAttemptIndex, commandParseResults.context.lastChild)
         if(childSpawner.nextNodes.isEmpty())
-            return convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
         childSpawner.pushCrawler()
 
         // Use the difference in the attempt index from the parent spawner to add the child spawner instead of just using nextAttemptIndex
@@ -228,7 +234,7 @@ class MacroAnalyzingCrawlerRunner(
         }
         weightedSpawners[childSpawnerIndex] += childSpawner
 
-        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, spawner.baseContext, analyzingResult, spawner, childSpawner)
+        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, childSpawner)
         childSpawner.baseResult = crawlerResult
         return crawlerResult
     }
