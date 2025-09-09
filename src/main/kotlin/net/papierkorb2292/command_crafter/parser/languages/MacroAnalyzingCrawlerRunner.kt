@@ -184,7 +184,8 @@ class MacroAnalyzingCrawlerRunner(
 
         // Remove the nodes that contain the macro variable, because the macro variable is supposed to be read with
         // all available leniency by analyzing the node
-        removeNodesAfterCursor(commandParseResults, nextVariableLocation)
+        if(nextVariableLocationIndex < variableLocations.size)
+            removeNodesAfterCursor(commandParseResults, nextVariableLocation)
         reader.cursor = commandParseResults.context.lastChild.range.end
 
         // This can also skip more characters when trying to analyze the next command node
