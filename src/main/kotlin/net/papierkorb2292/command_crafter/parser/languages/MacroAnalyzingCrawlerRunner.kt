@@ -170,7 +170,9 @@ class MacroAnalyzingCrawlerRunner(
         // (for example analyzeParsedCommand will use the last node in the context to determine the candidates for tryAnalyzeNextNode)
         val attemptBaseContext = spawner.baseContext.copy()
         if(spawner.parent != null)
-            attemptBaseContext.withNode(rootNode, StringRange(attemptBaseContext.range.end + 1, startCursor - 1)) // Adds and subtracts one to exclude spaces
+            // Uses a string range of length 0, because only the end is really important and having a non-zero length could
+            // cause issues because the node is given to markInvalidAttemptPositions but might contain valid attempt positions
+            attemptBaseContext.withNode(rootNode, StringRange.at(startCursor - 1)) // Subtracts one to exclude space
 
         val commandParseResults: ParseResults<CommandSource>
         @Suppress("UNCHECKED_CAST")
