@@ -207,7 +207,7 @@ class MacroAnalyzingCrawlerRunner(
             // or because the command is done
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
 
-        if(reader.furthestAccessedCursor <= startCursor + 1)
+        if(reader.furthestAccessedCursor <= startCursor + 1 && spawner.parent != null)
             // The parser doesn't seem to have found anything, there's no need to create a new spawner, since the parent spawner is also going to try
             // the following whitespaces
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
