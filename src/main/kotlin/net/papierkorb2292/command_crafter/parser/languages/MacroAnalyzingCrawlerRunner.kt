@@ -187,6 +187,8 @@ class MacroAnalyzingCrawlerRunner(
         if(nextVariableLocationIndex < variableLocations.size)
             removeNodesAfterCursor(commandParseResults, nextVariableLocation)
         reader.cursor = commandParseResults.context.lastChild.range.end
+        if(reader.canRead())
+            reader.skip() // Also skip spaces
 
         // This can also skip more characters when trying to analyze the next command node
         macroLanguage.analyzeParsedCommand(
