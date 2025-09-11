@@ -15,8 +15,8 @@ class PrimitiveCodecSuggestionWrapper<A>(private val delegate: PrimitiveCodec<A>
         StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull()?.let { analyzingOps ->
             @Suppress("UNCHECKED_CAST")
             val castedOps = analyzingOps as StringRangeTree.AnalyzingDynamicOps<T>
-            suggestionsProvider.getSuggestions(ops).forEach {
-                castedOps.getNodeStartSuggestions(input) += StringRangeTree.Suggestion(it)
+            castedOps.getNodeStartSuggestions(input).add {
+                suggestionsProvider.getSuggestions(ops).map { StringRangeTree.Suggestion(it) }
             }
         }
         return delegate.read(ops, input)

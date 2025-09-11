@@ -131,21 +131,21 @@ class StringRangeTree<TNode: Any>(
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, List<ResolvedSuggestion>>>()
-            analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestions ->
+            analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestionProviders ->
                 val range = nodeAllowedStartRanges[node] ?: StringRange.at(getNodeRangeOrThrow(node).start)
-                nodeSuggestions += range to suggestions.map { suggestion ->
+                nodeSuggestions += range to suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
                     suggestionResolver.resolveNodeSuggestion(suggestion, this, node, range, copiedMappingInfo, completionEscaper)
-                }
+                }.toList()
             }
             analyzingDynamicOps.mapKeySuggestions[node]
                 .concatNullable(analyzingDynamicOps.mapKeyNodes[node]?.flatMap { mapKeyNode ->
                     analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList()
-                })?.let { suggestions ->
+                })?.let { suggestionProviders ->
                     val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
                     nodeSuggestions += ranges.map { range ->
-                        range to suggestions.map { suggestion ->
+                        range to suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
                             suggestionResolver.resolveMapKeySuggestion(suggestion, this, node, range, copiedMappingInfo, completionEscaper)
-                        }
+                        }.toList()
                     }
                 }
             nodeSuggestions
@@ -415,8 +415,8 @@ class StringRangeTree<TNode: Any>(
             }
         }
 
-        internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
-        internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<Suggestion<TNode>>>()
+        internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<SuggestionProvider<TNode>>>()
+        internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<SuggestionProvider<TNode>>>()
 
         /**
          * Maps TNode instances that have keys to a collection of TNode instances that were used to represent the keys.
@@ -436,15 +436,17 @@ class StringRangeTree<TNode: Any>(
             mapKeyNodes.computeIfAbsent(node) { mutableSetOf() }
 
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
-            getNodeStartSuggestions(input).run {
-                add(Suggestion(delegate.createBoolean(true), true))
-                add(Suggestion(delegate.createBoolean(false), true))
+            getNodeStartSuggestions(input).add {
+                Stream.of(
+                    Suggestion(delegate.createBoolean(true), true),
+                    Suggestion(delegate.createBoolean(false), true)
+                )
             }
             return delegate.getBooleanValue(input)
         }
 
         override fun getStream(input: TNode): DataResult<Stream<TNode>> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createList(Stream.empty())))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createList(Stream.empty()))) }
             return delegate.getStream(input).map { stream ->
                 val placeholder = delegate.emptyList()
                 var isEmpty = true
@@ -461,28 +463,32 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getByteBuffer(input: TNode): DataResult<ByteBuffer> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createByteList(ByteBuffer.allocate(0))))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createByteList(ByteBuffer.allocate(0)))) }
             return delegate.getByteBuffer(input)
         }
 
         override fun getIntStream(input: TNode): DataResult<IntStream> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createIntList(IntStream.empty())))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createIntList(IntStream.empty()))) }
             return delegate.getIntStream(input)
         }
 
         override fun getLongStream(input: TNode): DataResult<LongStream> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createLongList(LongStream.empty())))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createLongList(LongStream.empty()))) }
             return delegate.getLongStream(input)
         }
 
         override fun getMap(input: TNode): DataResult<MapLike<TNode>> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createMap(Collections.emptyMap())))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createMap(Collections.emptyMap()))) }
             return delegate.getMap(input).map { delegateMap ->
+                // Map key suggestions are only added if the input is actually a map,
+                // because otherwise an error can be thrown when trying to resolve the suggestions due to there being no internal ranges between entries
+                val suggestedKeys = mutableListOf<TNode>()
+                getMapKeySuggestions(input).add { suggestedKeys.stream().map { Suggestion(it) } }
                 object : MapLike<TNode> {
                     override fun get(key: TNode): TNode? {
                         val value = delegateMap.get(key)
                         if(value == null) {
-                            getMapKeySuggestions(input).add(Suggestion(key))
+                            suggestedKeys += key
                         }
                         return value
                     }
@@ -490,7 +496,7 @@ class StringRangeTree<TNode: Any>(
                     override fun get(key: String): TNode? {
                         val value = delegateMap.get(key)
                         if(value == null) {
-                            getMapKeySuggestions(input).add(Suggestion(delegate.createString(key)))
+                            suggestedKeys += delegate.createString(key)
                         }
                         return value
                     }
@@ -510,7 +516,7 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getList(input: TNode): DataResult<Consumer<Consumer<TNode>>> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createList(Stream.empty())))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createList(Stream.empty()))) }
             return delegate.getList(input).map { list ->
                 Consumer { entryConsumer ->
                     var isEmpty = true
@@ -528,7 +534,7 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getStringValue(input: TNode): DataResult<String> {
-            getNodeStartSuggestions(input).add(Suggestion(delegate.createString("")))
+            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createString(""))) }
             return delegate.getStringValue(input)
         }
 
@@ -611,6 +617,10 @@ class StringRangeTree<TNode: Any>(
             mappingInfo: FileMappingInfo,
             stringEscaper: StringEscaper,
         ): ResolvedSuggestion
+    }
+
+    fun interface SuggestionProvider<TNode> {
+        fun createSuggestions(): Stream<Suggestion<TNode>>
     }
 
     fun interface StringEscaper {
