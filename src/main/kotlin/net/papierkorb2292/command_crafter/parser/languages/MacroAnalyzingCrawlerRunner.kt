@@ -221,6 +221,11 @@ class MacroAnalyzingCrawlerRunner(
         val lastChild = commandParseResults.context.lastChild
         val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
 
+        if(reader.canRead() && reader.cursor <= nextVariableLocation)
+            // Make sure that the variable is skipped, such that the next spawner only starts after the variable even if the variable has a space before it.
+            // Only triggers if tryAnalyzeNextNode didn't already skip characters after the variable
+            reader.cursor = nextVariableLocation + 1
+
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
         if(nextAttemptIndex >= attemptPositions.size || invalidAttemptPositionsMarker[nextAttemptIndex])
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
