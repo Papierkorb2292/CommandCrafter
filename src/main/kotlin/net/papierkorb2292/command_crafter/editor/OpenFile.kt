@@ -12,6 +12,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
     val parsedUri = EditorURI.parseURI(uri)
     var analyzingResult: CompletableFuture<AnalyzingResult>? = null
     var analyzerFuture: Future<*>? = null
+    var keptAliveAnalyzers = mutableSetOf<Future<*>>()
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
@@ -93,6 +94,18 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         }
     }
 
+    fun analyzeFileKeepAlive(languageServer: MinecraftLanguageServer): CompletableFuture<AnalyzingResult>? {
+        val completableFuture = analyzeFile(languageServer)
+        if(completableFuture != null) {
+            val future = analyzerFuture!!
+            keptAliveAnalyzers += future
+            completableFuture.thenRun {
+                keptAliveAnalyzers -= future
+            }
+        }
+        return completableFuture
+    }
+
     fun analyzeFile(languageServer: MinecraftLanguageServer): CompletableFuture<AnalyzingResult>? {
         val runningAnalyzer = analyzingResult
         if(runningAnalyzer != null)
@@ -121,8 +134,15 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         return null
     }
 
-    fun stopAnalyzing() {
-        analyzerFuture?.cancel(true)
+    fun stopAnalyzing(forceCancel: Boolean = false) {
+        if(analyzerFuture !in keptAliveAnalyzers)
+            analyzerFuture?.cancel(true)
+        if(forceCancel) {
+            keptAliveAnalyzers.forEach {
+                it.cancel(true)
+            }
+            keptAliveAnalyzers.clear()
+        }
         analyzerFuture = null
         analyzingResult = null
     }
