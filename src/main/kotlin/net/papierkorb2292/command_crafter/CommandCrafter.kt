@@ -80,6 +80,7 @@ import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
+import java.io.PrintWriter
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ExecutorService
 
@@ -273,6 +274,8 @@ object CommandCrafter: ModInitializer {
                 featureConfig: FeatureConfig
             ): EditorConnectionManager.LaunchedService {
                 val server = MinecraftLanguageServer(serverConnection, clientConnection, featureConfig)
+                val traceLanguageServerArg = System.getProperty("cc_trace_language_server")
+                val generateLanguageServerTrace = traceLanguageServerArg != null && (traceLanguageServerArg.isEmpty() || traceLanguageServerArg.toBoolean())
                 val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                     .setLocalService(server)
                     .setRemoteInterface(CommandCrafterLanguageClient::class.java)
@@ -287,6 +290,7 @@ object CommandCrafter: ModInitializer {
                         it.registerTypeAdapter(Unit::class.java, UnitTypeAdapter)
                         it.registerTypeAdapterFactory(FileSystemResult.TypeAdapterFactory)
                     }
+                    .traceMessages(if(generateLanguageServerTrace) PrintWriter("logs/language_server_debug_trace") else null)
                     .create();
                 val launched = launcher.startListening()
                 server.connect(launcher.remoteProxy)
