@@ -20,7 +20,7 @@ class SimpleCompletionItemProvider(
     override fun invoke(offset: Int): CompletableFuture<List<CompletionItem>>
         = CompletableFuture.completedFuture(listOf(createCompletionItem(offset)))
 
-    private fun createCompletionItem(sourceCursor: Int): CompletionItem {
+    fun createCompletionItem(sourceCursor: Int): CompletionItem {
         // Adjusting the insert start if the cursor is before the insert start
         val adjustedInsertStart = min(
             mappingInfo.cursorMapper.mapToSource(insertStart + mappingInfo.readSkippingChars),

@@ -55,46 +55,52 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     }.memoizeLast()
 
     override fun resolveNodeSuggestion(
-        suggestion: StringRangeTree.Suggestion<NbtElement>,
+        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<NbtElement>>,
         tree: StringRangeTree<NbtElement>,
         node: NbtElement,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper,
     ): StringRangeTree.ResolvedSuggestion {
-        val baseString =
-            if(suggestion.isNumberABoolean) {
-                suggestion.element.asBoolean().orElseThrow {
-                    IllegalArgumentException("Boolean suggestion didn't represent a boolean: $suggestion")
-                }.toString()
-            } else if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
-                suggestion.element.toString()
-            else
-                suggestion.element.value
-        val elementString = stringEscaper.escape(baseString)
         val valueEnd = tree.ranges[node]!!.end
         return StringRangeTree.ResolvedSuggestion(
             valueEnd,
-            SimpleCompletionItemProvider(elementString, suggestionRange.end, { valueEnd }, mappingInfo, kind=CompletionItemKind.Value)
+            StreamCompletionItemProvider(suggestionRange.end, { valueEnd }, mappingInfo, CompletionItemKind.Value) {
+                suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                    val baseString =
+                        if(suggestion.isNumberABoolean) {
+                            suggestion.element.asBoolean().orElseThrow {
+                                IllegalArgumentException("Boolean suggestion didn't represent a boolean: $suggestion")
+                            }.toString()
+                        } else if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
+                            suggestion.element.toString()
+                        else
+                            suggestion.element.value
+                    StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString))
+                }
+            }
         )
     }
 
     override fun resolveMapKeySuggestion(
-        suggestion: StringRangeTree.Suggestion<NbtElement>,
+        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<NbtElement>>,
         tree: StringRangeTree<NbtElement>,
         map: NbtElement,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper,
     ): StringRangeTree.ResolvedSuggestion {
-        val key = (suggestion.element as? NbtString)?.value ?: suggestion.element.toString()
-        // Similar to StringNbtWriter.escapeName
-        val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
-        val keySuggestion = stringEscaper.escape("$escapedKey: ")
         val keyEnd = keyEndParser(suggestionRange)
         return StringRangeTree.ResolvedSuggestion(
             keyEnd,
-            SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { keyEnd }, mappingInfo, key, CompletionItemKind.Property)
+            StreamCompletionItemProvider(suggestionRange.end, { keyEnd }, mappingInfo, CompletionItemKind.Property) {
+                suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                    val key = (suggestion.element as? NbtString)?.value ?: suggestion.element.toString()
+                    // Similar to StringNbtWriter.escapeName
+                    val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
+                    StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key)
+                }
+            }
         )
     }
 }

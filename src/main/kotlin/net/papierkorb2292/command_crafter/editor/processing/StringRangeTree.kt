@@ -130,12 +130,10 @@ class StringRangeTree<TNode: Any>(
     fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
-            val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, List<ResolvedSuggestion>>>()
+            val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, ResolvedSuggestion>>()
             analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestionProviders ->
                 val range = nodeAllowedStartRanges[node] ?: StringRange.at(getNodeRangeOrThrow(node).start)
-                nodeSuggestions += range to suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
-                    suggestionResolver.resolveNodeSuggestion(suggestion, this, node, range, copiedMappingInfo, completionEscaper)
-                }.toList()
+                nodeSuggestions += range to suggestionResolver.resolveNodeSuggestion(suggestionProviders, this, node, range, copiedMappingInfo, completionEscaper)
             }
             analyzingDynamicOps.mapKeySuggestions[node]
                 .concatNullable(analyzingDynamicOps.mapKeyNodes[node]?.flatMap { mapKeyNode ->
@@ -143,9 +141,7 @@ class StringRangeTree<TNode: Any>(
                 })?.let { suggestionProviders ->
                     val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
                     nodeSuggestions += ranges.map { range ->
-                        range to suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
-                            suggestionResolver.resolveMapKeySuggestion(suggestion, this, node, range, copiedMappingInfo, completionEscaper)
-                        }.toList()
+                        range to suggestionResolver.resolveMapKeySuggestion(suggestionProviders, this, node, range, copiedMappingInfo, completionEscaper)
                     }
                 }
             nodeSuggestions
@@ -164,9 +160,9 @@ class StringRangeTree<TNode: Any>(
             Comparator.comparing(kotlin.Pair<StringRange, *>::first, StringRange::compareToExclusive)
         )
         for((i, suggestionEntry) in sorted.withIndex()) {
-            val (range, suggestions) = suggestionEntry
+            val (range, suggestion) = suggestionEntry
             // Extending the range to the furthest any suggestion matches the input
-            val extendedEndCursor = suggestions.maxOf { it.suggestionEnd }
+            val extendedEndCursor = suggestion.suggestionEnd
 
             // Make sure to not overlap with the next entry
             val newEndCursor = if(i + 1 < sorted.size) {
@@ -183,7 +179,7 @@ class StringRangeTree<TNode: Any>(
                         AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                         AnalyzingResult.RangedDataProvider(
                             StringRange(suggestionStart, preInsertEndCursor),
-                            CombinedCompletionItemProvider(suggestions.map { it.completionItemProvider })
+                            suggestion.completionItemProvider
                         )
                     )
                 }
@@ -202,7 +198,7 @@ class StringRangeTree<TNode: Any>(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                 AnalyzingResult.RangedDataProvider(
                     StringRange(suggestionStart, newEndCursor),
-                    CombinedCompletionItemProvider(suggestions.map { it.completionItemProvider })
+                    suggestion.completionItemProvider
                 )
             )
         }
@@ -601,7 +597,7 @@ class StringRangeTree<TNode: Any>(
 
     interface SuggestionResolver<TNode : Any> {
         fun resolveNodeSuggestion(
-            suggestion: Suggestion<TNode>,
+            suggestionProviders: Collection<SuggestionProvider<TNode>>,
             tree: StringRangeTree<TNode>,
             node: TNode,
             suggestionRange: StringRange,
@@ -610,7 +606,7 @@ class StringRangeTree<TNode: Any>(
         ): ResolvedSuggestion
 
         fun resolveMapKeySuggestion(
-            suggestion: Suggestion<TNode>,
+            suggestionProviders: Collection<SuggestionProvider<TNode>>,
             tree: StringRangeTree<TNode>,
             map: TNode,
             suggestionRange: StringRange,
