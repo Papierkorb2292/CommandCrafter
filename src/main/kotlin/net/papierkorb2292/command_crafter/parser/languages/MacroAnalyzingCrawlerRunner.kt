@@ -188,7 +188,7 @@ class MacroAnalyzingCrawlerRunner(
         // all available leniency by analyzing the node
         if(nextVariableLocationIndex < variableLocations.size)
             removeNodesAfterCursor(commandParseResults, nextVariableLocation)
-        reader.cursor = commandParseResults.context.lastChild.range.end
+        reader.cursor = getLastCursor(commandParseResults.context)
         if(reader.canRead())
             reader.skip() // Also skip spaces
 
@@ -283,6 +283,20 @@ class MacroAnalyzingCrawlerRunner(
             }
             contextBuilder = contextBuilder.child
         }
+    }
+
+    private fun getLastCursor(commandContextBuilder: CommandContextBuilder<*>): Int {
+        // Go through all contexts instead of just using lastChild.range, because the last child might not
+        // have any nodes if it's after a redirect, but its cursor will already have skipped the whitespace,
+        // thereby causing inconsistent behaviour
+        var context: CommandContextBuilder<*>? = commandContextBuilder
+        var cursor = 0
+        while(context != null) {
+            if(context.nodes.isNotEmpty())
+                cursor = context.range.end
+            context = context.child
+        }
+        return cursor
     }
 
     private inner class Spawner(
