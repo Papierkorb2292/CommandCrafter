@@ -333,7 +333,7 @@ class MacroAnalyzingCrawlerRunner(
         val crawlers = mutableListOf<Crawler>()
 
         /**
-         * Stores all analyzing results from a crawler attempt at `analyzingResultsPerAttemptCount[attemptCount][skippedNodeCount]`
+         * Stores all analyzing results from a crawler attempt at `attemptAnalyzingResults[attemptCount][skippedNodeCount]`
          */
         val attemptAnalyzingResults = mutableListOf<MutableList<List<AnalyzingResult>?>>()
         var baseResult: CrawlerResult? = null
