@@ -17,10 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Slice;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -124,6 +121,20 @@ public class MacroInvocationMixin implements MacroCursorMapperProvider {
         while(adjustedEndCursor != macroEnd && !Character.isWhitespace(command.charAt(adjustedEndCursor)))
             adjustedEndCursor++;
         return adjustedEndCursor;
+    }
+
+    @ModifyVariable(
+            method = "parse",
+            at = @At(
+                    value = "STORE",
+                    ordinal = 1
+            ),
+            ordinal = 1
+    )
+    private static int command_crafter$preventSkippingSpaceAfterUnterminatedMacroVariable(int j, String command) {
+        if(j <= command.length() && command.charAt(j - 1) != ')')
+            return j - 1;
+        return j;
     }
 
     @ModifyExpressionValue(
