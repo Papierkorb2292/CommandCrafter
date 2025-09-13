@@ -46,7 +46,6 @@ import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.command.argument.UuidArgumentType
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
@@ -87,11 +86,23 @@ class MacroAnalyzingCrawlerRunner(
     private val attemptPositions = IntList()
     init {
         attemptPositions.add(0)
-        for(i in 0 until reader.string.length)
-            if(reader.string[i] == ' ' && i + 1 < reader.string.length)
+        for(i in 0 until reader.string.length - 1)
+            if(reader.string[i] == ' ')
                 attemptPositions.add(i + 1)
     }
     private val invalidAttemptPositionsMarker = BooleanArray(attemptPositions.size)
+    private val attemptPositionsFollowingVariable = BooleanArray(attemptPositions.size)
+    init {
+        var variableIndex = 0
+        var attemptIndex = 0
+        while(variableIndex < variableLocations.size && attemptIndex < attemptPositions.size) {
+            if(attemptPositions[attemptIndex] > variableLocations[variableIndex]) {
+                attemptPositionsFollowingVariable[attemptIndex] = true
+                variableIndex++
+            }
+            attemptIndex++
+        }
+    }
 
     private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
@@ -327,6 +338,7 @@ class MacroAnalyzingCrawlerRunner(
         val attemptAnalyzingResults = mutableListOf<MutableList<List<AnalyzingResult>?>>()
         var baseResult: CrawlerResult? = null
         var skippedNodeCount: Int = 0
+        var maxAttemptCountChecked: Int = 0
 
         var bestResult: CrawlerResult? = null
         var bestResultAttemptCount: Int = -1
@@ -347,8 +359,25 @@ class MacroAnalyzingCrawlerRunner(
             while(i < crawlers.size) {
                 val crawler = crawlers[i]
                 val crawlerNodes = crawler.getNodesForAttempt()
-
                 val attemptCount = crawler.attemptCount++
+                val attemptIndex = startAttemptIndex + attemptCount
+
+                // Push another crawler if a variable is at this position, so if this variable resolves to a whole node
+                // the correct parser for the children will be found quicker
+                if(attemptCount > maxAttemptCountChecked) {
+                    maxAttemptCountChecked = attemptCount
+                    if(attemptPositionsFollowingVariable[attemptIndex])
+                        pushCrawler()
+                }
+
+                if(crawlerNodes.isEmpty() || invalidAttemptPositionsMarker[attemptIndex]) {
+                    // Just skip to the next one
+                    if(attemptIndex + 1 >= attemptPositions.size)
+                        crawlers.removeAt(i)
+                    else
+                        i++
+                    continue
+                }
                 while(attemptAnalyzingResults.size <= attemptCount) {
                     attemptAnalyzingResults.add(mutableListOf())
                 }
@@ -357,15 +386,6 @@ class MacroAnalyzingCrawlerRunner(
                     attemptAnalyzingResultsForAttemptCount.add(null)
                 }
 
-                val attemptIndex = startAttemptIndex + attemptCount
-                if(invalidAttemptPositionsMarker[attemptIndex]) {
-                    if(attemptIndex + 1 >= attemptPositions.size || crawler.nodesWithSpaces.isEmpty())
-                        crawlers.removeAt(i)
-                    else
-                        i++
-
-                    continue
-                }
                 val startCursor = attemptPositions[attemptIndex]
 
                 val results = crawlerNodes.map { node ->
@@ -376,7 +396,7 @@ class MacroAnalyzingCrawlerRunner(
 
                 attemptAnalyzingResultsForAttemptCount[crawler.skippedNodeCount] = results.map { it.analyzingResult }
 
-                if(attemptIndex + 1 >= attemptPositions.size || crawler.nodesWithSpaces.isEmpty())
+                if(attemptIndex + 1 >= attemptPositions.size)
                     crawlers.removeAt(i)
                 else
                     i++
@@ -446,12 +466,13 @@ class MacroAnalyzingCrawlerRunner(
         }
 
         private inner class Crawler(val nodes: List<CommandNode<CommandSource>>, val nodesWithSpaces: List<CommandNode<CommandSource>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
-            // For any attemptCount > 0 only parent nodes that contain spaces are tried. This is because if the parent
+            // For any attempt not following a variable only parent nodes that contain spaces are tried. This is because if the parent
             // node can not contain spaces, then it's either contained by the macro variable, in which case its children
-            // would appear at the first attempt position after the macro only, or the parent node could also be part of
+            // would appear at the first attempt position after the variable only, or the parent node could also be part of
             // the input, in which case it's unnecessary to try and parse its children, because a previous crawler would
             // have already foud the parent node.
-            fun getNodesForAttempt() = if(attemptCount == 0) nodes else nodesWithSpaces
+            // Also check whether attemptCount == 0, which handles the case where the crawler is supposed to parse the root node at the start of the command, and it skips some array lockups
+            fun getNodesForAttempt() = if(attemptCount == 0 || attemptPositionsFollowingVariable[startAttemptIndex + attemptCount]) nodes else nodesWithSpaces
         }
     }
 
