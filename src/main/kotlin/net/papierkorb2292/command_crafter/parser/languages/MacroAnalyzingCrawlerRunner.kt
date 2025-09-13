@@ -149,7 +149,8 @@ class MacroAnalyzingCrawlerRunner(
     private fun tryParse(
         rootNode: CommandNode<CommandSource>,
         spawner: Spawner,
-        spawnerIndex: Int
+        spawnerIndex: Int,
+        attemptIndex: Int
     ): CrawlerResult {
         val analyzingResult = baseAnalyzingResult.copyInput()
         val startCursor = reader.cursor
@@ -192,6 +193,7 @@ class MacroAnalyzingCrawlerRunner(
         if(reader.canRead())
             reader.skip() // Also skip spaces
 
+        val nextNodeStartCursor = reader.cursor
         // This can also skip more characters when trying to analyze the next command node
         macroLanguage.analyzeParsedCommand(
             commandParseResults,
@@ -199,6 +201,16 @@ class MacroAnalyzingCrawlerRunner(
             reader,
             attemptBaseContext.nodes.size
         )
+        // Mark any attempt indices skipped by tryAnalyzeNextNode invalid. This is important when encountering arguments like SNBT with macros,
+        // because the macros likely lead the parser to fail but the lenient parser will skip them.
+        // Greedy strings are not a problem here, because they don't have a lenient parser
+        var skippedAttemptIndex = attemptIndex
+        while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] <= nextNodeStartCursor)
+            skippedAttemptIndex++
+        while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] < reader.cursor) { // Only < and not <=, because some lenient parser consume the next whitespace (for example positions)
+            invalidAttemptPositionsMarker[skippedAttemptIndex] = true
+            skippedAttemptIndex++
+        }
 
         // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
         // because that should still be part of the argument
@@ -359,7 +371,7 @@ class MacroAnalyzingCrawlerRunner(
                 val results = crawlerNodes.map { node ->
                         reader.cursor = startCursor
                         reader.furthestAccessedCursor = 0
-                        tryParse(node, this, spawnerIndex)
+                        tryParse(node, this, spawnerIndex, attemptIndex)
                     }
 
                 attemptAnalyzingResultsForAttemptCount[crawler.skippedNodeCount] = results.map { it.analyzingResult }
