@@ -314,7 +314,7 @@ class MacroAnalyzingCrawlerRunner(
         // have any nodes if it's after a redirect, but its cursor will already have skipped the whitespace,
         // thereby causing inconsistent behaviour
         var context: CommandContextBuilder<*>? = commandContextBuilder
-        var cursor = 0
+        var cursor = -1 // Start at negative one to simulate a space after the root node
         while(context != null) {
             if(context.nodes.isNotEmpty())
                 cursor = context.range.end
