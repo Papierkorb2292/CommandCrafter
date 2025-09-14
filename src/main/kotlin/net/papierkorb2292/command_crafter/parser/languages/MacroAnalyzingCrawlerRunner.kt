@@ -485,18 +485,20 @@ class MacroAnalyzingCrawlerRunner(
          * seems like a good indication that the parser is on the right path.
          */
         fun cutSpawnerTree() {
-            // Exact conditions for where to cut off are more or less arbitrary, just see what works well
-            val minLiteralCountForConfidence = 3
-            if(literalNodeCount < minLiteralCountForConfidence)
-                return
-
-            if(parentSpawner.baseResult == null && literalNodeCount > minLiteralCountForConfidence) {
+            if(parentSpawner.baseResult == null) {
+                // If the parent node is the root spawner, it's always removed because there's only one correct parsing attempt for root
                 weightedSpawners.clear()
                 if(childSpawner != null)
                     weightedSpawners += mutableListOf(childSpawner)
                 return
             }
-            if(parentSpawner.baseResult != null && literalNodeCount - parentSpawner.baseResult!!.literalNodeCount >= minLiteralCountForConfidence) {
+            // Exact conditions for where to cut off are more or less arbitrary, just see what works well
+            val minLiteralCountForConfidence = 3
+            if(literalNodeCount < minLiteralCountForConfidence)
+                return
+
+
+            if(literalNodeCount - parentSpawner.baseResult!!.literalNodeCount >= minLiteralCountForConfidence) {
                 weightedSpawners.clear()
                 if(childSpawner != null)
                     weightedSpawners += mutableListOf(childSpawner)
