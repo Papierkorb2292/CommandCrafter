@@ -602,7 +602,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         firstContextSkipNodesAmount: Int = 0
-    ) {
+    ): CommandAnalyzingFootprint {
         var skipNodesAmount = firstContextSkipNodesAmount
         var contextBuilder = result.context
         var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode, contextBuilder.range.start)
@@ -623,12 +623,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             contextBuilder = contextBuilder.child
         }
-        tryAnalyzeNextNode(
+        val nextNode = tryAnalyzeNextNode(
             analyzingResult,
             parentNode,
             result.context.lastChild,
             reader
         )
+        return CommandAnalyzingFootprint(nextNode)
     }
 
     // Add root suggestions at the start of new lines for easyNewLine commands,
@@ -824,7 +825,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         )
     }
 
-    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
+    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>): CommandNode<CommandSource>? {
         val initialCursor = reader.cursor
         if(isReaderEasyNextLine(reader)) {
             // Don't skip more if a whitespace was already skipped, because the command parser won't skip both
@@ -881,7 +882,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             || furthestParsedContext.nodes.last().range <= parentNode.range
             ) {
             reader.cursor = initialCursor
-            return
+            return null
         }
         analyzeCommandNode(
             furthestParsedContext.nodes.last(),
@@ -892,7 +893,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             true // Ensure that the next command only starts after the end of this argument, so their AnalyzingResult contents don't intersect
         )
         reader.copyFrom(furthestParsedReader)
+        return furthestParsedContext.nodes.last().node
     }
+
+    data class CommandAnalyzingFootprint(val triedNextNode: CommandNode<CommandSource>?)
 
     object VanillaLanguageType : LanguageManager.LanguageType {
         enum class VanillaLanguageOptions(val optionName: String) : StringIdentifiable {
