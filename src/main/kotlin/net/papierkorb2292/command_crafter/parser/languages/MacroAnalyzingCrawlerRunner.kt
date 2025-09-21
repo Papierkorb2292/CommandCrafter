@@ -86,7 +86,7 @@ class MacroAnalyzingCrawlerRunner(
     private val attemptPositions = IntList()
     init {
         attemptPositions.add(0)
-        for(i in 0 until reader.string.length - 1)
+        for(i in 0 until reader.string.length)
             if(reader.string[i] == ' ')
                 attemptPositions.add(i + 1)
     }
@@ -110,6 +110,7 @@ class MacroAnalyzingCrawlerRunner(
 
     fun run(): AnalyzingResult {
         var bestGlobalSpawner: Spawner? = null
+        val trailingSpawners = LinkedHashSet<Spawner>()
         while(weightedSpawners.isNotEmpty()) {
             val mostPromisingSpawners = weightedSpawners.removeLast()
             if(mostPromisingSpawners.isEmpty())
@@ -130,8 +131,19 @@ class MacroAnalyzingCrawlerRunner(
             if(bestGlobalSpawner == null || bestMatchingSpawner.bestResult!! > bestGlobalSpawner.bestResult!!) {
                 bestGlobalSpawner = bestMatchingSpawner
             }
+            val hasNewNodes = bestMatchingSpawner.bestResult!!.hasNewNodes()
+            if(hasNewNodes)
+                trailingSpawners.clear()
 
-            val advancedSpawners = mostPromisingSpawners.filterTo(mutableListOf()) { it.advance() }
+            val advancedSpawners = mutableListOf<Spawner>()
+            for(spawner in mostPromisingSpawners) {
+                if(spawner.advance()) {
+                    advancedSpawners += spawner
+                    continue
+                }
+                if(!hasNewNodes)
+                    trailingSpawners += spawner
+            }
             if(advancedSpawners.isNotEmpty()) {
                 // Advancing the spawners decreases their weight by one
                 if(spawnersIndex > 0)
@@ -142,7 +154,23 @@ class MacroAnalyzingCrawlerRunner(
 
             bestMatchingSpawner.bestResult!!.cutSpawnerTree()
         }
-        return bestGlobalSpawner!!.buildCombinedAnalyzingResult(reader.string.length)
+
+        trailingSpawners += bestGlobalSpawner!!
+        while(!bestGlobalSpawner!!.bestResult!!.hasNewNodes() && bestGlobalSpawner.parent != null) {
+            bestGlobalSpawner = bestGlobalSpawner.parent
+        }
+        val result = bestGlobalSpawner.buildCombinedAnalyzingResult(reader.string.length)
+        val consumedCompletions = createSpawnerHierarchySet(bestGlobalSpawner)
+        while(trailingSpawners.isNotEmpty()) {
+            val completionSpawner = trailingSpawners.removeFirst()
+            if(completionSpawner in consumedCompletions)
+                continue
+            completionSpawner.addAllCompletionProviders(result)
+            consumedCompletions += completionSpawner
+            if(completionSpawner.parent != null)
+                trailingSpawners += completionSpawner.parent
+        }
+        return result
     }
 
     private fun createRootSpawner() = Spawner(null, listOf(), 0, baseContext).apply {
@@ -323,6 +351,16 @@ class MacroAnalyzingCrawlerRunner(
         return cursor
     }
 
+    private fun createSpawnerHierarchySet(endSpawner: Spawner): MutableSet<Spawner> {
+        val result = mutableSetOf<Spawner>()
+        var spawner: Spawner? = endSpawner
+        while(spawner != null) {
+            result += spawner
+            spawner = spawner.parent
+        }
+        return result
+    }
+
     private inner class Spawner(
         val parent: Spawner?,
         var nextNodes: List<CommandNode<CommandSource>>,
@@ -438,12 +476,12 @@ class MacroAnalyzingCrawlerRunner(
             val attemptPosition = attemptPositions[startAttemptIndex + bestResultAttemptCount]
             val parentAnalyzingResult = parent?.buildCombinedAnalyzingResult(attemptPosition)
                 ?: baseAnalyzingResult.copy().also {
-                    it.cutAfterTargetCursor(attemptPosition + reader.readSkippingChars)
+                    it.cutAfterTargetCursor(attemptPosition)
                 }
             val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
             crawlerAnalyzingResult.combineWithExceptCompletions(bestResult.analyzingResult)
             addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
-            crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor + reader.readSkippingChars)
+            crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
             return parentAnalyzingResult
         }
@@ -455,10 +493,20 @@ class MacroAnalyzingCrawlerRunner(
          * to the best result and a skippedNodeCount less than or equal to the best result.
          * Other completions are deemed not necessary and maybe confusing.
          */
-        private fun addCompletionProvidersUpToAttemptPosition(analyzingResult: AnalyzingResult) {
+        fun addCompletionProvidersUpToAttemptPosition(analyzingResult: AnalyzingResult) {
             attemptAnalyzingResults.asSequence()
                 .take(bestResultAttemptCount + 1)
                 .flatMap { it.asSequence().take(bestResultSkippedNodeCount + 1) }
+                .filterNotNull()
+                .flatten()
+                .forEach { result ->
+                    analyzingResult.combineWithCompletionProviders(result, "_${mergedCompletionsCount++}")
+                }
+        }
+
+        fun addAllCompletionProviders(analyzingResult: AnalyzingResult) {
+            attemptAnalyzingResults.asSequence()
+                .flatten()
                 .filterNotNull()
                 .flatten()
                 .forEach { result ->
@@ -555,6 +603,8 @@ class MacroAnalyzingCrawlerRunner(
                 attemptIndex++
             }
         }
+
+        fun hasNewNodes(): Boolean = parentSpawner.baseResult == null || parsedNodeCount > parentSpawner.baseResult!!.parsedNodeCount
 
         override fun compareTo(other: CrawlerResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
