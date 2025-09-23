@@ -156,11 +156,8 @@ class MacroAnalyzingCrawlerRunner(
         }
 
         trailingSpawners += bestGlobalSpawner!!
-        while(!bestGlobalSpawner!!.bestResult!!.hasNewNodes() && bestGlobalSpawner.parent != null) {
-            bestGlobalSpawner = bestGlobalSpawner.parent
-        }
-        val result = bestGlobalSpawner.buildCombinedAnalyzingResult(reader.string.length)
-        val consumedCompletions = createSpawnerHierarchySet(bestGlobalSpawner)
+        val result = bestGlobalSpawner.buildCombinedAnalyzingResult(reader.string.length, true)
+        val consumedCompletions = createNonTrailingSpawnerHierarchySet(bestGlobalSpawner)
         while(trailingSpawners.isNotEmpty()) {
             val completionSpawner = trailingSpawners.removeFirst()
             if(completionSpawner in consumedCompletions)
@@ -351,11 +348,14 @@ class MacroAnalyzingCrawlerRunner(
         return cursor
     }
 
-    private fun createSpawnerHierarchySet(endSpawner: Spawner): MutableSet<Spawner> {
+    private fun createNonTrailingSpawnerHierarchySet(endSpawner: Spawner): MutableSet<Spawner> {
         val result = mutableSetOf<Spawner>()
+        var isTrailing = true
         var spawner: Spawner? = endSpawner
         while(spawner != null) {
-            result += spawner
+            isTrailing = isTrailing && !spawner.bestResult!!.hasNewNodes()
+            if(!isTrailing)
+                result += spawner
             spawner = spawner.parent
         }
         return result
@@ -471,16 +471,19 @@ class MacroAnalyzingCrawlerRunner(
             crawlers.add(Crawler(listOf(node), listOf()))
         }
 
-        fun buildCombinedAnalyzingResult(cutTargetCursor: Int): AnalyzingResult {
+        fun buildCombinedAnalyzingResult(cutTargetCursor: Int, isChildTrailing: Boolean): AnalyzingResult {
             val bestResult = bestResult!!
+            val isTrailing = isChildTrailing && !bestResult.hasNewNodes()
             val attemptPosition = attemptPositions[startAttemptIndex + bestResultAttemptCount]
-            val parentAnalyzingResult = parent?.buildCombinedAnalyzingResult(attemptPosition)
+            val parentAnalyzingResult = parent?.buildCombinedAnalyzingResult(attemptPosition, isTrailing)
                 ?: baseAnalyzingResult.copy().also {
                     it.cutAfterTargetCursor(attemptPosition)
                 }
             val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
             crawlerAnalyzingResult.combineWithExceptCompletions(bestResult.analyzingResult)
-            addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
+            // Don't add completion providers for trailing nodes, because those should be added by `addAllCompletionsProviders` (called in `run`) and they shouldn't be added twice
+            if(!isTrailing)
+                addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
             crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
             return parentAnalyzingResult
