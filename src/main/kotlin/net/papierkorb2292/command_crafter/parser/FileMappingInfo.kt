@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.parser
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemPositionInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLine
 import net.papierkorb2292.command_crafter.helper.IntList
@@ -18,6 +20,7 @@ class FileMappingInfo(
     var readCharacters: Int = 0,
     var skippedChars: Int = 0,
     val positionFromCursorFIFOCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
+    val completionItemToPositionFIFOCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
 ) {
     val accumulatedLineLengths = IntList(lines.size)
     init {
@@ -31,7 +34,7 @@ class FileMappingInfo(
     val readSkippingChars
         get() = readCharacters - skippedChars
 
-    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorFIFOCache)
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorFIFOCache, completionItemToPositionFIFOCache)
 
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false

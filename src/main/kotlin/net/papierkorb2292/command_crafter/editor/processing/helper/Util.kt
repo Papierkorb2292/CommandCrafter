@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import com.mojang.serialization.DynamicOps
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import net.minecraft.registry.RegistryOps
 import net.minecraft.util.packrat.ParsingRules
 import net.minecraft.util.packrat.Symbol
@@ -115,20 +114,22 @@ fun standardizeKeyword(keyword: String): String {
     else lower
 }
 
-private val completionItemToPositionFIFOCache = Int2ObjectLinkedOpenHashMap<Position>(8, 0.25F)
+data class CompletionItemPositionInfo(val processedCursor: Int, val requestedCursor: Int)
 
 fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>, completionCursorLine: Int, completionAbsoluteCursor: Int): CompletionItem {
     fun toPosition(cursor: Int): Position {
-        val cached = completionItemToPositionFIFOCache.getAndMoveToLast(cursor)
+        val positionInfo = CompletionItemPositionInfo(cursor, completionAbsoluteCursor)
+        val cache = reader.fileMappingInfo.completionItemToPositionFIFOCache
+        val cached = cache.getAndMoveToLast(positionInfo)
         if(cached != null)
             return cached
         val pos = AnalyzingResult.getPositionFromCursor(
             reader.cursorMapper.mapToSource(cursor + reader.readSkippingChars),
             reader.fileMappingInfo
         ).clampCompletionToCursor(completionCursorLine, completionAbsoluteCursor, reader.fileMappingInfo)
-        if(completionItemToPositionFIFOCache.size >= 7)
-            completionItemToPositionFIFOCache.removeFirst()
-        completionItemToPositionFIFOCache.put(cursor, pos)
+        if(cache.size >= 7)
+            cache.removeFirst()
+        cache.put(positionInfo, pos)
         return pos
     }
 

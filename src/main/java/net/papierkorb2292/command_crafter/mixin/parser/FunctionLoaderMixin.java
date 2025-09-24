@@ -8,6 +8,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.datafixers.util.Pair;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
 import net.minecraft.command.CommandSource;
@@ -73,7 +74,7 @@ public class FunctionLoaderMixin implements ParsedResourceCreator.ParseResourceC
             return Unit.INSTANCE;
         });
         @SuppressWarnings("unchecked")
-        var reader = new DirectiveStringReader<>(new FileMappingInfo(lines, new SplitProcessedInputCursorMapper(), 0, 0, new Int2ObjectLinkedOpenHashMap<>()), (CommandDispatcher<CommandSource>)(Object)dispatcher, resourceCreator);
+        var reader = new DirectiveStringReader<>(new FileMappingInfo(lines, new SplitProcessedInputCursorMapper(), 0, 0, new Int2ObjectLinkedOpenHashMap<>(), new Object2ObjectLinkedOpenHashMap<>()), (CommandDispatcher<CommandSource>)(Object)dispatcher, resourceCreator);
         var startCursor = reader.getAbsoluteCursor();
         var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,
