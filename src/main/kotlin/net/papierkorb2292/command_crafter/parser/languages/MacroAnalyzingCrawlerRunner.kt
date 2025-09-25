@@ -131,7 +131,7 @@ class MacroAnalyzingCrawlerRunner(
             if(bestGlobalSpawner == null || bestMatchingSpawner.bestResult!! > bestGlobalSpawner.bestResult!!) {
                 bestGlobalSpawner = bestMatchingSpawner
             }
-            val hasNewNodes = bestMatchingSpawner.bestResult!!.hasNewNodes()
+            val hasNewNodes = bestMatchingSpawner.bestResult!!.hasNewLiteralNodes()
             if(hasNewNodes)
                 trailingSpawners.clear()
 
@@ -353,7 +353,7 @@ class MacroAnalyzingCrawlerRunner(
         var isTrailing = true
         var spawner: Spawner? = endSpawner
         while(spawner != null) {
-            isTrailing = isTrailing && !spawner.bestResult!!.hasNewNodes()
+            isTrailing = isTrailing && !spawner.bestResult!!.hasNewLiteralNodes()
             if(!isTrailing)
                 result += spawner
             spawner = spawner.parent
@@ -473,7 +473,7 @@ class MacroAnalyzingCrawlerRunner(
 
         fun buildCombinedAnalyzingResult(cutTargetCursor: Int, isChildTrailing: Boolean): AnalyzingResult {
             val bestResult = bestResult!!
-            val isTrailing = isChildTrailing && !bestResult.hasNewNodes()
+            val isTrailing = isChildTrailing && !bestResult.hasNewLiteralNodes()
             val attemptPosition = attemptPositions[startAttemptIndex + bestResultAttemptCount]
             val parentAnalyzingResult = parent?.buildCombinedAnalyzingResult(attemptPosition, isTrailing)
                 ?: baseAnalyzingResult.copy().also {
@@ -607,6 +607,7 @@ class MacroAnalyzingCrawlerRunner(
             }
         }
 
+        fun hasNewLiteralNodes(): Boolean = parentSpawner.baseResult == null || literalNodeCount > parentSpawner.baseResult!!.literalNodeCount
         fun hasNewNodes(): Boolean = parentSpawner.baseResult == null || parsedNodeCount > parentSpawner.baseResult!!.parsedNodeCount
 
         override fun compareTo(other: CrawlerResult): Int =
