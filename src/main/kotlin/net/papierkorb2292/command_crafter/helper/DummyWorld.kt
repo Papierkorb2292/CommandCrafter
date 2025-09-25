@@ -23,20 +23,30 @@ import net.minecraft.sound.SoundEvent
 import net.minecraft.util.collection.Pool
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.Direction
+import net.minecraft.util.math.GlobalPos
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.BlockView
 import net.minecraft.world.Difficulty
 import net.minecraft.world.MutableWorldProperties
 import net.minecraft.world.World
+import net.minecraft.world.WorldProperties
 import net.minecraft.world.biome.Biome
+import net.minecraft.world.biome.BiomeKeys
+import net.minecraft.world.border.WorldBorder
+import net.minecraft.world.chunk.Chunk
 import net.minecraft.world.chunk.ChunkManager
+import net.minecraft.world.chunk.ChunkStatus
+import net.minecraft.world.chunk.light.LightingProvider
 import net.minecraft.world.dimension.DimensionTypes
 import net.minecraft.world.entity.EntityLookup
 import net.minecraft.world.event.GameEvent
 import net.minecraft.world.explosion.ExplosionBehavior
 import net.minecraft.world.tick.QueryableTickScheduler
 import net.minecraft.world.tick.TickManager
+import java.util.function.BooleanSupplier
 
 class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: FeatureSet) : World(DummyProperties(), null, registryManager, registryManager.getEntryOrThrow(DimensionTypes.OVERWORLD), false, false, 0, 0) {
+    private val chunkManager = DummyChunkManager()
     override fun getPlayers(): MutableList<out PlayerEntity> {
         throw NotImplementedError("Not supported by dummy")
     }
@@ -46,7 +56,7 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
     }
 
     override fun getGeneratorStoredBiome(biomeX: Int, biomeY: Int, biomeZ: Int): RegistryEntry<Biome> {
-        throw NotImplementedError("Not supported by dummy")
+        return registryManager.getEntryOrThrow(BiomeKeys.PLAINS)
     }
 
     override fun getSeaLevel(): Int {
@@ -63,9 +73,7 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getChunkManager(): ChunkManager {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun getChunkManager(): ChunkManager = chunkManager
 
     override fun playSound(
         source: Entity?,
@@ -127,6 +135,14 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         throw NotImplementedError("Not supported by dummy")
     }
 
+    override fun setSpawnPoint(spawnPoint: WorldProperties.SpawnPoint) {
+        throw NotImplementedError("Not supported by dummy")
+    }
+
+    override fun getSpawnPoint(): WorldProperties.SpawnPoint {
+        throw NotImplementedError("Not supported by dummy")
+    }
+
     override fun getEntityById(id: Int): Entity? {
         throw NotImplementedError("Not supported by dummy")
     }
@@ -167,9 +183,13 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         throw NotImplementedError("Not supported by dummy")
     }
 
+    override fun getWorldBorder(): WorldBorder {
+        throw NotImplementedError("Not supported by dummy")
+    }
+
     class DummyProperties : MutableWorldProperties {
-        override fun getSpawnPos(): BlockPos = BlockPos.ORIGIN
-        override fun getSpawnAngle() = 0F
+        private var spawnPoint = WorldProperties.SpawnPoint(GlobalPos(OVERWORLD, BlockPos.ORIGIN), 0f, 0f)
+        override fun getSpawnPoint(): WorldProperties.SpawnPoint = spawnPoint
         override fun getTime() = 0L
         override fun getTimeOfDay() = 0L
         override fun isThundering() = false
@@ -178,6 +198,17 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         override fun isHardcore() = false
         override fun getDifficulty() = Difficulty.NORMAL
         override fun isDifficultyLocked() = false
-        override fun setSpawnPos(pos: BlockPos, angle: Float) { }
+        override fun setSpawnPoint(spawnPoint: WorldProperties.SpawnPoint) {
+            this.spawnPoint = spawnPoint
+        }
+    }
+
+    inner class DummyChunkManager : ChunkManager() {
+        override fun getChunk(x: Int, z: Int, leastStatus: ChunkStatus, create: Boolean): Chunk? = null
+        override fun tick(shouldKeepTicking: BooleanSupplier, tickChunks: Boolean) { }
+        override fun getDebugString(): String = "dummy"
+        override fun getLoadedChunkCount(): Int = 0
+        override fun getLightingProvider(): LightingProvider = LightingProvider.DEFAULT
+        override fun getWorld(): BlockView? = this@DummyWorld
     }
 }

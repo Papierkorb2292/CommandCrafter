@@ -115,11 +115,11 @@ object NetworkServerConnectionHandler {
                 return@handler
             }
 
-            val connection = DirectServerConnection(context.player().server!!)
+            val connection = DirectServerConnection(context.server())
             currentConnections[context.player().networkHandler] = connection
 
             sendConnectionRequestResponse(
-                context.player().server!!,
+                context.server(),
                 payload,
                 connection,
                 context.responseSender(),
@@ -283,7 +283,7 @@ object NetworkServerConnectionHandler {
         registerAsyncServerPacketHandler(ContextCompletionRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
-            val server = context.player.server!!
+            val server = context.server
             @Suppress("UNCHECKED_CAST")
             val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
             reader.cursor = payload.cursor
@@ -444,6 +444,7 @@ object NetworkServerConnectionHandler {
 
     data class AsyncC2SPacketContext(
         val player: ServerPlayerEntity,
+        val server: MinecraftServer,
         val clientConnection: ClientConnection,
     ) {
         fun sendPacket(packet: CustomPayload) {
