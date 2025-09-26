@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser.languages
 
+import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.arguments.BoolArgumentType
@@ -11,12 +12,16 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.ParsedCommandNode
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.brigadier.tree.RootCommandNode
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
 import net.minecraft.command.CommandSource
 import net.minecraft.command.argument.AngleArgumentType
+import net.minecraft.command.argument.ArgumentTypes
 import net.minecraft.command.argument.BlockMirrorArgumentType
 import net.minecraft.command.argument.BlockRotationArgumentType
 import net.minecraft.command.argument.ColorArgumentType
@@ -44,6 +49,9 @@ import net.minecraft.command.argument.SwizzleArgumentType
 import net.minecraft.command.argument.TeamArgumentType
 import net.minecraft.command.argument.TimeArgumentType
 import net.minecraft.command.argument.UuidArgumentType
+import net.minecraft.command.argument.serialize.ArgumentSerializer
+import net.minecraft.network.PacketByteBuf
+import net.minecraft.registry.Registries
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
@@ -52,6 +60,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.Command
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
+import java.util.WeakHashMap
 import kotlin.collections.plusAssign
 import kotlin.math.max
 
@@ -103,6 +112,7 @@ class MacroAnalyzingCrawlerRunner(
             attemptIndex++
         }
     }
+    private val unnecessaryAttemptDeduplicator = UnnecessaryAttemptDeduplicator()
 
     private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
@@ -427,10 +437,24 @@ class MacroAnalyzingCrawlerRunner(
 
                 val startCursor = attemptPositions[attemptIndex]
 
-                val results = crawlerNodes.map { node ->
+                val results = crawlerNodes.mapNotNull { node ->
+                        if(unnecessaryAttemptDeduplicator.shouldSkipAttempt(attemptIndex, node))
+                            return@mapNotNull null
                         reader.cursor = startCursor
                         reader.furthestAccessedCursor = 0
-                        tryParse(node, this, spawnerIndex, attemptIndex)
+                        val result = tryParse(node, this, spawnerIndex, attemptIndex)
+                        if(result.newNodeCount() == 0)
+                            unnecessaryAttemptDeduplicator.markUnnecessaryAttempt(attemptIndex, node)
+                        else if(!reader.canRead() && result.newNodeCount() == 1) {
+                            var lastNode: ParsedCommandNode<CommandSource>? = null
+                            var context: CommandContextBuilder<CommandSource>? = result.contextBuilder
+                            while(context != null) {
+                                lastNode = context.nodes.lastOrNull() ?: lastNode
+                                context = context.child
+                            }
+                            unnecessaryAttemptDeduplicator.markTrailingNode(attemptIndex, lastNode!!.node)
+                        }
+                        result
                     }
 
                 attemptAnalyzingResultsForAttemptCount[crawler.skippedNodeCount] = results.map { it.analyzingResult }
@@ -608,7 +632,7 @@ class MacroAnalyzingCrawlerRunner(
         }
 
         fun hasNewLiteralNodes(): Boolean = parentSpawner.baseResult == null || literalNodeCount > parentSpawner.baseResult!!.literalNodeCount
-        fun hasNewNodes(): Boolean = parentSpawner.baseResult == null || parsedNodeCount > parentSpawner.baseResult!!.parsedNodeCount
+        fun newNodeCount(): Int = parsedNodeCount - (parentSpawner.baseResult?.parsedNodeCount ?: 0)
 
         override fun compareTo(other: CrawlerResult): Int =
             if(literalNodeCount != other.literalNodeCount) literalNodeCount.compareTo(other.literalNodeCount)
@@ -641,9 +665,136 @@ class MacroAnalyzingCrawlerRunner(
         )
     }
 
+    private inner class UnnecessaryAttemptDeduplicator {
+        val nodeIdentifier = getNodeIdentifierForDispatcher(reader.dispatcher)
+        val unnecessaryAttemptsMarker = BooleanArray(nodeIdentifier.idCount * attemptPositions.size)
+        private fun getAttemptMarkerIndex(attemptPositionIndex: Int, attemptNode: CommandNode<CommandSource>): Int =
+            attemptPositionIndex * nodeIdentifier.idCount + nodeIdentifier.getIdForNode(attemptNode)
+
+        fun shouldSkipAttempt(attemptPositionIndex: Int, attemptRootNode: CommandNode<CommandSource>): Boolean =
+            attemptRootNode.children.all {
+                unnecessaryAttemptsMarker[getAttemptMarkerIndex(attemptPositionIndex, it)]
+            }
+
+        fun markUnnecessaryAttempt(attemptPositionIndex: Int, attemptRootNode: CommandNode<CommandSource>) {
+            for(child in attemptRootNode.children) {
+                unnecessaryAttemptsMarker[getAttemptMarkerIndex(attemptPositionIndex, child)] = true
+            }
+        }
+
+        fun markTrailingNode(attemptPositionIndex: Int, lastNode: CommandNode<CommandSource>) {
+            unnecessaryAttemptsMarker[getAttemptMarkerIndex(attemptPositionIndex, lastNode)] = true
+        }
+    }
+
+    private class NodeIdentifier {
+        private val serializedNodeIds = Object2IntOpenHashMap<SerializedNode>()
+        private val assignedIds = Object2IntOpenHashMap<CommandNode<CommandSource>>()
+
+        val idCount get() = serializedNodeIds.size
+
+        init {
+            serializedNodeIds.defaultReturnValue(-1)
+            assignedIds.defaultReturnValue(-1)
+        }
+
+        fun getIdForNode(node: CommandNode<CommandSource>): Int {
+            val id = assignedIds.getInt(node)
+            if(id == -1)
+                throw IllegalArgumentException("Tried retrieving id for unregistered node")
+            return id
+        }
+
+        fun registerChildrenRecursive(parent: CommandNode<CommandSource>) {
+            for(child in parent.children) {
+                registerNode(child)
+                registerChildrenRecursive(child)
+            }
+        }
+
+        fun registerNode(node: CommandNode<CommandSource>) {
+            val serialized = serializeNode(node)
+            val serializedAssignedId = serializedNodeIds.getInt(serialized)
+            val newNodeId: Int
+            if(serializedAssignedId != -1)
+                newNodeId = serializedAssignedId
+            else {
+                newNodeId = serializedNodeIds.size
+                serializedNodeIds.put(serialized, newNodeId)
+            }
+            assignedIds.put(node, newNodeId)
+        }
+
+        private fun serializeNode(node: CommandNode<CommandSource>): SerializedNode {
+            fun <TType : ArgumentType<*>, TProperties : ArgumentSerializer.ArgumentTypeProperties<TType>> writeArgumentType(
+                type: TType,
+                serializer: ArgumentSerializer<TType, TProperties>,
+                buf: PacketByteBuf
+            ) {
+                serializer.writePacket(serializer.getArgumentTypeProperties(type) as TProperties, buf)
+            }
+
+            val buf = PacketByteBufs.create()
+            val typeId: Int
+            val suggestionProvider: SuggestionProvider<CommandSource>?
+            when(node) {
+                is LiteralCommandNode -> {
+                    typeId = -1
+                    buf.writeString(node.name)
+                    suggestionProvider = null
+                }
+                is ArgumentCommandNode<CommandSource, *> -> {
+                    val serializer = ArgumentTypes.get(node.type)
+                    typeId = Registries.COMMAND_ARGUMENT_TYPE.getRawId(serializer)
+                    writeArgumentType(node.type, serializer, buf)
+                    suggestionProvider = node.customSuggestions
+                }
+                else -> throw IllegalArgumentException("Unexpected node type: $node")
+            }
+            val array = ByteArray(buf.readableBytes())
+            buf.readBytes(array)
+            return SerializedNode(typeId, array, suggestionProvider)
+        }
+
+        private data class SerializedNode(val typeId: Int, val data: ByteArray, val suggestionProvider: SuggestionProvider<CommandSource>?) {
+            override fun equals(other: Any?): Boolean {
+                if(this === other) return true
+                if(javaClass != other?.javaClass) return false
+
+                other as SerializedNode
+
+                if(typeId != other.typeId) return false
+                if(!data.contentEquals(other.data)) return false
+                if(suggestionProvider != other.suggestionProvider) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = typeId
+                result = 31 * result + data.contentHashCode()
+                result = 31 * result + suggestionProvider.hashCode()
+                return result
+            }
+
+        }
+    }
+
     companion object {
         private const val STEPS_PER_CRAWLER_BEFORE_PUSH = 5
         private val macroLanguage = VanillaLanguage()
+        private val nodeIdentifiers = WeakHashMap<CommandDispatcher<CommandSource>, NodeIdentifier>()
+
+        private fun getNodeIdentifierForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeIdentifier {
+            val cached = nodeIdentifiers[dispatcher]
+            if(cached != null)
+                return cached
+
+            val nodeIdentifier = NodeIdentifier()
+            nodeIdentifier.registerChildrenRecursive(dispatcher.root)
+            nodeIdentifiers[dispatcher] = nodeIdentifier
+            return nodeIdentifier
+        }
 
         fun canNodeHaveSpaces(node: CommandNode<*>): Boolean {
             if(node is LiteralCommandNode)
