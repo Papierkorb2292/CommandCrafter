@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import java.io.IOException
 import java.io.Reader
 import java.util.*
+import kotlin.math.max
 import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
@@ -86,7 +87,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
-        furthestAccessedCursor = cursor + length
+        furthestAccessedCursor = max(furthestAccessedCursor, cursor + length)
         if(onlyReadEscapedMultiline) {
             val firstLineMappingMissing = cursorMapper.prevTargetEnd <= skippingCursor
             if(!string.endsWith('\\')) {
@@ -317,7 +318,7 @@ class DirectiveStringReader<out ResourceCreator>(
         setString(other.string)
         nextLine = other.nextLine
         escapedMultilineTrimmed = other.escapedMultilineTrimmed
-        furthestAccessedCursor = other.furthestAccessedCursor
+        furthestAccessedCursor = max(furthestAccessedCursor, other.furthestAccessedCursor)
     }
 
     fun onlyCurrentLine() : DirectiveStringReader<ResourceCreator> {
