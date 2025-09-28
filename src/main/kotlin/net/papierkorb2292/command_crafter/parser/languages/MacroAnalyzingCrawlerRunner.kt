@@ -166,7 +166,7 @@ class MacroAnalyzingCrawlerRunner(
         }
 
         trailingSpawners += bestGlobalSpawner!!
-        val result = bestGlobalSpawner.buildCombinedAnalyzingResult(reader.string.length, true)
+        val result = bestGlobalSpawner.buildCombinedAnalyzingResult(isChildTrailing = true, isLastChild = true)
         val consumedCompletions = createNonTrailingSpawnerHierarchySet(bestGlobalSpawner)
         while(trailingSpawners.isNotEmpty()) {
             val completionSpawner = trailingSpawners.removeFirst()
@@ -495,16 +495,16 @@ class MacroAnalyzingCrawlerRunner(
             crawlers.add(Crawler(listOf(node), listOf()))
         }
 
-        fun buildCombinedAnalyzingResult(cutTargetCursor: Int, isChildTrailing: Boolean): AnalyzingResult {
-            val bestResult = bestResult!!
-            val isTrailing = isChildTrailing && !bestResult.hasNewLiteralNodes()
-            val attemptPosition = attemptPositions[startAttemptIndex + bestResultAttemptCount]
-            val parentAnalyzingResult = parent?.buildCombinedAnalyzingResult(attemptPosition, isTrailing)
-                ?: baseAnalyzingResult.copy().also {
-                    it.cutAfterTargetCursor(attemptPosition)
-                }
+        fun buildCombinedAnalyzingResult(isChildTrailing: Boolean, isLastChild: Boolean): AnalyzingResult {
+            val cutTargetCursor = if(isLastChild) reader.string.length else attemptPositions[startAttemptIndex]
+            val result =
+                if(isLastChild) bestResult!!
+                else (baseResult ?: return baseAnalyzingResult.copy().also { it.cutAfterTargetCursor(cutTargetCursor) })
+            val isTrailing = isChildTrailing && !result.hasNewLiteralNodes()
+            // If `isLastChild`, call the same method on `this` again, because this.baseResult should be processed next
+            val parentAnalyzingResult = (if(isLastChild) this else parent!!).buildCombinedAnalyzingResult(isTrailing, false)
             val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
-            crawlerAnalyzingResult.combineWithExceptCompletions(bestResult.analyzingResult)
+            crawlerAnalyzingResult.combineWithExceptCompletions(result.analyzingResult)
             // Don't add completion providers for trailing nodes, because those should be added by `addAllCompletionsProviders` (called in `run`) and they shouldn't be added twice
             if(!isTrailing)
                 addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
@@ -653,7 +653,7 @@ class MacroAnalyzingCrawlerRunner(
             context = context.child
             previouslyCountedNodes = 0
         }
-        semanticTokensCount += analyzingResult.semanticTokens.size
+        semanticTokensCount += analyzingResult.semanticTokens.multilineTokenCount
         return CrawlerResult(
             parsedNodeCount,
             literalNodeCount,

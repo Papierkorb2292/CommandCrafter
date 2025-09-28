@@ -15,6 +15,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     private val data = ArrayList<Int>(100)
     private var lastLine = 0
     private var lastCursor = 0
+    var multilineTokenCount = 0
+        private set
 
     fun add(line: Int, cursor: Int, length: Int, type: TokenType, modifiers: Int) {
         add(line, cursor, length, type.id, modifiers)
@@ -41,6 +43,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         type: TokenType,
         modifiers: Int
     ) {
+        multilineTokenCount++
         val lines = mappingInfo.lines
         // Find the starting line
         if(lines.isEmpty())
@@ -152,6 +155,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     }
 
     fun combineWith(other: SemanticTokensBuilder) {
+        multilineTokenCount += other.multilineTokenCount
         // The line and cursor of the other's first entry must be made
         // relative to the last token of this builder
         if(other.data.size < 5)
@@ -177,6 +181,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastLine = 0
         lastCursor = 0
         for(overlay in sortedOverlays) {
+            multilineTokenCount += overlay.multilineTokenCount
             var srcLine = 0
             var srcCursor = 0
             srcTokens@for(i in 0 until overlay.data.size step 5) {
@@ -321,7 +326,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     }
 
     fun isEmpty() = data.isEmpty()
-    val size get() = data.size
 
     fun build() = SemanticTokens(data)
 }
