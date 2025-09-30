@@ -87,6 +87,7 @@
     "editor.processing.JsonOpsMapMixin",
     "editor.processing.JsonOpsMixin",
     "editor.processing.LiteralCommandNodeMixin",
+    "editor.processing.LivingEntityMixin",
     "editor.processing.MacroAndExpandedMacroMixin",
     "editor.processing.MemoizedDataMixin",
     "editor.processing.MessageArgumentTypeMixin",
