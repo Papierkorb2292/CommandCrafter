@@ -41,6 +41,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
         val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
         val emptyCompletionsDefault: CompletableFuture<Either<List<CompletionItem>, CompletionList>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
+        val emptyOnTypeFormattingDefault: CompletableFuture<List<TextEdit>> = CompletableFuture.completedFuture(emptyList())
 
         const val AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH = "autoreload.datapack_functions"
         const val AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH = "autoreload.datapack_json"
@@ -128,6 +129,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 completionProvider = CompletionOptions().apply {
                     resolveProvider = true
                 }
+                documentOnTypeFormattingProvider = DocumentOnTypeFormattingOptions("\n")
             })
             workspace = WorkspaceServerCapabilities().apply {
                 fileOperations = FileOperationsServerCapabilities().apply {
@@ -191,6 +193,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 openFiles.remove(params.textDocument.uri)?.run {
                     analyzingResult = null
                 }
+            }
+
+            override fun onTypeFormatting(params: DocumentOnTypeFormattingParams): CompletableFuture<List<TextEdit>> {
+                val file = openFiles[params.textDocument.uri] ?: return emptyOnTypeFormattingDefault
+                //TODO
+                return emptyOnTypeFormattingDefault
             }
 
             private val shaderFileTypes = setOf(
