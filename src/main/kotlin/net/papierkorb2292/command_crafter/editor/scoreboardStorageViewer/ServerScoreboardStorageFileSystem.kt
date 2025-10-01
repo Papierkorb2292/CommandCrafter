@@ -66,18 +66,12 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 @Suppress("UNCHECKED_CAST")
                 val analyzingOps = (StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() as StringRangeTree.AnalyzingDynamicOps<T>?)
                 if(analyzingOps != null) {
-                    val criterionSuggestionsList = ScoreboardCriterion.getAllSimpleCriteria()
-                        .mapTo(mutableListOf()) {
-                            StringRangeTree.Suggestion(ops.createString(it))
-                        }
-
-                    for(statType in Registries.STAT_TYPE) {
-                        forEachStatName(statType) {
-                            criterionSuggestionsList += StringRangeTree.Suggestion(ops.createString(it))
-                        }
+                    analyzingOps.getNodeStartSuggestions(input).add {
+                        Stream.concat(
+                            ScoreboardCriterion.getAllSimpleCriteria().stream(),
+                            Registries.STAT_TYPE.stream().flatMap { getStatNames(it) }
+                        ).map { StringRangeTree.Suggestion(ops.createString(it)) }
                     }
-
-                    analyzingOps.getNodeStartSuggestions(input) += criterionSuggestionsList
                 }
                 return ops.getStringValue(input).flatMap {  criterionName ->
                     ScoreboardCriterion.getOrCreateStatCriterion(criterionName).map {
@@ -86,12 +80,8 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 }
             }
 
-            private inline fun <T> forEachStatName(statType: StatType<T>, action: (String) -> Unit) {
-                for(entry in statType.registry) {
-                    val name = Stat.getName(statType, entry)
-                    action(name)
-                }
-            }
+            private fun <T> getStatNames(statType: StatType<T>): Stream<String> =
+                statType.registry.stream().map { Stat.getName(statType, it) }
         }
 
         // Puts 'type' first in the map and allows 'default' type
@@ -122,7 +112,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 @Suppress("UNCHECKED_CAST")
                 val analyzingOps = (StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() as StringRangeTree.AnalyzingDynamicOps<T>?)
                 if(analyzingOps != null) {
-                    analyzingOps.getNodeStartSuggestions(type) += StringRangeTree.Suggestion(ops.createString(DEFAULT_TYPE))
+                    analyzingOps.getNodeStartSuggestions(type).add { Stream.of(StringRangeTree.Suggestion(ops.createString(DEFAULT_TYPE))) }
                 }
                 val parsedType = ops.getStringValue(type).result().getOrNull()
                 if(parsedType == DEFAULT_TYPE)

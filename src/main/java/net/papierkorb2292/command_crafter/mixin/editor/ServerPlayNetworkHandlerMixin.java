@@ -32,6 +32,7 @@ public abstract class ServerPlayNetworkHandlerMixin extends ServerCommonNetworkH
                 packet.payload(),
                 new NetworkServerConnectionHandler.AsyncC2SPacketContext(
                         player,
+                        server,
                         connection
                 )
         )) {

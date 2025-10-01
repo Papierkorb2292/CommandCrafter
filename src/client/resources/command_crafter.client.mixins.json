@@ -10,11 +10,13 @@
     "SimpleOptionAccessor",
     "editor.ClientPlayNetworkHandlerNodeFactoryMixin",
     "editor.KeybindTextContentMixin",
+    "editor.SpriteAtlasTextureAccessor",
     "editor.shader.GlBackendMixin",
     "editor.shader.ShaderLoaderAccessor",
     "parser.ClientPlayNetworkHandlerAccessor"
   ],
   "mixins": [
+    "editor.AtlasTextObjectContentsMixin",
     "editor.KeyBindingAccessor"
   ]
 }

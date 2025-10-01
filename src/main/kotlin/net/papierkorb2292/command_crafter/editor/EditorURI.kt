@@ -83,6 +83,8 @@ class EditorURI private constructor(
             }
     }
 
+    fun copyWithPath(path: String) = EditorURI(scheme, authority, path, query, fragment)
+
     fun toPatternMatch(): String {
         val segments = path.split("/")
         val pathRegex = segments.joinToString("/") { segment ->
@@ -94,5 +96,11 @@ class EditorURI private constructor(
         val scheme = Pattern.quote(scheme)
         val authority = Pattern.quote(authority)
         return "$scheme://$authority$pathRegex"
+    }
+
+    override fun toString(): String {
+        val query = if(query.isEmpty()) "" else "?$query"
+        val fragment = if(fragment.isEmpty()) "" else "#$fragment"
+        return "$scheme://$authority$path$query$fragment"
     }
 }

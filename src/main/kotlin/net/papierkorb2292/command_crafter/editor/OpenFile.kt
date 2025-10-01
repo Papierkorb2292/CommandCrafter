@@ -94,9 +94,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         for(analyzer in MinecraftLanguageServer.analyzers) {
             if(analyzer.canHandle(this)) {
                 val version = version
-                return CompletableFuture.supplyAsync {
-                    analyzer.analyze(this, languageServer)
-                }.also { newRunningAnalyzer ->
+                return analyzer.analyzeAsync(this, languageServer).also { newRunningAnalyzer ->
                     analyzingResult = newRunningAnalyzer
                     newRunningAnalyzer.thenAccept {
                         if(this.version != version)

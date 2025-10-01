@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -41,13 +42,14 @@ public class StringIdentifiableBasicCodecMixin<S> implements StringIdentifiableN
         //noinspection unchecked
         final var analyzingOps = (StringRangeTree.AnalyzingDynamicOps<T>)getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS());
         if(analyzingOps == null) return;
-        final var suggestions = analyzingOps.getNodeStartSuggestions(input);
-        for(final var value : command_crafter$values) {
-            var string = value.asString();
-            if(command_crafter$nameTransformer != null)
-                string = command_crafter$nameTransformer.invoke(string);
-            suggestions.add(new StringRangeTree.Suggestion<>(ops.createString(string), false));
-        }
+        analyzingOps.getNodeStartSuggestions(input).add(() ->
+                Arrays.stream(command_crafter$values).map(value -> {
+                    var string = value.asString();
+                    if (command_crafter$nameTransformer != null)
+                        string = command_crafter$nameTransformer.invoke(string);
+                    return new StringRangeTree.Suggestion<>(ops.createString(string), false);
+                })
+        );
     }
 
     @Override

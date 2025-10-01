@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
 import com.mojang.brigadier.context.StringRange
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -13,7 +12,6 @@ import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.CompletionItemKind
-import java.io.EOFException
 import java.io.IOException
 import java.io.Reader
 import java.io.StringReader
@@ -268,36 +266,42 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }.memoizeLast()
 
         override fun resolveNodeSuggestion(
-            suggestion: StringRangeTree.Suggestion<JsonElement>,
+            suggestionProviders: Collection<StringRangeTree.SuggestionProvider<JsonElement>>,
             tree: StringRangeTree<JsonElement>,
             node: JsonElement,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringRangeTree.StringEscaper
         ): StringRangeTree.ResolvedSuggestion {
-            val elementString = stringEscaper.escape(suggestion.element.toString())
             val replaceEnd = tree.ranges[node]!!.end
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
-                SimpleCompletionItemProvider(elementString, suggestionRange.end, { replaceEnd }, mappingInfo, kind = CompletionItemKind.Value)
+                StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Value) {
+                    suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape(suggestion.element.toString()))
+                    }
+                }
             )
         }
 
         override fun resolveMapKeySuggestion(
-            suggestion: StringRangeTree.Suggestion<JsonElement>,
+            suggestionProviders: Collection<StringRangeTree.SuggestionProvider<JsonElement>>,
             tree: StringRangeTree<JsonElement>,
             map: JsonElement,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
             stringEscaper: StringRangeTree.StringEscaper
         ): StringRangeTree.ResolvedSuggestion {
-            val element = suggestion.element
-            val key = if(element.isJsonPrimitive) element.asString else element.toString()
-            val keySuggestion = stringEscaper.escape("\"$key\": ")
             val replaceEnd = keyEndParser(suggestionRange)
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
-                SimpleCompletionItemProvider(keySuggestion, suggestionRange.end, { replaceEnd }, mappingInfo, key, CompletionItemKind.Property)
+                StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Property) {
+                    suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                        val element = suggestion.element
+                        val key = if(element.isJsonPrimitive) element.asString else element.toString()
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key)
+                    }
+                }
             )
         }
     }
