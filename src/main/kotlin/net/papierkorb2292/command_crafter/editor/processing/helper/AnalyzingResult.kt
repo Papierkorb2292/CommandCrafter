@@ -63,7 +63,6 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>
     ) {
         val mappedStart = getEarliestSourceCursorWithInclusiveEndMapping(provider.cursorRange.start + mappingInfo.readSkippingChars)
-        //val mappedStart = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.start + mappingInfo.readSkippingChars)
         val mappedEnd = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.end + mappingInfo.readSkippingChars)
         addCompletionProvider(
             completionChannelName,
