@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
-import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -17,9 +16,9 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
 
     constructor(reader: FileMappingInfo, filePosition: Position, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(reader, SemanticTokensBuilder(reader), diagnostics, filePosition)
 
-    private val completionProviders: MutableMap<String, MutableList<RangedDataProvider<CompletableFuture<List<CompletionItem>>>>> = mutableMapOf()
-    private val hoverProviders: MutableList<RangedDataProvider<CompletableFuture<Hover>>> = mutableListOf()
-    private val definitionProviders: MutableList<RangedDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>> = mutableListOf()
+    private val completionProviders: MutableMap<String, MutableList<RangedDataProvider<AnalyzingCompletionProvider>>> = mutableMapOf()
+    private val hoverProviders: MutableList<RangedDataProvider<AnalyzingHoverProvider>> = mutableListOf()
+    private val definitionProviders: MutableList<RangedDataProvider<AnalyzingDefinitionProvider>> = mutableListOf()
 
     fun combineWith(other: AnalyzingResult) {
         combineWithExceptCompletions(other)
@@ -41,7 +40,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
 
     fun addCompletionProvider(
         completionChannelName: String,
-        provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>,
+        provider: RangedDataProvider<AnalyzingCompletionProvider>,
         shouldMap: Boolean
     ) {
         val channel = getOrPutCompletionProvidersForChannel(completionChannelName)
@@ -60,7 +59,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
      */
     fun addCompletionProviderWithContinuosMapping(
         completionChannelName: String,
-        provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>
+        provider: RangedDataProvider<AnalyzingCompletionProvider>
     ) {
         val mappedStart = getEarliestSourceCursorWithInclusiveEndMapping(provider.cursorRange.start + mappingInfo.readSkippingChars)
         val mappedEnd = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.end + mappingInfo.readSkippingChars)
@@ -97,7 +96,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         return mappingInfo.cursorMapper.sourceCursors[mappingIndex] + relativeCursor
     }
 
-    fun addHoverProvider(provider: RangedDataProvider<CompletableFuture<Hover>>, shouldMap: Boolean) {
+    fun addHoverProvider(provider: RangedDataProvider<AnalyzingHoverProvider>, shouldMap: Boolean) {
         if(shouldMap) {
             addMappedRangedDataProvider(hoverProviders, provider)
             return
@@ -105,7 +104,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         addRangedDataProvider(hoverProviders, provider)
     }
 
-    fun addDefinitionProvider(provider: RangedDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>, shouldMap: Boolean) {
+    fun addDefinitionProvider(provider: RangedDataProvider<AnalyzingDefinitionProvider>, shouldMap: Boolean) {
         if(shouldMap) {
             addMappedRangedDataProvider(definitionProviders, provider)
             return
@@ -113,7 +112,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         addRangedDataProvider(definitionProviders, provider)
     }
 
-    fun getCompletionProviderForCursor(filterCursor: Int): RangedDataProvider<CompletableFuture<List<CompletionItem>>>? {
+    fun getCompletionProviderForCursor(filterCursor: Int): RangedDataProvider<AnalyzingCompletionProvider>? {
         val providers = completionProviders.mapNotNull { getRangedDataProviderForCursor(it.value, filterCursor, true) }
         if(providers.isEmpty())
             return null
@@ -158,18 +157,18 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     private fun getOrPutCompletionProvidersForChannel(channel: String) =
         completionProviders.getOrPut(channel, ::mutableListOf)
 
-    private fun <TData> addRangedDataProviders(dest: MutableList<RangedDataProvider<TData>>, source: List<RangedDataProvider<TData>>) {
+    private fun <TAnalyzingProvider> addRangedDataProviders(dest: MutableList<RangedDataProvider<TAnalyzingProvider>>, source: List<RangedDataProvider<TAnalyzingProvider>>) {
         for(provider in source) {
             addRangedDataProvider(dest, provider)
         }
     }
 
-    private fun <TData> addRangedDataProvider(dest: MutableList<RangedDataProvider<TData>>, provider: RangedDataProvider<TData>) {
+    private fun <TAnalyzingProvider> addRangedDataProvider(dest: MutableList<RangedDataProvider<TAnalyzingProvider>>, provider: RangedDataProvider<TAnalyzingProvider>) {
         checkCanAddRangedDataProvider(dest, provider)
         dest.add(provider)
     }
 
-    private fun <TData> addMappedRangedDataProvider(dest: MutableList<RangedDataProvider<TData>>, unmappedProvider: RangedDataProvider<TData>) {
+    private fun <TData> addMappedRangedDataProvider(dest: MutableList<RangedDataProvider<AnalyzingDataProvider<TData>>>, unmappedProvider: RangedDataProvider<AnalyzingDataProvider<TData>>) {
         val startCursor = unmappedProvider.cursorRange.start + mappingInfo.readSkippingChars
 
         val cursorMapper = mappingInfo.cursorMapper
@@ -198,10 +197,19 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
                 if(mappingIndex >= 0) cursorMapper.sourceCursors[mappingIndex] + mappingRelativeCursor
                 else mappingRelativeCursor
             val mappedStartPosition = startCursor + unmappedProvider.cursorRange.length - remainingLength
-            addRangedDataProvider(dest, RangedDataProvider(StringRange(mappingAbsoluteStart, mappingAbsoluteStart + remainingLengthCoveredByMapping)) {
-                val mappingRelative = it - mappingAbsoluteStart
-                unmappedProvider.dataProvider(mappingRelative + mappedStartPosition)
-            })
+
+            addRangedDataProvider(
+                dest,
+                RangedDataProvider(
+                    StringRange(
+                        mappingAbsoluteStart,
+                        mappingAbsoluteStart + remainingLengthCoveredByMapping
+                    )
+                ) {
+                    val mappingRelative = it - mappingAbsoluteStart
+                    unmappedProvider.dataProvider(mappingRelative + mappedStartPosition)
+                }
+            )
 
             if(remainingLengthCoveredByMapping >= remainingLength)
                 break
@@ -224,7 +232,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
     }
 
-    private fun <TData> getRangedDataProviderForCursor(providers: List<RangedDataProvider<TData>>, cursor: Int, inclusiveRangeEnd: Boolean = false): RangedDataProvider<TData>? {
+    private fun <TAnalyzingProvider> getRangedDataProviderForCursor(providers: List<RangedDataProvider<TAnalyzingProvider>>, cursor: Int, inclusiveRangeEnd: Boolean = false): RangedDataProvider<TAnalyzingProvider>? {
         val index = providers.binarySearch {
             if(cursor < it.cursorRange.start) 1
             else if(cursor > it.cursorRange.end || (!inclusiveRangeEnd && cursor == it.cursorRange.end)) -1
@@ -322,10 +330,10 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
     }
 
-    class RangedDataProvider<out TData>(
+    class RangedDataProvider<TAnalyzingProvider>(
         val cursorRange: StringRange,
         @JsonIgnore // Prevents some self references, because the provider could refer back to AnalyzingResult, and it probably just contains some cryptic stuff anyway
-        val dataProvider: AnalyzingDataProvider<TData>
+        val dataProvider: TAnalyzingProvider
     ) {
         init {
             if(cursorRange.start > cursorRange.end) {
@@ -335,7 +343,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     }
 }
 
-typealias AnalyzingDataProvider<TData> = (Int) -> TData
+typealias AnalyzingDataProvider<TData> = (sourceCursor: Int) -> TData
 typealias AnalyzingCompletionProvider = AnalyzingDataProvider<CompletableFuture<List<CompletionItem>>>
 typealias AnalyzingHoverProvider = AnalyzingDataProvider<CompletableFuture<Hover>>
 typealias AnalyzingDefinitionProvider = AnalyzingDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>
