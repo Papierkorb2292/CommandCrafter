@@ -46,12 +46,11 @@ object PackMetaAnalyzer : FileAnalyseHandler {
         val packFolder = Path(file.parsedUri.path).parent
         val dataPath = file.parsedUri.copyWithPath(packFolder.resolve("data").toString()).toString()
         val assetsPath = file.parsedUri.copyWithPath(packFolder.resolve("assets").toString()).toString()
-        return languageServer.client!!.findFiles(dataPath)
-            .thenCombine(languageServer.client!!.findFiles(assetsPath)) { dataFolders, resourceFolders -> dataFolders to resourceFolders }
-            .thenApply { (dataFolders, resourceFolders) ->
-                if(dataFolders.isNotEmpty().xor(resourceFolders.isNotEmpty()))
-                    MERGED_UNKNOWN_DECODER
-                else if(dataFolders.isNotEmpty())
+        return languageServer.client!!.fileExists(dataPath)
+            .thenCombine(languageServer.client!!.fileExists(assetsPath)) { dataFolderExists, assetsFolderExists ->
+                if(!dataFolderExists.xor(assetsFolderExists))
+                    MERGED_UNKNOWN_DECODER // There is either both a data folder and an assets folder or neither, so the type of the pack can't be determined
+                else if(dataFolderExists)
                     MERGED_DATAPACK_DECODER
                 else
                     MERGED_RESOURCEPACK_DECODER

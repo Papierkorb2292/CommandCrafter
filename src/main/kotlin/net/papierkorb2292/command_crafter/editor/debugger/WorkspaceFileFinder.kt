@@ -14,7 +14,7 @@ class WorkspaceFileFinder(private val fileFinder: EditorClientFileFinder) {
     private val cache: MutableMap<String, String> = Collections.synchronizedMap(HashMap())
 
     /**
-     * Finds a file matching the pattern.
+     * Finds a file matching the pattern (note that this shouldn't be used to search for folders, because VSCode's findFiles doesn't return them)
      *
      * This is done by repeatedly removing the first segment of the path until either a file is found or the path is empty.
      * This way, even if the pattern contains the workspace folder name, it will still be found after the workspace folder segment has

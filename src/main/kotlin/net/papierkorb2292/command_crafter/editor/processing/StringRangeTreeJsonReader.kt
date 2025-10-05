@@ -277,7 +277,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Value) {
-                    suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                    suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
                         StreamCompletionItemProvider.Completion(stringEscaper.escape(suggestion.element.toString()))
                     }
                 }
@@ -296,7 +296,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Property) {
-                    suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                    suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
                         val element = suggestion.element
                         val key = if(element.isJsonPrimitive) element.asString else element.toString()
                         StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key)
