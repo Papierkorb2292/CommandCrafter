@@ -113,22 +113,18 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         for(analyzer in MinecraftLanguageServer.analyzers) {
             if(analyzer.canHandle(this)) {
                 val version = version
+
                 val completableFuture = CompletableFuture<AnalyzingResult>()
-                analyzerFuture = analyzerExecutor.submit {
-                    val result = analyzer.analyze(this, languageServer)
-                    if(Thread.currentThread().isInterrupted) {
-                        completableFuture.cancel(false)
-                        return@submit
-                    }
-                    completableFuture.complete(result)
+                analyzerFuture = analyzer.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
+                analyzingResult = completableFuture.thenApply { result ->
                     if(this.version != version)
-                        return@submit
+                        return@thenApply result
 
                     MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
                     languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
+                    result
                 }
-                analyzingResult = completableFuture
-                return completableFuture
+                return analyzingResult
             }
         }
         return null

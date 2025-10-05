@@ -8,10 +8,12 @@
   "client": [
     "ClientRegistriesMixin",
     "SimpleOptionAccessor",
+    "editor.AtlasTextObjectContentsMixin",
     "editor.ClientPlayNetworkHandlerNodeFactoryMixin",
     "editor.KeyBindingAccessor",
     "editor.KeybindTextContentMixin",
     "editor.TranslatableTextContentMixin",
+    "editor.SpriteAtlasTextureAccessor",
     "editor.shader.GlBackendMixin",
     "editor.shader.ShaderLoaderAccessor",
     "editor.TranslationStorageAccessor",
