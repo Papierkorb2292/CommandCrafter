@@ -66,7 +66,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         return StringRangeTree.ResolvedSuggestion(
             valueEnd,
             StreamCompletionItemProvider(suggestionRange.end, { valueEnd }, mappingInfo, CompletionItemKind.Value) {
-                suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
                     val baseString =
                         if(suggestion.isNumberABoolean) {
                             suggestion.element.asBoolean().orElseThrow {
@@ -94,7 +94,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         return StringRangeTree.ResolvedSuggestion(
             keyEnd,
             StreamCompletionItemProvider(suggestionRange.end, { keyEnd }, mappingInfo, CompletionItemKind.Property) {
-                suggestionProviders.stream().flatMap { it.createSuggestions() }.map { suggestion ->
+                suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
                     val key = (suggestion.element as? NbtString)?.value ?: suggestion.element.toString()
                     // Similar to StringNbtWriter.escapeName
                     val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
