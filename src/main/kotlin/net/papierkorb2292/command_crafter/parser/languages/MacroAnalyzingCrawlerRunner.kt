@@ -499,15 +499,16 @@ class MacroAnalyzingCrawlerRunner(
             val cutTargetCursor = if(isLastChild) reader.string.length else attemptPositions[startAttemptIndex]
             val result =
                 if(isLastChild) bestResult!!
-                else (baseResult ?: return baseAnalyzingResult.copy().also { it.cutAfterTargetCursor(cutTargetCursor) })
+                else baseResult ?: return baseAnalyzingResult.copyInput()
             val isTrailing = isChildTrailing && !result.hasNewLiteralNodes()
-            // If `isLastChild`, call the same method on `this` again, because this.baseResult should be processed next
-            val parentAnalyzingResult = (if(isLastChild) this else parent!!).buildCombinedAnalyzingResult(isTrailing, false)
+            // If `isLastChild`, the next spawner is `this` again, because the current call is processing this.bestResult so this.baseResult should be processed next
+            val nextSpawner = if(isLastChild) this else parent!!
+            val parentAnalyzingResult = nextSpawner.buildCombinedAnalyzingResult(isTrailing, false)
             val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
             crawlerAnalyzingResult.combineWithExceptCompletions(result.analyzingResult)
             // Don't add completion providers for trailing nodes, because those should be added by `addAllCompletionsProviders` (called in `run`) and they shouldn't be added twice
             if(!isTrailing)
-                addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
+                nextSpawner.addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
             crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
             return parentAnalyzingResult
