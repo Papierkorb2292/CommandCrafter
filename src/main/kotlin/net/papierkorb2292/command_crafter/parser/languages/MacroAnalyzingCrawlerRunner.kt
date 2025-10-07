@@ -52,6 +52,7 @@ import net.minecraft.command.argument.UuidArgumentType
 import net.minecraft.command.argument.serialize.ArgumentSerializer
 import net.minecraft.network.PacketByteBuf
 import net.minecraft.registry.Registries
+import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
@@ -61,6 +62,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.Command
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
 import java.util.WeakHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.collections.plusAssign
 import kotlin.math.max
 
@@ -118,10 +120,18 @@ class MacroAnalyzingCrawlerRunner(
 
     private var mergedCompletionsCount = 0
 
+    private var timeoutStartNs = -1L
+    var hasHitTimeout: Boolean = false
+        private set
+
     fun run(): AnalyzingResult {
+        timeoutStartNs = Util.getMeasuringTimeNano()
+
         var bestGlobalSpawner: Spawner? = null
         val trailingSpawners = LinkedHashSet<Spawner>()
         while(weightedSpawners.isNotEmpty()) {
+            if(checkDidHitTimeout()) break
+
             val mostPromisingSpawners = weightedSpawners.removeLast()
             if(mostPromisingSpawners.isEmpty())
                 continue
@@ -164,6 +174,10 @@ class MacroAnalyzingCrawlerRunner(
 
             bestMatchingSpawner.bestResult!!.cutSpawnerTree()
         }
+        isAnalyzingMacroForFirstTime = false
+        // Just to be sure, because bestGlobalSpawner is supposed to be set by the loop unless it hits the timeout at the start of the first iteration
+        if(hasHitTimeout && bestGlobalSpawner == null)
+            return baseAnalyzingResult.copyInput()
 
         trailingSpawners += bestGlobalSpawner!!
         val result = bestGlobalSpawner.buildCombinedAnalyzingResult(isChildTrailing = true, isLastChild = true)
@@ -178,6 +192,15 @@ class MacroAnalyzingCrawlerRunner(
                 trailingSpawners += completionSpawner.parent
         }
         return result
+    }
+
+    private fun checkDidHitTimeout(): Boolean {
+        if(!shouldCheckForTimeout)
+            return false
+        // Increase timeout duration when running macro analyzing for the first time to avoid false positives when the running program isn't completely optimized yet
+        val adjustedTimeoutDurationNs = if(isAnalyzingMacroForFirstTime) timeoutDurationNs * 10 else timeoutDurationNs
+        hasHitTimeout = Util.getMeasuringTimeNano() - adjustedTimeoutDurationNs >= timeoutStartNs
+        return hasHitTimeout
     }
 
     private fun createRootSpawner() = Spawner(null, listOf(), 0, baseContext).apply {
@@ -785,6 +808,9 @@ class MacroAnalyzingCrawlerRunner(
         private const val STEPS_PER_CRAWLER_BEFORE_PUSH = 5
         private val macroLanguage = VanillaLanguage()
         private val nodeIdentifiers = WeakHashMap<CommandDispatcher<CommandSource>, NodeIdentifier>()
+        private const val shouldCheckForTimeout = true
+        private val timeoutDurationNs = TimeUnit.SECONDS.toNanos(1)
+        private var isAnalyzingMacroForFirstTime = true
 
         private fun getNodeIdentifierForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeIdentifier {
             val cached = nodeIdentifiers[dispatcher]

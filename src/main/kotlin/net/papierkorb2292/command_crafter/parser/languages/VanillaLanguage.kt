@@ -925,6 +925,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
+        val shouldDisplayWarningOnMacroTimeout = true //TODO: Turn off before release
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
@@ -933,16 +934,27 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
 
-            val analyzingResult = MacroAnalyzingCrawlerRunner(
+            val crawlerRunner = MacroAnalyzingCrawlerRunner(
                 CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor),
                 reader,
                 macroVariableLocations,
                 baseAnalyzingResult
-            ).run()
+            )
+            val analyzingResult = crawlerRunner.run()
 
             // TODO: Have some warnings when the command appears to be wrong
             // Remove all errors for now, because no proper error handling is implemented yet
             analyzingResult.diagnostics.clear()
+
+            if(crawlerRunner.hasHitTimeout && shouldDisplayWarningOnMacroTimeout)
+                analyzingResult.diagnostics += Diagnostic().apply {
+                    message = "Macro took unexpectedly long to analyze"
+                    range = Range(
+                        AnalyzingResult.getPositionFromCursor(baseAnalyzingResult.mappingInfo.cursorMapper.mapToSource(0), baseAnalyzingResult.mappingInfo),
+                        AnalyzingResult.getPositionFromCursor(baseAnalyzingResult.mappingInfo.cursorMapper.mapToSource(reader.string.length), baseAnalyzingResult.mappingInfo)
+                    )
+                    severity = DiagnosticSeverity.Hint
+                }
 
             baseAnalyzingResult.addCompletionProviderWithContinuosMapping(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
