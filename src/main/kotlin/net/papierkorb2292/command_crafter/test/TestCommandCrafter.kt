@@ -28,8 +28,14 @@ import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
+import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
+import org.eclipse.lsp4j.TextEdit
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
+import java.util.concurrent.CompletableFuture
 
 object TestCommandCrafter {
     @GameTest
@@ -199,6 +205,83 @@ object TestCommandCrafter {
         targetMapper.addMapping(15, 8, 5)
 
         context.assertEqualsSnapshot(sourceMapper.combineWith(targetMapper), Text.literal("result"))
+
+        context.complete()
+    }
+
+    @GameTest
+    fun testAnalyzingResultAddOffset(context: TestContext) {
+        fun createTestAnalyzingResult(fileInfo: FileMappingInfo): AnalyzingResult {
+            // All example data is chosen such that it can be compared when this method is called for the entire file once and for the end of the file once (and offset afterward)
+            val result = AnalyzingResult(fileInfo, Position())
+            val fileRange = StringRange(0, fileInfo.accumulatedLineLengths.last())
+
+            // An example completion that just inserts "Example" at the cursor position everywhere in the file
+            result.addCompletionProvider(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                AnalyzingResult.RangedDataProvider(fileRange) { cursor ->
+                    CompletableFuture.completedFuture(listOf(CompletionItem().apply {
+                        label = "Example"
+                        textEdit = Either.forLeft(TextEdit().apply {
+                            newText = "Example"
+                            val pos = AnalyzingResult.getPositionFromCursor(cursor, fileInfo)
+                            range = Range(pos, pos)
+                        })
+                    }))
+                },
+                false
+            )
+            val lastPos = AnalyzingResult.getPositionFromCursor(fileRange.end, fileInfo)
+            // An example error at the end of the file
+            result.diagnostics += Diagnostic(Range(lastPos, lastPos), "Example")
+            // An example semantic token at the end of the file
+            result.semanticTokens.add(fileInfo.lines.lastIndex, fileInfo.lines.last().length, 0, TokenType.NUMBER, 0)
+
+            return result
+        }
+
+        fun testForFile(firstFilePart: String, secondFilePart: String, description: String) {
+            val firstPartLines = firstFilePart.lines()
+            val fullResult = createTestAnalyzingResult(FileMappingInfo((firstFilePart + secondFilePart).lines()))
+            val partialResult = createTestAnalyzingResult(FileMappingInfo(secondFilePart.lines()))
+            val offsetResult = partialResult.addOffset(fullResult, Position(firstPartLines.lastIndex, firstPartLines.last().length), firstFilePart.length)
+
+            val completionExamplePosition = firstFilePart.length + secondFilePart.length/2
+
+            context.assertEquals(
+                fullResult.getCompletionProviderForCursor(completionExamplePosition)!!.dataProvider(completionExamplePosition).get(),
+                offsetResult.getCompletionProviderForCursor(completionExamplePosition)!!.dataProvider(completionExamplePosition).get(),
+                Text.literal("completions from $description")
+            )
+            context.assertEquals(
+                fullResult.diagnostics,
+                offsetResult.diagnostics,
+                Text.literal("diagnostics from $description")
+            )
+            context.assertEquals(
+                fullResult.semanticTokens.build().data,
+                offsetResult.semanticTokens.build().data,
+                Text.literal("semantic tokens from $description")
+            )
+        }
+
+        val multilineFirstPart = """
+            This is
+                an example
+            text
+        """.trimIndent()
+        val multilineSecondPart = """
+            Here's another
+                example text
+            but for only half the price
+        """.trimIndent()
+        val singlelineFirstPart = "Look at that: "
+        val singlelineSecondPart = "<-- There's text there"
+
+        testForFile(multilineFirstPart, multilineSecondPart, "multiline + multiline")
+        testForFile(multilineFirstPart, singlelineSecondPart, "multiline + singleline")
+        testForFile(singlelineFirstPart, multilineSecondPart, "singleline + multiline")
+        testForFile(singlelineFirstPart, singlelineSecondPart, "singleline + singleline")
 
         context.complete()
     }

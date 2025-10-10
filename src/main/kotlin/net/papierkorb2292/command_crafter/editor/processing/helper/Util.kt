@@ -31,6 +31,13 @@ fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
     )
 }
 
+fun Range.offsetBy(other: Position, zeroBased: Boolean = true): Range {
+    return Range(start.offsetBy(other, zeroBased), end.offsetBy(other, zeroBased))
+}
+fun Position.offsetRange(other: Range, zeroBased: Boolean = true): Range {
+    return Range(offsetBy(other.start, zeroBased), offsetBy(other.end, zeroBased))
+}
+
 operator fun Position.compareTo(other: Position): Int =
     if(line != other.line) line.compareTo(other.line)
     else character.compareTo(other.character)

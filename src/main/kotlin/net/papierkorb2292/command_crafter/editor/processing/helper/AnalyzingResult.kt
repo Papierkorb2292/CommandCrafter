@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -10,6 +11,9 @@ import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapp
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
 import kotlin.math.min
 
 class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf(), val filePosition: Position, var documentation: String? = null) {
@@ -36,6 +40,62 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         for((channel, providers) in other.completionProviders) {
             addRangedDataProviders(getOrPutCompletionProvidersForChannel(channel + channelSuffix), providers)
         }
+    }
+
+    fun addOffset(parent: AnalyzingResult, position: Position, cursorOffset: Int): AnalyzingResult {
+        val result = parent.copyInput()
+        result.semanticTokens.combineWith(semanticTokens)
+        result.semanticTokens.offset(position)
+        result.diagnostics += diagnostics.map { diagnostic ->
+            diagnostic.range = position.offsetRange(diagnostic.range)
+            diagnostic
+        }
+        addRangedDataProviders(result.hoverProviders, hoverProviders.map { provider ->
+            RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
+                provider.dataProvider(cursor - cursorOffset).thenApply { hover ->
+                    if(hover.range != null)
+                        hover.range = position.offsetRange(hover.range)
+                    hover
+                }
+            }
+        })
+        addRangedDataProviders(result.definitionProviders, definitionProviders.map { provider ->
+            RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
+                provider.dataProvider(cursor - cursorOffset).thenApply { definition ->
+                    if(definition.isRight)
+                        Either.forRight(definition.right.map { link ->
+                            if(link.originSelectionRange != null)
+                                link.originSelectionRange = position.offsetRange(link.originSelectionRange)
+                            link
+                        })
+                    else definition
+                }
+            }
+        })
+        for((channel, providers) in completionProviders) {
+            addRangedDataProviders(result.getOrPutCompletionProvidersForChannel(channel), providers.map { provider ->
+                RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
+                    provider.dataProvider(cursor - cursorOffset).thenApply { completions ->
+                        completions.map { completion ->
+                            completion.textEdit = completion.textEdit?.map({ left ->
+                                left.range = position.offsetRange(left.range)
+                                Either.forLeft(left)
+                            }, { right ->
+                                right.insert = position.offsetRange(right.insert)
+                                right.replace = position.offsetRange(right.replace)
+                                Either.forRight(right)
+                            })
+                            completion.additionalTextEdits = completion.additionalTextEdits?.map { edit ->
+                                edit.range = position.offsetRange(edit.range)
+                                edit
+                            }
+                            completion
+                        }
+                    }
+                }
+            })
+        }
+        return result
     }
 
     fun addCompletionProvider(
