@@ -197,7 +197,6 @@ object TestCommandCrafter {
     fun testSplitProcessedInputCursorMapperCombineWith(context: TestContext) {
         val sourceMapper = SplitProcessedInputCursorMapper()
         val targetMapper = SplitProcessedInputCursorMapper()
-        val expectedMapper = SplitProcessedInputCursorMapper()
 
         sourceMapper.addMapping(0, 0, 10)
         sourceMapper.addMapping(12, 10, 10)
