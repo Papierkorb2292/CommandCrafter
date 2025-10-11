@@ -85,6 +85,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                 val source = AnalyzingClientCommandSource(MinecraftClient.getInstance())
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
+                reader.resourceCreator.resourceStack.pop()
                 result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
                 if(!Thread.currentThread().isInterrupted)
                     file.persistentAnalyzerData = reader.resourceCreator.newCache

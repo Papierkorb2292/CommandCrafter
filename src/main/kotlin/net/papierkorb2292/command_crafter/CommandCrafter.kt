@@ -190,6 +190,7 @@ object CommandCrafter: ModInitializer {
                     reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                     val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, 2, "", ScreenTexts.EMPTY, directServerConnection.server, null)
                     LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
+                    reader.resourceCreator.resourceStack.pop()
                     result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
                     if(!Thread.currentThread().isInterrupted)
                         file.persistentAnalyzerData = reader.resourceCreator.newCache
