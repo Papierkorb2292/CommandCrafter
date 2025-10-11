@@ -406,22 +406,26 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             return cursor
         }
 
-        inline fun getInlineRangesBetweenCursors(startCursor: Int, endCursor: Int, lines: List<String>, rangeConsumer: (line: Int, cursor: Int, length: Int) -> Unit) {
-            var startCharactersLeft = startCursor
-            var line = 0
-            while(lines.size > line && startCharactersLeft >= lines[line].length + 1) {
-                startCharactersLeft -= lines[line++].length + 1
-            }
+        /**
+         * Removes newlines from the given cursor range and then returns the start position and length of every remaining continuous range.
+         * [startCursor] and [endCursor] must be absolute cursors.
+         * The output can include ranges of length 0 (for example if the input range has a length 0 or if it ends directly after a newline)
+         */
+        inline fun getInlineRangesBetweenCursors(startCursor: Int, endCursor: Int, mappingInfo: FileMappingInfo, rangeConsumer: (line: Int, cursor: Int, length: Int) -> Unit) {
+            val startPosition = getPositionFromCursor(startCursor, mappingInfo)
+            var line = startPosition.line
+            var startCharactersLeft = startPosition.character
             var rangeCharactersLeft = endCursor - startCursor
-            while(lines.size > line && rangeCharactersLeft > 0) {
-                val lineLength = lines[line].length + 1
+            while(mappingInfo.lines.size > line && rangeCharactersLeft >= 0) {
+                val lineLength = mappingInfo.lines[line].length
                 if(lineLength >= rangeCharactersLeft + startCharactersLeft) {
                     rangeConsumer(line, startCharactersLeft, rangeCharactersLeft)
                     return
                 }
-                rangeConsumer(line, startCharactersLeft, lineLength)
+                val consumedLength = lineLength - startCharactersLeft
+                rangeConsumer(line, startCharactersLeft, consumedLength)
                 line++
-                rangeCharactersLeft -= lineLength - startCharactersLeft
+                rangeCharactersLeft -= consumedLength + 1 // One more because of newline character
                 startCharactersLeft = 0
             }
         }

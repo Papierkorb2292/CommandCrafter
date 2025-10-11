@@ -286,6 +286,35 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testGetInlineRangesBetweenCursors(context: TestContext) {
+        val markedLines = """
+            Another§ cool example§
+            §that I had to write to§ test§
+            §this function I§ wrote
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val mappingInfo = FileMappingInfo(processedLines)
+
+        fun assertInlineRangesEquals(expected: List<Range>, start: FileLocation, end: FileLocation, description: String) {
+            val result = mutableListOf<Range>()
+            AnalyzingResult.getInlineRangesBetweenCursors(start.absoluteCursor, end.absoluteCursor, mappingInfo) { line, cursor, length ->
+                result += Range(Position(line, cursor), Position(line, cursor + length))
+            }
+
+            context.assertEquals(expected, result, Text.literal(description))
+        }
+
+        assertInlineRangesEquals(listOf(
+            Range(markedLocations[0].position, markedLocations[1].position),
+            Range(markedLocations[2].position, markedLocations[4].position),
+            Range(markedLocations[5].position, markedLocations[6].position),
+        ), markedLocations[0], markedLocations[6], "multiline")
+
+        context.complete()
+    }
+
+    @GameTest
     fun testCommandSuggestions(context: TestContext) {
         val markedLines = """
             §execute §\
