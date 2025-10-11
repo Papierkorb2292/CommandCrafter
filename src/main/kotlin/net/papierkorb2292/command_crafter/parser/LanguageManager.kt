@@ -132,7 +132,7 @@ object LanguageManager {
 
         while(reader.closureDepth != closureDepth) {
             if(Thread.currentThread().isInterrupted)
-                return
+                break
             val readerEnd = !reader.canRead()
             reader.currentLanguage?.analyze(reader, source, result)
             reader.updateLanguage()
