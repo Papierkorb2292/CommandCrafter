@@ -46,9 +46,19 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         val result = parent.copyInput()
         result.semanticTokens.combineWith(semanticTokens)
         result.semanticTokens.offset(position)
-        result.diagnostics += diagnostics.map { diagnostic ->
-            diagnostic.range = position.offsetRange(diagnostic.range)
-            diagnostic
+        result.diagnostics += diagnostics.map { original ->
+            // Copy data. Original needs to stay the same because this method is used for caching
+            Diagnostic().apply {
+                range = position.offsetRange(original.range)
+                severity = original.severity
+                code = original.code
+                codeDescription = original.codeDescription
+                source = original.source
+                message = original.message
+                tags = original.tags
+                relatedInformation = original.relatedInformation
+                data = original.data
+            }
         }
         addRangedDataProviders(result.hoverProviders, hoverProviders.map { provider ->
             RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
