@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.context.StringRange
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
@@ -22,6 +23,7 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyCompletionsDefault
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
@@ -36,6 +38,7 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
+import java.util.concurrent.CompletableFuture
 
 object ClientCommandCrafter : ClientModInitializer {
     override fun onInitializeClient() {
@@ -70,6 +73,19 @@ object ClientCommandCrafter : ClientModInitializer {
         MinecraftLanguageServer.addAnalyzer(object : FileAnalyseHandler {
             override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
 
+            private fun allowSeversideCompletionsForAnalyzingResult(analyzingResult: AnalyzingResult, source: AnalyzingClientCommandSource): AnalyzingResult {
+                val finalResult = analyzingResult.copyExceptCompletions()
+                finalResult.addCompletionProvider(
+                    AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                    AnalyzingResult.RangedDataProvider(StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last())) { cursor ->
+                        source.allowServersideCompletions = true
+                        analyzingResult.getCompletionProviderForCursor(cursor)?.dataProvider(cursor) ?: CompletableFuture.completedFuture(listOf())
+                    },
+                    false
+                )
+                return finalResult
+            }
+
             override fun analyze(
                 file: OpenFile,
                 languageServer: MinecraftLanguageServer,
@@ -89,7 +105,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
                 if(!Thread.currentThread().isInterrupted)
                     file.persistentAnalyzerData = reader.resourceCreator.newCache
-                return result
+                return allowSeversideCompletionsForAnalyzingResult(result, source)
             }
         })
         addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)

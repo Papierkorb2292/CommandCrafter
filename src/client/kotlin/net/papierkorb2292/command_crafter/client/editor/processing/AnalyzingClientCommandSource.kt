@@ -25,7 +25,8 @@ import java.util.stream.Stream
 
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientCommandSource,
-    private val hasNetworkHandler: Boolean
+    private val hasNetworkHandler: Boolean,
+    var allowServersideCompletions: Boolean = false
 ) : CommandSource, PermissionLevelSource {
 
     constructor(minecraftClient: MinecraftClient): this(
@@ -60,6 +61,9 @@ class AnalyzingClientCommandSource(
             getCompletions(context)
 
     override fun getCompletions(context: CommandContext<*>): CompletableFuture<Suggestions> {
+        if(!allowServersideCompletions)
+            return Suggestions.empty()
+        allowServersideCompletions = false // Only allow once per completion invocation to reduce unnecessary processing
         val fullInput = VanillaLanguage.SUGGESTIONS_FULL_INPUT.getOrNull()
         if(!hasNetworkHandler || fullInput == null)
             return Suggestions.empty()
