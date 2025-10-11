@@ -337,8 +337,11 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
 
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
             val cached = mappingInfo.positionFromCursorFIFOCache.getAndMoveToLast(cursor)
-            if(cached != null)
-                return cached
+            if(cached != null) {
+                if(zeroBased) return cached
+                // Only zero-based position is cached, so make one-based
+                return Position(cached.line + 1, cached.character + 1)
+            }
 
             val oneBasedOffset = if(zeroBased) 0 else 1
             var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
@@ -363,7 +366,11 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
 
             if(mappingInfo.positionFromCursorFIFOCache.size >= 7)
                 mappingInfo.positionFromCursorFIFOCache.removeFirst()
-            mappingInfo.positionFromCursorFIFOCache.put(cursor, pos)
+            if(zeroBased)
+                mappingInfo.positionFromCursorFIFOCache.put(cursor, pos)
+            else
+                // Only cache zero-based position
+                mappingInfo.positionFromCursorFIFOCache.put(cursor, Position(pos.line - 1, pos.character - 1))
             return pos
         }
 
