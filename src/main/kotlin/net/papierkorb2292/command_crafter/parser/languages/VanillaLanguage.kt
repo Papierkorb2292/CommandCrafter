@@ -294,9 +294,22 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
         macroVariableLocations.remove(0)
 
+        // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
+        val absoluteStartOffset = reader.readCharacters + macroStartOffset
+        val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
+        val relevantLines = mutableListOf<String>()
+        AnalyzingResult.getInlineRangesBetweenCursors(
+            absoluteStartOffset,
+            reader.absoluteCursor,
+            reader.fileMappingInfo
+        ) { line, cursor, length ->
+            relevantLines += reader.lines[line].substring(cursor, cursor + length)
+        }
+
         val macroMappingInfo = FileMappingInfo(
-            reader.lines,
-            reader.fileMappingInfo.cursorMapper
+            relevantLines,
+            OffsetProcessedInputCursorMapper(-absoluteStartOffset)
+                .combineWith(reader.fileMappingInfo.cursorMapper)
                 .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
                 .combineWith(resolvedMacroCursorMapper)
         )
@@ -315,7 +328,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val duration = Util.getMeasuringTimeMs() - startTime
         println("Took ${duration}ms to analyze macro: $macro")
 
-        result.combineWith(macroAnalyzingResult)
+        result.combineWith(macroAnalyzingResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
         result.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
 
         if(macroInvocation.variables.isEmpty()) {
