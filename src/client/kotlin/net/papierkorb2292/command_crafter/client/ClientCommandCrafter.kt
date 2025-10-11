@@ -77,13 +77,16 @@ object ClientCommandCrafter : ClientModInitializer {
                 val reader = DirectiveStringReader(
                     file.createFileMappingInfo(),
                     languageServer.minecraftServer.commandDispatcher,
-                    AnalyzingResourceCreator(languageServer, file.uri)
+                    AnalyzingResourceCreator(languageServer, file.uri).apply {
+                        previousCache = file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData
+                    }
                 )
                 val result = AnalyzingResult(reader.fileMappingInfo, Position())
                 reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                 val source = AnalyzingClientCommandSource(MinecraftClient.getInstance())
                 LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                 result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
+                file.persistentAnalyzerData = reader.resourceCreator.newCache
                 return result
             }
         })

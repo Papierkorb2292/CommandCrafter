@@ -236,66 +236,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         result: AnalyzingResult,
     ) {
         val startCursor = reader.cursor
-        val macroStartOffset = startCursor + 1 //Include '$'
         val macro = readMacro(reader)
-        val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
-            MacroInvocation.parse(macro)
-        }
-        val macroVariableValues = macroInvocation.variables.map { "" }
-        @Suppress("CAST_NEVER_SUCCEEDS")
-        val resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
-            .`command_crafter$getCursorMapper`(macroVariableValues)
-        for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
-            resolvedMacroCursorMapper.sourceCursors[i] += macroStartOffset
 
-        result.semanticTokens.addMultiline(startCursor, 1, TokenType.MACRO, 0)
-
-        val variablesSemanticTokens = SemanticTokensBuilder(result.mappingInfo)
-        for((i, variable) in macroInvocation.variables.withIndex()) {
-            val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
-            variablesSemanticTokens.addMultiline(variableStart, 2, TokenType.MACRO, 0)
-            variablesSemanticTokens.addMultiline(variableStart + 2, variable.length, TokenType.ENUM, 0)
-            val variableNameStart = variableStart + 2
-            val variableNameEnd = variableNameStart + variable.length
-            val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
-            if(hasClosingParentheses) {
-                variablesSemanticTokens.addMultiline(variableNameEnd, 1, TokenType.MACRO, 0)
-                // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too manyf chars anyway
-                // that aren't actually intended to be part of the name
-                if(!MacroInvocation.isValidMacroName(variable)) {
-                    result.diagnostics += Diagnostic(
-                        Range(
-                            AnalyzingResult.getPositionFromCursor(
-                                reader.cursorMapper.mapToSource(variableNameStart + reader.readSkippingChars),
-                                result.mappingInfo
-                            ),
-                            AnalyzingResult.getPositionFromCursor(
-                                reader.cursorMapper.mapToSource(variableNameEnd + reader.readSkippingChars),
-                                result.mappingInfo
-                            )
-                        ),
-                        "Invalid macro variable name '$variable'"
-                    )
-                }
-            } else {
-                val endPosition = AnalyzingResult.getPositionFromCursor(
-                    reader.cursorMapper.mapToSource(variableNameEnd + reader.readSkippingChars),
-                    result.mappingInfo
-                )
-                result.diagnostics += Diagnostic(
-                    Range(endPosition, endPosition.advance()),
-                    "Unterminated macro variable"
-                )
-            }
-        }
-
-        val replacedMacro = macroInvocation.apply(macroVariableValues)
-        // A macro variable is present at the beginning of every segment except for the first one
-        val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
-        macroVariableLocations.remove(0)
-
-        // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
-        val absoluteStartOffset = reader.readCharacters + macroStartOffset
+        // Get only the relevant lines for caching
+        val absoluteStartOffset = reader.readCharacters + startCursor
         val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
         val relevantLines = mutableListOf<String>()
         AnalyzingResult.getInlineRangesBetweenCursors(
@@ -305,42 +249,104 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         ) { line, cursor, length ->
             relevantLines += reader.lines[line].substring(cursor, cursor + length)
         }
+        var fullResult = reader.resourceCreator.previousCache?.vanillaMacroCache[relevantLines]
+        if(fullResult == null) {
+            val startTime = Util.getMeasuringTimeNano()
+            val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
+                MacroInvocation.parse(macro)
+            }
+            val macroVariableValues = macroInvocation.variables.map { "" }
 
-        val macroMappingInfo = FileMappingInfo(
-            relevantLines,
-            OffsetProcessedInputCursorMapper(-absoluteStartOffset)
-                .combineWith(reader.fileMappingInfo.cursorMapper)
-                .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
-                .combineWith(resolvedMacroCursorMapper)
-        )
-        val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, result.filePosition)
-        val startTime = Util.getMeasuringTimeMs()
-        analyzeMacroCommand(
-            DirectiveStringReader(macroMappingInfo, reader.dispatcher, reader.resourceCreator).apply {
-                // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
-                toCompleted()
-                string = replacedMacro
-            },
-            source,
-            macroAnalyzingResult,
-            macroVariableLocations
-        )
-        val duration = Util.getMeasuringTimeMs() - startTime
-        println("Took ${duration}ms to analyze macro: $macro")
+            @Suppress("CAST_NEVER_SUCCEEDS")
+            val resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
+                .`command_crafter$getCursorMapper`(macroVariableValues)
+            for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
+                resolvedMacroCursorMapper.sourceCursors[i] += 1 // Because leading '$' is included in the relevant lines, but not in the macro string that got parsed
 
-        result.combineWith(macroAnalyzingResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
-        result.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
-
-        if(macroInvocation.variables.isEmpty()) {
-            val macroStart = AnalyzingResult.getPositionFromCursor(
-                reader.cursorMapper.mapToSource(startCursor + reader.readSkippingChars),
-                result.mappingInfo
+            // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
+            val macroSourceFileInfo = FileMappingInfo(
+                relevantLines,
+                OffsetProcessedInputCursorMapper(-absoluteStartOffset)
+                    .combineWith(reader.fileMappingInfo.cursorMapper)
+                    .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
             )
-            result.diagnostics += Diagnostic(
-                Range(macroStart, macroStart.advance()), // Mark '$'
-                "No variables in macro"
+            val variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
+            variablesSemanticTokens.addMultiline(startCursor, 1, TokenType.MACRO, 0)
+            val diagnostics = mutableListOf<Diagnostic>()
+            for((i, variable) in macroInvocation.variables.withIndex()) {
+                val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
+                variablesSemanticTokens.addMultiline(variableStart, 2, TokenType.MACRO, 0)
+                variablesSemanticTokens.addMultiline(variableStart + 2, variable.length, TokenType.ENUM, 0)
+                val variableNameStart = variableStart + 2
+                val variableNameEnd = variableNameStart + variable.length
+                val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
+                if(hasClosingParentheses) {
+                    variablesSemanticTokens.addMultiline(variableNameEnd, 1, TokenType.MACRO, 0)
+                    // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
+                    // that aren't actually intended to be part of the name
+                    if(!MacroInvocation.isValidMacroName(variable)) {
+                        diagnostics += Diagnostic(
+                            Range(
+                                AnalyzingResult.getPositionFromCursor(
+                                    macroSourceFileInfo.cursorMapper.mapToSource(variableNameStart),
+                                    macroSourceFileInfo
+                                ),
+                                AnalyzingResult.getPositionFromCursor(
+                                    macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
+                                    macroSourceFileInfo
+                                )
+                            ),
+                            "Invalid macro variable name '$variable'"
+                        )
+                    }
+                } else {
+                    val endPosition = AnalyzingResult.getPositionFromCursor(
+                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
+                        macroSourceFileInfo
+                    )
+                    diagnostics += Diagnostic(
+                        Range(endPosition, endPosition.advance()),
+                        "Unterminated macro variable"
+                    )
+                }
+            }
+
+            if(macroInvocation.variables.isEmpty()) {
+                diagnostics += Diagnostic(
+                    Range(Position(0, 0), Position(0, 1)), // Mark '$'
+                    "No variables in macro"
+                )
+            }
+
+            val replacedMacro = macroInvocation.apply(macroVariableValues)
+            // A macro variable is present at the beginning of every segment except for the first one
+            val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
+            macroVariableLocations.remove(0)
+
+            val macroMappingInfo = FileMappingInfo(
+                relevantLines,
+                macroSourceFileInfo.cursorMapper.combineWith(resolvedMacroCursorMapper)
             )
+            val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
+            analyzeMacroCommand(
+                DirectiveStringReader(macroMappingInfo, reader.dispatcher, reader.resourceCreator).apply {
+                    // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
+                    toCompleted()
+                    string = replacedMacro
+                },
+                source,
+                macroAnalyzingResult,
+                macroVariableLocations
+            )
+
+            macroAnalyzingResult.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
+            macroAnalyzingResult.diagnostics += diagnostics
+            fullResult = macroAnalyzingResult
+            val duration = (Util.getMeasuringTimeNano() - startTime) / 1000
+            println("Took ${duration}µs to analyze macro: $macro")
         }
+        reader.resourceCreator.newCache.vanillaMacroCache[relevantLines] = fullResult
+        result.combineWith(fullResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
     }
 
     override fun parseToCommands(

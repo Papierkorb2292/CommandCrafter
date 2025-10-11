@@ -7,6 +7,9 @@ import java.util.*
 class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val sourceFunctionUri: String) {
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
 
+    var previousCache: CacheData? = null
+    val newCache = CacheData()
+
     constructor(
         languageServer: MinecraftLanguageServer?,
         sourceFunctionUri: String,
@@ -25,4 +28,8 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
     }
 
     data class ResourceStackEntry(val analyzingResult: AnalyzingResult)
+
+    class CacheData(
+        val vanillaMacroCache: MutableMap<List<String>, AnalyzingResult> = mutableMapOf()
+    )
 }

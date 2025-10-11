@@ -182,13 +182,16 @@ object CommandCrafter: ModInitializer {
                     val reader = DirectiveStringReader(
                         file.createFileMappingInfo(),
                         languageServer.minecraftServer.commandDispatcher,
-                        AnalyzingResourceCreator(languageServer, file.uri)
+                        AnalyzingResourceCreator(languageServer, file.uri).apply {
+                            previousCache = file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData
+                        }
                     )
                     val result = AnalyzingResult(reader.fileMappingInfo, Position())
                     reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                     val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, 2, "", ScreenTexts.EMPTY, directServerConnection.server, null)
                     LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                     result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
+                    file.persistentAnalyzerData = reader.resourceCreator.newCache
                     return result
                 }
             })

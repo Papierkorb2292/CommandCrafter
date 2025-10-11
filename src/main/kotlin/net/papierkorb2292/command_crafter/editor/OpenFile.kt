@@ -13,6 +13,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
     var analyzingResult: CompletableFuture<AnalyzingResult>? = null
     var analyzerFuture: Future<*>? = null
     var keptAliveAnalyzers = mutableSetOf<Future<*>>()
+    var persistentAnalyzerData: Any? = null
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
