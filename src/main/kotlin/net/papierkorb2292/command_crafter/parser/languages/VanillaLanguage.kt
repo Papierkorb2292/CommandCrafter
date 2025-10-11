@@ -329,7 +329,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             )
             val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
             analyzeMacroCommand(
-                DirectiveStringReader(macroMappingInfo, reader.dispatcher, reader.resourceCreator).apply {
+                DirectiveStringReader(
+                    macroMappingInfo,
+                    reader.dispatcher,
+                    AnalyzingResourceCreator(
+                        reader.resourceCreator.languageServer,
+                        reader.resourceCreator.sourceFunctionUri
+                    )
+                ).apply {
                     // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
                     toCompleted()
                     string = replacedMacro
