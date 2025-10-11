@@ -13,8 +13,10 @@ import kotlin.math.min
 
 class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     private val data = ArrayList<Int>(100)
-    private var lastLine = 0
-    private var lastCursor = 0
+    var lastLine = 0
+        private set
+    var lastCursor = 0
+        private set
     var multilineTokenCount = 0
         private set
 
@@ -325,6 +327,10 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             // First token is on first line, so it's affected by the first line being moved to the right
             data[1] += position.character
         data[0] += position.line
+
+        if(lastLine == 0)
+            lastCursor += position.character
+        lastLine += position.line
     }
 
     fun clear() {

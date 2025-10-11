@@ -262,6 +262,16 @@ object TestCommandCrafter {
                 offsetResult.semanticTokens.build().data,
                 Text.literal("semantic tokens from $description")
             )
+            context.assertEquals(
+                fullResult.semanticTokens.lastLine,
+                offsetResult.semanticTokens.lastLine,
+                Text.literal("semantic tokens last line from $description")
+            )
+            context.assertEquals(
+                fullResult.semanticTokens.lastCursor,
+                offsetResult.semanticTokens.lastCursor,
+                Text.literal("semantic tokens last cursor from $description")
+            )
         }
 
         val multilineFirstPart = """
