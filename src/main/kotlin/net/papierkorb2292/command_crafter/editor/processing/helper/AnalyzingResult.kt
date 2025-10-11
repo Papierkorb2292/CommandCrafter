@@ -353,7 +353,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             }
             val pos =if (lineIndex == -1) {
                 // Position is on the first line
-                Position(oneBasedOffset, cursor)
+                Position(oneBasedOffset, cursor + oneBasedOffset)
             } else {
                 val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
                 Position(
