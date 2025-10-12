@@ -66,26 +66,21 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
         return tag;
     }
 
-    @ModifyArg(
+    @WrapOperation(
             method = "parseNode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/NbtPathArgumentType;readCompoundChildNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/command/argument/NbtPathArgumentType$PathNode;",
-                    ordinal = 0
+                    target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
+                    remap = false
             ),
-            slice = @Slice(
-                    from = @At(
-                            value = "INVOKE",
-                            target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
-                            remap = false
-                    )
-            )
+            allow = 1
     )
-    private static String command_crafter$highlightQuotedTag(StringReader reader, String tag) {
+    private static String command_crafter$highlightQuotedTag(StringReader reader, Operation<String> op) {
         var analyzingResult = command_crafter$analyzingResult.get();
-        if(analyzingResult == null) return tag;
-
-        analyzingResult.getSemanticTokens().addMultiline(reader.getCursor() - tag.length() - 2, tag.length() + 2, TokenType.Companion.getPROPERTY(), 0);
+        if(analyzingResult == null) return op.call(reader);
+        final var startCursor = reader.getCursor();
+        final var tag = op.call(reader);
+        analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
         return tag;
     }
 
