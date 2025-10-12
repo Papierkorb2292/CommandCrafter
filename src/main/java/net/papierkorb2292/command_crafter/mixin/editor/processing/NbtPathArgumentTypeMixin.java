@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
@@ -82,6 +83,29 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
         final var tag = op.call(reader);
         analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
         return tag;
+    }
+
+    @ModifyExpressionValue(
+            method = "readCompoundChildNode",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Ljava/lang/String;isEmpty()Z"
+            )
+    )
+    private static boolean command_crafter$allowEmptyTagWhenAnalyzing(boolean isEmpty) {
+        return isEmpty && command_crafter$analyzingResult.get() == null;
+    }
+
+    @ModifyExpressionValue(
+            method = "readName",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
+                    ordinal = 1
+            )
+    )
+    private static int command_crafter$allowEmptyUnquotedTagWhenAnalyzing(int endCursor) {
+        return command_crafter$analyzingResult.get() == null ? endCursor : -1;
     }
 
     @SuppressWarnings("unused")
