@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -32,7 +33,8 @@ public class CommandFunctionArgumentTypeMixin implements AnalyzingCommandNode, C
         var stringArgument = range.get(reader.getString());
         var isTag = stringArgument.startsWith("#");
         try {
-            var id = Identifier.of(isTag ? stringArgument.substring(1) : stringArgument);
+            // Use `fromCommandInput` because there might be trailing data that isn't supposed to throw an error
+            var id = Identifier.fromCommandInput(new StringReader(isTag ? stringArgument.substring(1) : stringArgument));
             var fileType = isTag ? PackContentFileType.FUNCTION_TAGS_FILE_TYPE : PackContentFileType.FUNCTIONS_FILE_TYPE;
             IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(id, fileType, range, result, reader);
         } catch(InvalidIdentifierException ignored) { }
