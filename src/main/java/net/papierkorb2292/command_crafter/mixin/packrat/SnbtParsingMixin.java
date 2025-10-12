@@ -18,6 +18,7 @@ import net.minecraft.util.packrat.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -238,6 +239,25 @@ public class SnbtParsingMixin {
     private static Term<StringReader>[] command_crafter$allowMissingQuotedStringEnd(Term<StringReader>[] terms) {
         terms[terms.length - 1] = command_crafter$wrapTermAllowReaderEndIfMalformed(terms[terms.length - 1]);
         return terms;
+    }
+
+    @WrapOperation(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/packrat/ParsingRules;term(Lnet/minecraft/util/packrat/Symbol;)Lnet/minecraft/util/packrat/Term;",
+                    ordinal = 1
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=map_key"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$allowEmptyMapKey(ParsingRules<StringReader> rules, Symbol<String> unqoutedKeySymbol, Operation<Term<StringReader>> op) {
+        final var unknownKeyCounter = new MutableInt();
+        return wrapTermSkipToNextEntryIfMalformed(op.call(rules, unqoutedKeySymbol), CharSet.of(':'), unqoutedKeySymbol, () -> "unknown_" + unknownKeyCounter.getAndIncrement());
     }
 
     @WrapOperation(
