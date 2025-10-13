@@ -236,10 +236,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         result: AnalyzingResult,
     ) {
         val startCursor = reader.cursor
+        val absoluteStartOffset = reader.readCharacters + startCursor
         val macro = readMacro(reader)
 
         // Get only the relevant lines for caching
-        val absoluteStartOffset = reader.readCharacters + startCursor
         val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
         val relevantLines = mutableListOf<String>()
         AnalyzingResult.getInlineRangesBetweenCursors(
