@@ -38,9 +38,12 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
         val shaderReloadWaitFuture = shaderReloadWaitFuture
         if(shaderReloadWaitFuture != null) {
             DirectMinecraftClientConnection.shaderReloadWaitFuture = null // No other reloads should be scheduled until this one starts
-            shaderReloadWaitFuture.whenComplete { _, _ ->
-                client.inGameHud.chatHud.addMessage(
-                    Text.translatable("command_crafter.reload.shaders").formatted(Formatting.GREEN))
+            shaderReloadWaitFuture.whenComplete{ _, _ ->
+                client.execute {
+                    // Has to run on render thread
+                    client.inGameHud.chatHud.addMessage(
+                        Text.translatable("command_crafter.reload.shaders").formatted(Formatting.GREEN))
+                }
                 DirectMinecraftClientConnection.shaderReloadWaitFuture = SimpleResourceReload.start(
                     client.resourceManager,
                     listOf(client.shaderLoader),
