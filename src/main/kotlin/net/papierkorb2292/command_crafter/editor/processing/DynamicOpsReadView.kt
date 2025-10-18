@@ -14,15 +14,15 @@ import kotlin.jvm.optionals.getOrDefault
 
 // Uses dummy Encoders in a bunch of places to use methods of Codec that are not available for just a Decoder.
 // Btw. don't really know why Mojang didn't use DynamicOps in the first place
-class DynamicOpsReadView<TNode : Any>(val dynamicOps: DynamicOps<TNode>, private val registries: RegistryWrapper.WrapperLookup, val map: Optional<MapLike<TNode>>) : ReadView {
+class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val registries: RegistryWrapper.WrapperLookup, val map: Optional<MapLike<TNode>>) : ReadView {
     companion object {
         fun <TNode : Any> create(
             dynamic: Dynamic<TNode>,
             registries: RegistryWrapper.WrapperLookup
         ): DataResult<DynamicOpsReadView<TNode>> =
-            dynamic.ops.getMap(dynamic.value).map { DynamicOpsReadView(dynamic.ops, registries, Optional.of(it)) }
+            dynamic.ops.getMap(dynamic.value).map { DynamicOpsReadView(dynamic, registries, Optional.of(it)) }
 
-        private fun <T : Any> dummyEncodeDynamicOpsReadView(readView: DynamicOpsReadView<T>) = DataResult.success(Dynamic(readView.dynamicOps, readView.dynamicOps.empty()))
+        private fun <T : Any> dummyEncodeDynamicOpsReadView(readView: DynamicOpsReadView<T>) = DataResult.success(Dynamic(readView.dynamic.ops, readView.dynamic.ops.empty()))
 
         fun getReadViewCodec(registries: RegistryWrapper.WrapperLookup): Codec<DynamicOpsReadView<*>> = Codec.PASSTHROUGH.flatXmap({ create(it, registries) }, { dummyEncodeDynamicOpsReadView(it) })
         fun getListReadViewCodec(registries: RegistryWrapper.WrapperLookup): Codec<DynamicOpsListReadView> =
@@ -50,14 +50,14 @@ class DynamicOpsReadView<TNode : Any>(val dynamicOps: DynamicOps<TNode>, private
 
     @Deprecated("Deprecated in Java")
     override fun <T> read(mapCodec: MapCodec<T>) =
-        map.flatMap { mapCodec.decode(dynamicOps, it).resultOrPartial() }
+        map.flatMap { mapCodec.decode(dynamic.ops, it).resultOrPartial() }
 
     override fun getOptionalReadView(key: String): Optional<ReadView> =
         read(key, getReadViewCodec(registries)).cast()
 
 
     override fun getReadView(key: String): ReadView =
-        getOptionalReadView(key).getOrDefault(DynamicOpsReadView(dynamicOps, registries, Optional.empty()))
+        getOptionalReadView(key).getOrDefault(DynamicOpsReadView(Dynamic(dynamic.ops), registries, Optional.empty()))
 
     override fun getOptionalListReadView(key: String): Optional<ListReadView> =
         read(key, getListReadViewCodec(registries)).cast()

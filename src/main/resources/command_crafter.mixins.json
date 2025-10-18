@@ -57,6 +57,7 @@
     "editor.processing.ArgumentTypesMixin",
     "editor.processing.BlockArgumentParserAccessor",
     "editor.processing.BlockArgumentParserMixin",
+    "editor.processing.BlockAttachedEntityMixin",
     "editor.processing.BlockEntityTypeAccessor",
     "editor.processing.BlockPredicateArgumentTypeMixin",
     "editor.processing.BlockStateArgumentTypeMixin",
