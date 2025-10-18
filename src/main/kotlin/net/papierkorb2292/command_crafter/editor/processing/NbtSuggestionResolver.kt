@@ -90,7 +90,13 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper,
     ): StringRangeTree.ResolvedSuggestion {
-        val keyEnd = keyEndParser(suggestionRange)
+        // Clear args, because keyEndParser could mess with them otherwise, leading to problems when invoking the NbtSuggestionResolver as part of a packrat parser (like in item predicates)
+        val restoreArgsCallback = PackratParserAdditionalArgs.temporarilyClearArgs()
+        val keyEnd = try {
+            keyEndParser(suggestionRange)
+        } finally {
+            restoreArgsCallback()
+        }
         return StringRangeTree.ResolvedSuggestion(
             keyEnd,
             StreamCompletionItemProvider(suggestionRange.end, { keyEnd }, mappingInfo, CompletionItemKind.Property) {
