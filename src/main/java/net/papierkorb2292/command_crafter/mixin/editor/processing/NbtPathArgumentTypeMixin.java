@@ -101,7 +101,8 @@ public abstract class NbtPathArgumentTypeMixin implements AnalyzingCommandNode {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
-                    ordinal = 1
+                    ordinal = 1,
+                    remap = false
             )
     )
     private static int command_crafter$allowEmptyUnquotedTagWhenAnalyzing(int endCursor) {
