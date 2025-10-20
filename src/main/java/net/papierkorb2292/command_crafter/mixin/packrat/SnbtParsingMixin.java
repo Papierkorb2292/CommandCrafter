@@ -257,7 +257,7 @@ public class SnbtParsingMixin {
     )
     private static Term<StringReader> command_crafter$allowEmptyMapKey(ParsingRules<StringReader> rules, Symbol<String> unqoutedKeySymbol, Operation<Term<StringReader>> op) {
         final var unknownKeyCounter = new MutableInt();
-        return wrapTermSkipToNextEntryIfMalformed(op.call(rules, unqoutedKeySymbol), CharSet.of(':'), unqoutedKeySymbol, () -> "unknown_" + unknownKeyCounter.getAndIncrement());
+        return wrapTermSkipToNextEntryIfMalformed(op.call(rules, unqoutedKeySymbol), CharSet.of(':', '}', ' ', ','), unqoutedKeySymbol, () -> "unknown_" + unknownKeyCounter.getAndIncrement());
     }
 
     @WrapOperation(
