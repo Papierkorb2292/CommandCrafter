@@ -1,9 +1,12 @@
 package net.papierkorb2292.command_crafter.mixin.packrat;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
 import it.unimi.dsi.fastutil.chars.CharSet;
 import net.minecraft.command.argument.ItemPredicateParsing;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.packrat.*;
 import net.papierkorb2292.command_crafter.parser.helper.InlineTagPackratParsingCallbacks;
 import org.apache.commons.lang3.ArrayUtils;
@@ -13,6 +16,8 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 
 import java.util.Collections;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermSkipToNextEntryIfMalformed;
 
@@ -78,5 +83,26 @@ public class ItemPredicateParsingMixin {
                 (Symbol<T>)COMMAND_CRAFTER$MALFORMED_FALLBACK,
                 () -> callbacks.anyOf(Collections.emptyList())
         );
+    }
+
+    @WrapOperation(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/packrat/ParsingRules;term(Lnet/minecraft/util/packrat/Symbol;)Lnet/minecraft/util/packrat/Term;"
+            ),
+            slice = @Slice(
+                    to = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/util/packrat/ParsingRules;set(Lnet/minecraft/util/packrat/Symbol;Lnet/minecraft/util/packrat/Term;Lnet/minecraft/util/packrat/ParsingRule$StatelessAction;)Lnet/minecraft/util/packrat/ParsingRuleEntry;"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$allowMalformedType(ParsingRules<StringReader> instance, Symbol<Optional<Predicate<ItemStack>>> symbol, Operation<Term<StringReader>> op) {
+        final var originalTerm = op.call(instance, symbol);
+        if(!symbol.name().equals("type"))
+            return originalTerm;
+
+        return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of('[', ' '), symbol, Optional::empty);
     }
 }
