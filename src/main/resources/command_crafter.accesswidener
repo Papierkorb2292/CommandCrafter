@@ -12,3 +12,4 @@ accessible class net/minecraft/server/MinecraftServer$ResourceManagerHolder
 accessible class net/minecraft/client/option/SimpleOption$Callbacks
 accessible method net/minecraft/client/gl/ShaderLoader$ShaderSourceKey <init> (Lnet/minecraft/util/Identifier;Lcom/mojang/blaze3d/shaders/ShaderType;)V
 accessible class net/minecraft/block/entity/BlockEntityType$BlockEntityFactory
+accessible method net/minecraft/command/argument/ItemPredicateArgumentType$ComponentCheck <init> (Lnet/minecraft/util/Identifier;Ljava/util/function/Predicate;Lcom/mojang/serialization/Decoder;)V

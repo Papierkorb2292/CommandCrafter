@@ -3,10 +3,18 @@ package net.papierkorb2292.command_crafter.mixin.packrat;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.StringReader;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Decoder;
 import it.unimi.dsi.fastutil.chars.CharSet;
+import net.minecraft.command.argument.ItemPredicateArgumentType;
 import net.minecraft.command.argument.ItemPredicateParsing;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.packrat.*;
 import net.papierkorb2292.command_crafter.parser.helper.InlineTagPackratParsingCallbacks;
 import org.apache.commons.lang3.ArrayUtils;
@@ -85,24 +93,37 @@ public class ItemPredicateParsingMixin {
         );
     }
 
+    private static final ItemPredicateArgumentType.ComponentCheck command_crafter$fallbackComponentCheck = new ItemPredicateArgumentType.ComponentCheck(Identifier.of("command_crafter", "fallback"), stack -> true, Codec.unit(stack -> true));
+
     @WrapOperation(
             method = "createParser",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/util/packrat/ParsingRules;term(Lnet/minecraft/util/packrat/Symbol;)Lnet/minecraft/util/packrat/Term;"
-            ),
-            slice = @Slice(
-                    to = @At(
-                            value = "INVOKE",
-                            target = "Lnet/minecraft/util/packrat/ParsingRules;set(Lnet/minecraft/util/packrat/Symbol;Lnet/minecraft/util/packrat/Term;Lnet/minecraft/util/packrat/ParsingRule$StatelessAction;)Lnet/minecraft/util/packrat/ParsingRuleEntry;"
-                    )
             )
     )
-    private static Term<StringReader> command_crafter$allowMalformedType(ParsingRules<StringReader> instance, Symbol<Optional<Predicate<ItemStack>>> symbol, Operation<Term<StringReader>> op) {
+    private static Term<StringReader> command_crafter$allowMalformedIds(
+            ParsingRules<StringReader> instance,
+            Symbol<Object> symbol,
+            Operation<Term<StringReader>> op,
+            @Share("component_type_symbol") LocalRef<Symbol<Object>> componentTypeSymbolRef
+    ) {
         final var originalTerm = op.call(instance, symbol);
-        if(!symbol.name().equals("type"))
-            return originalTerm;
-
-        return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of('[', ' '), symbol, Optional::empty);
+        switch (symbol.name()) {
+            case "type" -> {
+                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of('[', ' '), symbol, Optional::empty);
+            }
+            case "component_type" -> {
+                componentTypeSymbolRef.set(symbol);
+                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of(',', '=', '|', ']', ' '), componentTypeSymbolRef.get(), () -> command_crafter$fallbackComponentCheck);
+            }
+            case "predicate_type" -> {
+                // When malformed, save a value for component_type and not predicate_type, because I already have an instance for that one
+                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of(',', '~', '|', ']', ' '), componentTypeSymbolRef.get(), () -> command_crafter$fallbackComponentCheck);
+            }
+            default -> {
+                return originalTerm;
+            }
+        }
     }
 }
