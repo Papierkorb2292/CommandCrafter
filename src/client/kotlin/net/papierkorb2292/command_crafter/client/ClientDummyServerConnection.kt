@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.command.CommandSource
+import net.minecraft.command.permission.LeveledPermissionPredicate
+import net.minecraft.command.permission.PermissionPredicate
 import net.minecraft.registry.DynamicRegistryManager
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
@@ -12,7 +14,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.Sco
 
 class ClientDummyServerConnection(
     override val commandDispatcher: CommandDispatcher<CommandSource>,
-    override val functionPermissionLevel: Int,
+    override val functionPermissions: PermissionPredicate,
     override val serverLog: Log? = null,
     override val commandExecutor: CommandExecutor? = null,
     override val debugService: ServerDebugConnectionService? = null,

@@ -12,6 +12,7 @@ import net.minecraft.advancement.Advancement
 import net.minecraft.block.entity.BannerPattern
 import net.minecraft.block.jukebox.JukeboxSong
 import net.minecraft.command.CommandSource
+import net.minecraft.command.permission.LeveledPermissionPredicate
 import net.minecraft.dialog.type.Dialog
 import net.minecraft.enchantment.Enchantment
 import net.minecraft.enchantment.provider.EnchantmentProvider
@@ -184,7 +185,7 @@ object CommandCrafter: ModInitializer {
                     )
                     val result = AnalyzingResult(reader.fileMappingInfo, Position())
                     reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-                    val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, 2, "", ScreenTexts.EMPTY, directServerConnection.server, null)
+                    val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, directServerConnection.functionPermissions, "", ScreenTexts.EMPTY, directServerConnection.server, null)
                     LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
                     result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
                     return result
@@ -226,7 +227,7 @@ object CommandCrafter: ModInitializer {
             ) {
                 val reader = DirectiveStringReader(FileMappingInfo(content.lines().toList()), dispatcher, resourceCreator)
                 val resource = RawResource(RawResource.FUNCTION_TYPE)
-                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, args.permissionLevel ?: 2, "", ScreenTexts.EMPTY, null, null)
+                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, args.permissions ?: LeveledPermissionPredicate.GAMEMASTERS, "", ScreenTexts.EMPTY, null, null)
                 LanguageManager.parseToVanilla(
                     reader,
                     source,
@@ -256,7 +257,7 @@ object CommandCrafter: ModInitializer {
         }
         val shortenNbtGameRuleKey = GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
         ServerLifecycleEvents.SERVER_STARTED.register {
-            shortenNbt = it.gameRules.getBoolean(shortenNbtGameRuleKey)
+            shortenNbt = it.saveProperties.gameRules.getBoolean(shortenNbtGameRuleKey)
         }
 
         config = CommandCrafterConfig.fromFile(CommandCrafterConfig.DEFAULT_CONFIG_PATH)

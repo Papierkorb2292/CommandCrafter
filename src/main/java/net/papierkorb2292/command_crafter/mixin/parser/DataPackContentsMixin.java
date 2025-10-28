@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
+import net.minecraft.command.permission.PermissionPredicate;
 import net.minecraft.registry.CombinedDynamicRegistries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryWrapper;
@@ -36,7 +37,7 @@ public class DataPackContentsMixin implements ParsedResourceCreator.DataPackRefr
             method = "<init>",
             at = @At("TAIL")
     )
-    private void command_crafter$addResourceCreatorContextToFunctionLoader(CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries, RegistryWrapper.WrapperLookup registries, FeatureSet enabledFeatures, CommandManager.RegistrationEnvironment environment, List<Registry.PendingTagLoad<?>> pendingTagLoads, int functionPermissionLevel, CallbackInfo ci){
+    private void command_crafter$addResourceCreatorContextToFunctionLoader(CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries, RegistryWrapper.WrapperLookup registries, FeatureSet enabledFeatures, CommandManager.RegistrationEnvironment environment, List<Registry.PendingTagLoad<?>> pendingTagLoads, PermissionPredicate permissions, CallbackInfo ci){
         ((ParsedResourceCreator.ParseResourceContextContainer)functionLoader).command_crafter$setResourceCreatorContext((DataPackContents)(Object)this);
     }
 

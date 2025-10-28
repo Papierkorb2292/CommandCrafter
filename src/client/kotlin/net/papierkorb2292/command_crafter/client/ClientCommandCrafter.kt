@@ -10,6 +10,7 @@ import net.minecraft.client.gl.PostEffectPipeline
 import net.minecraft.client.item.ItemAsset
 import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandRegistryAccess
+import net.minecraft.command.permission.LeveledPermissionPredicate
 import net.minecraft.item.equipment.EquipmentType
 import net.minecraft.resource.featuretoggle.FeatureFlags
 import net.minecraft.screen.ScreenTexts
@@ -50,7 +51,7 @@ object ClientCommandCrafter : ClientModInitializer {
     var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
         SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
-            CommandDispatcher(), 0
+            CommandDispatcher(), LeveledPermissionPredicate.NONE
         ),
         DirectMinecraftClientConnection,
         CommandCrafter.serviceLaunchers
@@ -104,7 +105,7 @@ object ClientCommandCrafter : ClientModInitializer {
                     Vec3d.ZERO,
                     Vec2f.ZERO,
                     null,
-                    2,
+                    LeveledPermissionPredicate.GAMEMASTERS,
                     "",
                     ScreenTexts.EMPTY,
                     null,
@@ -114,7 +115,7 @@ object ClientCommandCrafter : ClientModInitializer {
             CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
                 CommandDispatcher(rootNode),
-                2
+                LeveledPermissionPredicate.GAMEMASTERS
             )
         }
 

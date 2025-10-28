@@ -40,7 +40,6 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
-import java.util.function.Supplier
 import kotlin.collections.set
 
 class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConnection {
@@ -55,7 +54,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             Vec3d.ZERO,
             Vec2f.ZERO,
             null,
-            functionPermissionLevel,
+            functionPermissions,
             "",
             ScreenTexts.EMPTY,
             null,
@@ -69,7 +68,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         get() = server.registryManager
     override val commandDispatcher: CommandDispatcher<CommandSource>
         get() = commandDispatcherFactory(server.commandManager)
-    override val functionPermissionLevel = server.functionPermissionLevel
+    override val functionPermissions = server.functionPermissions
     override val serverLog: Log? =
         if(server.isDedicated)
             object : Log {
@@ -83,12 +82,12 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     override val commandExecutor = object : CommandExecutor {
         override fun executeCommand(command: String) {
             server.commandSource
-            server.commandManager.executeWithPrefix(ServerCommandSource(
+            server.commandManager.parseAndExecute(ServerCommandSource(
                 CommandOutput.DUMMY,
                 Vec3d.ZERO,
                 Vec2f.ZERO,
                 server.overworld,
-                functionPermissionLevel,
+                functionPermissions,
                 COMMAND_EXECUTOR_NAME,
                 Text.literal(COMMAND_EXECUTOR_NAME),
                 server,

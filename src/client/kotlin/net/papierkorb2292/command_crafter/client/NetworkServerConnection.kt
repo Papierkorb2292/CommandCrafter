@@ -11,6 +11,8 @@ import net.minecraft.client.MinecraftClient
 import net.minecraft.client.network.ClientRegistries
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.CommandSource
+import net.minecraft.command.permission.LeveledPermissionPredicate
+import net.minecraft.command.permission.PermissionLevel
 import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registry
 import net.minecraft.registry.RegistryKey
@@ -262,7 +264,7 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         get() = receivedRegistryManager ?: ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
     override val commandDispatcher
         get() = commandDispatcherFactory(dynamicRegistryManager)
-    override val functionPermissionLevel = initializePacket.functionPermissionLevel
+    override val functionPermissions = LeveledPermissionPredicate.fromLevel(PermissionLevel.fromLevel(initializePacket.functionPermissionLevel))
     override val serverLog =
         if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {
             null

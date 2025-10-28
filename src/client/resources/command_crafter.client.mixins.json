@@ -8,7 +8,6 @@
   "client": [
     "ClientRegistriesMixin",
     "SimpleOptionAccessor",
-    "editor.ClientPlayNetworkHandlerNodeFactoryMixin",
     "editor.KeybindTextContentMixin",
     "editor.SpriteAtlasTextureAccessor",
     "editor.shader.GlBackendMixin",
