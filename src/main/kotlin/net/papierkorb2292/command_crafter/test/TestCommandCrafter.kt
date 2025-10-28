@@ -36,6 +36,7 @@ import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
 import java.util.concurrent.CompletableFuture
+import kotlin.math.absoluteValue
 
 object TestCommandCrafter {
     @GameTest
@@ -344,24 +345,7 @@ object TestCommandCrafter {
         val subcommandIndices = listOf(1, 2, 8)
         val predicateIndices = listOf(3, 4, 5, 9, 10, 11)
 
-        @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
-        val source = getParsingCommandSource(context)
-        val analyzingResult = AnalyzingResult(FileMappingInfo(processedLines), Position())
-
-        LanguageManager.analyse(
-            DirectiveStringReader(
-                analyzingResult.mappingInfo,
-                commandDispatcher,
-                AnalyzingResourceCreator(
-                    null,
-                    "testPack/data/minecraft/function/test.mcfunction"
-                )
-            ),
-            source,
-            analyzingResult,
-            Language.TopLevelClosure(VanillaLanguage())
-        )
+        val analyzingResult = analyseCommand(context, processedLines)
 
         for(rootIndex in rootIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
@@ -394,6 +378,28 @@ object TestCommandCrafter {
                     .get()
                     .any { it.label == "condition" },
                 Text.literal("Predicate suggestions for marker at index $rootIndex")
+            )
+        }
+
+        context.complete()
+    }
+
+    @GameTest
+    fun testMalformedPackratSuggestions(context: TestContext) {
+        val markedLines = """
+            clear @a §nothing§[d§oesnt_exist,minecraft:custom_name=§"Blue Stone"§] 
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val analyzingResult = analyseCommand(context, processedLines)
+
+        for((i, location) in markedLocations.withIndex()) {
+            context.assertFalse(
+                analyzingResult.getCompletionProviderForCursor(location.absoluteCursor)
+                    ?.dataProvider(location.absoluteCursor)
+                    ?.get()
+                    .isNullOrEmpty(),
+                Text.literal("Item predicate suggestions for marker at $i")
             )
         }
 
@@ -477,6 +483,29 @@ object TestCommandCrafter {
             Language.TopLevelClosure(VanillaLanguage())
         )
         context.assertEqualsSnapshot(analyzingResult, "analyzing_result")
+    }
+
+    private fun analyseCommand(context: TestContext, lines: List<String>): AnalyzingResult {
+        @Suppress("UNCHECKED_CAST")
+        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val source = getParsingCommandSource(context)
+        val analyzingResult = AnalyzingResult(FileMappingInfo(lines), Position())
+
+        LanguageManager.analyse(
+            DirectiveStringReader(
+                analyzingResult.mappingInfo,
+                commandDispatcher,
+                AnalyzingResourceCreator(
+                    null,
+                    "testPack/data/minecraft/function/test.mcfunction"
+                )
+            ),
+            source,
+            analyzingResult,
+            Language.TopLevelClosure(VanillaLanguage())
+        )
+
+        return analyzingResult
     }
 
     private fun getParsingCommandSource(context: TestContext): ServerCommandSource =
