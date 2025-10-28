@@ -13,6 +13,7 @@ import net.minecraft.util.packrat.ParseResults
 import net.minecraft.util.packrat.ParsingState
 import net.minecraft.util.packrat.Symbol
 import net.minecraft.util.packrat.Term
+import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -70,6 +71,8 @@ fun wrapTermAddEntryRanges(term: Term<StringReader>): Term<StringReader> = deleg
 fun <TElement> wrapTermSkipToNextEntryIfMalformed(term: Term<StringReader>, entryDelimiters: CharSet, elementName: Symbol<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
     Term<StringReader> { state, results, cut ->
         val reader = state.reader
+        // Start a new scope for errors such that suggestions for a malformed input can still be shown even though the term matches
+        val closeErrorListScopeCallback = (state.errors as? MalformedParseErrorList)?.startMalformedScope()
         val originalMatches = term.matches(state, results, cut)
         if(!PackratParserAdditionalArgs.shouldAllowMalformed())
             return@Term originalMatches
@@ -77,6 +80,7 @@ fun <TElement> wrapTermSkipToNextEntryIfMalformed(term: Term<StringReader>, entr
             results.put(elementName, errorDefaultProvider())
         while(reader.canRead() && !entryDelimiters.contains(reader.peek()))
             reader.skip()
+        closeErrorListScopeCallback?.invoke(reader.cursor)
         // Since malformed elements are allowed, the term always matches
         true
     }

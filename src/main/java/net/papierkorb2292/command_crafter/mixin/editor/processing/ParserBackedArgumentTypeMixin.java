@@ -1,9 +1,13 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.ParserBackedArgumentType;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
@@ -11,12 +15,15 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingComm
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(ParserBackedArgumentType.class)
 public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingCommandNode {
@@ -51,6 +58,19 @@ public abstract class ParserBackedArgumentTypeMixin<T> implements AnalyzingComma
             PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
             PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
             PackratParserAdditionalArgs.INSTANCE.getFurthestAnalyzingResult().remove();
+        }
+    }
+
+    @WrapMethod(method = "listSuggestions")
+    private <S> CompletableFuture<Suggestions> command_crafter$allowMalformedSuggestions(CommandContext<S> context, SuggestionsBuilder builder, Operation<CompletableFuture<Suggestions>> op) {
+        if(getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT()) == null)
+            // Don't change suggestions for vanilla
+            return op.call(context, builder);
+        PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(true);
+        try {
+            return op.call(context, builder);
+        } finally {
+            PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
         }
     }
 }
