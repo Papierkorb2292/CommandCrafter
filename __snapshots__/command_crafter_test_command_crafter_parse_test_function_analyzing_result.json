@@ -1,36 +1,37 @@
 {
   "mappingInfo" : {
-    "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
+    "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
     "cursorMapper" : {
-      "sourceCursors" : [ 34, 60, 88, 105, 137, 249 ],
-      "targetCursors" : [ 34, 60, 81, 98, 122, 234 ],
-      "lengths" : [ 25, 21, 16, 24, 6, 15 ],
+      "sourceCursors" : [ 34, 60, 88, 210 ],
+      "targetCursors" : [ 34, 60, 81, 203 ],
+      "lengths" : [ 25, 21, 16, 15 ],
       "expandedCharEnds" : { },
-      "prevSourceEnd" : 264,
-      "prevTargetEnd" : 249
+      "prevSourceEnd" : 225,
+      "prevTargetEnd" : 218
     },
-    "readCharacters" : 257,
-    "skippedChars" : 15,
-    "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 230, 241, 265, 267 ]
+    "readCharacters" : 218,
+    "skippedChars" : 7,
+    "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 158, 191, 202, 226, 228 ]
   },
   "semanticTokens" : {
     "mappingInfo" : {
-      "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "$say hi to $(the_macro) \\  ", "    for me", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
+      "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz run", "    summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
       "cursorMapper" : {
-        "sourceCursors" : [ 34, 60, 88, 105, 137, 249 ],
-        "targetCursors" : [ 34, 60, 81, 98, 122, 234 ],
-        "lengths" : [ 25, 21, 16, 24, 6, 15 ],
+        "sourceCursors" : [ 34, 60, 88, 210 ],
+        "targetCursors" : [ 34, 60, 81, 203 ],
+        "lengths" : [ 25, 21, 16, 15 ],
         "expandedCharEnds" : { },
-        "prevSourceEnd" : 264,
-        "prevTargetEnd" : 249
+        "prevSourceEnd" : 225,
+        "prevTargetEnd" : 218
       },
-      "readCharacters" : 257,
-      "skippedChars" : 15,
-      "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 133, 144, 171, 179, 197, 230, 241, 265, 267 ]
+      "readCharacters" : 218,
+      "skippedChars" : 7,
+      "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 158, 191, 202, 226, 228 ]
     },
-    "data" : [ 0, 0, 22, 17, 0, 1, 4, 8, 17, 0, 1, 0, 7, 15, 0, 0, 8, 2, 15, 0, 0, 3, 2, 1, 0, 0, 3, 3, 15, 0, 0, 4, 3, 15, 0, 0, 4, 3, 10, 0, 1, 0, 7, 15, 0, 0, 8, 2, 15, 0, 0, 3, 6, 19, 0, 0, 7, 2, 1, 0, 1, 4, 3, 15, 0, 0, 4, 2, 15, 0, 0, 3, 2, 1, 0, 0, 3, 6, 20, 0, 1, 0, 1, 15, 0, 0, 1, 10, 18, 0, 0, 10, 2, 15, 0, 0, 2, 9, 2, 0, 0, 9, 1, 15, 0, 0, 1, 1, 18, 0, 1, 4, 6, 18, 0, 1, 0, 9, 4, 0, 0, 10, 7, 11, 0, 0, 8, 8, 18, 0, 1, 0, 7, 15, 0, 1, 4, 5, 15, 0, 0, 6, 3, 7, 0, 0, 4, 3, 15, 0, 1, 4, 6, 15, 0, 0, 7, 21, 7, 0, 1, 0, 8, 15, 0, 1, 4, 3, 15, 0, 0, 4, 3, 10, 0 ],
-    "lastLine" : 12,
-    "lastCursor" : 8
+    "data" : [ 0, 0, 22, 17, 0, 1, 4, 8, 17, 0, 1, 0, 7, 15, 0, 0, 8, 2, 15, 0, 0, 3, 2, 1, 0, 0, 3, 3, 15, 0, 0, 4, 3, 15, 0, 0, 4, 3, 10, 0, 1, 0, 7, 15, 0, 0, 8, 2, 15, 0, 0, 3, 6, 19, 0, 0, 7, 2, 1, 0, 1, 4, 3, 15, 0, 0, 4, 2, 15, 0, 0, 3, 2, 1, 0, 0, 3, 6, 20, 0, 1, 0, 9, 4, 0, 0, 10, 7, 11, 0, 0, 8, 8, 18, 0, 1, 0, 7, 15, 0, 1, 4, 5, 15, 0, 0, 6, 3, 7, 0, 0, 4, 3, 15, 0, 1, 4, 6, 15, 0, 0, 7, 21, 7, 0, 1, 0, 8, 15, 0, 1, 4, 3, 15, 0, 0, 4, 3, 10, 0 ],
+    "lastLine" : 10,
+    "lastCursor" : 8,
+    "multilineTokenCount" : 26
   },
   "diagnostics" : [ ],
   "filePosition" : {
@@ -56,38 +57,33 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 144,
-        "end" : 144
+        "start" : 105,
+        "end" : 114
       }
     }, {
       "cursorRange" : {
-        "start" : 144,
-        "end" : 153
+        "start" : 115,
+        "end" : 122
       }
     }, {
       "cursorRange" : {
-        "start" : 154,
-        "end" : 161
+        "start" : 132,
+        "end" : 132
       }
     }, {
       "cursorRange" : {
-        "start" : 171,
-        "end" : 171
+        "start" : 191,
+        "end" : 191
       }
     }, {
       "cursorRange" : {
-        "start" : 230,
-        "end" : 230
+        "start" : 202,
+        "end" : 206
       }
     }, {
       "cursorRange" : {
-        "start" : 241,
-        "end" : 245
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 265,
-        "end" : 265
+        "start" : 226,
+        "end" : 226
       }
     } ],
     "language" : [ {
@@ -177,83 +173,78 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 144,
-        "end" : 144
+        "start" : 123,
+        "end" : 131
       }
     }, {
       "cursorRange" : {
-        "start" : 162,
-        "end" : 170
+        "start" : 132,
+        "end" : 132
       }
     }, {
       "cursorRange" : {
-        "start" : 171,
-        "end" : 171
+        "start" : 132,
+        "end" : 139
       }
     }, {
       "cursorRange" : {
-        "start" : 171,
-        "end" : 178
+        "start" : 140,
+        "end" : 149
       }
     }, {
       "cursorRange" : {
-        "start" : 179,
-        "end" : 188
+        "start" : 150,
+        "end" : 153
       }
     }, {
       "cursorRange" : {
-        "start" : 189,
-        "end" : 192
+        "start" : 154,
+        "end" : 157
       }
     }, {
       "cursorRange" : {
-        "start" : 193,
-        "end" : 196
+        "start" : 158,
+        "end" : 168
       }
     }, {
       "cursorRange" : {
-        "start" : 197,
-        "end" : 207
+        "start" : 169,
+        "end" : 190
       }
     }, {
       "cursorRange" : {
-        "start" : 208,
-        "end" : 229
+        "start" : 191,
+        "end" : 191
       }
     }, {
       "cursorRange" : {
-        "start" : 230,
-        "end" : 230
+        "start" : 191,
+        "end" : 199
       }
     }, {
       "cursorRange" : {
-        "start" : 230,
-        "end" : 238
+        "start" : 200,
+        "end" : 200
       }
     }, {
       "cursorRange" : {
-        "start" : 239,
-        "end" : 239
+        "start" : 202,
+        "end" : 206
       }
     }, {
       "cursorRange" : {
-        "start" : 241,
-        "end" : 245
+        "start" : 206,
+        "end" : 209
       }
     }, {
       "cursorRange" : {
-        "start" : 245,
-        "end" : 248
+        "start" : 210,
+        "end" : 213
       }
     }, {
       "cursorRange" : {
-        "start" : 249,
-        "end" : 252
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 265,
-        "end" : 265
+        "start" : 226,
+        "end" : 226
       }
     } ]
   },

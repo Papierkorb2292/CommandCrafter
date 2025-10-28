@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -19,7 +20,9 @@ class FileMappingInfo(
     val cursorMapper: SplitProcessedInputCursorMapper = SplitProcessedInputCursorMapper(),
     var readCharacters: Int = 0,
     var skippedChars: Int = 0,
+    @JsonIgnore
     val positionFromCursorFIFOCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
+    @JsonIgnore
     val completionItemToPositionFIFOCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
 ) {
     val accumulatedLineLengths = IntList(lines.size)

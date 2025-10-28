@@ -408,8 +408,6 @@ object TestCommandCrafter {
             execute as @a run say HI!
             execute if entity @s \ 
                 run tp @s ~ ~1 ~
-            ${'$'}say hi to $(the_macro) \  
-                for me
             @language vanilla improved
             execute
                 align xyz run

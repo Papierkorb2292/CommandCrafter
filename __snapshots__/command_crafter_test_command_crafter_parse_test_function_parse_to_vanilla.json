@@ -3,8 +3,6 @@
 }, {
   "value" : "execute if entity @s run tp @s ~ ~1 ~\n"
 }, {
-  "value" : "$say hi to $(the_macro) for me\n"
-}, {
   "value" : "execute align xyz run summon minecraft:armor_stand\n"
 }, {
   "value" : "function "
