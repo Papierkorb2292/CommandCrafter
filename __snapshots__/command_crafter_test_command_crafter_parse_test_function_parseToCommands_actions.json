@@ -18,7 +18,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -51,24 +51,6 @@
                 "includesNonPlayers" : false,
                 "localWorldOnly" : false,
                 "predicates" : [ ],
-                "distance" : {
-                  "min" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "max" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMin" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMax" : {
-                    "empty" : true,
-                    "present" : false
-                  }
-                },
                 "positionOffset" : { },
                 "sorter" : { },
                 "senderOnly" : false,
@@ -85,8 +67,14 @@
                   "trackTickInterval" : 2,
                   "translationKey" : "entity.minecraft.player",
                   "lootTableKey" : {
-                    "empty" : false,
-                    "present" : true
+                    "registry" : {
+                      "namespace" : "minecraft",
+                      "path" : "loot_table"
+                    },
+                    "value" : {
+                      "namespace" : "minecraft",
+                      "path" : "entities/player"
+                    }
                   },
                   "dimensions" : {
                     "width" : 0.6,
@@ -124,7 +112,8 @@
                       "name" : "main"
                     },
                     "featuresMask" : 1
-                  }
+                  },
+                  "allowedInPeaceful" : true
                 },
                 "usesAt" : true
               }
@@ -169,7 +158,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -215,7 +204,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -287,7 +276,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -333,7 +322,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -403,7 +392,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -479,7 +468,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -515,24 +504,6 @@
                 "includesNonPlayers" : true,
                 "localWorldOnly" : false,
                 "predicates" : [ ],
-                "distance" : {
-                  "min" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "max" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMin" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMax" : {
-                    "empty" : true,
-                    "present" : false
-                  }
-                },
                 "positionOffset" : { },
                 "sorter" : { },
                 "senderOnly" : true,
@@ -588,7 +559,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -634,7 +605,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -680,7 +651,7 @@
                     "z" : 0.0
                   },
                   "world" : "ServerLevel[Test Level]",
-                  "level" : 4,
+                  "permissions" : { },
                   "name" : "Server",
                   "displayName" : {
                     "content" : {
@@ -714,24 +685,6 @@
                       "includesNonPlayers" : true,
                       "localWorldOnly" : false,
                       "predicates" : [ ],
-                      "distance" : {
-                        "min" : {
-                          "empty" : true,
-                          "present" : false
-                        },
-                        "max" : {
-                          "empty" : true,
-                          "present" : false
-                        },
-                        "squaredMin" : {
-                          "empty" : true,
-                          "present" : false
-                        },
-                        "squaredMax" : {
-                          "empty" : true,
-                          "present" : false
-                        }
-                      },
                       "positionOffset" : { },
                       "sorter" : { },
                       "senderOnly" : true,
@@ -801,7 +754,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -847,7 +800,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -893,7 +846,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -927,24 +880,6 @@
                     "includesNonPlayers" : true,
                     "localWorldOnly" : false,
                     "predicates" : [ ],
-                    "distance" : {
-                      "min" : {
-                        "empty" : true,
-                        "present" : false
-                      },
-                      "max" : {
-                        "empty" : true,
-                        "present" : false
-                      },
-                      "squaredMin" : {
-                        "empty" : true,
-                        "present" : false
-                      },
-                      "squaredMax" : {
-                        "empty" : true,
-                        "present" : false
-                      }
-                    },
                     "positionOffset" : { },
                     "sorter" : { },
                     "senderOnly" : true,
@@ -1009,7 +944,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1055,7 +990,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -1089,24 +1024,6 @@
                   "includesNonPlayers" : true,
                   "localWorldOnly" : false,
                   "predicates" : [ ],
-                  "distance" : {
-                    "min" : {
-                      "empty" : true,
-                      "present" : false
-                    },
-                    "max" : {
-                      "empty" : true,
-                      "present" : false
-                    },
-                    "squaredMin" : {
-                      "empty" : true,
-                      "present" : false
-                    },
-                    "squaredMax" : {
-                      "empty" : true,
-                      "present" : false
-                    }
-                  },
                   "positionOffset" : { },
                   "sorter" : { },
                   "senderOnly" : true,
@@ -1170,7 +1087,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1204,24 +1121,6 @@
                 "includesNonPlayers" : true,
                 "localWorldOnly" : false,
                 "predicates" : [ ],
-                "distance" : {
-                  "min" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "max" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMin" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMax" : {
-                    "empty" : true,
-                    "present" : false
-                  }
-                },
                 "positionOffset" : { },
                 "sorter" : { },
                 "senderOnly" : true,
@@ -1293,7 +1192,7 @@
         "z" : 0.0
       },
       "world" : "ServerLevel[Test Level]",
-      "level" : 4,
+      "permissions" : { },
       "name" : "Server",
       "displayName" : {
         "content" : {
@@ -1330,7 +1229,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1400,7 +1299,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -1446,7 +1345,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -1517,7 +1416,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1563,7 +1462,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -1630,7 +1529,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1704,7 +1603,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1780,7 +1679,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1813,24 +1712,6 @@
                 "includesNonPlayers" : false,
                 "localWorldOnly" : false,
                 "predicates" : [ ],
-                "distance" : {
-                  "min" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "max" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMin" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMax" : {
-                    "empty" : true,
-                    "present" : false
-                  }
-                },
                 "positionOffset" : { },
                 "sorter" : { },
                 "senderOnly" : false,
@@ -1847,8 +1728,14 @@
                   "trackTickInterval" : 2,
                   "translationKey" : "entity.minecraft.player",
                   "lootTableKey" : {
-                    "empty" : false,
-                    "present" : true
+                    "registry" : {
+                      "namespace" : "minecraft",
+                      "path" : "loot_table"
+                    },
+                    "value" : {
+                      "namespace" : "minecraft",
+                      "path" : "entities/player"
+                    }
                   },
                   "dimensions" : {
                     "width" : 0.6,
@@ -1886,7 +1773,8 @@
                       "name" : "main"
                     },
                     "featuresMask" : 1
-                  }
+                  },
+                  "allowedInPeaceful" : true
                 },
                 "usesAt" : true
               }
@@ -1931,7 +1819,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -1977,7 +1865,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -2041,8 +1929,7 @@
           "modifier" : { },
           "forks" : true
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : { }
+        "isMacro" : false
       }, {
         "rootContext" : {
           "source" : {
@@ -2053,7 +1940,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -2089,24 +1976,6 @@
                 "includesNonPlayers" : true,
                 "localWorldOnly" : false,
                 "predicates" : [ ],
-                "distance" : {
-                  "min" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "max" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMin" : {
-                    "empty" : true,
-                    "present" : false
-                  },
-                  "squaredMax" : {
-                    "empty" : true,
-                    "present" : false
-                  }
-                },
                 "positionOffset" : { },
                 "sorter" : { },
                 "senderOnly" : true,
@@ -2162,7 +2031,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -2208,7 +2077,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -2254,7 +2123,7 @@
                     "z" : 0.0
                   },
                   "world" : "ServerLevel[Test Level]",
-                  "level" : 4,
+                  "permissions" : { },
                   "name" : "Server",
                   "displayName" : {
                     "content" : {
@@ -2288,24 +2157,6 @@
                       "includesNonPlayers" : true,
                       "localWorldOnly" : false,
                       "predicates" : [ ],
-                      "distance" : {
-                        "min" : {
-                          "empty" : true,
-                          "present" : false
-                        },
-                        "max" : {
-                          "empty" : true,
-                          "present" : false
-                        },
-                        "squaredMin" : {
-                          "empty" : true,
-                          "present" : false
-                        },
-                        "squaredMax" : {
-                          "empty" : true,
-                          "present" : false
-                        }
-                      },
                       "positionOffset" : { },
                       "sorter" : { },
                       "senderOnly" : true,
@@ -2367,8 +2218,7 @@
           },
           "forks" : true
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : { }
+        "isMacro" : false
       }, {
         "elementIndex" : 2,
         "macroFileRange" : {
@@ -2390,7 +2240,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -2464,7 +2314,7 @@
                         "z" : 0.0
                       },
                       "world" : "ServerLevel[Test Level]",
-                      "level" : 4,
+                      "permissions" : { },
                       "name" : "Server",
                       "displayName" : {
                         "content" : {
@@ -2602,7 +2452,7 @@
                         "z" : 0.0
                       },
                       "world" : "ServerLevel[Test Level]",
-                      "level" : 4,
+                      "permissions" : { },
                       "name" : "Server",
                       "displayName" : {
                         "content" : {
@@ -2710,7 +2560,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -2780,7 +2630,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -2826,7 +2676,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -2889,8 +2739,7 @@
           },
           "forks" : false
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : { }
+        "isMacro" : false
       }, {
         "rootContext" : {
           "source" : {
@@ -2901,7 +2750,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -2959,12 +2808,7 @@
           },
           "forks" : false
         },
-        "isMacro" : false,
-        "argumentBreakpointParserSuppliers" : {
-          "net.minecraft.command.argument.CommandFunctionArgumentType@73acb6f3" : {
-            "isTag" : false
-          }
-        }
+        "isMacro" : false
       } ],
       "reader" : {
         "string" : "",
@@ -3005,7 +2849,7 @@
                         "z" : 0.0
                       },
                       "world" : "ServerLevel[Test Level]",
-                      "level" : 4,
+                      "permissions" : { },
                       "name" : "Server",
                       "displayName" : {
                         "content" : {
