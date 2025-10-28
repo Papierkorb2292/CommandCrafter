@@ -219,6 +219,7 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         if(providerIndex >= 0) {
             val provider = providers[providerIndex]
             providers[providerIndex] = RangedDataProvider(StringRange(provider.cursorRange.start, sourceCursor), provider.dataProvider)
+            providerIndex++ // All following providers will be removed, but this one should be kept
         } else {
             providerIndex = -providerIndex - 1
         }
