@@ -7,6 +7,7 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Decoder;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.DynamicOps;
+import net.minecraft.command.argument.ItemPredicateArgumentType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtElement;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
@@ -20,7 +21,7 @@ import java.util.function.Predicate;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(targets = "net.minecraft.command.argument.ItemPredicateArgumentType$ComponentCheck")
+@Mixin(ItemPredicateArgumentType.ComponentCheck.class)
 public class ItemPredicateArgumentTypeComponentCheckMixin {
     @ModifyReceiver(
             method = "createPredicate",
