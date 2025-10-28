@@ -52,6 +52,9 @@ dependencies {
 
     // Only for tests in dev environment
     implementation("io.github.java-diff-utils:java-diff-utils:4.12")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.20.0")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.20")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.20.0")
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
