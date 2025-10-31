@@ -17,12 +17,15 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingComm
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.concurrent.CompletableFuture;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(ItemStackArgumentType.class)
 public class ItemStackArgumentTypeMixin implements AnalyzingCommandNode {
@@ -45,6 +48,10 @@ public class ItemStackArgumentTypeMixin implements AnalyzingCommandNode {
             method = "listSuggestions"
     )
     private <S> CompletableFuture<Suggestions> command_crafter$allowMalformedSuggestions(CommandContext<S> context, SuggestionsBuilder builder, Operation<CompletableFuture<Suggestions>> op) {
+        if(getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT()) == null)
+            // Don't change suggestions for vanilla
+            return op.call(context, builder);
+
         try {
             ((AllowMalformedContainer) reader).command_crafter$setAllowMalformed(true);
             return op.call(context, builder);
