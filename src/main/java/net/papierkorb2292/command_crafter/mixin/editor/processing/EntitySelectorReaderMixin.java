@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.google.common.collect.ImmutableList;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -13,6 +15,7 @@ import net.minecraft.command.EntitySelectorOptions;
 import net.minecraft.command.EntitySelectorReader;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import org.jetbrains.annotations.Nullable;
@@ -28,12 +31,13 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 @Mixin(EntitySelectorReader.class)
-public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
+public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer, AllowMalformedContainer {
 
     @Shadow @Final private StringReader reader;
     @Shadow private BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestionProvider;
 
     private AnalyzingResult command_crafter$analyzingResult = null;
+    private boolean command_crafter$allowMalformed = false;
 
     @Override
     public void command_crafter$setAnalyzingResult(@Nullable AnalyzingResult result) {
@@ -43,6 +47,16 @@ public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
     @Override
     public AnalyzingResult command_crafter$getAnalyzingResult() {
         return command_crafter$analyzingResult;
+    }
+
+    @Override
+    public void command_crafter$setAllowMalformed(boolean allowMalformed) {
+        command_crafter$allowMalformed = allowMalformed;
+    }
+
+    @Override
+    public boolean command_crafter$getAllowMalformed() {
+        return command_crafter$allowMalformed;
     }
 
     @Inject(
@@ -88,6 +102,7 @@ public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
 
     private BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> command_crafter$lastOptionSuggestionProvider = null;
     private int command_crafter$lastOptionStartCursor = -1;
+    private int command_crafter$suggestionStartCursor = -1;
 
     @Inject(
             method = "setSuggestionProvider",
@@ -96,6 +111,20 @@ public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
     private void command_crafter$saveLastOptionSuggestionProvider(BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> provider, CallbackInfo ci) {
         command_crafter$lastOptionSuggestionProvider = provider;
         command_crafter$lastOptionStartCursor = reader.getCursor();
+    }
+
+    @ModifyExpressionValue(
+            method = "listSuggestions",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+            ),
+            allow = 1
+    )
+    private int command_crafter$adjustSuggestionStartCursorForMalformedInput(int original) {
+        if(command_crafter$suggestionStartCursor != -1)
+            return command_crafter$suggestionStartCursor;
+        return original;
     }
 
     @ModifyReturnValue(
@@ -111,23 +140,29 @@ public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer {
         );
     }
 
-    @WrapOperation(
-            method = "readArguments",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;handle(Lnet/minecraft/command/EntitySelectorReader;)V"
-            )
+    @WrapMethod(
+            method = "readArguments"
     )
-    private void command_crafter$skipMalformedOptions(EntitySelectorOptions.SelectorHandler instance, EntitySelectorReader entitySelectorReader, Operation<Void> op) {
-        if(command_crafter$analyzingResult == null) {
-            op.call(instance, entitySelectorReader);
+    private void command_crafter$skipMalformedOptions(Operation<Void> op) {
+        if(!command_crafter$allowMalformed) {
+            op.call();
             return;
         }
+
         try {
-            MixinUtil.<Void, CommandSyntaxException>callWithThrows(op, instance, entitySelectorReader);
+            MixinUtil.<Void, CommandSyntaxException>callWithThrows(op);
         } catch (CommandSyntaxException e) {
+            var startCursor = reader.getCursor();
+
             while(reader.canRead() && reader.peek() != ',' && reader.peek() != ']' && reader.peek() != '\n')
                 reader.skip();
+            if(!reader.canRead()) {
+                command_crafter$suggestionStartCursor = startCursor;
+                return;
+            }
+            while(reader.canRead() && reader.peek() == ',')
+                reader.skip();
+            command_crafter$skipMalformedOptions(op);
         }
     }
 }
