@@ -12,7 +12,11 @@ import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import kotlin.Unit;
 import net.minecraft.command.argument.ItemStringReader;
 import net.minecraft.component.ComponentType;
 import net.minecraft.nbt.NbtElement;
@@ -34,8 +38,11 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 @Mixin(targets = "net.minecraft.command.argument.ItemStringReader$Reader")
@@ -46,6 +53,8 @@ public class ItemStringReaderReaderMixin {
 
     @Shadow @Final private StringReader reader;
     private final AnalyzingResult command_crafter$analyzingResult = ((AnalyzingResultDataContainer)field_48970).command_crafter$getAnalyzingResult();
+    private boolean command_crafter$allowMalformed = ((AllowMalformedContainer)field_48970).command_crafter$getAllowMalformed();
+    private int command_crafter$suggestionStartCursor = -1;
 
     @Inject(
             method = "readItem",
@@ -103,7 +112,7 @@ public class ItemStringReaderReaderMixin {
         var treeBuilder = new StringRangeTree.Builder<NbtElement>();
         //noinspection unchecked
         ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(command_crafter$allowMalformed);
         final var startCursor = reader.getCursor();
         NbtElement nbt;
         try {
@@ -139,15 +148,98 @@ public class ItemStringReaderReaderMixin {
     }
 
     @WrapMethod(
+            method = "readItem"
+    )
+    private void command_crafter$allowMalformedItem(Operation<Void> op) throws CommandSyntaxException {
+        if(!command_crafter$allowMalformed) {
+            op.call();
+            return;
+        }
+
+        try {
+            MixinUtil.<Void, CommandSyntaxException>callWithThrows(op);
+        } catch (CommandSyntaxException e) {
+            command_crafter$suggestionStartCursor = reader.getCursor();
+            // Skip to components
+            while(reader.canRead() && reader.peek() != '[' && reader.peek() != ' ') {
+                reader.skip();
+            }
+            if(reader.canRead())
+                command_crafter$suggestionStartCursor = -1;
+        }
+    }
+
+    @WrapOperation(
+            method = "readComponents",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;"
+            )
+    )
+    private ComponentType<?> command_crafter$allowMalformedComponentName(StringReader reader, Operation<ComponentType<?>> op) throws CommandSyntaxException {
+        if(!command_crafter$allowMalformed) {
+            return op.call(reader);
+        }
+
+        try {
+            return MixinUtil.<ComponentType<?>, CommandSyntaxException>callWithThrows(op, reader);
+        } catch (CommandSyntaxException e) {
+            command_crafter$suggestionStartCursor = reader.getCursor();
+            // Skip to components
+            while(reader.canRead() && reader.peek() != '=' && reader.peek() != ',' && reader.peek() != ']' && reader.peek() != ' ') {
+                reader.skip();
+            }
+            if(reader.canRead())
+                command_crafter$suggestionStartCursor = -1;
+        }
+        return ComponentType.builder().codec(Codec.unit(Unit.INSTANCE)).build();
+    }
+
+    @WrapWithCondition(
+            method = "read",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/command/argument/ItemStringReader$Callbacks;setSuggestor(Ljava/util/function/Function;)V"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readItem()V"
+                    )
+            )
+    )
+    private boolean command_crafter$suggestItemsForMalformedId(ItemStringReader.Callbacks instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
+        return !command_crafter$allowMalformed || command_crafter$suggestionStartCursor == -1;
+    }
+
+    @WrapWithCondition(
+            method = "readComponents",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/command/argument/ItemStringReader$Callbacks;setSuggestor(Ljava/util/function/Function;)V"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;",
+                            ordinal = 1
+                    )
+            )
+    )
+    private boolean command_crafter$suggestComponentsForMalformedComponentNames(ItemStringReader.Callbacks instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
+        return !command_crafter$allowMalformed || command_crafter$suggestionStartCursor == -1;
+    }
+
+    @WrapMethod(
             method = "readComponents"
     )
     private void command_crafter$allowMalformedComponents(Operation<Void> op) throws CommandSyntaxException {
-        if(command_crafter$analyzingResult == null) {
+        if(!command_crafter$allowMalformed) {
             op.call();
             return;
         }
         // This is usually done by the readComponents method, but it's disabled when generating
-        // an analyzing result, because it would interfere with the recursion
+        // allowing malformed, because it would interfere with the recursion
         reader.expect('[');
         command_crafter$parseMalformedComponents(op);
     }
@@ -157,6 +249,7 @@ public class ItemStringReaderReaderMixin {
             MixinUtil.<Void, CommandSyntaxException>callWithThrows(op);
         } catch (CommandSyntaxException e) {
             // Skip to next property
+            // Don't set suggestion start cursor here, because it could override the start cursor from the component name
             while(reader.canRead() && reader.peek() != ',' && reader.peek() != ']')
                 reader.skip();
             if(!reader.canRead())
@@ -179,6 +272,22 @@ public class ItemStringReaderReaderMixin {
             )
     )
     private boolean command_crafter$removeStartingBracketsForMalformedComponents(StringReader instance, char c) {
-        return command_crafter$analyzingResult == null;
+        return !command_crafter$allowMalformed;
+    }
+
+    @ModifyVariable(
+            method = {
+                    "suggestItems",
+                    "suggestComponents(Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture;",
+                    "suggestComponentsToRemove"
+            },
+            at = @At("HEAD"),
+            argsOnly = true
+    )
+    private SuggestionsBuilder command_crafter$adjustSuggestionStartCursorForMalformedInput(SuggestionsBuilder original) {
+        if(command_crafter$allowMalformed && command_crafter$suggestionStartCursor != -1) {
+            return original.createOffset(command_crafter$suggestionStartCursor);
+        }
+        return original;
     }
 }

@@ -37,6 +37,11 @@ public abstract class StringNbtReaderMixin<T> implements StringRangeTreeCreator<
     }
 
     @Override
+    public boolean command_crafter$getAllowMalformed() {
+        return command_crafter$allowMalformed;
+    }
+
+    @Override
     public void command_crafter$setStringRangeTreeBuilder(@NotNull StringRangeTree.Builder<NbtElement> builder) {
         command_crafter$stringRangeTreeBuilder = builder;
     }
