@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.parser.languages
 
+import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ImmutableStringReader
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
@@ -651,7 +652,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
         val nextNode = tryAnalyzeNextNode(
             analyzingResult,
-            parentNode,
+            buildParentNodeForNextNodeAttempt(parentNode, reader.dispatcher),
             result.context.lastChild,
             reader
         )
@@ -920,6 +921,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         )
         reader.copyFrom(furthestParsedReader)
         return furthestParsedContext.nodes.last().node
+    }
+
+    private fun buildParentNodeForNextNodeAttempt(parsedNode: ParsedCommandNode<CommandSource>, dispatcher: CommandDispatcher<CommandSource>): ParsedCommandNode<CommandSource> {
+        val node = parsedNode.node
+        // Special case due to the ambiguity of the teleport command: The 'destination' argument could also be the 'targets' argument.
+        // And since the 'destination' node doesn't have any children anyway, it's just replaced with the 'targets' node here.
+        if(node.name == "destination" && node in dispatcher.root.getChild("teleport").children) {
+            return ParsedCommandNode(
+                dispatcher.root.getChild("teleport").getChild("targets"),
+                parsedNode.range
+            )
+        }
+        return ParsedCommandNode(parsedNode.node, parsedNode.range)
     }
 
     data class CommandAnalyzingFootprint(val triedNextNode: CommandNode<CommandSource>?)
