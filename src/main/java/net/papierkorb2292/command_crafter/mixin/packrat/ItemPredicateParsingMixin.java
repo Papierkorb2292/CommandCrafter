@@ -93,7 +93,7 @@ public class ItemPredicateParsingMixin {
         );
     }
 
-    private static final ItemPredicateArgumentType.ComponentCheck command_crafter$fallbackComponentCheck = new ItemPredicateArgumentType.ComponentCheck(Identifier.of("command_crafter", "fallback"), stack -> true, Codec.unit(stack -> true));
+    private static final ItemPredicateArgumentType.ComponentCheck command_crafter$fallbackComponentCheck = new ItemPredicateArgumentType.ComponentCheck(Identifier.of("command_crafter", "fallback"), stack -> true, Codec.PASSTHROUGH.map(dynamic -> stack -> true));
 
     @WrapOperation(
             method = "createParser",
