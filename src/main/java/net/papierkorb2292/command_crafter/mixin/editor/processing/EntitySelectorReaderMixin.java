@@ -117,7 +117,8 @@ public class EntitySelectorReaderMixin implements AnalyzingResultDataContainer, 
             method = "listSuggestions",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
+                    remap = false
             ),
             allow = 1
     )
