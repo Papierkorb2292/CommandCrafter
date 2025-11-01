@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermSkipToNextEntryIfMalformed;
+import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters;
 
 @Mixin(ItemPredicateParsing.class)
 public class ItemPredicateParsingMixin {
@@ -115,11 +116,23 @@ public class ItemPredicateParsingMixin {
             }
             case "component_type" -> {
                 componentTypeSymbolRef.set(symbol);
-                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of(',', '=', '|', ']', ' '), componentTypeSymbolRef.get(), () -> command_crafter$fallbackComponentCheck);
+                return wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(
+                        originalTerm,
+                        CharSet.of(',', '=', '|', ']', ' '),
+                        CharSet.of('!'),
+                        componentTypeSymbolRef.get(),
+                        () -> command_crafter$fallbackComponentCheck
+                );
             }
             case "predicate_type" -> {
                 // When malformed, save a value for component_type and not predicate_type, because I already have an instance for that one
-                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of(',', '~', '|', ']', ' '), componentTypeSymbolRef.get(), () -> command_crafter$fallbackComponentCheck);
+                return wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(
+                        originalTerm,
+                        CharSet.of(',', '~', '|', ']', ' '),
+                        CharSet.of('!'),
+                        componentTypeSymbolRef.get(),
+                        () -> command_crafter$fallbackComponentCheck
+                );
             }
             default -> {
                 return originalTerm;

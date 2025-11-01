@@ -69,6 +69,9 @@ fun wrapTermAddEntryRanges(term: Term<StringReader>): Term<StringReader> = deleg
     }
 
 fun <TElement> wrapTermSkipToNextEntryIfMalformed(term: Term<StringReader>, entryDelimiters: CharSet, elementName: Symbol<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
+    wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term, entryDelimiters, CharSet.of(), elementName, errorDefaultProvider)
+
+fun <TElement> wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term: Term<StringReader>, entryDelimiters: CharSet, illegalCharacters: CharSet, elementName: Symbol<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
     Term<StringReader> { state, results, cut ->
         val reader = state.reader
         // Start a new scope for errors such that suggestions for a malformed input can still be shown even though the term matches
@@ -78,8 +81,13 @@ fun <TElement> wrapTermSkipToNextEntryIfMalformed(term: Term<StringReader>, entr
             return@Term originalMatches
         if(!originalMatches)
             results.put(elementName, errorDefaultProvider())
-        while(reader.canRead() && !entryDelimiters.contains(reader.peek()))
+        while(reader.canRead() && !entryDelimiters.contains(reader.peek())) {
+            if(illegalCharacters.contains(reader.peek())) {
+                closeErrorListScopeCallback?.invoke(reader.cursor)
+                return@Term false
+            }
             reader.skip()
+        }
         closeErrorListScopeCallback?.invoke(reader.cursor)
         // Since malformed elements are allowed, the term always matches
         true
