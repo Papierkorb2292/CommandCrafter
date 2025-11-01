@@ -933,7 +933,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 parsedNode.range
             )
         }
-        return ParsedCommandNode(parsedNode.node, parsedNode.range)
+        return parsedNode
     }
 
     data class CommandAnalyzingFootprint(val triedNextNode: CommandNode<CommandSource>?)
