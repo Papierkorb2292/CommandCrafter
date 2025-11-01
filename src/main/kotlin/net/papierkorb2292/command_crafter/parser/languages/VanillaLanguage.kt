@@ -350,8 +350,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             macroAnalyzingResult.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
             macroAnalyzingResult.diagnostics += diagnostics
             fullResult = macroAnalyzingResult
-            val duration = (Util.getMeasuringTimeNano() - startTime) / 1000
-            println("Took ${duration}µs to analyze macro: $macro")
+            if(logMacroAnalyzingTime) {
+                val duration = (Util.getMeasuringTimeNano() - startTime) / 1000
+                println("Took ${duration}µs to analyze macro: $macro")
+            }
         }
         reader.resourceCreator.newCache.vanillaMacroCache[relevantLines] = fullResult
         result.combineWith(fullResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
@@ -966,6 +968,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val shouldDisplayWarningOnMacroTimeout = true //TODO: Turn off before release
+        val logMacroAnalyzingTime = false
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
