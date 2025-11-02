@@ -231,6 +231,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
+    var j = 0
+
     private fun readAndAnalyzeMacro(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         source: CommandSource,
@@ -278,13 +280,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val diagnostics = mutableListOf<Diagnostic>()
             for((i, variable) in macroInvocation.variables.withIndex()) {
                 val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
-                variablesSemanticTokens.addMultiline(variableStart, 2, TokenType.MACRO, 0)
-                variablesSemanticTokens.addMultiline(variableStart + 2, variable.length, TokenType.ENUM, 0)
+                variablesSemanticTokens.addMultiline(variableStart, 2 + variable.length + 1, TokenType.ENUM, 0)
                 val variableNameStart = variableStart + 2
                 val variableNameEnd = variableNameStart + variable.length
                 val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
                 if(hasClosingParentheses) {
-                    variablesSemanticTokens.addMultiline(variableNameEnd, 1, TokenType.MACRO, 0)
                     // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
                     // that aren't actually intended to be part of the name
                     if(!MacroInvocation.isValidMacroName(variable)) {
