@@ -272,7 +272,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
             )
             val variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
-            variablesSemanticTokens.addMultiline(startCursor, 1, TokenType.MACRO, 0)
+            // Highlight starting '$' with the same color as macro variables
+            // This ensures some kind of consistency, and it makes macro lines stand out to more
+            variablesSemanticTokens.addMultiline(startCursor, 1, TokenType.ENUM, 0)
             val diagnostics = mutableListOf<Diagnostic>()
             for((i, variable) in macroInvocation.variables.withIndex()) {
                 val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
