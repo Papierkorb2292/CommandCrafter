@@ -97,9 +97,9 @@ class DirectiveStringReader<out ResourceCreator>(
             }
             if(firstLineMappingMissing)
                 cursorMapper.addMapping(absoluteCursor, skippingCursor, remainingLength - 1)
-            skippedChars += escapedMultilineTrimmed!!.length
-            readCharacters += escapedMultilineTrimmed!!.length
             while(true) {
+                skippedChars += escapedMultilineTrimmed!!.length
+                readCharacters += escapedMultilineTrimmed!!.length
                 if(nextLine >= lines.size)
                     throw IllegalArgumentException("Line continuation at end of file")
                 setString(string.substring(0, string.length - 1))
@@ -126,9 +126,10 @@ class DirectiveStringReader<out ResourceCreator>(
                     if(hasBackslash) trimmed.length - 1 else trimmed.length
                 )
                 setString(string + trimmed)
-                val skippedChars = line.length - trimmed.length + 2
-                this.skippedChars += skippedChars
-                readCharacters += skippedChars
+                // Only add the indent and backslash+newline here, the other skipped characters (in escapedMultilineTrimmed)
+                // are either added in the next iteration or when disabling multiline when they're put back into the string
+                this.skippedChars += indent + 2
+                readCharacters += indent + 2
                 if(!hasBackslash)
                     break
             }

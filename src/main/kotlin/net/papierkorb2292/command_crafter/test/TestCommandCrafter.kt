@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilde
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
+import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
@@ -36,7 +37,6 @@ import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
 import java.util.concurrent.CompletableFuture
-import kotlin.math.absoluteValue
 
 object TestCommandCrafter {
     @GameTest
@@ -403,6 +403,37 @@ object TestCommandCrafter {
             )
         }
 
+        context.complete()
+    }
+
+    @GameTest
+    fun testMultilineCommandsHighlighting(context: TestContext) {
+        // With trailing spaces!
+        val lines = """
+            execute \ 
+                run \ 
+                say HI!  
+            execute run \    
+             say HI!
+        """.trimIndent().lines()
+
+        val analyzingResult = analyseCommand(context, lines)
+        val tokenData = analyzingResult.semanticTokens.build().data
+
+        fun testToken(tokenIndex: Int, expectedLineOffset: Int, expectedCursorOffset: Int, expectedLength: Int) {
+            context.assertEquals(expectedLineOffset,   tokenData[5 * tokenIndex + 0], Text.literal("Index $tokenIndex: token line"))
+            context.assertEquals(expectedCursorOffset, tokenData[5 * tokenIndex + 1], Text.literal("Index $tokenIndex: token cursor"))
+            context.assertEquals(expectedLength,       tokenData[5 * tokenIndex + 2], Text.literal("Index $tokenIndex: token length"))
+        }
+
+        testToken(0, 0, 0, 7)
+        testToken(1, 1, 4, 3)
+        testToken(2, 1, 4, 3)
+        testToken(3, 0, 4, 3)
+        testToken(4, 1, 0, 7)
+        testToken(5, 0, 8, 3)
+        testToken(6, 1, 1, 3)
+        testToken(7, 0, 4, 3)
         context.complete()
     }
 
