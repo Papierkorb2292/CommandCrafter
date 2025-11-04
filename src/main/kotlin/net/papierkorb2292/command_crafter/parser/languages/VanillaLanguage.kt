@@ -231,8 +231,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    var j = 0
-
     private fun readAndAnalyzeMacro(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         source: CommandSource,

@@ -123,6 +123,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 definitionProvider = Either.forLeft(true)
                 save = Either.forLeft(true)
                 completionProvider = CompletionOptions().apply {
+                    triggerCharacters = listOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
                     resolveProvider = true
                 }
             })
