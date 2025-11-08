@@ -36,9 +36,14 @@ import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
+import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 
 object TestCommandCrafter {
+    val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
+    val snapshotDirectory = projectDirectory.resolve("tests/__snapshots__")
+    val inputDirectory = projectDirectory.resolve("tests/inputs")
+
     @GameTest
     fun exampleTest(context: TestContext) {
         context.assertEquals(1, 1, Text.literal("example"))

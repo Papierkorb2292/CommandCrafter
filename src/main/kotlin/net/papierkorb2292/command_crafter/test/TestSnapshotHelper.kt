@@ -27,13 +27,9 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.mixin.test.TestContextAccessor
 import org.apache.logging.log4j.core.pattern.AnsiEscape
-import java.nio.file.Path
 import javax.swing.text.html.parser.Entity
 
 object TestSnapshotHelper {
-    val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
-    val testDirectory = projectDirectory.resolve("__snapshots__")
-
     val simpleModule = SimpleModule()
         .addSerializer(IntList::class.java, IntList.JacksonSerializer)
         .addSerializer(CommandDispatcher::class.java, NullSerializer.instance)
@@ -90,7 +86,7 @@ object TestSnapshotHelper {
         val fileSuffix = if(idSuffix == null) "" else "_$idSuffix"
         val fileExtension = ".json"
         val fileName = testId.value.namespace + "_" + testId.value.path + fileSuffix + fileExtension
-        val file = testDirectory.resolve(fileName).toFile()
+        val file = TestCommandCrafter.snapshotDirectory.resolve(fileName).toFile()
         val jsonValue = try {
             objectMapper.writeValueAsString(value)
         } catch(e: JsonMappingException) {
