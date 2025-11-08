@@ -36,6 +36,7 @@ import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.TextEdit
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 
@@ -519,6 +520,15 @@ object TestCommandCrafter {
             Language.TopLevelClosure(VanillaLanguage())
         )
         context.assertEqualsSnapshot(analyzingResult, "analyzing_result")
+    }
+
+    @GameTest
+    fun testMacroHighlighting(context: TestContext) {
+        val lines = Files.readAllLines(inputDirectory.resolve("macros.mcfunction"))
+
+        val result = analyseCommand(context, lines)
+        context.assertEqualsSnapshot(result.semanticTokens.build().data, "semantic_tokens")
+        context.complete()
     }
 
     private fun analyseCommand(context: TestContext, lines: List<String>): AnalyzingResult {
