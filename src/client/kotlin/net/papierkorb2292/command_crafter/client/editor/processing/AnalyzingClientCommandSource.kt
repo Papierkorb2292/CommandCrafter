@@ -43,6 +43,7 @@ class AnalyzingClientCommandSource(
     override fun getSoundIds(): Stream<Identifier> =
         clientCommandSource.soundIds
     override fun getWorldKeys(): MutableSet<RegistryKey<World>> = clientCommandSource.worldKeys
+    // TODO: Should probably use CommandCrafter's synced registries instead
     override fun getRegistryManager(): DynamicRegistryManager =
         if(hasNetworkHandler) clientCommandSource.registryManager else DynamicRegistryManager.of(Registries.REGISTRIES)
     override fun getEnabledFeatures(): FeatureSet =
