@@ -1,8 +1,12 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.serialization.Codec;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
@@ -18,6 +22,7 @@ import net.minecraft.util.packrat.PackratParser;
 import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,8 +31,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.concurrent.CompletableFuture;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
+
 @Mixin(RegistryEntryArgumentType.class)
-public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, CustomCompletionsCommandNode {
+public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode {
 
     @Shadow @Final private Codec<T> entryCodec;
     @Shadow @Final private RegistryWrapper.WrapperLookup registries;
@@ -119,8 +128,10 @@ public class RegistryEntryArgumentTypeMixin<T> implements AnalyzingCommandNode, 
         treeOperations.analyzeFull(result, isInline, command_crafter$inlineOrReferenceCodec);
     }
 
-    @Override
-    public boolean command_crafter$hasCustomCompletions(@NotNull CommandContext<CommandSource> context, @NotNull String name) {
-        return true;
+    @WrapMethod(method = "listSuggestions")
+    private CompletableFuture<Suggestions> command_crafter$skipVanillaSuggestions(CommandContext<?> context, SuggestionsBuilder suggestionsBuilder, Operation<CompletableFuture<Suggestions>> op) {
+        if(getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT()) != null)
+            return suggestionsBuilder.buildFuture();
+        return op.call(context, suggestionsBuilder);
     }
 }

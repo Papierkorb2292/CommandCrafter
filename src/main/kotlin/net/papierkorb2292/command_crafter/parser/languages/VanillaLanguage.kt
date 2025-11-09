@@ -739,25 +739,21 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.cursor = max(reader.cursor, analyzeReader.cursor)
                     reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
                 }
-                if(node !is CustomCompletionsCommandNode || !node.`command_crafter$hasCustomCompletions`(
-                        context,
-                        node.name
-                    )
-                ) {
-                    analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
-                    addNodeSuggestions(
-                        parentNode,
-                        analyzingResult,
-                        parsedNode.range,
-                        analyzeReader,
-                        contextBuilder,
-                        !easyNewLine,
-                        nodeAnalyzingResult,
-                        rootSuggestionsResult
-                    )
-                } else {
-                    analyzingResult.combineWith(nodeAnalyzingResult)
-                }
+                analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
+                val hasCustomCompletions = node is CustomCompletionsCommandNode && node.`command_crafter$hasCustomCompletions`(context, node.name)
+                if(hasCustomCompletions)
+                    analyzingResult.combineWithCompletionProviders(nodeAnalyzingResult, "_customSuggestions")
+
+                addNodeSuggestions(
+                    parentNode,
+                    analyzingResult,
+                    parsedNode.range,
+                    analyzeReader,
+                    contextBuilder,
+                    !easyNewLine,
+                    if(!hasCustomCompletions) nodeAnalyzingResult else null,
+                    rootSuggestionsResult
+                )
             } finally {
                 reader.readCharacters = initialReadCharacters
                 reader.skippedChars = initialSkippedChars
