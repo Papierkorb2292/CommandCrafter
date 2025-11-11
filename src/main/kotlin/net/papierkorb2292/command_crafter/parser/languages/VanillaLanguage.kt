@@ -720,19 +720,23 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             analyzeReader.cursor = parsedNode.range.start
             try {
                 val nodeAnalyzingResult = analyzingResult.copyInput()
-                try {
-                    node.`command_crafter$analyze`(
-                        context,
-                        StringRange(
-                            parsedNode.range.start,
-                            MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-                        ),
-                        analyzeReader,
-                        nodeAnalyzingResult,
-                        node.name
-                    )
-                } catch(e: Exception) {
-                    CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                // Skip analyzing when generating serverside suggestions, because everything but the vanilla
+                // suggestions has already been done by the client and shouldn't be done twice
+                if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true) {
+                    try {
+                        node.`command_crafter$analyze`(
+                            context,
+                            StringRange(
+                                parsedNode.range.start,
+                                MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                            ),
+                            analyzeReader,
+                            nodeAnalyzingResult,
+                            node.name
+                        )
+                    } catch(e: Exception) {
+                        CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                    }
                 }
                 if(skipAnalyzedChars) {
                     // Choose maximum because the analyzer might not have an implementation that reads anything

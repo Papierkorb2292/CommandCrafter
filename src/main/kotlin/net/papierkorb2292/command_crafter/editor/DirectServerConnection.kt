@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
 import net.minecraft.command.CommandSource
@@ -236,7 +235,9 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             resetMappingInfo.readCharacters = 0
             resetMappingInfo.skippedChars = 0
             val analyzingResult = AnalyzingResult(resetMappingInfo, Position())
-            LanguageManager.analyse(DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator), server.commandSource, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
+            val resetReader = DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator)
+            resetReader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(fullInput.cursor, true)
+            LanguageManager.analyse(resetReader, server.commandSource, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
             return analyzingResult.getCompletionProviderForCursor(fullInput.cursor)
                 ?.dataProvider?.invoke(fullInput.cursor)
                 ?: CompletableFuture.completedFuture(listOf())
