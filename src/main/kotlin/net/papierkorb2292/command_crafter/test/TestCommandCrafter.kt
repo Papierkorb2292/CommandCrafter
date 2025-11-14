@@ -162,7 +162,7 @@ object TestCommandCrafter {
         val predicateIndices = listOf(3, 4, 5, 9, 10, 11)
 
         @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val commandDispatcher = context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
         val source = getParsingCommandSource(context)
         val analyzingResult = AnalyzingResult(FileMappingInfo(processedLines), Position())
 
@@ -246,7 +246,7 @@ object TestCommandCrafter {
     fun testAllFunctionParsers(lines: List<String>, context: TestContext) {
         val id = Identifier.of("test")
         @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val commandDispatcher = context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
         val source = getParsingCommandSource(context)
 
         val parsedResourceCreator = ParsedResourceCreator(
@@ -299,7 +299,7 @@ object TestCommandCrafter {
     }
 
     private fun getParsingCommandSource(context: TestContext): ServerCommandSource =
-        context.world.server.commandSource
+        context.world.server!!.commandSource
             .withPosition(Vec3d.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
 
     /**

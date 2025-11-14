@@ -1,12 +1,12 @@
 package net.papierkorb2292.command_crafter
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.tree.CommandNode
+import com.mojang.serialization.Codec
 import net.fabricmc.api.EnvType
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
-import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory
-import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.advancement.Advancement
 import net.minecraft.block.entity.BannerPattern
@@ -32,18 +32,22 @@ import net.minecraft.loot.condition.LootCondition
 import net.minecraft.loot.function.LootFunctionTypes
 import net.minecraft.network.message.MessageType
 import net.minecraft.recipe.Recipe
+import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
+import net.minecraft.registry.RegistryKey
+import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.tag.TagFile
+import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.server.dedicated.management.listener.BlankManagementListener
 import net.minecraft.structure.StructureSet
 import net.minecraft.structure.pool.StructurePool
 import net.minecraft.structure.processor.StructureProcessorType
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
-import net.minecraft.world.GameRules
 import net.minecraft.world.biome.Biome
 import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterList
 import net.minecraft.world.dimension.DimensionOptions
@@ -56,6 +60,10 @@ import net.minecraft.world.gen.densityfunction.DensityFunction
 import net.minecraft.world.gen.feature.ConfiguredFeature
 import net.minecraft.world.gen.feature.PlacedFeature
 import net.minecraft.world.gen.structure.JigsawStructure
+import net.minecraft.world.rule.GameRule
+import net.minecraft.world.rule.GameRuleCategory
+import net.minecraft.world.rule.GameRuleType
+import net.minecraft.world.rule.GameRuleVisitor
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
@@ -252,12 +260,28 @@ object CommandCrafter: ModInitializer {
         private set
 
     private fun initializeConfig() {
-        val shortenNbtGameRule = GameRuleFactory.createBooleanRule(true) { _, rule ->
-            shortenNbt = rule.get()
-        }
-        val shortenNbtGameRuleKey = GameRuleRegistry.register("shortenNbt", GameRules.Category.CHAT, shortenNbtGameRule)
-        ServerLifecycleEvents.SERVER_STARTED.register {
-            shortenNbt = it.saveProperties.gameRules.getBoolean(shortenNbtGameRuleKey)
+        val shortenNbtGameRule = Registry.register(
+            Registries.GAME_RULE,
+            Identifier.of("command_crafter", "shorten_nbt"),
+            GameRule(
+                GameRuleCategory.CHAT,
+                GameRuleType.BOOL,
+                BoolArgumentType.bool(),
+                GameRuleVisitor::visitBoolean,
+                Codec.BOOL,
+                { if(it) 1 else 0 },
+                true,
+                FeatureSet.empty()
+            )
+        )
+        ServerLifecycleEvents.SERVER_STARTED.register { server ->
+            shortenNbt = server.saveProperties.gameRules.getValue(shortenNbtGameRule)
+            server.managementListener.addListener(object : BlankManagementListener() {
+                override fun <T : Any?> onGameRuleUpdated(arg: GameRule<T>, `object`: T) {
+                    if(arg == shortenNbtGameRule)
+                        shortenNbt = `object` as Boolean
+                }
+            })
         }
 
         config = CommandCrafterConfig.fromFile(CommandCrafterConfig.DEFAULT_CONFIG_PATH)

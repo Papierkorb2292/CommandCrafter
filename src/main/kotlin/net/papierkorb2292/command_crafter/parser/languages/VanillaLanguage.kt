@@ -859,7 +859,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             tagEntryListCodec,
             Codec.either(
                 // Unit to suggest {} for inline functions
-                Codec.unit(Unit),
+                Codec.EMPTY.codec(),
                 // Suggesting 'this'
                 StringIdentifiable.createCodec({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "this" })
             )

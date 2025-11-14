@@ -12,7 +12,6 @@ import net.papierkorb2292.command_crafter.editor.processing.SimpleCompletionItem
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import net.papierkorb2292.command_crafter.helper.toShortString
 import org.eclipse.lsp4j.*
 
 class DirectiveManager {
