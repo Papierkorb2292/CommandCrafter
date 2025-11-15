@@ -26,8 +26,13 @@ import java.util.stream.Stream
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientCommandSource,
     private val hasNetworkHandler: Boolean,
-    var allowServersideCompletions: Boolean = false
 ) : CommandSource, PermissionLevelSource {
+
+    companion object {
+        // This is saved globally instead of per instance, because ClientCommandCrafter can only
+        // access the latest instance, but macros might be using a previous instance
+        val allowServersideCompletions = ThreadLocal<Boolean>()
+    }
 
     constructor(minecraftClient: MinecraftClient): this(
         minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient, true),
@@ -62,9 +67,9 @@ class AnalyzingClientCommandSource(
             getCompletions(context)
 
     override fun getCompletions(context: CommandContext<*>): CompletableFuture<Suggestions> {
-        if(!allowServersideCompletions)
+        if(allowServersideCompletions.getOrNull() != true)
             return Suggestions.empty()
-        allowServersideCompletions = false // Only allow once per completion invocation to reduce unnecessary processing
+        allowServersideCompletions.remove() // Only allow once per completion invocation to reduce unnecessary processing
         val fullInput = VanillaLanguage.SUGGESTIONS_FULL_INPUT.getOrNull()
         if(!hasNetworkHandler || fullInput == null)
             return Suggestions.empty()

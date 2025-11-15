@@ -78,7 +78,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 finalResult.addCompletionProvider(
                     AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                     AnalyzingResult.RangedDataProvider(StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last())) { cursor ->
-                        source.allowServersideCompletions = true
+                        AnalyzingClientCommandSource.allowServersideCompletions.set(true)
                         analyzingResult.getCompletionProviderForCursor(cursor)?.dataProvider(cursor) ?: CompletableFuture.completedFuture(listOf())
                     },
                     false
