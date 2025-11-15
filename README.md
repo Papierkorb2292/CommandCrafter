@@ -21,3 +21,10 @@ For information on how to install and use the mod, visit the [Getting Started](h
 This mod is licensed under the MIT License (see [LICENSE](LICENSE)).
 
 This mod distributes with the [LSP4J library](https://github.com/eclipse-lsp4j/lsp4j), which is licensed under the Eclipse Distribution License 1.0 (see https://www.eclipse.org/org/documents/edl-v10.html), and distributes with parts of the [GSON library](https://github.com/google/gson), which is licensed under the Apache License 2.0 (see https://github.com/google/gson/blob/main/gson/LICENSE).  
+
+# Special Thanks
+I want to thank all the following awesome people for testing and giving feedback for this project:
+- [Kesuaheli](https://www.github.com/Kesuaheli)
+- [Percy](https://www.youtube.com/@percyarin.studios)
+- [Yondonator](https://www.github.com/yondonator)
+- [Mqxx](https://www.github.com/Mqxx)
