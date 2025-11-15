@@ -75,16 +75,6 @@
         "start" : 191,
         "end" : 191
       }
-    }, {
-      "cursorRange" : {
-        "start" : 202,
-        "end" : 206
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 226,
-        "end" : 226
-      }
     } ],
     "language" : [ {
       "cursorRange" : {
@@ -223,6 +213,12 @@
       }
     }, {
       "cursorRange" : {
+        "start" : 227,
+        "end" : 227
+      }
+    } ],
+    "language_customSuggestions" : [ {
+      "cursorRange" : {
         "start" : 200,
         "end" : 200
       }
@@ -240,6 +236,17 @@
       "cursorRange" : {
         "start" : 210,
         "end" : 213
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 226,
+        "end" : 226
+      }
+    } ],
+    "directive_customSuggestions" : [ {
+      "cursorRange" : {
+        "start" : 202,
+        "end" : 206
       }
     }, {
       "cursorRange" : {
