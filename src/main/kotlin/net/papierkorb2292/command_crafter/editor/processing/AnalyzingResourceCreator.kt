@@ -33,6 +33,11 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
         resourceStack.addAll(resourceCreator.resourceStack)
     }
 
+    fun canSuggestionsSkipRange(absoluteStart: Int, absoluteEnd: Int): Boolean {
+        val suggestionCursor = suggestionRequestInfo?.absoluteCursor ?: return false
+        return suggestionCursor !in absoluteStart..absoluteEnd
+    }
+
     data class ResourceStackEntry(val analyzingResult: AnalyzingResult)
 
     class CacheData(

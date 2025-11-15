@@ -240,6 +240,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val absoluteStartOffset = reader.readCharacters + startCursor
         val macro = readMacro(reader)
 
+        // Skip irrelevant macros when generating suggestions
+        if(reader.resourceCreator.canSuggestionsSkipRange(absoluteStartOffset, reader.absoluteCursor))
+            return
+
         // Get only the relevant lines for caching
         val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
         val relevantLines = mutableListOf<String>()
@@ -968,7 +972,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val shouldDisplayWarningOnMacroTimeout = true //TODO: Turn off before release
-        val logMacroAnalyzingTime = false
+        val logMacroAnalyzingTime = true
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
