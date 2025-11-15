@@ -340,6 +340,9 @@ object NetworkServerConnectionHandler {
         if(networkHandler !in currentConnections)
             return
 
+        // Used by the client to clear previous sync, just in case something went wrong
+        networkHandler.sendPacket(CustomPayloadS2CPacket(StartRegistrySyncS2CPacket))
+
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
         val registryManager = server.reloadableRegistries.createRegistryLookup() as DynamicRegistryManager
 

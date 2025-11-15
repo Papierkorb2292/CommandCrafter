@@ -116,6 +116,15 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 currentConnections += connection
                 currentRequest.second.complete(connection)
             }
+            ClientPlayNetworking.registerGlobalReceiver(StartRegistrySyncS2CPacket.ID) { _, _ ->
+                if(!receivedRegistryKeys.isEmpty())
+                    CommandCrafter.LOGGER.error("New registry sync started, but previous one wasn't finished. Something went wrong!")
+                // Usually these are already reset after building the registry manager, but if something went wrong they could still contain
+                // data, which means after the new sync they would contain duplicate entries, which leads to Minecraft throwing lots of errors
+                // and producing huge logs, so better make sure they're reset
+                receivedRegistryKeys.clear()
+                receivedClientRegistries = ClientRegistries()
+            }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
                 if(payload.dynamicRegistry.registry in NetworkServerConnectionHandler.SYNCED_REGISTRY_KEYS)
                     receivedClientRegistries.putDynamicRegistry(payload.dynamicRegistry.registry, payload.dynamicRegistry.entries)
