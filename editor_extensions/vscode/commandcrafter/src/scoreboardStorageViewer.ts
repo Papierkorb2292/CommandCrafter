@@ -309,7 +309,7 @@ class ScoreboardStorageFileSystemProvider implements vscode.FileSystemProvider {
     }
     readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
         return this.makeRequest<{ contentBase64: string}>("scoreboardStorageFileSystem/readFile", { uri: uri.toString() }, uri)
-            .then(({ contentBase64 }) => Buffer.from(contentBase64, "base64"))
+            .then(({ contentBase64 }) => Uint8Array.from(Buffer.from(contentBase64, "base64")))
     }
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
         return this.makeRequest("scoreboardStorageFileSystem/writeFile", { uri: uri.toString(), contentBase64: Buffer.from(content).toString("base64"), ...options }, uri)
