@@ -17,6 +17,7 @@ import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.command.CommandSource
 import net.minecraft.command.MacroInvocation
 import net.minecraft.command.SingleCommandAction
@@ -972,7 +973,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val shouldDisplayWarningOnMacroTimeout = true //TODO: Turn off before release
-        val logMacroAnalyzingTime = true
+        val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))

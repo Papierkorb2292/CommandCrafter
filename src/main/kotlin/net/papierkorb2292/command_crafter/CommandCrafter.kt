@@ -72,6 +72,7 @@ import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage.Companion.logMacroAnalyzingTime
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.Position
@@ -101,6 +102,11 @@ object CommandCrafter: ModInitializer {
         initializeParser()
 
         LOGGER.info("Loaded CommandCrafter!")
+    }
+
+    fun getBooleanSystemProperty(name: String): Boolean {
+        val arg = System.getProperty(name)
+        return arg != null && (arg.isEmpty() || arg.toBoolean())
     }
 
     private fun initializeEditor() {
@@ -279,8 +285,7 @@ object CommandCrafter: ModInitializer {
                 featureConfig: FeatureConfig
             ): EditorConnectionManager.LaunchedService {
                 val server = MinecraftLanguageServer(serverConnection, clientConnection, featureConfig)
-                val traceLanguageServerArg = System.getProperty("cc_trace_language_server")
-                val generateLanguageServerTrace = traceLanguageServerArg != null && (traceLanguageServerArg.isEmpty() || traceLanguageServerArg.toBoolean())
+                val generateLanguageServerTrace = getBooleanSystemProperty("cc_trace_language_server")
                 val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                     .setLocalService(server)
                     .setRemoteInterface(CommandCrafterLanguageClient::class.java)
