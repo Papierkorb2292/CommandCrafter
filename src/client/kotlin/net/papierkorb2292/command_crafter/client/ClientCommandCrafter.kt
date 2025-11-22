@@ -90,11 +90,16 @@ object ClientCommandCrafter : ClientModInitializer {
                 file: OpenFile,
                 languageServer: MinecraftLanguageServer,
             ): AnalyzingResult {
+                val dispatcher = languageServer.minecraftServer.commandDispatcher
                 val reader = DirectiveStringReader(
                     file.createFileMappingInfo(),
-                    languageServer.minecraftServer.commandDispatcher,
+                    dispatcher,
                     AnalyzingResourceCreator(languageServer, file.uri).apply {
-                        previousCache = file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData
+                        (file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData)?.let { persistentCache ->
+                            if(persistentCache.usedCommandDispatcher == dispatcher)
+                                previousCache = persistentCache
+                        }
+                        newCache.usedCommandDispatcher = dispatcher
                     }
                 )
                 val result = AnalyzingResult(reader.fileMappingInfo, Position())

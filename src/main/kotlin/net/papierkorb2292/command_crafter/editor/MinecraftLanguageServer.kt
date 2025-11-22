@@ -109,6 +109,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private fun analyzeAllFiles() {
         for (file in openFiles.values) {
             file.stopAnalyzing()
+            file.persistentAnalyzerData = null // Make sure all data is properly regenerated
             file.analyzeFile(this)
         }
     }

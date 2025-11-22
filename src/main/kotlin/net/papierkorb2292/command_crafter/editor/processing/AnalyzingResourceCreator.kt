@@ -1,5 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.mojang.brigadier.CommandDispatcher
+import net.minecraft.command.CommandSource
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import java.util.*
@@ -41,6 +43,7 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
     data class ResourceStackEntry(val analyzingResult: AnalyzingResult)
 
     class CacheData(
+        var usedCommandDispatcher: CommandDispatcher<CommandSource>? = null,
         val vanillaMacroCache: MutableMap<List<String>, AnalyzingResult> = mutableMapOf()
     )
 
