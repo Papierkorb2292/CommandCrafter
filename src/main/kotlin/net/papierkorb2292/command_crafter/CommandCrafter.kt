@@ -11,6 +11,7 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.advancement.Advancement
 import net.minecraft.block.entity.BannerPattern
 import net.minecraft.block.jukebox.JukeboxSong
+import net.minecraft.block.spawner.TrialSpawnerConfig
 import net.minecraft.command.CommandSource
 import net.minecraft.command.permission.LeveledPermissionPredicate
 import net.minecraft.dialog.type.Dialog
@@ -26,6 +27,7 @@ import net.minecraft.entity.passive.FrogVariant
 import net.minecraft.entity.passive.PigVariant
 import net.minecraft.entity.passive.WolfSoundVariant
 import net.minecraft.entity.passive.WolfVariant
+import net.minecraft.item.Instrument
 import net.minecraft.item.equipment.trim.ArmorTrimMaterial
 import net.minecraft.item.equipment.trim.ArmorTrimPattern
 import net.minecraft.loot.LootTable
@@ -35,8 +37,6 @@ import net.minecraft.network.message.MessageType
 import net.minecraft.recipe.Recipe
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.tag.TagFile
 import net.minecraft.resource.featuretoggle.FeatureSet
 import net.minecraft.screen.ScreenTexts
@@ -46,6 +46,8 @@ import net.minecraft.server.dedicated.management.listener.BlankManagementListene
 import net.minecraft.structure.StructureSet
 import net.minecraft.structure.pool.StructurePool
 import net.minecraft.structure.processor.StructureProcessorType
+import net.minecraft.test.TestEnvironmentDefinition
+import net.minecraft.test.TestInstance
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
@@ -91,6 +93,7 @@ import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
+import java.lang.instrument.Instrumentation
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ExecutorService
 
@@ -127,6 +130,7 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.BLOCK_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.CAT_VARIANT_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.DAMAGE_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
+        addJsonAnalyzer(PackContentFileType.DIALOG_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.ENTITY_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.FLUID_TAGS_FILE_TYPE, TagFile.CODEC)
@@ -136,6 +140,7 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.ITEM_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.PAINTING_VARIANT_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
+        addJsonAnalyzer(PackContentFileType.TIMELINE_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE, TagFile.CODEC)
         addJsonAnalyzer(PackContentFileType.WORLDGEN_STRUCTURE_TAGS_FILE_TYPE, TagFile.CODEC)
@@ -172,6 +177,10 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE, EnchantmentProvider.CODEC)
         addJsonAnalyzer(PackContentFileType.DIALOG_FILE_TYPE, Dialog.CODEC)
         addJsonAnalyzer(PackContentFileType.TIMELINE_FILE_TYPE, Timeline.CODEC)
+        addJsonAnalyzer(PackContentFileType.TRIAL_SPAWNER_FILE_TYPE, TrialSpawnerConfig.CODEC)
+        addJsonAnalyzer(PackContentFileType.INSTRUMENT_FILE_TYPE, Instrument.CODEC)
+        addJsonAnalyzer(PackContentFileType.TEST_ENVIRONMENT_FILE_TYPE, TestEnvironmentDefinition.CODEC)
+        addJsonAnalyzer(PackContentFileType.TEST_INSTANCE_FILE_TYPE, TestInstance.CODEC)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
