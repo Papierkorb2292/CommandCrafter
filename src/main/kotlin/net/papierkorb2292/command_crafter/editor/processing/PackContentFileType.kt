@@ -47,6 +47,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     FROG_VARIANT_FILE_TYPE("frog_variant", PackType.DATA),
     COW_VARIANT_FILE_TYPE("cow_variant", PackType.DATA),
     CHICKEN_VARIANT_FILE_TYPE("chicken_variant", PackType.DATA),
+    ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE("zombie_nautilus_variant", PackType.DATA),
     WOLF_SOUND_VARIANT_FILE_TYPE("wolf_sound_variant", PackType.DATA),
     DIMENSION_FILE_TYPE("dimension", PackType.DATA),
     DIMENSION_TYPE_FILE_TYPE("dimension_type", PackType.DATA),
@@ -69,6 +70,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     ENCHANTMENT_FILE_TYPE("enchantment", PackType.DATA),
     ENCHANTMENT_PROVIDER_FILE_TYPE("enchantment_provider", PackType.DATA),
     DIALOG_FILE_TYPE("dialog", PackType.DATA),
+    TIMELINE_FILE_TYPE("timeline", PackType.DATA),
 
     ATLASES_FILE_TYPE("atlases", PackType.RESOURCE),
     BLOCKSTATES_FILE_TYPE("blockstates", PackType.RESOURCE),

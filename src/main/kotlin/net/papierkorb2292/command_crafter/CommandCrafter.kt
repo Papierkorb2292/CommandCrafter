@@ -18,6 +18,7 @@ import net.minecraft.enchantment.Enchantment
 import net.minecraft.enchantment.provider.EnchantmentProvider
 import net.minecraft.entity.damage.DamageType
 import net.minecraft.entity.decoration.painting.PaintingVariant
+import net.minecraft.entity.mob.ZombieNautilusVariant
 import net.minecraft.entity.passive.CatVariant
 import net.minecraft.entity.passive.ChickenVariant
 import net.minecraft.entity.passive.CowVariant
@@ -48,6 +49,7 @@ import net.minecraft.structure.processor.StructureProcessorType
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.attribute.timeline.Timeline
 import net.minecraft.world.biome.Biome
 import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterList
 import net.minecraft.world.dimension.DimensionOptions
@@ -146,6 +148,7 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.FROG_VARIANT_FILE_TYPE, FrogVariant.CODEC)
         addJsonAnalyzer(PackContentFileType.COW_VARIANT_FILE_TYPE, CowVariant.CODEC)
         addJsonAnalyzer(PackContentFileType.CHICKEN_VARIANT_FILE_TYPE, ChickenVariant.CODEC)
+        addJsonAnalyzer(PackContentFileType.ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE, ZombieNautilusVariant.CODEC)
         addJsonAnalyzer(PackContentFileType.WOLF_SOUND_VARIANT_FILE_TYPE, WolfSoundVariant.CODEC)
         addJsonAnalyzer(PackContentFileType.DIMENSION_FILE_TYPE, DimensionOptions.CODEC)
         addJsonAnalyzer(PackContentFileType.DIMENSION_TYPE_FILE_TYPE, DimensionType.CODEC)
@@ -168,6 +171,7 @@ object CommandCrafter: ModInitializer {
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_FILE_TYPE, Enchantment.CODEC)
         addJsonAnalyzer(PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE, EnchantmentProvider.CODEC)
         addJsonAnalyzer(PackContentFileType.DIALOG_FILE_TYPE, Dialog.CODEC)
+        addJsonAnalyzer(PackContentFileType.TIMELINE_FILE_TYPE, Timeline.CODEC)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
