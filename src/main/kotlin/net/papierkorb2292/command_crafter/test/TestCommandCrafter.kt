@@ -14,9 +14,8 @@ import net.minecraft.test.TestContext
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -53,7 +52,7 @@ object TestCommandCrafter {
 
     @GameTest
     fun checkAllDynamicRegistriesHaveAnalyzer(context: TestContext) {
-        val existingAnalyzers = MinecraftLanguageServer.analyzers.mapNotNull { (it as? StringRangeTreeJsonResourceAnalyzer)?.packContentFileType?.contentTypePath }
+        val existingAnalyzers = FileTypeDispatchingAnalyzer.analyzers.keys.map { it.contentTypePath }
         for(dynamicRegistry in RegistryLoader.DYNAMIC_REGISTRIES)
             context.assertTrue(dynamicRegistry.key.value.path in existingAnalyzers, "Analyzer for registry ${dynamicRegistry.key.value.path}")
         context.complete()

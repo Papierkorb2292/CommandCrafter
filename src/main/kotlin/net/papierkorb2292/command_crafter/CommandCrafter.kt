@@ -73,7 +73,6 @@ import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.processing.*
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ScoreboardFileAnalyzer
@@ -93,7 +92,6 @@ import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
-import java.lang.instrument.Instrumentation
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.ExecutorService
 
@@ -116,71 +114,9 @@ object CommandCrafter: ModInitializer {
     }
 
     private fun initializeEditor() {
+        StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(serversideJsonResourceCodecs)
+        MinecraftLanguageServer.addAnalyzer(FileTypeDispatchingAnalyzer)
         MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer)
-
-        addJsonAnalyzer(PackContentFileType.ADVANCEMENTS_FILE_TYPE, Advancement.CODEC)
-        addJsonAnalyzer(PackContentFileType.BANNER_PATTERN_FILE_TYPE, BannerPattern.CODEC)
-        addJsonAnalyzer(PackContentFileType.ITEM_MODIFIER_FILE_TYPE, LootFunctionTypes.CODEC)
-        addJsonAnalyzer(PackContentFileType.LOOT_TABLES_FILE_TYPE, LootTable.CODEC)
-        addJsonAnalyzer(PackContentFileType.PREDICATES_FILE_TYPE, LootCondition.CODEC)
-        addJsonAnalyzer(PackContentFileType.RECIPES_FILE_TYPE, Recipe.CODEC)
-        addJsonAnalyzer(PackContentFileType.CHAT_TYPE_FILE_TYPE, MessageType.CODEC)
-        addJsonAnalyzer(PackContentFileType.DAMAGE_TYPE_FILE_TYPE, DamageType.CODEC)
-        addJsonAnalyzer(PackContentFileType.BANNER_PATTERN_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.BLOCK_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.CAT_VARIANT_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.DAMAGE_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.DIALOG_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.ENCHANTMENT_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.ENTITY_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.FLUID_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.FUNCTION_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.GAME_EVENT_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.INSTRUMENT_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.ITEM_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.PAINTING_VARIANT_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.TIMELINE_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_STRUCTURE_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_WORLD_PRESET_TAGS_FILE_TYPE, TagFile.CODEC)
-        addJsonAnalyzer(PackContentFileType.TRIM_MATERIAL_FILE_TYPE, ArmorTrimMaterial.CODEC)
-        addJsonAnalyzer(PackContentFileType.TRIM_PATTERN_FILE_TYPE, ArmorTrimPattern.CODEC)
-        addJsonAnalyzer(PackContentFileType.WOLF_VARIANT_FILE_TYPE, WolfVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.PIG_VARIANT_FILE_TYPE, PigVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.CAT_VARIANT_FILE_TYPE, CatVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.FROG_VARIANT_FILE_TYPE, FrogVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.COW_VARIANT_FILE_TYPE, CowVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.CHICKEN_VARIANT_FILE_TYPE, ChickenVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE, ZombieNautilusVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.WOLF_SOUND_VARIANT_FILE_TYPE, WolfSoundVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.DIMENSION_FILE_TYPE, DimensionOptions.CODEC)
-        addJsonAnalyzer(PackContentFileType.DIMENSION_TYPE_FILE_TYPE, DimensionType.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_BIOME_FILE_TYPE, Biome.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_CONFIGURED_CARVER_FILE_TYPE, ConfiguredCarver.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE, ConfiguredFeature.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_DENSITY_FUNCTION_FILE_TYPE, DensityFunction.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE, FlatLevelGeneratorPreset.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE, MultiNoiseBiomeSourceParameterList.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_NOISE_FILE_TYPE, DensityFunction.Noise.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_NOISE_SETTINGS_FILE_TYPE, ChunkGeneratorSettings.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_PLACED_FEATURE_FILE_TYPE, PlacedFeature.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_PROCESSOR_LIST_FILE_TYPE, StructureProcessorType.PROCESSORS_CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_STRUCTURE_FILE_TYPE, JigsawStructure.STRUCTURE_CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_STRUCTURE_SET_FILE_TYPE, StructureSet.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_TEMPLATE_POOL_FILE_TYPE, StructurePool.CODEC)
-        addJsonAnalyzer(PackContentFileType.WORLDGEN_WORLD_PRESET_FILE_TYPE, WorldPreset.CODEC)
-        addJsonAnalyzer(PackContentFileType.PAINTING_VARIANT_FILE_TYPE, PaintingVariant.CODEC)
-        addJsonAnalyzer(PackContentFileType.JUKEBOX_SONG_FILE_TYPE, JukeboxSong.CODEC)
-        addJsonAnalyzer(PackContentFileType.ENCHANTMENT_FILE_TYPE, Enchantment.CODEC)
-        addJsonAnalyzer(PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE, EnchantmentProvider.CODEC)
-        addJsonAnalyzer(PackContentFileType.DIALOG_FILE_TYPE, Dialog.CODEC)
-        addJsonAnalyzer(PackContentFileType.TIMELINE_FILE_TYPE, Timeline.CODEC)
-        addJsonAnalyzer(PackContentFileType.TRIAL_SPAWNER_FILE_TYPE, TrialSpawnerConfig.CODEC)
-        addJsonAnalyzer(PackContentFileType.INSTRUMENT_FILE_TYPE, Instrument.CODEC)
-        addJsonAnalyzer(PackContentFileType.TEST_ENVIRONMENT_FILE_TYPE, TestEnvironmentDefinition.CODEC)
-        addJsonAnalyzer(PackContentFileType.TEST_INSTANCE_FILE_TYPE, TestInstance.CODEC)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
@@ -359,6 +295,72 @@ object CommandCrafter: ModInitializer {
             }
 
         }
+    )
+
+    val serversideJsonResourceCodecs = mutableMapOf(
+        PackContentFileType.ADVANCEMENTS_FILE_TYPE to Advancement.CODEC,
+        PackContentFileType.BANNER_PATTERN_FILE_TYPE to BannerPattern.CODEC,
+        PackContentFileType.ITEM_MODIFIER_FILE_TYPE to LootFunctionTypes.CODEC,
+        PackContentFileType.LOOT_TABLES_FILE_TYPE to LootTable.CODEC,
+        PackContentFileType.PREDICATES_FILE_TYPE to LootCondition.CODEC,
+        PackContentFileType.RECIPES_FILE_TYPE to Recipe.CODEC,
+        PackContentFileType.CHAT_TYPE_FILE_TYPE to MessageType.CODEC,
+        PackContentFileType.DAMAGE_TYPE_FILE_TYPE to DamageType.CODEC,
+        PackContentFileType.BANNER_PATTERN_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.BLOCK_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.CAT_VARIANT_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.DAMAGE_TYPE_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.DIALOG_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.ENCHANTMENT_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.ENTITY_TYPE_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.FLUID_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.FUNCTION_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.GAME_EVENT_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.INSTRUMENT_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.ITEM_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.PAINTING_VARIANT_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.TIMELINE_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.WORLDGEN_STRUCTURE_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.WORLDGEN_WORLD_PRESET_TAGS_FILE_TYPE to TagFile.CODEC,
+        PackContentFileType.TRIM_MATERIAL_FILE_TYPE to ArmorTrimMaterial.CODEC,
+        PackContentFileType.TRIM_PATTERN_FILE_TYPE to ArmorTrimPattern.CODEC,
+        PackContentFileType.WOLF_VARIANT_FILE_TYPE to WolfVariant.CODEC,
+        PackContentFileType.PIG_VARIANT_FILE_TYPE to PigVariant.CODEC,
+        PackContentFileType.CAT_VARIANT_FILE_TYPE to CatVariant.CODEC,
+        PackContentFileType.FROG_VARIANT_FILE_TYPE to FrogVariant.CODEC,
+        PackContentFileType.COW_VARIANT_FILE_TYPE to CowVariant.CODEC,
+        PackContentFileType.CHICKEN_VARIANT_FILE_TYPE to ChickenVariant.CODEC,
+        PackContentFileType.ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE to ZombieNautilusVariant.CODEC,
+        PackContentFileType.WOLF_SOUND_VARIANT_FILE_TYPE to WolfSoundVariant.CODEC,
+        PackContentFileType.DIMENSION_FILE_TYPE to DimensionOptions.CODEC,
+        PackContentFileType.DIMENSION_TYPE_FILE_TYPE to DimensionType.CODEC,
+        PackContentFileType.WORLDGEN_BIOME_FILE_TYPE to Biome.CODEC,
+        PackContentFileType.WORLDGEN_CONFIGURED_CARVER_FILE_TYPE to ConfiguredCarver.CODEC,
+        PackContentFileType.WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE to ConfiguredFeature.CODEC,
+        PackContentFileType.WORLDGEN_DENSITY_FUNCTION_FILE_TYPE to DensityFunction.CODEC,
+        PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE to FlatLevelGeneratorPreset.CODEC,
+        PackContentFileType.WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE to MultiNoiseBiomeSourceParameterList.CODEC,
+        PackContentFileType.WORLDGEN_NOISE_FILE_TYPE to DensityFunction.Noise.CODEC,
+        PackContentFileType.WORLDGEN_NOISE_SETTINGS_FILE_TYPE to ChunkGeneratorSettings.CODEC,
+        PackContentFileType.WORLDGEN_PLACED_FEATURE_FILE_TYPE to PlacedFeature.CODEC,
+        PackContentFileType.WORLDGEN_PROCESSOR_LIST_FILE_TYPE to StructureProcessorType.PROCESSORS_CODEC,
+        PackContentFileType.WORLDGEN_STRUCTURE_FILE_TYPE to JigsawStructure.STRUCTURE_CODEC,
+        PackContentFileType.WORLDGEN_STRUCTURE_SET_FILE_TYPE to StructureSet.CODEC,
+        PackContentFileType.WORLDGEN_TEMPLATE_POOL_FILE_TYPE to StructurePool.CODEC,
+        PackContentFileType.WORLDGEN_WORLD_PRESET_FILE_TYPE to WorldPreset.CODEC,
+        PackContentFileType.PAINTING_VARIANT_FILE_TYPE to PaintingVariant.CODEC,
+        PackContentFileType.JUKEBOX_SONG_FILE_TYPE to JukeboxSong.CODEC,
+        PackContentFileType.ENCHANTMENT_FILE_TYPE to Enchantment.CODEC,
+        PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE to EnchantmentProvider.CODEC,
+        PackContentFileType.DIALOG_FILE_TYPE to Dialog.CODEC,
+        PackContentFileType.TIMELINE_FILE_TYPE to Timeline.CODEC,
+        PackContentFileType.TRIAL_SPAWNER_FILE_TYPE to TrialSpawnerConfig.CODEC,
+        PackContentFileType.INSTRUMENT_FILE_TYPE to Instrument.CODEC,
+        PackContentFileType.TEST_ENVIRONMENT_FILE_TYPE to TestEnvironmentDefinition.CODEC,
+        PackContentFileType.TEST_INSTANCE_FILE_TYPE to TestInstance.CODEC,
     )
 
     private fun handleEditorServiceException(serviceName: String, e: Throwable): ResponseError {

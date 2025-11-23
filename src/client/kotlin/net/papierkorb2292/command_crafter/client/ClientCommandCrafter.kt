@@ -25,7 +25,7 @@ import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -88,11 +88,8 @@ object ClientCommandCrafter : ClientModInitializer {
                 return result
             }
         })
-        addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
-        addJsonAnalyzer(PackContentFileType.EQUIPMENT_FILE_TYPE, EquipmentType.CODEC)
-        addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
-        addJsonAnalyzer(PackContentFileType.ITEMS_FILE_TYPE, ItemAsset.CODEC)
-        addJsonAnalyzer(PackContentFileType.POST_EFFECTS_FILE_TYPE, PostEffectPipeline.CODEC)
+
+        StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
 
         val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
         fun setDefaultServerConnection() {
@@ -150,4 +147,12 @@ object ClientCommandCrafter : ClientModInitializer {
             editorConnectionManager.startServer()
         }
     }
+
+    val clientsideJsonResourceCodecs = mutableMapOf(
+        PackContentFileType.ATLASES_FILE_TYPE to AtlasSourceManager.LIST_CODEC,
+        PackContentFileType.EQUIPMENT_FILE_TYPE to EquipmentType.CODEC,
+        PackContentFileType.FONTS_FILE_TYPE to FontManager.Providers.CODEC,
+        PackContentFileType.ITEMS_FILE_TYPE to ItemAsset.CODEC,
+        PackContentFileType.POST_EFFECTS_FILE_TYPE to PostEffectPipeline.CODEC,
+    )
 }
