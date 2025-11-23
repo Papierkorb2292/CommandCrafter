@@ -51,6 +51,7 @@ import net.minecraft.test.TestInstance
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.util.math.noise.DoublePerlinNoiseSampler
 import net.minecraft.world.attribute.timeline.Timeline
 import net.minecraft.world.biome.Biome
 import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterList
@@ -343,7 +344,7 @@ object CommandCrafter: ModInitializer {
         PackContentFileType.WORLDGEN_DENSITY_FUNCTION_FILE_TYPE to DensityFunction.CODEC,
         PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE to FlatLevelGeneratorPreset.CODEC,
         PackContentFileType.WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE to MultiNoiseBiomeSourceParameterList.CODEC,
-        PackContentFileType.WORLDGEN_NOISE_FILE_TYPE to DensityFunction.Noise.CODEC,
+        PackContentFileType.WORLDGEN_NOISE_FILE_TYPE to DoublePerlinNoiseSampler.NoiseParameters.CODEC,
         PackContentFileType.WORLDGEN_NOISE_SETTINGS_FILE_TYPE to ChunkGeneratorSettings.CODEC,
         PackContentFileType.WORLDGEN_PLACED_FEATURE_FILE_TYPE to PlacedFeature.CODEC,
         PackContentFileType.WORLDGEN_PROCESSOR_LIST_FILE_TYPE to StructureProcessorType.PROCESSORS_CODEC,
