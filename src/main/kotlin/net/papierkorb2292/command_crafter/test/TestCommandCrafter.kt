@@ -8,12 +8,15 @@ import net.minecraft.command.MacroInvocation
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.minecraft.command.CommandSource
+import net.minecraft.registry.RegistryLoader
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.test.TestContext
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -45,6 +48,14 @@ object TestCommandCrafter {
     @GameTest
     fun auditMixins(context: TestContext) {
         MixinEnvironment.getCurrentEnvironment().audit()
+        context.complete()
+    }
+
+    @GameTest
+    fun checkAllDynamicRegistriesHaveAnalyzer(context: TestContext) {
+        val existingAnalyzers = MinecraftLanguageServer.analyzers.mapNotNull { (it as? StringRangeTreeJsonResourceAnalyzer)?.packContentFileType?.contentTypePath }
+        for(dynamicRegistry in RegistryLoader.DYNAMIC_REGISTRIES)
+            context.assertTrue(dynamicRegistry.key.value.path in existingAnalyzers, "Analyzer for registry ${dynamicRegistry.key.value.path}")
         context.complete()
     }
 

@@ -17,7 +17,7 @@ import java.io.IOException
 import java.io.StringReader
 import kotlin.jvm.optionals.getOrNull
 
-class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>, private val analyzerConfigPath: String) : FileAnalyseHandler {
+class StringRangeTreeJsonResourceAnalyzer(val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>, private val analyzerConfigPath: String) : FileAnalyseHandler {
     override fun canHandle(file: OpenFile) =
         PackContentFileType.parsePath(file.parsedUri.path)?.type == packContentFileType
                 && (file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta"))
