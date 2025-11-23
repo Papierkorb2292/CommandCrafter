@@ -70,49 +70,21 @@ object ClientCommandCrafter : ClientModInitializer {
     }
 
     private fun initializeEditor() {
-        MinecraftLanguageServer.addAnalyzer(object : FileAnalyseHandler {
-            override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
+        MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({
+            AnalyzingClientCommandSource(MinecraftClient.getInstance())
+        }, { analyzingResult ->
+            val finalResult = analyzingResult.copyExceptCompletions()
+            finalResult.addCompletionProvider(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                AnalyzingResult.RangedDataProvider(StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last())) { cursor ->
+                    AnalyzingClientCommandSource.allowServersideCompletions.set(true)
+                    analyzingResult.getCompletionProviderForCursor(cursor)?.dataProvider(cursor) ?: CompletableFuture.completedFuture(listOf())
+                },
+                false
+            )
+            finalResult
+        }))
 
-            private fun allowSeversideCompletionsForAnalyzingResult(analyzingResult: AnalyzingResult, source: AnalyzingClientCommandSource): AnalyzingResult {
-                val finalResult = analyzingResult.copyExceptCompletions()
-                finalResult.addCompletionProvider(
-                    AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                    AnalyzingResult.RangedDataProvider(StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last())) { cursor ->
-                        AnalyzingClientCommandSource.allowServersideCompletions.set(true)
-                        analyzingResult.getCompletionProviderForCursor(cursor)?.dataProvider(cursor) ?: CompletableFuture.completedFuture(listOf())
-                    },
-                    false
-                )
-                return finalResult
-            }
-
-            override fun analyze(
-                file: OpenFile,
-                languageServer: MinecraftLanguageServer,
-            ): AnalyzingResult {
-                val dispatcher = languageServer.minecraftServer.commandDispatcher
-                val reader = DirectiveStringReader(
-                    file.createFileMappingInfo(),
-                    dispatcher,
-                    AnalyzingResourceCreator(languageServer, file.uri).apply {
-                        (file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData)?.let { persistentCache ->
-                            if(persistentCache.usedCommandDispatcher == dispatcher)
-                                previousCache = persistentCache
-                        }
-                        newCache.usedCommandDispatcher = dispatcher
-                    }
-                )
-                val result = AnalyzingResult(reader.fileMappingInfo, Position())
-                reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-                val source = AnalyzingClientCommandSource(MinecraftClient.getInstance())
-                LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
-                reader.resourceCreator.resourceStack.pop()
-                result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
-                if(!Thread.currentThread().isInterrupted)
-                    file.persistentAnalyzerData = reader.resourceCreator.newCache
-                return allowSeversideCompletionsForAnalyzingResult(result, source)
-            }
-        })
         addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
         addJsonAnalyzer(PackContentFileType.EQUIPMENT_FILE_TYPE, EquipmentType.CODEC)
         addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)

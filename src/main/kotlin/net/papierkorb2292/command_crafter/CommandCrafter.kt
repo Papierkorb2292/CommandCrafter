@@ -176,38 +176,11 @@ object CommandCrafter: ModInitializer {
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used
             // For all other cases, the analyzer is only needed on the client side, where an AnalyzingClientCommandSource is used
-            MinecraftLanguageServer.addAnalyzer(object : FileAnalyseHandler {
-                override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
-
-                override fun analyze(
-                    file: OpenFile,
-                    languageServer: MinecraftLanguageServer,
-                ): AnalyzingResult {
-                    val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
-                        ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
-                    val dispatcher = languageServer.minecraftServer.commandDispatcher
-                    val reader = DirectiveStringReader(
-                        file.createFileMappingInfo(),
-                        dispatcher,
-                        AnalyzingResourceCreator(languageServer, file.uri).apply {
-                            (file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData)?.let { persistentCache ->
-                                if(persistentCache.usedCommandDispatcher == dispatcher)
-                                    previousCache = persistentCache
-                            }
-                            newCache.usedCommandDispatcher = dispatcher
-                        }
-                    )
-                    val result = AnalyzingResult(reader.fileMappingInfo, Position())
-                    reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-                    val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, 2, "", ScreenTexts.EMPTY, directServerConnection.server, null)
-                    LanguageManager.analyse(reader, source, result, Language.TopLevelClosure(VanillaLanguage()))
-                    reader.resourceCreator.resourceStack.pop()
-                    result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
-                    if(!Thread.currentThread().isInterrupted)
-                        file.persistentAnalyzerData = reader.resourceCreator.newCache
-                    return result
-                }
-            })
+            MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
+                val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
+                    ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
+                ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, 2, "", ScreenTexts.EMPTY, directServerConnection.server, null)
+            }))
 
             if(config.runDedicatedServerServices) {
                 LOGGER.warn("**** COMMANDCRAFTER SERVERSIDE SERVICES ARE ACTIVE!")
