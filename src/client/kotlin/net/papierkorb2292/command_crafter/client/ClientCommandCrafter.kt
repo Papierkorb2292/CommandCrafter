@@ -8,6 +8,8 @@ import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.FontManager
 import net.minecraft.client.gl.PostEffectPipeline
 import net.minecraft.client.item.ItemAsset
+import net.minecraft.client.render.model.json.BlockModelDefinition
+import net.minecraft.client.resource.waypoint.WaypointStyleAsset
 import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.permission.LeveledPermissionPredicate
@@ -19,6 +21,7 @@ import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.waypoint.WaypointStyle
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
 import net.papierkorb2292.command_crafter.editor.*
@@ -150,9 +153,11 @@ object ClientCommandCrafter : ClientModInitializer {
 
     val clientsideJsonResourceCodecs = mutableMapOf(
         PackContentFileType.ATLASES_FILE_TYPE to AtlasSourceManager.LIST_CODEC,
+        PackContentFileType.BLOCKSTATES_FILE_TYPE to BlockModelDefinition.CODEC,
         PackContentFileType.EQUIPMENT_FILE_TYPE to EquipmentType.CODEC,
         PackContentFileType.FONTS_FILE_TYPE to FontManager.Providers.CODEC,
         PackContentFileType.ITEMS_FILE_TYPE to ItemAsset.CODEC,
         PackContentFileType.POST_EFFECTS_FILE_TYPE to PostEffectPipeline.CODEC,
+        PackContentFileType.WAYPOINT_STYLE_FILE_TYPE to WaypointStyleAsset.CODEC,
     )
 }

@@ -92,7 +92,8 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     POST_SHADERS_FILE_TYPE("shaders/post", PackType.RESOURCE),
     SOUNDS_FILE_TYPE("sounds", PackType.RESOURCE),
     TEXTS_FILE_TYPE("texts", PackType.RESOURCE),
-    TEXTURES_FILE_TYPE("textures", PackType.RESOURCE);
+    TEXTURES_FILE_TYPE("textures", PackType.RESOURCE),
+    WAYPOINT_STYLE_FILE_TYPE("waypoint_style", PackType.RESOURCE);
 
     constructor(contentTypePath: String, packType: PackType) : this(contentTypePath, packType, getKeywordsFromPath(contentTypePath))
 
