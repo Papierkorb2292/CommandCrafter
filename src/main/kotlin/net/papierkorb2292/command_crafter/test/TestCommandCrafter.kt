@@ -14,8 +14,8 @@ import net.minecraft.test.TestContext
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -52,9 +52,17 @@ object TestCommandCrafter {
 
     @GameTest
     fun checkAllDynamicRegistriesHaveAnalyzer(context: TestContext) {
-        val existingAnalyzers = FileTypeDispatchingAnalyzer.analyzers.keys.map { it.contentTypePath }
-        for(dynamicRegistry in RegistryLoader.DYNAMIC_REGISTRIES)
-            context.assertTrue(dynamicRegistry.key.value.path in existingAnalyzers, "Analyzer for registry ${dynamicRegistry.key.value.path}")
+        val existingAnalyzers = CommandCrafter.serversideJsonResourceCodecs.mapKeys { it.key.contentTypePath }
+        for(dynamicRegistry in RegistryLoader.DYNAMIC_REGISTRIES) {
+            context.assertTrue(
+                dynamicRegistry.key.value.path in existingAnalyzers,
+                "Analyzer for registry ${dynamicRegistry.key.value.path} missing"
+            )
+            context.assertTrue(
+                existingAnalyzers[dynamicRegistry.key.value.path] == dynamicRegistry.elementCodec,
+                "Analyzer codec for registry ${dynamicRegistry.key.value.path} didn't match"
+            )
+        }
         context.complete()
     }
 
