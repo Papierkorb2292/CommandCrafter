@@ -56,7 +56,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE("worldgen/configured_feature", PackType.DATA),
     WORLDGEN_DENSITY_FUNCTION_FILE_TYPE("worldgen/density_function", PackType.DATA),
     WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE("worldgen/flat_level_generator_preset", PackType.DATA),
-    WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE("worldgen/multi_noise_biome_source", PackType.DATA),
+    WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE("worldgen/multi_noise_biome_source_parameter_list", PackType.DATA),
     WORLDGEN_NOISE_FILE_TYPE("worldgen/noise", PackType.DATA),
     WORLDGEN_NOISE_SETTINGS_FILE_TYPE("worldgen/noise_settings", PackType.DATA),
     WORLDGEN_PLACED_FEATURE_FILE_TYPE("worldgen/placed_feature", PackType.DATA),
