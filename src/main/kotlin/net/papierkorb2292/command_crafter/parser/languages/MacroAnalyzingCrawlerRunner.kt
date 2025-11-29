@@ -97,6 +97,7 @@ import kotlin.math.max
  * @param reader The [DirectiveStringReader] containing the macro command contents where all macro variables have been resolved as an empty string
  * @param variableLocations A list of all cursor positions in the input where a macro variable was.
  */
+@OptIn(ExperimentalUnsignedTypes::class)
 class MacroAnalyzingCrawlerRunner(
     private val baseContext: CommandContextBuilder<CommandSource>,
     private val reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -725,7 +726,6 @@ class MacroAnalyzingCrawlerRunner(
      *
      * The count for a node can be retrieved with [getLiteralCountsForNode] after calling [traverse] on the root node.
      */
-    @OptIn(ExperimentalUnsignedTypes::class)
     class NodeMaxLiteralCounter(private val nodeIdentifier: NodeIdentifier) {
         private val nodeTraversalStack = LinkedHashSet<CommandNode<CommandSource>>()
 
@@ -967,20 +967,29 @@ class MacroAnalyzingCrawlerRunner(
     companion object {
         private const val STEPS_PER_CRAWLER_BEFORE_PUSH = 5
         private val macroLanguage = VanillaLanguage()
-        private val nodeIdentifiers = WeakHashMap<CommandDispatcher<CommandSource>, NodeIdentifier>()
+        private val processedDispatcherData = WeakHashMap<CommandDispatcher<CommandSource>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
         private const val shouldCheckForTimeout = true
         private val timeoutDurationNs = TimeUnit.SECONDS.toNanos(1)
         private var isAnalyzingMacroForFirstTime = true
 
-        private fun getNodeIdentifierForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeIdentifier {
-            val cached = nodeIdentifiers[dispatcher]
+        private fun getNodeIdentifierForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeIdentifier =
+            processCommandDispatcher(dispatcher).first
+
+        private fun getNodeMaxLiteralCounterForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeMaxLiteralCounter =
+            processCommandDispatcher(dispatcher).second
+
+        private fun processCommandDispatcher(dispatcher: CommandDispatcher<CommandSource>): Pair<NodeIdentifier, NodeMaxLiteralCounter> {
+            val cached = processedDispatcherData[dispatcher]
             if(cached != null)
                 return cached
 
             val nodeIdentifier = NodeIdentifier()
             nodeIdentifier.registerChildrenRecursive(dispatcher.root)
-            nodeIdentifiers[dispatcher] = nodeIdentifier
-            return nodeIdentifier
+            val nodeMaxLiteralCounter = NodeMaxLiteralCounter(nodeIdentifier)
+            nodeMaxLiteralCounter.traverse(dispatcher.root)
+            val pair = nodeIdentifier to nodeMaxLiteralCounter
+            processedDispatcherData[dispatcher] = pair
+            return pair
         }
 
         fun canNodeHaveSpaces(node: CommandNode<*>): Boolean {
