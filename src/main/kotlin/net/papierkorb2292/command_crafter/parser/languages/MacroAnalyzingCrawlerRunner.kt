@@ -720,21 +720,164 @@ class MacroAnalyzingCrawlerRunner(
         }
     }
 
-    private class NodeIdentifier {
+    /**
+     * Counts how many of each literal can be parsed at most starting with each node.
+     *
+     * The count for a node can be retrieved with [getLiteralCountsForNode] after calling [traverse] on the root node.
+     */
+    @OptIn(ExperimentalUnsignedTypes::class)
+    class NodeMaxLiteralCounter(private val nodeIdentifier: NodeIdentifier) {
+        private val nodeTraversalStack = LinkedHashSet<CommandNode<CommandSource>>()
+
+        /**
+         * All entries represent a loop of nodes (or multiple loops, if they all have the same key),
+         * where the key is the first loop node that was encountered and the value is a set of all nodes in the loop (including the key).
+         *
+         * i) The key must always be in the stack, because the loop is removed from the map after the key has been fully
+         * processed and subsequently removed from the stack.
+         *
+         * ii) Two entries are not allowed to overlap, because they should be merged instead. The new key will be whichever key comes
+         * first in the stack.
+         */
+        private val loopedDependants = mutableMapOf<CommandNode<CommandSource>, Set<CommandNode<CommandSource>>>()
+
+        /**
+         * The literal counts for each processed node.
+         * @see getLiteralCountsForNode
+         */
+        private val nodeLiteralCounts = mutableMapOf<CommandNode<CommandSource>, UByteArray>()
+
+        /**
+         * Gets the literal counts for a node. The result is a [UByteArray], where the indices correspond to
+         * the literal ids from [nodeIdentifier]. A value of 255 means a literal may match any amount of times
+         * (because of loops).
+         */
+        fun getLiteralCountsForNode(node: CommandNode<CommandSource>): UByteArray = nodeLiteralCounts[node] ?: throw IllegalArgumentException("Tried retrieving literal counts for unprocessed node")
+
+        fun traverse(node: CommandNode<CommandSource>): UByteArray? {
+            var literalCounts = nodeLiteralCounts[node]
+            if(literalCounts != null)
+                return literalCounts
+
+            // Don't change order for existing nodes
+            if(!nodeTraversalStack.add(node)) {
+                addLoop(node)
+                return null
+            }
+
+            literalCounts = UByteArray(nodeIdentifier.literalIdCount)
+
+            // Add children/redirect to literal counts
+            val children = node.redirect?.children ?: node.children
+            for(child in children) {
+                val childLiteralCounts = traverse(child) ?: continue
+                maxLiteralCounts(literalCounts, childLiteralCounts)
+            }
+
+            // Add self to literal counts
+            if(node is LiteralCommandNode<*>) {
+                val literalId = nodeIdentifier.getIdForLiteral(node.literal)
+                addToLiteralCount(literalCounts, literalId)
+            }
+
+            processLoop(node, literalCounts)
+
+            nodeLiteralCounts[node] = literalCounts
+            // Pop stack and make sure it's valid
+            assert(nodeTraversalStack.removeLast() == node)
+
+            return literalCounts
+        }
+
+        private fun addLoop(duplicatedNode: CommandNode<CommandSource>) {
+            val loopNodes = mutableSetOf<CommandNode<CommandSource>>()
+            var topOverlappingLoop: Map.Entry<CommandNode<CommandSource>, Set<CommandNode<CommandSource>>>? = null
+
+            // Build loopNodes list and check for other loops that overlap with it
+            for(loopNode in nodeTraversalStack.reversed()) {
+                if(topOverlappingLoop != null && loopNode in topOverlappingLoop.value) {
+                    if(topOverlappingLoop.key == loopNode) {
+                        // This must be the top node in the loop, any further nodes can't be part of this overlapping loop
+                        topOverlappingLoop = null
+                    }
+                    // This node must already be in the overlapping loop, no need to go through the rest and check again
+                    continue
+                }
+                val overlappingLoop = loopedDependants.entries.find { loopNode in it.value }
+                if(overlappingLoop != null) {
+                    loopNodes += overlappingLoop.value
+                    loopedDependants.remove(overlappingLoop.key)
+                    if(overlappingLoop.key != loopNode) {
+                        // Only set top overlapping loop if there's at least one more node in it, so it will be removed again after
+                        // the key has been processed
+                        topOverlappingLoop = overlappingLoop
+                    }
+                } else {
+                    loopNodes += loopNode
+                }
+                if(loopNode == duplicatedNode)
+                    break
+            }
+
+            val newLoopKey = topOverlappingLoop?.key ?: duplicatedNode
+            loopedDependants[newLoopKey] = loopNodes
+        }
+
+        private fun processLoop(loopKey: CommandNode<CommandSource>, keyLiteralCounts: UByteArray) {
+            val loopNodes = loopedDependants.remove(loopKey) ?: return
+
+            for(loopNode in loopNodes) {
+                // In a loop, all nodes can refer to each other so they all have the same literal counts
+                nodeLiteralCounts[loopNode] = keyLiteralCounts
+
+                // All literals in the loop can appear an infinite number of times
+                if(loopNode !is LiteralCommandNode<*>) continue
+                val literalId = nodeIdentifier.getIdForLiteral(loopNode.literal)
+                keyLiteralCounts[literalId] = 255U
+            }
+        }
+
+        private fun maxLiteralCounts(dest: UByteArray, src: UByteArray) {
+            for(i in 0 until dest.size) {
+                dest[i] = maxOf(dest[i], src[i])
+            }
+        }
+
+        private fun addToLiteralCount(array: UByteArray, literalId: Int) {
+            val initialCount = array[literalId]
+            if(initialCount == 255U.toUByte())
+                return
+            array[literalId] = (initialCount.toInt() + 1).toUByte()
+        }
+    }
+
+    class NodeIdentifier {
         private val serializedNodeIds = Object2IntOpenHashMap<SerializedNode>()
         private val assignedIds = Object2IntOpenHashMap<CommandNode<CommandSource>>()
+        // Literals are given a second id that is used for calculating how many literals a given
+        // node can match at maximum in the remaining input
+        private val literalIds = Object2IntOpenHashMap<String>()
 
         val idCount get() = serializedNodeIds.size
+        val literalIdCount get() = literalIds.size
 
         init {
             serializedNodeIds.defaultReturnValue(-1)
             assignedIds.defaultReturnValue(-1)
+            literalIds.defaultReturnValue(-1)
         }
 
         fun getIdForNode(node: CommandNode<CommandSource>): Int {
             val id = assignedIds.getInt(node)
             if(id == -1)
                 throw IllegalArgumentException("Tried retrieving id for unregistered node")
+            return id
+        }
+
+        fun getIdForLiteral(literal: String): Int {
+            val id = literalIds.getInt(literal)
+            if(id == -1)
+                throw IllegalArgumentException("Tried retrieving id for unregistered literal '${literal}'")
             return id
         }
 
@@ -756,6 +899,14 @@ class MacroAnalyzingCrawlerRunner(
                 serializedNodeIds.put(serialized, newNodeId)
             }
             assignedIds.put(node, newNodeId)
+
+            if(node is LiteralCommandNode)
+                registerLiteral(node.literal)
+        }
+
+        fun registerLiteral(literal: String) {
+            if(!literalIds.containsKey(literal))
+                literalIds.put(literal, literalIds.size)
         }
 
         private fun serializeNode(node: CommandNode<CommandSource>): SerializedNode {

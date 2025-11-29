@@ -1,13 +1,17 @@
 package net.papierkorb2292.command_crafter.test
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.brigadier.tree.CommandNode
+import com.mojang.brigadier.tree.RootCommandNode
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.command.MacroInvocation
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.minecraft.command.CommandSource
+import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.test.TestContext
 import net.minecraft.text.Text
@@ -27,6 +31,7 @@ import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
 import org.eclipse.lsp4j.CompletionItem
@@ -327,6 +332,65 @@ object TestCommandCrafter {
             Range(markedLocations[2].position, markedLocations[4].position),
             Range(markedLocations[5].position, markedLocations[6].position),
         ), markedLocations[0], markedLocations[6], "multiline")
+
+        context.complete()
+    }
+
+    @GameTest
+    @OptIn(ExperimentalUnsignedTypes::class)
+    fun testNodeMaxLiteralCounter(context: TestContext) {
+        val rootNode = RootCommandNode<CommandSource>()
+        val command1 = LiteralArgumentBuilder.literal<CommandSource>("command1").build()
+        rootNode.addChild(command1)
+        rootNode.addChild(
+            LiteralArgumentBuilder.literal<CommandSource>("command1")
+                .then(LiteralArgumentBuilder.literal("just_a_leaf_node"))
+                .then(LiteralArgumentBuilder.literal<CommandSource>("leading_up_to_a_loop")
+                    .then(LiteralArgumentBuilder.literal<CommandSource>("looping_back")
+                        .redirect(command1)
+                    )
+                ).build()
+        )
+        val command2 = LiteralArgumentBuilder.literal<CommandSource>("command2")
+            .then(LiteralArgumentBuilder.literal("command2_sub"))
+            .build()
+        rootNode.addChild(command2)
+        rootNode.addChild(
+            LiteralArgumentBuilder.literal<CommandSource>("command2")
+                .then(LiteralArgumentBuilder.literal<CommandSource>("command2_sub")
+                    .then(LiteralArgumentBuilder.literal<CommandSource>("loop_back_to_command2_sub")
+                        .redirect(command2.children.first())
+                    ).then(LiteralArgumentBuilder.literal<CommandSource>("loop_back_to_root")
+                        .redirect(rootNode)
+                    )
+                ).then(LiteralArgumentBuilder.literal("a_second_leaf_node"))
+                .build()
+        )
+        val leafCommand = LiteralArgumentBuilder.literal<CommandSource>("leaf_command").build()
+        rootNode.addChild(leafCommand)
+
+        val nodeIdentifier = MacroAnalyzingCrawlerRunner.NodeIdentifier()
+        nodeIdentifier.registerChildrenRecursive(rootNode)
+
+        val maxLiteralCounter = MacroAnalyzingCrawlerRunner.NodeMaxLiteralCounter(nodeIdentifier)
+        maxLiteralCounter.traverse(rootNode)
+
+        fun assertLiteralCount(node: CommandNode<CommandSource>, literal: String, expectedCount: UByte) {
+            val actualCount = maxLiteralCounter.getLiteralCountsForNode(node)[nodeIdentifier.getIdForLiteral(literal)]
+            context.assertEquals(expectedCount, actualCount, Text.literal("Literal count for '$literal' in node '${node}'"))
+        }
+
+        assertLiteralCount(rootNode, "just_a_leaf_node", 1U)
+        assertLiteralCount(command1, "just_a_leaf_node", 1U)
+        assertLiteralCount(leafCommand, "just_a_leaf_node", 0U)
+
+        assertLiteralCount(rootNode, "command1", 1U)
+        assertLiteralCount(command1, "looping_back", 255U)
+
+        assertLiteralCount(rootNode, "command2", 255U)
+        assertLiteralCount(command2, "looping_back", 255U)
+
+        assertLiteralCount(command2.children.first(), "a_second_leaf_node", 1U)
 
         context.complete()
     }
