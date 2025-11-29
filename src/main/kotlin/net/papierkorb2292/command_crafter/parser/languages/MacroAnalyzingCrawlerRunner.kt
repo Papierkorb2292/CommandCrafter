@@ -85,7 +85,7 @@ import kotlin.math.max
  * attempts that spawner has already made (-1). The best spawners according to this metric are chosen to make another attempt. Additionally, if the result of an attempt
  * was successful enough, some previous spawners can be removed (see [CrawlerResult.cutSpawnerTree])
  *
- * Furthermore, the algorithm saves some additional time by assuming that any whitespace that is skipped by an argument parser (for example in positions on in SNBT) can't
+ * Furthermore, the algorithm saves some additional time by assuming that any whitespace that is skipped by an argument parser (for example in positions or in SNBT) can't
  * be the start of a new node. Thus, these whitespaces are marked as invalid attempt positions and skipped in future attempts. Additionally, the algorithm remembers which
  * nodes have already been attempted at a position and failed or parsed all the way to the end of the input, such that no children can be parsed anymore. These nodes
  * can be skipped in future attempts using [UnnecessaryAttemptDeduplicator].
