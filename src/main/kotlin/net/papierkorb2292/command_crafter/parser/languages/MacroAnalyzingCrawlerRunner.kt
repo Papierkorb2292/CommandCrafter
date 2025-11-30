@@ -833,7 +833,7 @@ class MacroAnalyzingCrawlerRunner(
                 // All literals in the loop can appear an infinite number of times
                 if(loopNode !is LiteralCommandNode<*>) continue
                 val literalId = nodeIdentifier.getIdForLiteral(loopNode.literal)
-                keyLiteralCounts[literalId] = 255U
+                keyLiteralCounts[literalId] = LITERAL_COUNT_INFINITY
             }
         }
 
@@ -845,7 +845,7 @@ class MacroAnalyzingCrawlerRunner(
 
         private fun addToLiteralCount(array: UByteArray, literalId: Int) {
             val initialCount = array[literalId]
-            if(initialCount == 255U.toUByte())
+            if(initialCount == LITERAL_COUNT_INFINITY)
                 return
             array[literalId] = (initialCount.toInt() + 1).toUByte()
         }
@@ -923,7 +923,7 @@ class MacroAnalyzingCrawlerRunner(
             val suggestionProvider: SuggestionProvider<CommandSource>?
             when(node) {
                 is LiteralCommandNode -> {
-                    typeId = -1
+                    typeId = LITERAL_NODE_TYPE_ID
                     buf.writeString(node.name)
                     suggestionProvider = null
                 }
@@ -966,6 +966,8 @@ class MacroAnalyzingCrawlerRunner(
 
     companion object {
         private const val STEPS_PER_CRAWLER_BEFORE_PUSH = 5
+        private const val LITERAL_NODE_TYPE_ID = -1
+        private const val LITERAL_COUNT_INFINITY: UByte = 255U
         private val macroLanguage = VanillaLanguage()
         private val processedDispatcherData = WeakHashMap<CommandDispatcher<CommandSource>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
         private const val shouldCheckForTimeout = true
