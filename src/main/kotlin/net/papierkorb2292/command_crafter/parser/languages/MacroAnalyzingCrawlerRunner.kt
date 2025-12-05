@@ -710,7 +710,8 @@ class MacroAnalyzingCrawlerRunner(
 
     private inner class InputLiteralCounter(private val nodeIdentifier: NodeIdentifier, private val nodeMaxLiteralCounter: NodeMaxLiteralCounter) {
         /**
-         * Maps the attempt position index to a map of literal id to how many times that literal can be parsed starting from that position
+         * Maps the attempt position index to a map of literal id to how many times that literal can be parsed starting from that position.
+         * Doesn't store literal counts as UByteArray, so there aren't a bunch of 0s that have to be processed
          */
         private val literalCounts = arrayOfNulls<Int2ByteLinkedOpenHashMap>(attemptPositions.size)
         private var dirtyPositionMax = -1
@@ -747,6 +748,8 @@ class MacroAnalyzingCrawlerRunner(
                 return parentMap
 
             val map = parentMap.clone()
+            // Move to first, because this literal is hopefully more likely to be matched by the next relevant node, since it's the next literal in the input.
+            // Thus, checking it first might mean that fewer literals have to be checked overall if the "goal" count is reached earlier.
             map.putAndMoveToFirst(candidateId, (prevCount + 1U).toByte())
             return map
         }
