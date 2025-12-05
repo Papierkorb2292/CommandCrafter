@@ -67,6 +67,7 @@ import java.util.WeakHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.collections.plusAssign
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  *
@@ -727,6 +728,7 @@ class MacroAnalyzingCrawlerRunner(
 
             val map = copyIncrementedLiteralCount(positionIndex, parentMap)
             literalCounts[positionIndex] = map
+            dirtyPositionMax = min(dirtyPositionMax, positionIndex - 1)
             return map
         }
 
