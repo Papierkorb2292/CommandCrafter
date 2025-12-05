@@ -17,6 +17,7 @@ import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.brigadier.tree.RootCommandNode
+import it.unimi.dsi.fastutil.ints.Int2ByteLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
 import net.minecraft.command.CommandSource
@@ -61,6 +62,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.Command
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
+import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner.Companion.getNodeIdentifierForDispatcher
 import java.util.WeakHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.collections.plusAssign
@@ -124,7 +126,13 @@ class MacroAnalyzingCrawlerRunner(
             attemptIndex++
         }
     }
-    private val unnecessaryAttemptDeduplicator = UnnecessaryAttemptDeduplicator()
+    private val unnecessaryAttemptDeduplicator = UnnecessaryAttemptDeduplicator(
+        getNodeIdentifierForDispatcher(reader.dispatcher)
+    )
+    private val inputLiteralCounter = InputLiteralCounter(
+        getNodeIdentifierForDispatcher(reader.dispatcher),
+        getNodeMaxLiteralCounterForDispatcher(reader.dispatcher)
+    )
 
     private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
@@ -699,8 +707,55 @@ class MacroAnalyzingCrawlerRunner(
         )
     }
 
-    private inner class UnnecessaryAttemptDeduplicator {
-        val nodeIdentifier = getNodeIdentifierForDispatcher(reader.dispatcher)
+    private inner class InputLiteralCounter(private val nodeIdentifier: NodeIdentifier, private val nodeMaxLiteralCounter: NodeMaxLiteralCounter) {
+        /**
+         * Maps the attempt position index to a map of literal id to how many times that literal can be parsed starting from that position
+         */
+        private val literalCounts = arrayOfNulls<Int2ByteLinkedOpenHashMap>(attemptPositions.size)
+        private var dirtyPositionMax = -1
+
+        fun getLiteralCounts(positionIndex: Int): Int2ByteLinkedOpenHashMap {
+            if(dirtyPositionMax < positionIndex) {
+                val cached = literalCounts[positionIndex]
+                if(cached != null)
+                    return cached
+            }
+
+            val parentMap =
+                if(positionIndex < literalCounts.lastIndex) getLiteralCounts(positionIndex + 1)
+                else emptyInputLiteralCountMap
+
+            val map = copyIncrementedLiteralCount(positionIndex, parentMap)
+            literalCounts[positionIndex] = map
+            return map
+        }
+
+        private fun copyIncrementedLiteralCount(positionIndex: Int, parentMap: Int2ByteLinkedOpenHashMap): Int2ByteLinkedOpenHashMap {
+            val start = attemptPositions[positionIndex]
+            val end = if(positionIndex + 1 < attemptPositions.size) attemptPositions[positionIndex + 1] - 1 else reader.string.length
+
+            val candidate = reader.string.substring(start, end)
+            val candidateId = nodeIdentifier.tryGetIdForLiteral(candidate)
+
+            if(candidateId == -1)
+                return parentMap
+
+            val prevCount = parentMap.get(candidateId).toUByte()
+            if(prevCount == 255U.toUByte())
+                return parentMap
+
+            val map = parentMap.clone()
+            map.putAndMoveToFirst(candidateId, (prevCount + 1U).toByte())
+            return map
+        }
+
+        fun markDirty(positionIndex: Int) {
+            if(positionIndex > dirtyPositionMax)
+                dirtyPositionMax = positionIndex
+        }
+    }
+
+    private inner class UnnecessaryAttemptDeduplicator(private val nodeIdentifier: NodeIdentifier) {
         val unnecessaryAttemptsMarker = BooleanArray(nodeIdentifier.idCount * attemptPositions.size)
         private fun getAttemptMarkerIndex(attemptPositionIndex: Int, attemptNode: CommandNode<CommandSource>): Int =
             attemptPositionIndex * nodeIdentifier.idCount + nodeIdentifier.getIdForNode(attemptNode)
@@ -881,6 +936,11 @@ class MacroAnalyzingCrawlerRunner(
             return id
         }
 
+        /**
+         * Returns the id for the literal, or -1 if the literal is not known
+         */
+        fun tryGetIdForLiteral(literal: String) = literalIds.getInt(literal)
+
         fun registerChildrenRecursive(parent: CommandNode<CommandSource>) {
             for(child in parent.children) {
                 registerNode(child)
@@ -969,6 +1029,7 @@ class MacroAnalyzingCrawlerRunner(
         private const val LITERAL_NODE_TYPE_ID = -1
         private const val LITERAL_COUNT_INFINITY: UByte = 255U
         private val macroLanguage = VanillaLanguage()
+        private val emptyInputLiteralCountMap = Int2ByteLinkedOpenHashMap()
         private val processedDispatcherData = WeakHashMap<CommandDispatcher<CommandSource>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
         private const val shouldCheckForTimeout = true
         private val timeoutDurationNs = TimeUnit.SECONDS.toNanos(1)
