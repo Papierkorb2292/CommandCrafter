@@ -305,6 +305,7 @@ class MacroAnalyzingCrawlerRunner(
             val lastArgEnd = max(reader.cursor, if(hasAccessedMacro) nextVariableLocation + 1 else 0)
             while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] < lastArgEnd) { // Only < and not <=, because some lenient parser consume the next whitespace (for example positions)
                 invalidAttemptPositionsMarker[skippedAttemptIndex] = true
+                inputLiteralCounter.markDirty(skippedAttemptIndex)
                 skippedAttemptIndex++
             }
         }
@@ -670,6 +671,7 @@ class MacroAnalyzingCrawlerRunner(
                         attemptIndex++
                     while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.end) {
                         invalidAttemptPositionsMarker[attemptIndex] = true
+                        inputLiteralCounter.markDirty(attemptIndex)
                         attemptIndex++
                     }
                 }
@@ -737,6 +739,9 @@ class MacroAnalyzingCrawlerRunner(
         }
 
         private fun copyIncrementedLiteralCount(positionIndex: Int, parentMap: Int2ByteLinkedOpenHashMap): Int2ByteLinkedOpenHashMap {
+            if(invalidAttemptPositionsMarker[positionIndex])
+                return parentMap
+
             val start = attemptPositions[positionIndex]
             val end = if(positionIndex + 1 < attemptPositions.size) attemptPositions[positionIndex + 1] - 1 else reader.string.length
 
