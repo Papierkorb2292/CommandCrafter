@@ -334,7 +334,7 @@ class MacroAnalyzingCrawlerRunner(
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
         val childSpawner = Spawner(
             spawner,
-            lastNode.resolveRedirects().children.filter { it.children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
+            lastNode.resolveRedirects().children.filter { it.resolveRedirects().children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
             nextAttemptIndex,
             commandParseResults.context.lastChild
         )
