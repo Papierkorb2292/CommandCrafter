@@ -62,7 +62,6 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.Command
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
-import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner.Companion.getNodeIdentifierForDispatcher
 import java.util.WeakHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.collections.plusAssign
@@ -289,23 +288,26 @@ class MacroAnalyzingCrawlerRunner(
             reader,
             attemptBaseContext.nodes.size
         )
-        // Mark any attempt indices skipped by tryAnalyzeNextNode invalid. This is important when encountering arguments like SNBT with macros,
-        // because the macros likely lead the parser to fail but the lenient parser will skip them.
-        if(analyzingFootprint.triedNextNode != null && !isGreedyString(analyzingFootprint.triedNextNode)) {
-            var skippedAttemptIndex = attemptIndex
-            while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] <= nextNodeStartCursor)
-                skippedAttemptIndex++
-            while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] < reader.cursor) { // Only < and not <=, because some lenient parser consume the next whitespace (for example positions)
-                invalidAttemptPositionsMarker[skippedAttemptIndex] = true
-                skippedAttemptIndex++
-            }
-        }
 
         // In case the analyzer didn't read what the actual parser read, use the end cursor of the parser instead,
         // because that should still be part of the argument
         reader.cursor = max(reader.cursor, commandParseResults.reader.cursor)
 
         val hasAccessedMacro = nextVariableLocationIndex < variableLocations.size && reader.furthestAccessedCursor >= nextVariableLocation
+
+        // Mark any attempt indices skipped by tryAnalyzeNextNode invalid. This is important when encountering arguments like SNBT with macros,
+        // because the macros likely lead the parser to fail but the lenient parser will skip them.
+        if(analyzingFootprint.triedNextNode != null && !isGreedyString(analyzingFootprint.triedNextNode)) {
+            var skippedAttemptIndex = attemptIndex
+            while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] <= nextNodeStartCursor)
+                skippedAttemptIndex++
+            // Include the next variable position as well (if the parser reached it), because everything up to there is probably part of this argument
+            val lastArgEnd = max(reader.cursor, if(hasAccessedMacro) nextVariableLocation + 1 else 0)
+            while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] < lastArgEnd) { // Only < and not <=, because some lenient parser consume the next whitespace (for example positions)
+                invalidAttemptPositionsMarker[skippedAttemptIndex] = true
+                skippedAttemptIndex++
+            }
+        }
 
         if(!hasAccessedMacro || !reader.canRead())
             // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
@@ -330,7 +332,12 @@ class MacroAnalyzingCrawlerRunner(
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
         if(nextAttemptIndex >= attemptPositions.size || invalidAttemptPositionsMarker[nextAttemptIndex])
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
-        val childSpawner = Spawner(spawner, lastNode.resolveRedirects().children.toList(), nextAttemptIndex, commandParseResults.context.lastChild)
+        val childSpawner = Spawner(
+            spawner,
+            lastNode.resolveRedirects().children.filter { it.children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
+            nextAttemptIndex,
+            commandParseResults.context.lastChild
+        )
         if(childSpawner.nextNodes.isEmpty())
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
         childSpawner.pushCrawler()
@@ -652,25 +659,21 @@ class MacroAnalyzingCrawlerRunner(
 
         fun markInvalidAttemptPositions() {
             var attemptIndex = 0
-            for(parsedNode in contextBuilder.nodes) {
-                if(attemptIndex >= attemptPositions.size)
-                    return
-                if(!canNodeHaveSpaces(parsedNode.node) || isGreedyString(parsedNode.node))
-                    continue
-                while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.start)
-                    attemptIndex++
-                while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.end) {
-                    invalidAttemptPositionsMarker[attemptIndex] = true
-                    attemptIndex++
+            var currentContextBuilder: CommandContextBuilder<CommandSource>? = contextBuilder
+            while(currentContextBuilder != null) {
+                for(parsedNode in currentContextBuilder.nodes) {
+                    if(attemptIndex >= attemptPositions.size)
+                        return
+                    if(!canNodeHaveSpaces(parsedNode.node) || isGreedyString(parsedNode.node))
+                        continue
+                    while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.start)
+                        attemptIndex++
+                    while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.end) {
+                        invalidAttemptPositionsMarker[attemptIndex] = true
+                        attemptIndex++
+                    }
                 }
-            }
-            // Also set invalidAttemptPositionMarkers for the last that contains macros, which we know ends where the next spawner starts
-            val childSpawner = childSpawner ?: return
-            while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= contextBuilder.range.end + 1)
-                attemptIndex++
-            while(attemptIndex < childSpawner.startAttemptIndex) {
-                invalidAttemptPositionsMarker[attemptIndex] = true
-                attemptIndex++
+                currentContextBuilder = currentContextBuilder.child
             }
         }
 
