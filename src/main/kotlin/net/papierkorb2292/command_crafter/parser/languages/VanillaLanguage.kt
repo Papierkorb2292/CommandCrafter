@@ -19,6 +19,7 @@ import com.mojang.serialization.JsonOps
 import net.minecraft.command.CommandSource
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
+import net.minecraft.command.permission.LeveledPermissionPredicate
 import net.minecraft.util.packrat.ParsingRule
 import net.minecraft.util.packrat.ParsingState
 import net.minecraft.nbt.NbtElement
@@ -156,7 +157,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 Vec3d.ZERO,
                                 Vec2f.ZERO,
                                 null,
-                                4,
+                                LeveledPermissionPredicate.OWNERS,
                                 "",
                                 ScreenTexts.EMPTY,
                                 null,
@@ -858,7 +859,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             tagEntryListCodec,
             Codec.either(
                 // Unit to suggest {} for inline functions
-                Codec.unit(Unit),
+                Codec.EMPTY.codec(),
                 // Suggesting 'this'
                 StringIdentifiable.createCodec({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "this" })
             )

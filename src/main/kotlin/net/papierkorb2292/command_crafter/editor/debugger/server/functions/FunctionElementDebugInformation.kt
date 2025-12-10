@@ -12,7 +12,7 @@ import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.function.Macro
 import net.minecraft.util.Identifier
-import net.minidev.json.annotate.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnore
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
@@ -296,7 +296,7 @@ class FunctionElementDebugInformation(
                     context.source.position,
                     context.source.rotation,
                     context.source.world,
-                    debugFrame.pauseContext.server.functionPermissionLevel,
+                    debugFrame.pauseContext.server.functionPermissions,
                     context.source.name,
                     context.source.displayName,
                     debugFrame.pauseContext.server,

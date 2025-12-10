@@ -6,11 +6,14 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
+import net.minecraft.command.permission.LeveledPermissionPredicate
+import net.minecraft.command.permission.PermissionLevel
+import net.minecraft.command.permission.PermissionPredicate
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.text.Text
 import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs.DatapackBuildArgsParser.ARG_ALREADY_SPECIFIED_EXCEPTION
 
-class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissionLevel: Int? = null) {
+class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: PermissionPredicate? = null) {
     companion object {
         private val ARGUMENTS: MutableMap<String, BuildArg> = HashMap()
 
@@ -42,13 +45,13 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissionLevel
                     get() = "functionPermissionLevel="
 
                 override fun parse(reader: StringReader, builder: DatapackBuildArgsBuilder) {
-                    if(builder.permissionLevel != null) {
+                    if(builder.permissions != null) {
                         throw ARG_ALREADY_SPECIFIED_EXCEPTION.createWithContext(reader, "permissionLevel")
                     }
                     reader.skipWhitespace()
                     reader.expect('=')
                     reader.skipWhitespace()
-                    builder.permissionLevel = reader.readInt()
+                    builder.permissions = LeveledPermissionPredicate.fromLevel(PermissionLevel.fromLevel(reader.readInt()))
                 }
 
                 override fun suggest(reader: StringReader, prefix: StringBuilder, builder: SuggestionsBuilder): Boolean {
@@ -121,10 +124,10 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissionLevel
 
     class DatapackBuildArgsBuilder {
         var keepDirectives = false
-        var permissionLevel: Int? = null
+        var permissions: PermissionPredicate? = null
 
         fun build(): DatapackBuildArgs {
-            return DatapackBuildArgs(keepDirectives, permissionLevel)
+            return DatapackBuildArgs(keepDirectives, permissions)
         }
     }
 

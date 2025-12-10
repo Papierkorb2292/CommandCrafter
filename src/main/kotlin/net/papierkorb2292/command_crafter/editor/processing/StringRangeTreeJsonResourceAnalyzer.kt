@@ -18,9 +18,7 @@ import java.io.StringReader
 import kotlin.jvm.optionals.getOrNull
 
 class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>, private val analyzerConfigPath: String) : FileAnalyseHandler {
-    override fun canHandle(file: OpenFile) =
-        PackContentFileType.parsePath(file.parsedUri.path)?.type == packContentFileType
-                && (file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta"))
+    override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta")
 
     override fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer): AnalyzingResult {
         val contentTypeFilePath = packContentFileType.contentTypePath
@@ -47,8 +45,10 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         const val JSON_ANALYZER_CONFIG_PATH_PREFIX = ".json"
         val CURRENT_TAG_ANALYZING_REGISTRY = ThreadLocal<RegistryWrapper.Impl<*>>()
 
-        fun addJsonAnalyzer(packContentFileType: PackContentFileType, codec: Codec<*>, analyzerConfigPath: String = packContentFileType.contentTypePath) {
-            MinecraftLanguageServer.addAnalyzer(StringRangeTreeJsonResourceAnalyzer(packContentFileType, codec, ".$analyzerConfigPath"))
+        fun addJsonAnalyzers(resourceTypes: Map<PackContentFileType, Codec<*>>) {
+            FileTypeDispatchingAnalyzer.analyzers += resourceTypes.mapValues { entry ->
+                StringRangeTreeJsonResourceAnalyzer(entry.key, entry.value, ".${entry.key.contentTypePath}")
+            }
         }
 
         fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {

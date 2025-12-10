@@ -30,6 +30,7 @@ import net.minecraft.world.Difficulty
 import net.minecraft.world.MutableWorldProperties
 import net.minecraft.world.World
 import net.minecraft.world.WorldProperties
+import net.minecraft.world.attribute.WorldEnvironmentAttributeAccess
 import net.minecraft.world.biome.Biome
 import net.minecraft.world.biome.BiomeKeys
 import net.minecraft.world.border.WorldBorder
@@ -174,6 +175,10 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
     override fun getEntityLookup(): EntityLookup<Entity> {
         throw NotImplementedError("Not supported by dummy")
     }
+
+    private val dummyEnvironmentAttributes = WorldEnvironmentAttributeAccess.builder().build()
+
+    override fun getEnvironmentAttributes(): WorldEnvironmentAttributeAccess = dummyEnvironmentAttributes
 
     override fun getBrewingRecipeRegistry(): BrewingRecipeRegistry {
         throw NotImplementedError("Not supported by dummy")

@@ -8,11 +8,13 @@ import net.minecraft.command.MacroInvocation
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.minecraft.command.CommandSource
+import net.minecraft.registry.RegistryLoader
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.test.TestContext
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec3d
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
@@ -45,6 +47,22 @@ object TestCommandCrafter {
     @GameTest
     fun auditMixins(context: TestContext) {
         MixinEnvironment.getCurrentEnvironment().audit()
+        context.complete()
+    }
+
+    @GameTest
+    fun checkAllDynamicRegistriesHaveAnalyzer(context: TestContext) {
+        val existingAnalyzers = CommandCrafter.serversideJsonResourceCodecs.mapKeys { it.key.contentTypePath }
+        for(dynamicRegistry in RegistryLoader.DYNAMIC_REGISTRIES) {
+            context.assertTrue(
+                dynamicRegistry.key.value.path in existingAnalyzers,
+                "Analyzer for registry ${dynamicRegistry.key.value.path} missing"
+            )
+            context.assertTrue(
+                existingAnalyzers[dynamicRegistry.key.value.path] == dynamicRegistry.elementCodec,
+                "Analyzer codec for registry ${dynamicRegistry.key.value.path} didn't match"
+            )
+        }
         context.complete()
     }
 
@@ -162,7 +180,7 @@ object TestCommandCrafter {
         val predicateIndices = listOf(3, 4, 5, 9, 10, 11)
 
         @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val commandDispatcher = context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
         val source = getParsingCommandSource(context)
         val analyzingResult = AnalyzingResult(FileMappingInfo(processedLines), Position())
 
@@ -246,7 +264,7 @@ object TestCommandCrafter {
     fun testAllFunctionParsers(lines: List<String>, context: TestContext) {
         val id = Identifier.of("test")
         @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val commandDispatcher = context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
         val source = getParsingCommandSource(context)
 
         val parsedResourceCreator = ParsedResourceCreator(
@@ -299,7 +317,7 @@ object TestCommandCrafter {
     }
 
     private fun getParsingCommandSource(context: TestContext): ServerCommandSource =
-        context.world.server.commandSource
+        context.world.server!!.commandSource
             .withPosition(Vec3d.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
 
     /**

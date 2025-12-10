@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.command.CommandSource
+import net.minecraft.command.permission.PermissionPredicate
 import net.minecraft.registry.DynamicRegistryManager
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
@@ -11,7 +12,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.Sco
 
 interface MinecraftServerConnection {
     val commandDispatcher: CommandDispatcher<CommandSource>
-    val functionPermissionLevel: Int
+    val functionPermissions: PermissionPredicate
     val serverLog: Log?
     val commandExecutor: CommandExecutor?
     val debugService: ServerDebugConnectionService?

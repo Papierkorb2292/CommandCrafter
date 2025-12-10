@@ -115,11 +115,6 @@ fun <T> MutableCollection<T>?.appendNullable(other: MutableCollection<T>?): Muta
     else -> this.toMutableList().apply { addAll(other) }
 }
 
-/**
- * Converts the Identifier to a string while omitting the namespace if it is the default "minecraft".
- */
-fun Identifier.toShortString(): String = if(namespace == "minecraft") path else toString()
-
 fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
     override fun <T> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> {
         return if(input == defaultValue) DataResult.success(prefix) else this@orEmpty.encode(input, ops, prefix)
