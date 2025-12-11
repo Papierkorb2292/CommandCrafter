@@ -41,8 +41,8 @@ public class NbtTextFormatterMixin {
             )
     )
     private int command_crafter$deactivateEllipsisForDepth(int value) {
-        if(!CommandCrafter.INSTANCE.getShortenNbt() && depth > 64)
-            return 64;
+        if(!CommandCrafter.INSTANCE.getShortenNbt() && depth > 63)
+            return 63;
         return value;
     }
 }
