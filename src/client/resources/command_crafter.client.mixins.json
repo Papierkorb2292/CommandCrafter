@@ -9,7 +9,6 @@
     "ClientRegistriesMixin",
     "SimpleOptionAccessor",
     "editor.AtlasTextObjectContentsMixin",
-    "editor.ClientPlayNetworkHandlerNodeFactoryMixin",
     "editor.KeyBindingAccessor",
     "editor.KeybindTextContentMixin",
     "editor.TranslatableTextContentMixin",

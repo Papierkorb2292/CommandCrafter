@@ -15,7 +15,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -64,8 +64,14 @@
                 "trackTickInterval" : 2,
                 "translationKey" : "entity.minecraft.player",
                 "lootTableKey" : {
-                  "empty" : false,
-                  "present" : true
+                  "registry" : {
+                    "namespace" : "minecraft",
+                    "path" : "loot_table"
+                  },
+                  "value" : {
+                    "namespace" : "minecraft",
+                    "path" : "entities/player"
+                  }
                 },
                 "dimensions" : {
                   "width" : 0.6,
@@ -149,7 +155,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -195,7 +201,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -267,7 +273,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -313,7 +319,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -383,7 +389,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -457,7 +463,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -548,7 +554,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -594,7 +600,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -640,7 +646,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -743,7 +749,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -789,7 +795,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -835,7 +841,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -933,7 +939,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -979,7 +985,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1076,7 +1082,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -1177,7 +1183,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -1247,7 +1253,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1293,7 +1299,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -1364,7 +1370,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -1410,7 +1416,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1477,7 +1483,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -1549,7 +1555,7 @@
             "z" : 0.0
           },
           "world" : "ServerLevel[Test Level]",
-          "level" : 4,
+          "permissions" : { },
           "name" : "Server",
           "displayName" : {
             "content" : {
@@ -1624,7 +1630,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1673,8 +1679,14 @@
                   "trackTickInterval" : 2,
                   "translationKey" : "entity.minecraft.player",
                   "lootTableKey" : {
-                    "empty" : false,
-                    "present" : true
+                    "registry" : {
+                      "namespace" : "minecraft",
+                      "path" : "loot_table"
+                    },
+                    "value" : {
+                      "namespace" : "minecraft",
+                      "path" : "entities/player"
+                    }
                   },
                   "dimensions" : {
                     "width" : 0.6,
@@ -1758,7 +1770,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -1804,7 +1816,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -1879,7 +1891,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -1970,7 +1982,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -2016,7 +2028,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -2062,7 +2074,7 @@
                     "z" : 0.0
                   },
                   "world" : "ServerLevel[Test Level]",
-                  "level" : 4,
+                  "permissions" : { },
                   "name" : "Server",
                   "displayName" : {
                     "content" : {
@@ -2198,7 +2210,7 @@
                         "z" : 0.0
                       },
                       "world" : "ServerLevel[Test Level]",
-                      "level" : 4,
+                      "permissions" : { },
                       "name" : "Server",
                       "displayName" : {
                         "content" : {
@@ -2307,7 +2319,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -2377,7 +2389,7 @@
                 "z" : 0.0
               },
               "world" : "ServerLevel[Test Level]",
-              "level" : 4,
+              "permissions" : { },
               "name" : "Server",
               "displayName" : {
                 "content" : {
@@ -2423,7 +2435,7 @@
                   "z" : 0.0
                 },
                 "world" : "ServerLevel[Test Level]",
-                "level" : 4,
+                "permissions" : { },
                 "name" : "Server",
                 "displayName" : {
                   "content" : {
@@ -2497,7 +2509,7 @@
               "z" : 0.0
             },
             "world" : "ServerLevel[Test Level]",
-            "level" : 4,
+            "permissions" : { },
             "name" : "Server",
             "displayName" : {
               "content" : {
@@ -2596,7 +2608,7 @@
                         "z" : 0.0
                       },
                       "world" : "ServerLevel[Test Level]",
-                      "level" : 4,
+                      "permissions" : { },
                       "name" : "Server",
                       "displayName" : {
                         "content" : {

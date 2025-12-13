@@ -9,8 +9,11 @@ import net.minecraft.client.MinecraftClient
 import net.minecraft.client.font.FontManager
 import net.minecraft.client.gl.PostEffectPipeline
 import net.minecraft.client.item.ItemAsset
+import net.minecraft.client.render.model.json.BlockModelDefinition
+import net.minecraft.client.resource.waypoint.WaypointStyleAsset
 import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandRegistryAccess
+import net.minecraft.command.permission.LeveledPermissionPredicate
 import net.minecraft.item.equipment.EquipmentType
 import net.minecraft.resource.featuretoggle.FeatureFlags
 import net.minecraft.screen.ScreenTexts
@@ -19,6 +22,7 @@ import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.waypoint.WaypointStyle
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
 import net.papierkorb2292.command_crafter.editor.*
@@ -26,7 +30,7 @@ import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClie
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyCompletionsDefault
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.addJsonAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -53,7 +57,7 @@ object ClientCommandCrafter : ClientModInitializer {
     var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
         SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
-            CommandDispatcher(), 0
+            CommandDispatcher(), LeveledPermissionPredicate.NONE
         ),
         DirectMinecraftClientConnection,
         CommandCrafter.serviceLaunchers
@@ -85,11 +89,7 @@ object ClientCommandCrafter : ClientModInitializer {
             finalResult
         }))
 
-        addJsonAnalyzer(PackContentFileType.ATLASES_FILE_TYPE, AtlasSourceManager.LIST_CODEC)
-        addJsonAnalyzer(PackContentFileType.EQUIPMENT_FILE_TYPE, EquipmentType.CODEC)
-        addJsonAnalyzer(PackContentFileType.FONTS_FILE_TYPE, FontManager.Providers.CODEC)
-        addJsonAnalyzer(PackContentFileType.ITEMS_FILE_TYPE, ItemAsset.CODEC)
-        addJsonAnalyzer(PackContentFileType.POST_EFFECTS_FILE_TYPE, PostEffectPipeline.CODEC)
+        StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
 
         val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
         fun setDefaultServerConnection() {
@@ -102,7 +102,7 @@ object ClientCommandCrafter : ClientModInitializer {
                     Vec3d.ZERO,
                     Vec2f.ZERO,
                     null,
-                    2,
+                    LeveledPermissionPredicate.GAMEMASTERS,
                     "",
                     ScreenTexts.EMPTY,
                     null,
@@ -112,7 +112,7 @@ object ClientCommandCrafter : ClientModInitializer {
             CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
                 CommandDispatcher(rootNode),
-                2
+                LeveledPermissionPredicate.GAMEMASTERS
             )
         }
 
@@ -147,4 +147,14 @@ object ClientCommandCrafter : ClientModInitializer {
             editorConnectionManager.startServer()
         }
     }
+
+    val clientsideJsonResourceCodecs = mutableMapOf(
+        PackContentFileType.ATLASES_FILE_TYPE to AtlasSourceManager.LIST_CODEC,
+        PackContentFileType.BLOCKSTATES_FILE_TYPE to BlockModelDefinition.CODEC,
+        PackContentFileType.EQUIPMENT_FILE_TYPE to EquipmentType.CODEC,
+        PackContentFileType.FONTS_FILE_TYPE to FontManager.Providers.CODEC,
+        PackContentFileType.ITEMS_FILE_TYPE to ItemAsset.CODEC,
+        PackContentFileType.POST_EFFECTS_FILE_TYPE to PostEffectPipeline.CODEC,
+        PackContentFileType.WAYPOINT_STYLE_FILE_TYPE to WaypointStyleAsset.CODEC,
+    )
 }

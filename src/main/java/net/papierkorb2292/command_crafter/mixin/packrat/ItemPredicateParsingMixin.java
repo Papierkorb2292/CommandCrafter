@@ -59,10 +59,10 @@ public class ItemPredicateParsingMixin {
     }
 
     @ModifyArg(
-            method = "method_58492",
+            method = "method_58501",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/packrat/ParseResults;getAnyOrThrow([Lnet/minecraft/util/packrat/Symbol;)Ljava/lang/Object;"
+                    target = "Lnet/minecraft/util/packrat/ParseResults;getAny([Lnet/minecraft/util/packrat/Symbol;)Ljava/lang/Object;"
             )
     )
     private static <T> Symbol<T>[] command_crafter$retrieveInlineTagResult(Symbol<T>[] original) {

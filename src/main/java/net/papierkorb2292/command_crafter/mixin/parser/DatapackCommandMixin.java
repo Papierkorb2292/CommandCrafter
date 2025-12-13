@@ -95,8 +95,8 @@ public class DatapackCommandMixin {
             if(!((pack instanceof ZipResourcePack) || (pack instanceof DirectoryResourcePack))) {
                 throw UNKNOWN_DATAPACK_EXCEPTION.create(name);
             }
-            if(argsBuilder.getPermissionLevel() == null) {
-                argsBuilder.setPermissionLevel(context.getSource().getServer().getFunctionPermissionLevel());
+            if(argsBuilder.getPermissions() == null) {
+                argsBuilder.setPermissions(context.getSource().getServer().getFunctionPermissions());
             }
             if(!name.endsWith(".zip")) {
                 name += ".zip";

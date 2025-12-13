@@ -18,7 +18,6 @@
     "editor.ClientConnectionAccessor",
     "editor.CommandManagerAccessor",
     "editor.CommandManagerMixin",
-    "editor.GameRulesRuleMixin",
     "editor.ServerPlayNetworkHandlerMixin",
     "editor.debugger.CommandExecutionContextMixin",
     "editor.debugger.CommandFunctionActionMixin",

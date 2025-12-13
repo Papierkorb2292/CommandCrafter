@@ -133,10 +133,13 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     didDelete = FileOperationOptions(listOf(FileOperationFilter(FileOperationPattern("**"))))
                 }
             }
-            semanticTokensProvider = SemanticTokensWithRegistrationOptions(
-                SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS),
-                true
-            )
+            //TODO: Reload config without restarting language server (using dynamic registration to update capabilities)
+            if(featureConfig.isEnabled("analyzer.semanticTokens", true)) {
+                semanticTokensProvider = SemanticTokensWithRegistrationOptions(
+                    SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS),
+                    true
+                )
+            }
         }, ServerInfo("Minecraft Language Server")))
     }
 

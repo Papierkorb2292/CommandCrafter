@@ -294,7 +294,7 @@ class FunctionElementDebugInformation(
                     context.source.position,
                     context.source.rotation,
                     context.source.world,
-                    debugFrame.pauseContext.server.functionPermissionLevel,
+                    debugFrame.pauseContext.server.functionPermissions,
                     context.source.name,
                     context.source.displayName,
                     debugFrame.pauseContext.server,

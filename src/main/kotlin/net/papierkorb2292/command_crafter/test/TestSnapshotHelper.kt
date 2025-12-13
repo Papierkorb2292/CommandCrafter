@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.NullSerializer
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializerBase
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
+import com.fasterxml.jackson.datatype.jdk8.OptionalSerializer
 import com.github.difflib.text.DiffRow
 import com.github.difflib.text.DiffRowGenerator
 import com.mojang.brigadier.CommandDispatcher
@@ -45,11 +47,12 @@ object TestSnapshotHelper {
     val objectMapper = ObjectMapper()
         .configure(SerializationFeature.INDENT_OUTPUT, true)
         .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
-        .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
         .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
         .setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
         .setVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
         .registerModule(simpleModule)
+        .registerModule(Jdk8Module())
 
     val ansiNormalSequence = AnsiEscape.createSequence("normal")
     val ansiInsertSequence = AnsiEscape.createSequence("green")

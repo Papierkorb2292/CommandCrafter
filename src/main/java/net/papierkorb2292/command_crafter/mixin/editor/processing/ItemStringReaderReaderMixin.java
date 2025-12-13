@@ -16,6 +16,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.MapCodec;
 import kotlin.Unit;
 import net.minecraft.command.argument.ItemStringReader;
 import net.minecraft.component.ComponentType;
@@ -192,7 +193,7 @@ public class ItemStringReaderReaderMixin {
             if(reader.canRead())
                 command_crafter$suggestionStartCursor = -1;
         }
-        return ComponentType.builder().codec(Codec.unit(Unit.INSTANCE)).build();
+        return ComponentType.<Unit>builder().codec(MapCodec.unit(Unit.INSTANCE).codec()).build();
     }
 
     @WrapWithCondition(

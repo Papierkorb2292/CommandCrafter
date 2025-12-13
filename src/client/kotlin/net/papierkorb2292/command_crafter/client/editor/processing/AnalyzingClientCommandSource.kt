@@ -7,7 +7,8 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.network.ClientCommandSource
 import net.minecraft.command.CommandSource
-import net.minecraft.command.PermissionLevelSource
+import net.minecraft.command.permission.PermissionPredicate
+import net.minecraft.command.permission.PermissionSource
 import net.minecraft.registry.DynamicRegistryManager
 import net.minecraft.registry.Registries
 import net.minecraft.registry.Registry
@@ -26,7 +27,7 @@ import java.util.stream.Stream
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientCommandSource,
     private val hasNetworkHandler: Boolean,
-) : CommandSource, PermissionLevelSource {
+) : CommandSource, PermissionSource {
 
     companion object {
         // This is saved globally instead of per instance, because ClientCommandCrafter can only
@@ -35,7 +36,7 @@ class AnalyzingClientCommandSource(
     }
 
     constructor(minecraftClient: MinecraftClient): this(
-        minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient, true),
+        minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient, PermissionPredicate.ALL),
         minecraftClient.networkHandler != null
     )
 
@@ -53,7 +54,6 @@ class AnalyzingClientCommandSource(
         if(hasNetworkHandler) clientCommandSource.registryManager else DynamicRegistryManager.of(Registries.REGISTRIES)
     override fun getEnabledFeatures(): FeatureSet =
         if(hasNetworkHandler) clientCommandSource.enabledFeatures else ClientCommandCrafter.defaultFeatureSet
-    override fun hasPermissionLevel(level: Int) = true
 
     override fun listIdSuggestions(
         registryRef: RegistryKey<out Registry<*>>,
@@ -86,4 +86,6 @@ class AnalyzingClientCommandSource(
             return clientCommandSource.getCompletions(context)
         return Suggestions.empty()
     }
+
+    override fun getPermissions(): PermissionPredicate = PermissionPredicate.ALL
 }

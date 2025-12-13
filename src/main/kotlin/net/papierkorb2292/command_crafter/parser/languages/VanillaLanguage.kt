@@ -22,6 +22,9 @@ import net.minecraft.command.CommandSource
 import net.minecraft.command.MacroInvocation
 import net.minecraft.command.SingleCommandAction
 import net.minecraft.command.argument.CommandFunctionArgumentType
+import net.minecraft.command.permission.LeveledPermissionPredicate
+import net.minecraft.util.packrat.ParsingRule
+import net.minecraft.util.packrat.ParsingState
 import net.minecraft.nbt.NbtElement
 import net.minecraft.nbt.NbtEnd
 import net.minecraft.nbt.NbtOps
@@ -1052,7 +1055,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             tagEntryListCodec,
             Codec.either(
                 // Unit to suggest {} for inline functions
-                Codec.unit(Unit),
+                Codec.EMPTY.codec(),
                 // Suggesting 'this'
                 StringIdentifiable.createCodec({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "this" })
             )

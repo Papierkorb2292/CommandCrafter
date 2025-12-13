@@ -26,6 +26,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     BLOCK_TAGS_FILE_TYPE("tags/block", PackType.DATA),
     CAT_VARIANT_TAGS_FILE_TYPE("tags/cat_variant", PackType.DATA),
     DAMAGE_TYPE_TAGS_FILE_TYPE("tags/damage_type", PackType.DATA),
+    DIALOG_TAGS_FILE_TYPE("tags/dialog", PackType.DATA),
     ENCHANTMENT_TAGS_FILE_TYPE("tags/enchantment", PackType.DATA),
     ENTITY_TYPE_TAGS_FILE_TYPE("tags/entity_type", PackType.DATA),
     FLUID_TAGS_FILE_TYPE("tags/fluid", PackType.DATA),
@@ -35,6 +36,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     ITEM_TAGS_FILE_TYPE("tags/item", PackType.DATA),
     PAINTING_VARIANT_TAGS_FILE_TYPE("tags/painting_variant", PackType.DATA),
     POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE("tags/point_of_interest_type", PackType.DATA),
+    TIMELINE_TAGS_FILE_TYPE("tags/timeline", PackType.DATA),
     WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE("tags/worldgen/biome", PackType.DATA),
     WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE("tags/worldgen/flat_level_generator_preset", PackType.DATA),
     WORLDGEN_STRUCTURE_TAGS_FILE_TYPE("tags/structure", PackType.DATA),
@@ -47,6 +49,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     FROG_VARIANT_FILE_TYPE("frog_variant", PackType.DATA),
     COW_VARIANT_FILE_TYPE("cow_variant", PackType.DATA),
     CHICKEN_VARIANT_FILE_TYPE("chicken_variant", PackType.DATA),
+    ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE("zombie_nautilus_variant", PackType.DATA),
     WOLF_SOUND_VARIANT_FILE_TYPE("wolf_sound_variant", PackType.DATA),
     DIMENSION_FILE_TYPE("dimension", PackType.DATA),
     DIMENSION_TYPE_FILE_TYPE("dimension_type", PackType.DATA),
@@ -55,7 +58,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE("worldgen/configured_feature", PackType.DATA),
     WORLDGEN_DENSITY_FUNCTION_FILE_TYPE("worldgen/density_function", PackType.DATA),
     WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE("worldgen/flat_level_generator_preset", PackType.DATA),
-    WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE("worldgen/multi_noise_biome_source", PackType.DATA),
+    WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE("worldgen/multi_noise_biome_source_parameter_list", PackType.DATA),
     WORLDGEN_NOISE_FILE_TYPE("worldgen/noise", PackType.DATA),
     WORLDGEN_NOISE_SETTINGS_FILE_TYPE("worldgen/noise_settings", PackType.DATA),
     WORLDGEN_PLACED_FEATURE_FILE_TYPE("worldgen/placed_feature", PackType.DATA),
@@ -69,6 +72,11 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     ENCHANTMENT_FILE_TYPE("enchantment", PackType.DATA),
     ENCHANTMENT_PROVIDER_FILE_TYPE("enchantment_provider", PackType.DATA),
     DIALOG_FILE_TYPE("dialog", PackType.DATA),
+    TIMELINE_FILE_TYPE("timeline", PackType.DATA),
+    TRIAL_SPAWNER_FILE_TYPE("trial_spawner", PackType.DATA),
+    INSTRUMENT_FILE_TYPE("instrument", PackType.DATA),
+    TEST_ENVIRONMENT_FILE_TYPE("test_environment", PackType.DATA),
+    TEST_INSTANCE_FILE_TYPE("test_instance", PackType.DATA),
 
     ATLASES_FILE_TYPE("atlases", PackType.RESOURCE),
     BLOCKSTATES_FILE_TYPE("blockstates", PackType.RESOURCE),
@@ -84,7 +92,8 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
     POST_SHADERS_FILE_TYPE("shaders/post", PackType.RESOURCE),
     SOUNDS_FILE_TYPE("sounds", PackType.RESOURCE),
     TEXTS_FILE_TYPE("texts", PackType.RESOURCE),
-    TEXTURES_FILE_TYPE("textures", PackType.RESOURCE);
+    TEXTURES_FILE_TYPE("textures", PackType.RESOURCE),
+    WAYPOINT_STYLE_FILE_TYPE("waypoint_style", PackType.RESOURCE);
 
     constructor(contentTypePath: String, packType: PackType) : this(contentTypePath, packType, getKeywordsFromPath(contentTypePath))
 
@@ -100,6 +109,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
             BLOCK_TAGS_FILE_TYPE,
             CAT_VARIANT_TAGS_FILE_TYPE,
             DAMAGE_TYPE_TAGS_FILE_TYPE,
+            DIALOG_TAGS_FILE_TYPE,
             ENCHANTMENT_TAGS_FILE_TYPE,
             ENTITY_TYPE_TAGS_FILE_TYPE,
             FLUID_TAGS_FILE_TYPE,

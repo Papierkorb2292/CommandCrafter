@@ -8,6 +8,8 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.command.CommandSource
+import net.minecraft.command.permission.LeveledPermissionPredicate
+import net.minecraft.command.permission.PermissionLevel
 import net.minecraft.loot.LootDataType
 import net.minecraft.nbt.NbtOps
 import net.minecraft.network.ClientConnection
@@ -21,6 +23,7 @@ import net.minecraft.registry.*
 import net.minecraft.registry.tag.TagPacketSerializer
 import net.minecraft.resource.ResourcePackManager
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.server.network.ServerPlayerEntity
@@ -85,7 +88,7 @@ object NetworkServerConnectionHandler {
     }
 
     fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
-        player.hasPermissionLevel(2)
+        CommandManager.GAMEMASTERS_CHECK.allows(player.permissions)
 
     fun registerPacketHandlers() {
         // Don't use registerAsyncServerPacketHandler here, because the client wouldn't be able to check whether a handler is registered for the packet
@@ -322,13 +325,15 @@ object NetworkServerConnectionHandler {
         networkHandler: ServerPlayNetworkHandler,
     ) {
         sendDynamicRegistries(server, networkHandler)
-
+        val functionPermissionLevel = (server.functionPermissions as? LeveledPermissionPredicate)?.level?.level
+        if(functionPermissionLevel == null)
+            CommandCrafter.LOGGER.warn("Unable to get function permission level for connection request: unexpected predicate type")
         @Suppress("UNCHECKED_CAST")
         val responsePacket = InitializeNetworkServerConnectionS2CPacket(
             true,
             null,
             CommandTreeS2CPacket(connection.commandDispatcher.root as RootCommandNode<ServerCommandSource>, CommandManagerAccessor.getINSPECTOR()),
-            server.functionPermissionLevel,
+            functionPermissionLevel ?: 2,
             requestPacket.requestId
         )
 

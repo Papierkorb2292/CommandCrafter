@@ -2,9 +2,9 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry
 import net.minecraft.command.CommandSource
 import net.minecraft.registry.DynamicRegistryManager
+import net.minecraft.registry.Registries
 import net.minecraft.resource.ResourcePackManager
 import net.minecraft.screen.ScreenTexts
 import net.minecraft.server.MinecraftServer
@@ -13,9 +13,9 @@ import net.minecraft.server.command.CommandOutput
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.network.ServerPlayNetworkHandler
 import net.minecraft.text.Text
+import net.minecraft.util.Identifier
 import net.minecraft.util.math.Vec2f
 import net.minecraft.util.math.Vec3d
-import net.minecraft.world.GameRules
 import net.minecraft.world.SaveProperties
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
@@ -51,7 +51,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         const val SERVER_LOG_CHANNEL = "server"
         private const val COMMAND_EXECUTOR_NAME = "{DirectServerConnection}"
 
-        val WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_KEY = GameRules.Key<GameRules.BooleanRule>("reloadRegistries", GameRules.Category.MISC)
+        val WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID = Identifier.of("reload_registries")
 
         private var datapackReloadWaitFuture: CompletableFuture<Unit>? = CompletableFuture.completedFuture(Unit)
         private var datapackReloadReconfigureFuture: CompletableFuture<Unit>? = null
@@ -107,7 +107,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             Vec3d.ZERO,
             Vec2f.ZERO,
             null,
-            functionPermissionLevel,
+            functionPermissions,
             "",
             ScreenTexts.EMPTY,
             null,
@@ -121,7 +121,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         get() = server.registryManager
     override val commandDispatcher: CommandDispatcher<CommandSource>
         get() = commandDispatcherFactory(server.commandManager)
-    override val functionPermissionLevel = server.functionPermissionLevel
+    override val functionPermissions = server.functionPermissions
     override val serverLog: Log? =
         if(server.isDedicated)
             object : Log {
@@ -135,12 +135,12 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     override val commandExecutor = object : CommandExecutor {
         override fun executeCommand(command: String) {
             server.commandSource
-            server.commandManager.executeWithPrefix(ServerCommandSource(
+            server.commandManager.parseAndExecute(ServerCommandSource(
                 CommandOutput.DUMMY,
                 Vec3d.ZERO,
                 Vec2f.ZERO,
                 server.overworld,
-                functionPermissionLevel,
+                functionPermissions,
                 COMMAND_EXECUTOR_NAME,
                 Text.literal(COMMAND_EXECUTOR_NAME),
                 server,
@@ -247,8 +247,15 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     override val datapackReloader = { reloadDatapacks(server) }
 
     override val canReloadWorldgen: Boolean
-        get() = GameRuleRegistry.hasRegistration(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_KEY.name)
-                && server.gameRules.getBoolean(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_KEY)
+        get() {
+            val rule = Registries.GAME_RULE.get(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID) ?: return false
+            val value = server.saveProperties.gameRules.getValue(rule)
+            if(value !is Boolean) {
+                CommandCrafter.LOGGER.debug("Unexpected type of value for reload_registries game rule: {}", value)
+                return false
+            }
+            return value
+        }
 
     override fun createScoreboardStorageFileSystem() =
         ServerScoreboardStorageFileSystem(server)
