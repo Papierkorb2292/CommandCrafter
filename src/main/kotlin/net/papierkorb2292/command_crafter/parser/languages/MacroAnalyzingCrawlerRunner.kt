@@ -142,10 +142,12 @@ class MacroAnalyzingCrawlerRunner(
     var hasHitTimeout: Boolean = false
         private set
 
+    private var filterCrawlersByMaxLiterals = false
+    private var bestGlobalSpawner: Spawner? = null
+
     fun run(): AnalyzingResult {
         timeoutStartNs = Util.getMeasuringTimeNano()
 
-        var bestGlobalSpawner: Spawner? = null
         val trailingSpawners = LinkedHashSet<Spawner>()
         while(weightedSpawners.isNotEmpty()) {
             if(checkDidHitTimeout()) break
@@ -166,7 +168,7 @@ class MacroAnalyzingCrawlerRunner(
                 .maxByOrNull { it.bestResult!! }
                 ?: continue
 
-            if(bestGlobalSpawner == null || bestMatchingSpawner.bestResult!! > bestGlobalSpawner.bestResult!!) {
+            if(bestGlobalSpawner == null || bestMatchingSpawner.bestResult!! > bestGlobalSpawner!!.bestResult!!) {
                 bestGlobalSpawner = bestMatchingSpawner
             }
             val hasNewNodes = bestMatchingSpawner.bestResult!!.hasNewLiteralNodes()
@@ -184,10 +186,18 @@ class MacroAnalyzingCrawlerRunner(
             }
             if(advancedSpawners.isNotEmpty()) {
                 // Advancing the spawners decreases their weight by one
-                if(spawnersIndex > 0)
-                    weightedSpawners[spawnersIndex - 1] += advancedSpawners
-                else
+                if(spawnersIndex > 0) {
+                    val targetSpawnerList = weightedSpawners[spawnersIndex - 1]
+                    if(spawnersIndex == weightedSpawners.size && targetSpawnerList.isNotEmpty()) {
+                        // There are no new spawners, but there are other spawners with the same weight that
+                        // the advanced spawners now have. This event is used to engage the max literal counter,
+                        // because it's likely that the best result has been found and no other spawner can beat it.
+                        filterCrawlersByMaxLiterals = true
+                    }
+                    targetSpawnerList += advancedSpawners
+                } else {
                     weightedSpawners.add(0, advancedSpawners)
+                }
             }
 
             bestMatchingSpawner.bestResult!!.cutSpawnerTree()
@@ -198,8 +208,8 @@ class MacroAnalyzingCrawlerRunner(
             return baseAnalyzingResult.copyInput()
 
         trailingSpawners += bestGlobalSpawner!!
-        val result = bestGlobalSpawner.buildCombinedAnalyzingResult(isChildTrailing = true, isLastChild = true)
-        val consumedCompletions = createNonTrailingSpawnerHierarchySet(bestGlobalSpawner)
+        val result = bestGlobalSpawner!!.buildCombinedAnalyzingResult(isChildTrailing = true, isLastChild = true)
+        val consumedCompletions = createNonTrailingSpawnerHierarchySet(bestGlobalSpawner!!)
         while(trailingSpawners.isNotEmpty()) {
             val completionSpawner = trailingSpawners.removeFirst()
             if(completionSpawner in consumedCompletions)
@@ -457,9 +467,14 @@ class MacroAnalyzingCrawlerRunner(
             var i = 0
             while(i < crawlers.size) {
                 val crawler = crawlers[i]
-                val crawlerNodes = crawler.getNodesForAttempt()
-                val attemptCount = crawler.attemptCount++
+                val attemptCount = crawler.attemptCount
                 val attemptIndex = startAttemptIndex + attemptCount
+                val startCursor = attemptPositions[attemptIndex]
+
+                if(filterCrawlersByMaxLiterals)
+                    crawler.filterNodesByLiteralCount(attemptIndex)
+                val crawlerNodes = crawler.getNodesForAttempt()
+                crawler.attemptCount = attemptCount + 1
 
                 // Push another crawler if a variable is at this position, so if this variable resolves to a whole node
                 // the correct parser for the children will be found quicker
@@ -484,8 +499,6 @@ class MacroAnalyzingCrawlerRunner(
                 while(attemptAnalyzingResultsForAttemptCount.size <= crawler.skippedNodeCount) {
                     attemptAnalyzingResultsForAttemptCount.add(null)
                 }
-
-                val startCursor = attemptPositions[attemptIndex]
 
                 val results = crawlerNodes.mapNotNull { node ->
                         if(unnecessaryAttemptDeduplicator.shouldSkipAttempt(attemptIndex, node))
@@ -528,7 +541,7 @@ class MacroAnalyzingCrawlerRunner(
                 return
             val redirectedNodes = nextNodes.map { it.resolveRedirects() }
             crawlers += Crawler(
-                redirectedNodes,
+                redirectedNodes.distinct(),
                 nextNodes.mapIndexedNotNull { i, node ->
                     if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirectedNodes[i]))
                         redirectedNodes[i]
@@ -592,7 +605,7 @@ class MacroAnalyzingCrawlerRunner(
                 }
         }
 
-        private inner class Crawler(val nodes: List<CommandNode<CommandSource>>, val nodesWithSpaces: List<CommandNode<CommandSource>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
+        private inner class Crawler(var nodes: List<CommandNode<CommandSource>>, var nodesWithSpaces: List<CommandNode<CommandSource>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
             // For any attempt not following a variable only parent nodes that contain spaces are tried. This is because if the parent
             // node can not contain spaces, then it's either contained by the macro variable, in which case its children
             // would appear at the first attempt position after the variable only, or the parent node could also be part of
@@ -600,6 +613,22 @@ class MacroAnalyzingCrawlerRunner(
             // have already foud the parent node.
             // Also check whether attemptCount == 0, which handles the case where the crawler is supposed to parse the root node at the start of the command, and it skips some array lockups
             fun getNodesForAttempt() = if(attemptCount == 0 || attemptPositionsFollowingVariable[startAttemptIndex + attemptCount]) nodes else nodesWithSpaces
+
+            fun filterNodesByLiteralCount(attemptIndex: Int) {
+                val previousLiterals = baseResult?.literalNodeCount ?: 0
+                val goalLiteralCount = bestGlobalSpawner!!.bestResult!!.literalNodeCount - previousLiterals
+
+                val removedNodes = nodes.asSequence().filter { node ->
+                    val maxCount = inputLiteralCounter.getMaxPossibleLiteralsForAttempt(node, attemptIndex).toInt()
+                    maxCount != 255 && maxCount < goalLiteralCount
+                }.toSet()
+
+                if(removedNodes.isEmpty())
+                    return
+
+                nodes = nodes.filter { it !in removedNodes }
+                nodesWithSpaces = nodesWithSpaces.filter { it !in removedNodes }
+            }
         }
     }
 
@@ -736,6 +765,23 @@ class MacroAnalyzingCrawlerRunner(
             literalCounts[positionIndex] = map
             dirtyPositionMax = min(dirtyPositionMax, positionIndex - 1)
             return map
+        }
+
+        fun getMaxPossibleLiteralsForAttempt(attemptRoot: CommandNode<CommandSource>, positionIndex: Int): UByte {
+            val inputLiterals = getLiteralCounts(positionIndex)
+
+            var total: UByte = 0U
+
+            val nodeLiteralCounts = nodeMaxLiteralCounter.getLiteralCountsForNode(attemptRoot)
+            for((literalId, count) in inputLiterals.int2ByteEntrySet().fastIterator()) {
+                val newCount = minOf(count.toUByte(), nodeLiteralCounts[literalId])
+                if(255U - total <= newCount) {
+                    total = 255U
+                    break
+                }
+                total = (total + newCount).toUByte()
+            }
+            return total
         }
 
         private fun copyIncrementedLiteralCount(positionIndex: Int, parentMap: Int2ByteLinkedOpenHashMap): Int2ByteLinkedOpenHashMap {
