@@ -2283,7 +2283,7 @@
         "directiveManager" : { },
         "nextLine" : 12,
         "onlyReadEscapedMultiline" : false,
-        "furthestAccessedCursor" : 1,
+        "furthestAccessedCursor" : 0,
         "currentIndentation" : 0,
         "scopeStack" : [ ]
       },
@@ -2681,7 +2681,7 @@
         "directiveManager" : { },
         "nextLine" : 12,
         "onlyReadEscapedMultiline" : false,
-        "furthestAccessedCursor" : 1,
+        "furthestAccessedCursor" : 0,
         "currentIndentation" : 0,
         "scopeStack" : [ ]
       },

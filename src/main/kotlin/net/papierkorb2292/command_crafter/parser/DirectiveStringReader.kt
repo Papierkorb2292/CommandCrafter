@@ -87,7 +87,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     private fun extendToLengthFromCursor(length: Int): Boolean {
-        furthestAccessedCursor = max(furthestAccessedCursor, cursor + length)
+        furthestAccessedCursor = max(furthestAccessedCursor, cursor + length - 1) //Subtract one because we're only accessing the last character that is included in the length
         if(onlyReadEscapedMultiline) {
             val firstLineMappingMissing = cursorMapper.prevTargetEnd <= skippingCursor
             if(!string.endsWith('\\')) {
