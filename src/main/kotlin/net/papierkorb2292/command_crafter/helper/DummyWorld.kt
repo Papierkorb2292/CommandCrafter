@@ -48,21 +48,15 @@ import java.util.function.BooleanSupplier
 
 class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: FeatureSet) : World(DummyProperties(), null, registryManager, registryManager.getEntryOrThrow(DimensionTypes.OVERWORLD), false, false, 0, 0) {
     private val chunkManager = DummyChunkManager()
-    override fun getPlayers(): MutableList<out PlayerEntity> {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun getPlayers(): MutableList<out PlayerEntity> = mutableListOf()
 
-    override fun getBrightness(direction: Direction?, shaded: Boolean): Float {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun getBrightness(direction: Direction?, shaded: Boolean) = 0f
 
     override fun getGeneratorStoredBiome(biomeX: Int, biomeY: Int, biomeZ: Int): RegistryEntry<Biome> {
         return registryManager.getEntryOrThrow(BiomeKeys.PLAINS)
     }
 
-    override fun getSeaLevel(): Int {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun getSeaLevel() = 64
 
     override fun getEnabledFeatures() = featureSet
 
@@ -86,21 +80,13 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         volume: Float,
         pitch: Float,
         seed: Long,
-    ) {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    ) { }
 
-    override fun syncWorldEvent(source: Entity?, eventId: Int, pos: BlockPos?, data: Int) {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun syncWorldEvent(source: Entity?, eventId: Int, pos: BlockPos?, data: Int) { }
 
-    override fun emitGameEvent(event: RegistryEntry<GameEvent>?, emitterPos: Vec3d?, emitter: GameEvent.Emitter?) {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun emitGameEvent(event: RegistryEntry<GameEvent>?, emitterPos: Vec3d?, emitter: GameEvent.Emitter?) { }
 
-    override fun updateListeners(pos: BlockPos?, oldState: BlockState?, newState: BlockState?, flags: Int) {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun updateListeners(pos: BlockPos?, oldState: BlockState?, newState: BlockState?, flags: Int) { }
 
     override fun playSoundFromEntity(
         source: Entity?,
@@ -110,9 +96,7 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         volume: Float,
         pitch: Float,
         seed: Long,
-    ) {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    ) { }
 
     override fun createExplosion(
         entity: Entity?,
@@ -128,25 +112,19 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         largeParticle: ParticleEffect?,
         blockParticles: Pool<BlockParticleEffect?>?,
         soundEvent: RegistryEntry<SoundEvent?>?,
-    ) {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    ) { }
 
-    override fun asString(): String {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun asString() = "DummyWorld"
 
     override fun setSpawnPoint(spawnPoint: WorldProperties.SpawnPoint) {
-        throw NotImplementedError("Not supported by dummy")
+        properties.spawnPoint = spawnPoint
     }
 
     override fun getSpawnPoint(): WorldProperties.SpawnPoint {
-        throw NotImplementedError("Not supported by dummy")
+        return properties.spawnPoint
     }
 
-    override fun getEntityById(id: Int): Entity? {
-        throw NotImplementedError("Not supported by dummy")
-    }
+    override fun getEntityById(id: Int) = null
 
     override fun getEnderDragonParts(): MutableCollection<EnderDragonPart> {
         throw NotImplementedError("Not supported by dummy")
