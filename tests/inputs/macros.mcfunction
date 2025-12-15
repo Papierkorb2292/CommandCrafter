@@ -36,3 +36,8 @@ $tellraw @a [\
         yer)"],\
     }\
 ]
+$execute \
+    $(if) data storage game:instance_$(instance) {thing1:{value:$(val)}} \
+    $(if) data storage game:instance_$(instance) {thing2:{value:$(val)}} \
+    $(if) data storage game:instance_$(instance) {thing3:{value:$(val)}} \
+    run execute run advancement grant @a everything
