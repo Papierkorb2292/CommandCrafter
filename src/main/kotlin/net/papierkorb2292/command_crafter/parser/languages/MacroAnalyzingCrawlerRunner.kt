@@ -676,14 +676,17 @@ class MacroAnalyzingCrawlerRunner(
                 // The tree was already cut at or after this spawner
                 return
             weightedSpawners.subList(0, cutOffIndex).clear()
-            weightedSpawners[0] = mutableListOf(cutOffPoint)
-            val addedNodes = mutableSetOf(cutOffPoint)
-
-            for(spawners in weightedSpawners.subList(1, weightedSpawners.size)) {
-                spawners.removeAll {
-                    it.parent !in addedNodes
+            // Note that a spawner might have the same weight as its children if those have already been tried a bunch of times
+            val visitedNodes = mutableSetOf(cutOffPoint.parent)
+            for(spawners in weightedSpawners.subList(0, weightedSpawners.size)) {
+                spawners.removeAll { spawner ->
+                    if(spawner.parent !in visitedNodes) {
+                        true
+                    } else {
+                        visitedNodes.add(spawner)
+                        false
+                    }
                 }
-                addedNodes += spawners
             }
         }
 
