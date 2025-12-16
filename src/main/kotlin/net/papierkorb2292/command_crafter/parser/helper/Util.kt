@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
@@ -48,6 +49,11 @@ fun <S> CommandNode<S>.resolveRedirects(): CommandNode<S> {
     while(node.redirect != null)
         node = node.redirect
     return node
+}
+
+fun <S> CommandContextBuilder<S>.getLastNodeWithRedirects(): CommandNode<S> {
+    val lastChild = this.lastChild
+    return lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
 }
 
 fun <S> delegatingTerm(callback: (state: ParsingState<S>, results: ParseResults, cut: Cut) -> Term<S>): Term<S> =

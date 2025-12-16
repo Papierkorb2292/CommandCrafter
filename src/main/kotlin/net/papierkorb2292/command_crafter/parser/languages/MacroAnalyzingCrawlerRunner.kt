@@ -18,6 +18,7 @@ import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.Int2ByteLinkedOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
 import net.minecraft.command.CommandSource
@@ -61,6 +62,7 @@ import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.getLastNodeWithRedirects
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
 import java.util.WeakHashMap
 import java.util.concurrent.TimeUnit
@@ -129,7 +131,7 @@ class MacroAnalyzingCrawlerRunner(
     private val unnecessaryAttemptDeduplicator = UnnecessaryAttemptDeduplicator(
         getNodeIdentifierForDispatcher(reader.dispatcher)
     )
-    private val inputLiteralCounter = InputLiteralCounter(
+    private val attemptLiteralCounter = AttemptLiteralCounter(
         getNodeIdentifierForDispatcher(reader.dispatcher),
         getNodeMaxLiteralCounterForDispatcher(reader.dispatcher)
     )
@@ -315,7 +317,7 @@ class MacroAnalyzingCrawlerRunner(
             val lastArgEnd = max(reader.cursor, if(hasAccessedMacro) nextVariableLocation + 1 else 0)
             while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] < lastArgEnd) { // Only < and not <=, because some lenient parser consume the next whitespace (for example positions)
                 invalidAttemptPositionsMarker[skippedAttemptIndex] = true
-                inputLiteralCounter.markDirty(skippedAttemptIndex)
+                attemptLiteralCounter.markDirty(skippedAttemptIndex)
                 skippedAttemptIndex++
             }
         }
@@ -332,8 +334,7 @@ class MacroAnalyzingCrawlerRunner(
 
         // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
         // since the macro could have contained any data whatsoever. Create a new spawner to find the best match to continue parsing.
-        val lastChild = commandParseResults.context.lastChild
-        val lastNode = lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
+        val lastNode = commandParseResults.context.getLastNodeWithRedirects()
 
         if(reader.canRead() && reader.cursor <= nextVariableLocation)
             // Make sure that the variable is skipped, such that the next spawner only starts after the variable even if the variable has a space before it.
@@ -501,24 +502,46 @@ class MacroAnalyzingCrawlerRunner(
                 }
 
                 val results = crawlerNodes.mapNotNull { node ->
-                        if(unnecessaryAttemptDeduplicator.shouldSkipAttempt(attemptIndex, node))
+                    if(unnecessaryAttemptDeduplicator.shouldSkipAttempt(attemptIndex, node))
+                        return@mapNotNull null
+                    if(filterCrawlersByMaxLiterals) {
+                        val cachedLiteralCount = attemptLiteralCounter.getActualAttemptCount(node, attemptIndex).toInt()
+                        if(cachedLiteralCount != 255 && cachedLiteralCount < getRequiredLiteralCountToMatchBest())
                             return@mapNotNull null
-                        reader.cursor = startCursor
-                        reader.furthestAccessedCursor = 0
-                        val result = tryParse(node, this, spawnerIndex, attemptIndex)
-                        if(result.newNodeCount() == 0)
-                            unnecessaryAttemptDeduplicator.markUnnecessaryAttempt(attemptIndex, node)
-                        else if(!reader.canRead() && result.newNodeCount() == 1) {
-                            var lastNode: ParsedCommandNode<CommandSource>? = null
-                            var context: CommandContextBuilder<CommandSource>? = result.contextBuilder
-                            while(context != null) {
-                                lastNode = context.nodes.lastOrNull() ?: lastNode
-                                context = context.child
-                            }
-                            unnecessaryAttemptDeduplicator.markTrailingNode(attemptIndex, lastNode!!.node)
-                        }
-                        result
                     }
+
+                    reader.cursor = startCursor
+                    reader.furthestAccessedCursor = 0
+                    val result = tryParse(node, this, spawnerIndex, attemptIndex)
+
+                    if(filterCrawlersByMaxLiterals) {
+                        var totalPossibleLiterals = result.newLiteralNodeCount()
+                        if(result.childSpawner != null)
+                            totalPossibleLiterals += attemptLiteralCounter.getMaxPossibleLiteralsForAttempt(
+                                result.contextBuilder.getLastNodeWithRedirects(),
+                                result.childSpawner.startAttemptIndex
+                            ).toInt()
+                        attemptLiteralCounter.putActualAttemptCount(
+                            node,
+                            attemptIndex,
+                            if(totalPossibleLiterals > 255) 255U else totalPossibleLiterals.toUByte()
+                        )
+                    }
+
+                    if(result.newNodeCount() == 0)
+                        unnecessaryAttemptDeduplicator.markUnnecessaryAttempt(attemptIndex, node)
+                    else if(!reader.canRead() && result.newNodeCount() == 1) {
+                        var lastNode: ParsedCommandNode<CommandSource>? = null
+                        var context: CommandContextBuilder<CommandSource>? = result.contextBuilder
+                        while(context != null) {
+                            lastNode = context.nodes.lastOrNull() ?: lastNode
+                            context = context.child
+                        }
+                        unnecessaryAttemptDeduplicator.markTrailingNode(attemptIndex, lastNode!!.node)
+                    }
+
+                    result
+                }
 
                 attemptAnalyzingResultsForAttemptCount[crawler.skippedNodeCount] = results.map { it.analyzingResult }
 
@@ -605,6 +628,12 @@ class MacroAnalyzingCrawlerRunner(
                 }
         }
 
+        private fun getRequiredLiteralCountToMatchBest(): Int {
+            val previousLiterals = baseResult?.literalNodeCount ?: 0
+            val goalLiteralCount = bestGlobalSpawner!!.bestResult!!.literalNodeCount - previousLiterals
+            return goalLiteralCount
+        }
+
         private inner class Crawler(var nodes: List<CommandNode<CommandSource>>, var nodesWithSpaces: List<CommandNode<CommandSource>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
             // For any attempt not following a variable only parent nodes that contain spaces are tried. This is because if the parent
             // node can not contain spaces, then it's either contained by the macro variable, in which case its children
@@ -615,11 +644,10 @@ class MacroAnalyzingCrawlerRunner(
             fun getNodesForAttempt() = if(attemptCount == 0 || attemptPositionsFollowingVariable[startAttemptIndex + attemptCount]) nodes else nodesWithSpaces
 
             fun filterNodesByLiteralCount(attemptIndex: Int) {
-                val previousLiterals = baseResult?.literalNodeCount ?: 0
-                val goalLiteralCount = bestGlobalSpawner!!.bestResult!!.literalNodeCount - previousLiterals
+                val goalLiteralCount = getRequiredLiteralCountToMatchBest()
 
                 val removedNodes = nodes.asSequence().filter { node ->
-                    val maxCount = inputLiteralCounter.getMaxPossibleLiteralsForAttempt(node, attemptIndex).toInt()
+                    val maxCount = attemptLiteralCounter.getMaxPossibleLiteralsForAttempt(node, attemptIndex).toInt()
                     maxCount != 255 && maxCount < goalLiteralCount
                 }.toSet()
 
@@ -703,7 +731,7 @@ class MacroAnalyzingCrawlerRunner(
                         attemptIndex++
                     while(attemptIndex < attemptPositions.size && attemptPositions[attemptIndex] <= parsedNode.range.end) {
                         invalidAttemptPositionsMarker[attemptIndex] = true
-                        inputLiteralCounter.markDirty(attemptIndex)
+                        attemptLiteralCounter.markDirty(attemptIndex)
                         attemptIndex++
                     }
                 }
@@ -711,7 +739,8 @@ class MacroAnalyzingCrawlerRunner(
             }
         }
 
-        fun hasNewLiteralNodes(): Boolean = parentSpawner.baseResult == null || literalNodeCount > parentSpawner.baseResult!!.literalNodeCount
+        fun hasNewLiteralNodes(): Boolean = newLiteralNodeCount() > 0
+        fun newLiteralNodeCount(): Int = literalNodeCount - (parentSpawner.baseResult?.literalNodeCount ?: 0)
         fun newNodeCount(): Int = parsedNodeCount - (parentSpawner.baseResult?.parsedNodeCount ?: 0)
 
         override fun compareTo(other: CrawlerResult): Int =
@@ -745,33 +774,35 @@ class MacroAnalyzingCrawlerRunner(
         )
     }
 
-    private inner class InputLiteralCounter(private val nodeIdentifier: NodeIdentifier, private val nodeMaxLiteralCounter: NodeMaxLiteralCounter) {
+    private inner class AttemptLiteralCounter(private val nodeIdentifier: NodeIdentifier, private val nodeMaxLiteralCounter: NodeMaxLiteralCounter) {
         /**
          * Maps the attempt position index to a map of literal id to how many times that literal can be parsed starting from that position.
          * Doesn't store literal counts as UByteArray, so there aren't a bunch of 0s that have to be processed
          */
-        private val literalCounts = arrayOfNulls<Int2ByteLinkedOpenHashMap>(attemptPositions.size)
+        private val attemptPositionLiteralCounts = arrayOfNulls<Int2ByteLinkedOpenHashMap>(attemptPositions.size)
         private var dirtyPositionMax = -1
 
-        fun getLiteralCounts(positionIndex: Int): Int2ByteLinkedOpenHashMap {
+        private val actualNodeLiteralCounts = arrayOfNulls<Object2ByteOpenHashMap<CommandNode<CommandSource>>>(attemptPositions.size)
+
+        fun getAttemptPositionLiteralCounts(positionIndex: Int): Int2ByteLinkedOpenHashMap {
             if(dirtyPositionMax < positionIndex) {
-                val cached = literalCounts[positionIndex]
+                val cached = attemptPositionLiteralCounts[positionIndex]
                 if(cached != null)
                     return cached
             }
 
             val parentMap =
-                if(positionIndex < literalCounts.lastIndex) getLiteralCounts(positionIndex + 1)
+                if(positionIndex < attemptPositionLiteralCounts.lastIndex) getAttemptPositionLiteralCounts(positionIndex + 1)
                 else emptyInputLiteralCountMap
 
             val map = copyIncrementedLiteralCount(positionIndex, parentMap)
-            literalCounts[positionIndex] = map
+            attemptPositionLiteralCounts[positionIndex] = map
             dirtyPositionMax = min(dirtyPositionMax, positionIndex - 1)
             return map
         }
 
         fun getMaxPossibleLiteralsForAttempt(attemptRoot: CommandNode<CommandSource>, positionIndex: Int): UByte {
-            val inputLiterals = getLiteralCounts(positionIndex)
+            val inputLiterals = getAttemptPositionLiteralCounts(positionIndex)
 
             var total: UByte = 0U
 
@@ -785,6 +816,22 @@ class MacroAnalyzingCrawlerRunner(
                 total = (total + newCount).toUByte()
             }
             return total
+        }
+
+        /**
+         * @return the literal count from the last time this node was attempted at that position. Or 255 if the node wasn't attempted yet.
+         */
+        fun getActualAttemptCount(attemptRoot: CommandNode<CommandSource>, positionIndex: Int): UByte =
+            actualNodeLiteralCounts[positionIndex]?.getByte(attemptRoot)?.toUByte() ?: 255U
+
+        fun putActualAttemptCount(attemptRoot: CommandNode<CommandSource>, positionIndex: Int, literalCount: UByte) {
+            var actualCounts = actualNodeLiteralCounts[positionIndex]
+            if(actualCounts == null) {
+                actualCounts = Object2ByteOpenHashMap()
+                actualCounts.defaultReturnValue(255U.toByte())
+                actualNodeLiteralCounts[positionIndex] = actualCounts
+            }
+            actualCounts.put(attemptRoot, literalCount.toByte())
         }
 
         private fun copyIncrementedLiteralCount(positionIndex: Int, parentMap: Int2ByteLinkedOpenHashMap): Int2ByteLinkedOpenHashMap {
