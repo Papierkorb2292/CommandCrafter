@@ -137,8 +137,10 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
             )
 
             // Mappings should only be kept, if they also intersect the next mapping in the other mapper
-            val canDiscardSourceMapping = targetMapper.sourceCursors.size <= 1 || sourceMapper.targetCursors[0] + sourceMapper.lengths[0] < targetMapper.sourceCursors[1]
-            val canDiscardTargetMapping = sourceMapper.targetCursors.size <= 1 || targetMapper.sourceCursors[0] + targetMapper.lengths[0] < sourceMapper.targetCursors[1]
+            // It's important to use <=, not <, because otherwise there might be a situation where both input
+            // mappers are valid but no mapping is removed in an iteration, leading to conflicts in the next iteration
+            val canDiscardSourceMapping = targetMapper.sourceCursors.size <= 1 || sourceMapper.targetCursors[0] + sourceMapper.lengths[0] <= targetMapper.sourceCursors[1]
+            val canDiscardTargetMapping = sourceMapper.targetCursors.size <= 1 || targetMapper.sourceCursors[0] + targetMapper.lengths[0] <= sourceMapper.targetCursors[1]
             if(canDiscardSourceMapping)
                 sourceMapper.popFirstMapping()
             if(canDiscardTargetMapping)
@@ -179,5 +181,25 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         sourceCursors.remove(0)
         targetCursors.remove(0)
         lengths.remove(0)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is SplitProcessedInputCursorMapper) return false
+
+        if (sourceCursors != other.sourceCursors) return false
+        if (targetCursors != other.targetCursors) return false
+        if (lengths != other.lengths) return false
+        if (expandedCharEnds != other.expandedCharEnds) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = sourceCursors.hashCode()
+        result = 31 * result + targetCursors.hashCode()
+        result = 31 * result + lengths.hashCode()
+        result = 31 * result + expandedCharEnds.hashCode()
+        return result
     }
 }

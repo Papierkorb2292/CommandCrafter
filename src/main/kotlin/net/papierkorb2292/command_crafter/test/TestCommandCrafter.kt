@@ -234,6 +234,11 @@ object TestCommandCrafter {
 
         context.assertEqualsSnapshot(sourceMapper.combineWith(targetMapper), Text.literal("result"))
 
+        val identityMapper = SplitProcessedInputCursorMapper()
+        identityMapper.addMapping(0, 0, 10)
+        identityMapper.addMapping(10, 10, 10)
+        context.assertEquals(identityMapper.combineWith(identityMapper), identityMapper, Text.literal("combined identity mapper"))
+
         context.complete()
     }
 
