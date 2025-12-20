@@ -551,7 +551,7 @@ object TestCommandCrafter {
     fun testAllFunctionParsers(lines: List<String>, context: TestContext) {
         val id = Identifier.of("test")
         @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val commandDispatcher = getCommandDispatcher(context)
         val source = getParsingCommandSource(context)
 
         val parsedResourceCreator = ParsedResourceCreator(
@@ -612,9 +612,47 @@ object TestCommandCrafter {
         context.complete()
     }
 
+    @GameTest
+    fun testMacroSuggestions(context: TestContext) {
+        val markedLines = """
+            ${'$'}execute $(sub) run §
+            ${'$'}execute if entity $(selector) run §execute run execute run $(something)
+            ${'$'}execute $(sub) §
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+        val commandDispatcher = getCommandDispatcher(context)
+        val result = analyseCommand(context, processedLines)
+
+        val suggestions = markedLocations.map { location ->
+            result.getCompletionProviderForCursor(location.absoluteCursor)
+                ?.dataProvider?.invoke(location.absoluteCursor)?.get()
+        }
+
+        val line1Suggestions = suggestions[0]?.map { it.label }?.toSet()
+        // Don't check for equality, because there will also be suggestions from `test run`.
+        // But it shouldn't be a lot, so still check the count to make sure the only suggestions are
+        // coming from `execute run` and `test run`, not from anywhere else
+        context.assertTrue(
+            line1Suggestions != null && line1Suggestions.containsAll(commandDispatcher.root.children.map { it.name }) && line1Suggestions.size < 200,
+            "Expected line 1 suggestions to be root commands"
+        )
+        context.assertEquals(
+            commandDispatcher.root.children.map { it.name }.toSet(),
+            suggestions[1]?.map { it.label }?.toSet(),
+            "line 2 root suggestions"
+        )
+
+        val line2Suggestions = suggestions[2]
+        context.assertTrue(
+            line2Suggestions != null && line2Suggestions.size > 1000, // Just some large number of suggestions
+            "Expected line 3 suggestions to be everything, was not enough suggestions"
+        )
+
+        context.complete()
+    }
+
     private fun analyseCommand(context: TestContext, lines: List<String>): AnalyzingResult {
-        @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
+        val commandDispatcher = getCommandDispatcher(context)
         val source = getParsingCommandSource(context)
         val analyzingResult = AnalyzingResult(FileMappingInfo(lines), Position())
 
@@ -638,6 +676,10 @@ object TestCommandCrafter {
     private fun getParsingCommandSource(context: TestContext): ServerCommandSource =
         context.world.server!!.commandSource
             .withPosition(Vec3d.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
+
+    @Suppress("UNCHECKED_CAST")
+    private fun getCommandDispatcher(context: TestContext): CommandDispatcher<CommandSource> =
+        context.world.server!!.commandManager.dispatcher as CommandDispatcher<CommandSource>
 
     /**
      * To make it easier to reference locations in lines, this method can find any location marked with '§'.
