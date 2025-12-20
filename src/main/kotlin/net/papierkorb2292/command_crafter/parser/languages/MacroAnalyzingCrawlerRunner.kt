@@ -1207,6 +1207,7 @@ class MacroAnalyzingCrawlerRunner(
             return false
         }
 
+        // New command arguments can be checked here: https://minecraft.wiki/w/Argument_types#History
         val KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES = setOf(
             BoolArgumentType::class.java,
             FloatArgumentType::class.java,
