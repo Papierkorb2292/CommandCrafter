@@ -43,6 +43,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         const val AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH = "autoreload.datapack_json"
         const val AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH = "autoreload.resourcepack"
 
+        val semanticTokenLanguages = listOf("mcfunction")
+
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
         }
@@ -106,6 +108,20 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         client.updateChannel(Channel(CLIENT_LOG_CHANNEL, serverCommandExecutor != null))
     }
 
+    private fun buildSemanticTokensRegistrationOptions(): SemanticTokensWithRegistrationOptions? {
+        if(!featureConfig.isEnabled(AnalyzingResult.getSemanticTokensFeatureKey(""), true))
+            return null
+        return SemanticTokensWithRegistrationOptions().apply {
+            legend = SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS)
+            full = Either.forLeft(true)
+            documentSelector = semanticTokenLanguages.mapNotNull { language ->
+                if(featureConfig.isEnabled(AnalyzingResult.getSemanticTokensFeatureKey(".$language"), true))
+                    DocumentFilter().apply { this.language = language }
+                else null
+            }
+        }
+    }
+
     private fun analyzeAllFiles() {
         for (file in openFiles.values) {
             file.stopAnalyzing()
@@ -134,12 +150,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 }
             }
             //TODO: Reload config without restarting language server (using dynamic registration to update capabilities)
-            if(featureConfig.isEnabled("analyzer.semanticTokens", true)) {
-                semanticTokensProvider = SemanticTokensWithRegistrationOptions(
-                    SemanticTokensLegend(TokenType.TYPES, TokenModifier.MODIFIERS),
-                    true
-                )
-            }
+            semanticTokensProvider = buildSemanticTokensRegistrationOptions()
         }, ServerInfo("Minecraft Language Server")))
     }
 

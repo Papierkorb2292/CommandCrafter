@@ -239,15 +239,15 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     }
 
     fun clearDisabledFeatures(featureConfig: FeatureConfig, analyzerNameInserts: List<String>) {
-        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.completions" }, true))
+        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getCompletionsFeatureKey), true))
             completionProviders.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.hovers" }, true))
+        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getHoversFeatureKey), true))
             hoverProviders.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.definitions" }, true))
+        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getDefinitionsFeatureKey), true))
             definitionProviders.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.diagnostics" }, true))
+        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getDiagnosticsFeatureKey), true))
             diagnostics.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map { "analyzer$it.semanticTokens" }, true))
+        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getSemanticTokensFeatureKey), true))
             semanticTokens.clear()
     }
 
@@ -345,6 +345,12 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     companion object {
         const val LANGUAGE_COMPLETION_CHANNEL = "language"
         const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
+
+        fun getCompletionsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.completions"
+        fun getHoversFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.hovers"
+        fun getDefinitionsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.definitions"
+        fun getDiagnosticsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.diagnostics"
+        fun getSemanticTokensFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.semanticTokens"
 
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
             val cached = mappingInfo.positionFromCursorFIFOCache.getAndMoveToLast(cursor)
