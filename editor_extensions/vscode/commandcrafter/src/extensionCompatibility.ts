@@ -4,6 +4,7 @@ import { ConnectionFeature, MinecraftConnectionType } from "./minecraftConnectio
 import { FEATURE_CONFIG_DISABLE, FEATURE_CONFIG_ENABLE, getFeatureConfig, getLocalFeatureConfig, isCompatibilityCheckEnabled, SETTINGS_SCOPE, SETTINGS_SECTIONS, updateLocalFeatureConfig } from './settings'
 import { fileExists } from './extension'
 import { applyEdits, JSONPath, modify } from 'jsonc-parser'
+import { outputChannel } from './extensionLog'
 
 const COMPATIBILITY_CHECK_SETTING_NAME = SETTINGS_SCOPE + "." + SETTINGS_SECTIONS.checkExtensionCompatiblity
 const SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS = {
@@ -17,7 +18,6 @@ const SPYGLASS_EXT_ID = "spgoding.datapack-language-server"
 export class ExtensionCompatibility implements ConnectionFeature {
     onLanguageClientStart(languageClient: LanguageClient): void { }
     onLanguageClientReady(languageClient: LanguageClient): void {
-        // TODO: Logging
         this.checkSpyglassHighlighting();
     }
     onLanguageClientStop(): void { }
@@ -31,11 +31,18 @@ export class ExtensionCompatibility implements ConnectionFeature {
             // No workspace is opened yet, so there are no config files to work with
             return;
         }
+        outputChannel?.appendLine("checkSpyglassHighlighting...")
         if(vscode.extensions.getExtension(SPYGLASS_EXT_ID) === undefined) {
             // Spyglass isn't installed/enabled
+            outputChannel?.appendLine("Spyglass not installed")
             return;
         }
-        if(!isCompatibilityCheckEnabled() || !isCommandCrafterHighlightingOn() || !await isSpyglassHighlightingOn()) {
+        if(!isCompatibilityCheckEnabled()) {
+            outputChannel?.appendLine("Compatibility check is disabled")
+            return;
+        }
+        if(!isCommandCrafterHighlightingOn() || !await isSpyglassHighlightingOn()) {
+            outputChannel?.appendLine("No conflict detected")
             return;
         }
 
@@ -59,9 +66,11 @@ export class ExtensionCompatibility implements ConnectionFeature {
                 vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`vscode://settings/${COMPATIBILITY_CHECK_SETTING_NAME}`))
                 break
             case SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS.disableForCommandCrafter:
+                outputChannel?.appendLine("disableCommandCrafterHighlighting...")
                 disableCommandCrafterHighlighting()
                 break
             case SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS.disableForSpyglass:
+                outputChannel?.appendLine("disableSypglassHighlighting...")
                 disableSpyglassHighlighting()
                 break
         }
@@ -117,7 +126,9 @@ async function isSpyglassHighlightingOn(): Promise<boolean> {
                     if(semanticColoringOption !== undefined) {
                         return semanticColoringOption
                     }
-                } catch(ignored) { }
+                } catch(err) {
+                    outputChannel?.appendLine(`Error reading Spyglass config at ${uri}: ${err}`)
+                }
                 break
             }
         }
@@ -145,13 +156,16 @@ async function disableSpyglassHighlighting() {
                     const newContent = Uint8Array.from(Buffer.from(newConfig))
                     await vscode.workspace.fs.writeFile(uri, newContent)
                     foundFile = true
-                } catch(ignored) { }
+                } catch(err) {
+                    outputChannel?.appendLine(`Error modifying Spyglass config at ${uri}: ${err}`)
+                }
             }
         }
     }
 
     if(!foundFile) {
         // Create new config file
+        outputChannel?.appendLine("No existing Spyglass config found, creating new one")
         const uri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders!![0].uri, SPYGLASS_CONFIG_FILES[0])
         const newConfig = JSON.stringify({
             env: {
