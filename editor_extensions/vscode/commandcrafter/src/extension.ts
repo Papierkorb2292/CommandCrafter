@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AddressConfigMalformedError, MinecraftConnectionType, MinecraftLanguageClientRunner, parseAddressConfig, SocketConnectionType } from './minecraftConnection';
 import { State } from 'vscode-languageclient';
 import { activateLog } from './extensionLog';
+import { getMinecraftAddress } from './settings';
 
 let prevMinecraftAddress: string | undefined
 let minecraftLanguageClientRunner: MinecraftLanguageClientRunner | undefined
@@ -27,7 +28,7 @@ export function checkUpdateMinecraftAddress() {
 }
 
 function getUpdatedMinecraftConnectionType(): MinecraftConnectionType | null {
-	const addressConfig = vscode.workspace.getConfiguration("CommandCrafter").get<string>("MinecraftAddress")
+	const addressConfig = getMinecraftAddress()
 	if(addressConfig == prevMinecraftAddress)
 		return null
 	if(!addressConfig)
@@ -55,19 +56,9 @@ export function findFiles(filePattern: string): Thenable<string[]> {
 	});
 }
 
-export function fileExists(file: string): Thenable<boolean> {
-	return vscode.workspace.fs.stat(vscode.Uri.parse(file)).then(() => true, () => false);
+export function fileExists(file: string | vscode.Uri): Thenable<boolean> {
+	if(typeof(file) === "string") {
+		file = vscode.Uri.parse(file)
+	}
+	return vscode.workspace.fs.stat(file).then(() => true, () => false);
 }
-
-export function getFeatureConfig(): FeatureConfig | undefined {
-	return vscode.workspace.getConfiguration("CommandCrafter").get<FeatureConfig>("FeatureConfig")
-}
-
-export function insertDefaultFeatureConfig(defaultConfig: FeatureConfig) {
-	const settings = vscode.workspace.getConfiguration("CommandCrafter")
-	const previous = settings.get<FeatureConfig>("FeatureConfig")
-	const merged = Object.assign(defaultConfig, previous)
-	settings.update("FeatureConfig", merged, vscode.ConfigurationTarget.Global)
-}
-
-export type FeatureConfig = { [key: string]: string }

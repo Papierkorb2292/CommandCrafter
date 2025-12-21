@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
-import { LanguageClientRunner, fileExists, findFiles, getFeatureConfig } from './extension';
+import { LanguageClientRunner, fileExists, findFiles } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
 import { MinecraftConsole } from './minecraftConsole';
 import { outputChannel } from './extensionLog';
+import { getFeatureConfig } from './settings';
 
 // The debug adapter implementation is similar to vscodes StreamDebugAdapter implementation,
 // which isn't available through the API.

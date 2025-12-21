@@ -7,10 +7,12 @@ import {
 } from 'vscode-languageclient/node';
 import * as net from 'net';
 import { MinecraftConsole } from './minecraftConsole';
-import { FeatureConfig, LanguageClientRunner, checkUpdateMinecraftAddress, fileExists, findFiles, getFeatureConfig, insertDefaultFeatureConfig } from './extension';
+import { LanguageClientRunner, checkUpdateMinecraftAddress, fileExists, findFiles } from './extension';
 import { DebugClient } from './debugClient';
 import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
 import { outputChannel } from './extensionLog';
+import { ExtensionCompatibility } from './extensionCompatibility';
+import { FeatureConfig, getFeatureConfig, insertDefaultFeatureConfig } from './settings';
 
 export interface MinecraftConnectionType extends Disposable {
 
@@ -72,6 +74,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
         this.connectionFeatures.push(minecraftConsole);
         this.connectionFeatures.push(new ScoreboardStorageViewer(context, "commandcrafter.scoreboard_storage_viewer", "scoreboardStorage"))
         this.connectionFeatures.push(new DebugClient(context, "commandcrafter", minecraftConsole, this))
+        this.connectionFeatures.push(new ExtensionCompatibility());
         context.subscriptions.push(this);
         context.subscriptions.push(
             vscode.commands.registerCommand('commandcrafter.toggleLanguageClient', () => {

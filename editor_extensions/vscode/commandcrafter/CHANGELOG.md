@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.6.0
 
+### Added
+
 - The extension now tries to fill in the "Feature Config" with default values provided by the language server
+- The extension now recognizes if Spyglass is installed and asks to disable semantic tokens for one of two extensions
 
 ## 0.5.0
 

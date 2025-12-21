@@ -16,6 +16,7 @@
     "@vscode-elements/elements": "^1.15.0",
     "@vscode/codicons": "^0.0.36",
     "ansi-to-html": "^0.7.2",
+    "jsonc-parser": "^3.3.1",
     "vscode-languageclient": "^8.1.0"
   },
   "categories": [
@@ -129,6 +130,11 @@
           },
           "default": {},
           "description": "Features to opt-in or opt-out of. See https://github.com/Papierkorb2292/CommandCrafter/wiki/Config#vscode-extension for more detail."
+        },
+        "CommandCrafter.CheckExtensionCompatiblity": {
+          "type": "boolean",
+          "default": true,
+          "description": "If enabled, CommandCrafter will check for other datapack extensions when loading a project and potentially ask you to disable features that might result in conflicts (namely semantic tokens)"
         }
       }
     },
