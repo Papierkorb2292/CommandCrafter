@@ -66,8 +66,15 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
     languageClient?: LanguageClient | null;
     prevOutputChannel?: vscode.OutputChannel | null;
     clientState = State.Stopped;
+    /**
+     * The version of the CommandCrafter mod. If this is null, there is either no connection or
+     * the mod is too old and doesn't send its version yet (before 0.6.0)
+     */
+    connectedModVersion: string | null = null;
 
     connectionFeatures: ConnectionFeature[] = [ ];
+
+    readonly extensionVersion: string;
 
     constructor(private connectionType: MinecraftConnectionType | null, context: vscode.ExtensionContext) {
         const minecraftConsole = new MinecraftConsole(context, "commandcrafter.console", this);
@@ -88,6 +95,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
             })
         );
         this.alertFeaturesOfConnectionTypeChange();
+        this.extensionVersion = context.extension.packageJSON.version;
     }
 
     setConnectionType(connectionType: MinecraftConnectionType) {
@@ -115,7 +123,8 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 "command": "connectToService",
                 "arguments": {
                     "service": "languageServer",
-                    "featureConfig": getFeatureConfig()
+                    "featureConfig": getFeatureConfig(),
+                    "extensionVersion": this.extensionVersion
                 }
             });
             streamInfo.writer.write(
@@ -151,6 +160,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
                         languageClient.sendRequest<FeatureConfig>("defaultFeatureConfig").then(defaultConfig =>
                             insertDefaultFeatureConfig(defaultConfig))
+                        languageClient.onNotification("modVersion", (version: string) => this.connectedModVersion = version)
                         break;
                     case State.Stopped:
                         outputChannel?.appendLine("LanguageClient is stopping")
@@ -171,12 +181,14 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
             outputChannel?.appendLine(`Can't connect to Minecraft Language Server: ${error.stack}`)
             this.connectionType?.dispose()
             this.languageClient = null;
+            this.connectedModVersion = null;
         })
     }
 
     stopLanguageClient(): void {
         let languageClient = this.languageClient;
         this.languageClient = null;
+        this.connectedModVersion = null;
         languageClient?.stop();
     }
 

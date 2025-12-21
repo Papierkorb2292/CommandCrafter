@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.registry.RegistryLoader
 import net.minecraft.util.Identifier
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
@@ -30,7 +31,7 @@ import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, val featureConfig: FeatureConfig)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, val editorInfo: EditorConnectionManager.EditorInfo)
     : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
@@ -73,6 +74,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private val openFiles: MutableMap<String, OpenFile> = HashMap()
 
     private var serverCommandExecutor: CommandExecutor? = null
+
+    val featureConfig
+        get() = editorInfo.featureConfig
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         val client = client ?: return
@@ -167,6 +171,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         })
 
         connectServerConsole()
+
+        client.modVersion(CommandCrafter.VERSION)
     }
 
     override fun shutdown(): CompletableFuture<Any> {

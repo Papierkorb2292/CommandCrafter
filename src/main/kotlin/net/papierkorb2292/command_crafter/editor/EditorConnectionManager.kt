@@ -68,11 +68,11 @@ class EditorConnectionManager(
             @Suppress("UNCHECKED_CAST")
             val serviceArgs = msg.params as Either<String, ConnectToServiceArgs>
             val serviceName = serviceArgs.map({ it }, { it.service })
-            val featureConfig = FeatureConfig(serviceArgs.right?.featureConfig ?: emptyMap())
+            val editorInfo = createEditorInfo(serviceArgs.right)
             val serviceCreator = serviceLaunchers[serviceName]
             if(serviceCreator != null) {
                 connectorMessageReader.close()
-                startService(editorConnection, serviceCreator, featureConfig)
+                startService(editorConnection, serviceCreator, editorInfo)
             }
         }
     }
@@ -87,7 +87,7 @@ class EditorConnectionManager(
         connectionAcceptor.stop()
     }
 
-    private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher, featureConfig: FeatureConfig) {
+    private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher, editorInfo: EditorInfo) {
         val serviceRemover = ServiceRemover(runningServices, null)
         val launchedService = serviceLauncher.launch(
             minecraftServerConnection,
@@ -97,7 +97,7 @@ class EditorConnectionManager(
                 Executors.newCachedThreadPool(),
                 serviceRemover
             ),
-            featureConfig
+            editorInfo
         )
         serviceRemover.service = launchedService.server
         runningServices[launchedService.server] = launchedService.client to launchedService.process
@@ -124,8 +124,15 @@ class EditorConnectionManager(
         )
     }
 
+    fun createEditorInfo(args: ConnectToServiceArgs?): EditorInfo {
+        return EditorInfo(
+            FeatureConfig(args?.featureConfig ?: emptyMap()),
+            args?.extensionVersion
+        )
+    }
+
     interface ServiceLauncher {
-        fun launch(serverConnection: MinecraftServerConnection, clientConnection: MinecraftClientConnection?, editorConnection: EditorConnection, executorService: ExecutorService, featureConfig: FeatureConfig): LaunchedService
+        fun launch(serverConnection: MinecraftServerConnection, clientConnection: MinecraftClientConnection?, editorConnection: EditorConnection, executorService: ExecutorService, editorInfo: EditorInfo): LaunchedService
     }
 
     class ServiceClient(val client: Any)
@@ -143,7 +150,9 @@ class EditorConnectionManager(
         }
     }
 
-    class ConnectToServiceArgs(var service: String, var featureConfig: Map<String, FeatureConfig.Entry>?) {
-        constructor() : this("", null)
+    class ConnectToServiceArgs(var service: String, var featureConfig: Map<String, FeatureConfig.Entry>?, var extensionVersion: String?){
+        constructor() : this("", null, null)
     }
+
+    data class EditorInfo(val featureConfig: FeatureConfig, val extensionVersion: String?)
 }
