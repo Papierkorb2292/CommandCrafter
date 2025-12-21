@@ -23,6 +23,9 @@ export class ExtensionCompatibility implements ConnectionFeature {
     onLanguageClientStop(): void { }
     onConnectionTypeChange(connectionType: MinecraftConnectionType | null): void { }
 
+    // Only checks mcfunction highlighting since that is where conflicts are likely to occur.
+    // If CommandCrafter ever provides semantic tokens for mcdoc as well, they likely won't really
+    // differ from Spyglass, so the user won't have to pick.
     async checkSpyglassHighlighting() {
         if(vscode.workspace.workspaceFolders === undefined) {
             // No workspace is opened yet, so there are no config files to work with
@@ -90,7 +93,7 @@ function disableCommandCrafterHighlighting() {
     const localConfig = getLocalFeatureConfig()
     const merged = {
         ...localConfig,
-        [MCFUNCTION_HIGHLIGHTING_CONFIG_KEYS[1]]: FEATURE_CONFIG_DISABLE
+        [MCFUNCTION_HIGHLIGHTING_CONFIG_KEYS[0]]: FEATURE_CONFIG_DISABLE
     }
     updateLocalFeatureConfig(merged)
 }
@@ -125,6 +128,7 @@ async function isSpyglassHighlightingOn(): Promise<boolean> {
 
 const SPYGLASS_SEMANTIC_COLORING_PATH: JSONPath = ["env", "feature", "semanticColoring"]
 
+//TODO: Only disable highlighting for functions, not mcdoc
 async function disableSpyglassHighlighting() {
     let foundFile = false
     // Spyglass wants the `env` value in all workspaces to be the same, so set it everywhere
