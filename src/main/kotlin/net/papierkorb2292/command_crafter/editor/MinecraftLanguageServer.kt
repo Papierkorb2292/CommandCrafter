@@ -31,7 +31,7 @@ import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
 
-class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, val editorInfo: EditorConnectionManager.EditorInfo)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, editorInfo: EditorConnectionManager.EditorInfo)
     : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
@@ -43,6 +43,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         const val AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH = "autoreload.datapack_functions"
         const val AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH = "autoreload.datapack_json"
         const val AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH = "autoreload.resourcepack"
+
+        const val SEMANTIC_TOKENS_REGISTRATION_ID = "command_crafter_semantic_tokens"
+        const val SEMANTIC_TOKENS_REGISTRATION_NAME = "textDocument/semanticTokens"
 
         val semanticTokenLanguages = listOf("mcfunction")
 
@@ -75,6 +78,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private var serverCommandExecutor: CommandExecutor? = null
 
+    private var currentSemanticTokensRegistration: SemanticTokensWithRegistrationOptions? = null
+
+    var editorInfo = editorInfo
+        private set
     val featureConfig
         get() = editorInfo.featureConfig
 
@@ -123,6 +130,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     DocumentFilter().apply { this.language = language }
                 else null
             }
+            id = SEMANTIC_TOKENS_REGISTRATION_ID
         }
     }
 
@@ -136,6 +144,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
         clientCapabilities = params.capabilities
+        currentSemanticTokensRegistration = buildSemanticTokensRegistrationOptions()
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
             setTextDocumentSync(TextDocumentSyncOptions().apply {
                 change = TextDocumentSyncKind.Incremental
@@ -153,8 +162,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     didDelete = FileOperationOptions(listOf(FileOperationFilter(FileOperationPattern("**"))))
                 }
             }
-            //TODO: Reload config without restarting language server (using dynamic registration to update capabilities)
-            semanticTokensProvider = buildSemanticTokensRegistrationOptions()
+
+            semanticTokensProvider = currentSemanticTokensRegistration
         }, ServerInfo("Minecraft Language Server")))
     }
 
@@ -492,6 +501,36 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     @JsonRequest
     fun defaultFeatureConfig(): CompletableFuture<Map<String, String>> {
         return CompletableFuture.completedFuture(FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() })
+    }
+
+    @JsonNotification
+    fun updateFeatureConfig(params: UpdateFeatureConfigArgs) {
+        editorInfo = params.combineWithEditorInfo(editorInfo)
+        analyzeAllFiles()
+        if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
+            updateSemanticTokensRegistration()
+    }
+
+    private fun updateSemanticTokensRegistration() {
+        val newRegistration = buildSemanticTokensRegistrationOptions()
+        val currentRegistration = currentSemanticTokensRegistration
+        if(newRegistration == currentRegistration)
+            return
+
+        if(currentRegistration != null) {
+            // Unregister old one
+            client!!.unregisterCapability(UnregistrationParams(listOf(
+                Unregistration(currentRegistration.id, SEMANTIC_TOKENS_REGISTRATION_NAME)
+            )))
+        }
+        if(newRegistration != null) {
+            // Register new one
+            client!!.registerCapability(RegistrationParams(listOf(
+                Registration(newRegistration.id, SEMANTIC_TOKENS_REGISTRATION_NAME, newRegistration)
+            )))
+        }
+
+        currentSemanticTokensRegistration = newRegistration
     }
 
     override fun connect(client: CommandCrafterLanguageClient) {

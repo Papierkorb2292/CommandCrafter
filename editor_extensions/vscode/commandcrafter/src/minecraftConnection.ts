@@ -12,7 +12,7 @@ import { DebugClient } from './debugClient';
 import { ScoreboardStorageViewer } from './scoreboardStorageViewer';
 import { outputChannel } from './extensionLog';
 import { ExtensionCompatibility } from './extensionCompatibility';
-import { FeatureConfig, getFeatureConfig, insertDefaultFeatureConfig } from './settings';
+import { FeatureConfig, getFeatureConfig, insertDefaultFeatureConfig, SETTINGS_SCOPE, SETTINGS_SECTIONS } from './settings';
 
 export interface MinecraftConnectionType extends Disposable {
 
@@ -94,6 +94,14 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 }
             })
         );
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(event => {
+                if(!event.affectsConfiguration(SETTINGS_SCOPE + "." + SETTINGS_SECTIONS.featureConfig))
+                    return;
+
+                this.onFeatureConfigUpdate(getFeatureConfig())
+            })
+        )
         this.alertFeaturesOfConnectionTypeChange();
         this.extensionVersion = context.extension.packageJSON.version;
     }
@@ -190,6 +198,10 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
         this.languageClient = null;
         this.connectedModVersion = null;
         languageClient?.stop();
+    }
+
+    onFeatureConfigUpdate(featureConfig: FeatureConfig) {
+        this.languageClient?.sendNotification("updateFeatureConfig", { featureConfig })
     }
 
     dispose() {

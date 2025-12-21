@@ -84,6 +84,7 @@ import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
+import org.eclipse.lsp4j.jsonrpc.debug.adapters.DebugEnumTypeAdapter
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
@@ -248,6 +249,7 @@ object CommandCrafter: ModInitializer {
                     .configureGson {
                         it.registerTypeAdapter(ReadDirectoryResultEntry::class.java, ReadDirectoryResultEntry.TypeAdapter)
                         it.registerTypeAdapter(Unit::class.java, UnitTypeAdapter)
+                        it.registerTypeAdapter(FeatureConfig.Entry::class.java, DebugEnumTypeAdapter(FeatureConfig.Entry::class.java))
                         it.registerTypeAdapterFactory(FileSystemResult.TypeAdapterFactory)
                     }
                     .traceMessages(if(generateLanguageServerTrace) PrintWriter("logs/language_server_debug_trace") else null)
