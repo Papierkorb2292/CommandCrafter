@@ -2,6 +2,8 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
+import com.google.gson.internal.Streams
+import com.google.gson.stream.JsonWriter
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.helper.memoizeLast
@@ -15,6 +17,7 @@ import org.eclipse.lsp4j.CompletionItemKind
 import java.io.IOException
 import java.io.Reader
 import java.io.StringReader
+import java.io.StringWriter
 import java.util.*
 import kotlin.math.max
 
@@ -242,6 +245,9 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         constructor(directiveReader: DirectiveStringReader<*>): this({ directiveReader.copy().asReader() })
         constructor(inputString: String): this({ StringReader(inputString) })
 
+        // For now this simple formatting style is enough. Maybe add formatting options to `Suggestion` later if needed
+        private val formattingStyle = FormattingStyle.COMPACT.withSpaceAfterSeparators(true)
+
         private val keyEndParser = { suggestionRange: StringRange ->
             val inputReader = readerProvider()
             inputReader.skip(suggestionRange.end.toLong())
@@ -271,14 +277,18 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             node: JsonElement,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
-            stringEscaper: StringRangeTree.StringEscaper
+            stringEscaper: StringRangeTree.StringEscaper,
         ): StringRangeTree.ResolvedSuggestion {
             val replaceEnd = tree.ranges[node]!!.end
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Value) {
                     suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape(suggestion.element.toString()))
+                        val stringWriter = StringWriter()
+                        val jsonWriter = JsonWriter(stringWriter)
+                        jsonWriter.formattingStyle = formattingStyle
+                        Streams.write(suggestion.element, jsonWriter)
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape(stringWriter.toString()), completionModifier = suggestion.completionModifier)
                     }
                 }
             )
@@ -290,7 +300,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             map: JsonElement,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
-            stringEscaper: StringRangeTree.StringEscaper
+            stringEscaper: StringRangeTree.StringEscaper,
         ): StringRangeTree.ResolvedSuggestion {
             val replaceEnd = keyEndParser(suggestionRange)
             return StringRangeTree.ResolvedSuggestion(
@@ -299,7 +309,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
                         val element = suggestion.element
                         val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key)
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key, suggestion.completionModifier)
                     }
                 }
             )

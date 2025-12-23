@@ -76,7 +76,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             suggestion.element.toString()
                         else
                             suggestion.element.value
-                    StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString))
+                    StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = suggestion.completionModifier)
                 }
             }
         )
@@ -104,7 +104,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                     val key = (suggestion.element as? NbtString)?.value ?: suggestion.element.toString()
                     // Similar to StringNbtWriter.escapeName
                     val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
-                    StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key)
+                    StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key, suggestion.completionModifier)
                 }
             }
         )

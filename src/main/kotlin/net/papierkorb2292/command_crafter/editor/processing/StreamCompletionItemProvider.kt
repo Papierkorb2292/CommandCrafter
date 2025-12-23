@@ -31,9 +31,10 @@ class StreamCompletionItemProvider(
                 }, { insertReplaceEdit ->
                     Either.forRight(InsertReplaceEdit(completion.text, insertReplaceEdit.insert, insertReplaceEdit.replace))
                 })
+                completion.completionModifier?.invoke(it)
             }
         }.toList())
     }
 
-    data class Completion(val text: String, val label: String = text)
+    data class Completion(val text: String, val label: String = text, val completionModifier: ((CompletionItem) -> Unit)? = null)
 }

@@ -111,6 +111,7 @@
     "editor.processing.NbtStringAccessor",
     "editor.processing.NumberArgumentTypeMixin",
     "editor.processing.NumberRangeArgumentTypeMixin",
+    "editor.processing.PackVersionMixin",
     "editor.processing.ParserBackedArgumentTypeMixin",
     "editor.processing.PlaceCommandMixin",
     "editor.processing.RecipeCommandMixin",

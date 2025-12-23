@@ -47,7 +47,7 @@ public class StringIdentifiableBasicCodecMixin<S> implements StringIdentifiableN
                     var string = value.asString();
                     if (command_crafter$nameTransformer != null)
                         string = command_crafter$nameTransformer.invoke(string);
-                    return new StringRangeTree.Suggestion<>(ops.createString(string), false);
+                    return new StringRangeTree.Suggestion<>(ops.createString(string));
                 })
         );
     }

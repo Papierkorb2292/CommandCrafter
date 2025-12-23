@@ -39,7 +39,7 @@ public class AtlasTextObjectContentsMixin {
                         castedOps.getNodeStartSuggestions(atlasInput).add(() -> {
                             final var atlasSuggestions = new ArrayList<StringRangeTree.Suggestion<T>>();
                             MinecraftClient.getInstance().getAtlasManager().acceptAtlasTextures((id, texture) ->
-                                atlasSuggestions.add(new StringRangeTree.Suggestion<>(ops.createString(id.toString()), false))
+                                atlasSuggestions.add(new StringRangeTree.Suggestion<>(ops.createString(id.toString())))
                             );
                             return atlasSuggestions.stream();
                         });
@@ -66,7 +66,7 @@ public class AtlasTextObjectContentsMixin {
                                 atlasCandidates = atlasTextureList.stream();
                             }
                             return atlasCandidates.flatMap(texture -> ((SpriteAtlasTextureAccessor)texture).getSprites().keySet().stream())
-                                    .map(id -> new StringRangeTree.Suggestion<>(ops.createString(id.toString()), false));
+                                    .map(id -> new StringRangeTree.Suggestion<>(ops.createString(id.toString())));
                         });
                     }
                 }
