@@ -8,6 +8,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.nbt.*
 import net.minecraft.registry.RegistryWrapper
+import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.appendNullable
@@ -646,6 +647,8 @@ class StringRangeTree<TNode: Any>(
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
         private val placeholderNodes = mutableSetOf<TNode>()
 
+        var clampNodeRange: StringRange? = null
+
         /**
          * Only adds a node into the node ordering, but doesn't add a string range for it.
          * If [build] is called before [addNode] is called for the given node, a [NodeWithoutRangeError] is thrown.
@@ -672,7 +675,8 @@ class StringRangeTree<TNode: Any>(
         }
 
         fun addNode(node: TNode, range: StringRange, nodeAllowedStart: Int? = null) {
-            nodeRanges[node] = range
+            val clampedRange = clampNodeRange?.let { range.clamp(it) } ?: range
+            nodeRanges[node] = clampedRange
             if(nodeAllowedStart != null) {
                 if(nodeAllowedStart > range.start)
                     throw IllegalArgumentException("Node allowed start must not be after the node start")

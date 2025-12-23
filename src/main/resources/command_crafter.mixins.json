@@ -113,6 +113,7 @@
     "editor.processing.NumberRangeArgumentTypeMixin",
     "editor.processing.PackVersionMixin",
     "editor.processing.ParserBackedArgumentTypeMixin",
+    "editor.processing.ParticleEffectArgumentTypeMixin",
     "editor.processing.PlaceCommandMixin",
     "editor.processing.RecipeCommandMixin",
     "editor.processing.RegistryElementCodecMixin",

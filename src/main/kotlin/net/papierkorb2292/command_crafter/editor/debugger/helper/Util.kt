@@ -8,6 +8,7 @@ import net.minecraft.network.PacketByteBuf
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.function.Procedure
 import net.minecraft.util.Identifier
+import net.minecraft.util.math.MathHelper
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.networking.*
 import org.eclipse.lsp4j.debug.*
@@ -52,6 +53,10 @@ fun Identifier.withExtension(extension: String)
 
 operator fun StringRange.plus(value: Int) = StringRange(start + value, end + value)
 operator fun StringRange.minus(value: Int) = StringRange(start - value, end - value)
+fun StringRange.clamp(clampRange: StringRange) = StringRange(
+    MathHelper.clamp(start, clampRange.start, clampRange.end),
+    MathHelper.clamp(end, clampRange.start, clampRange.end)
+)
 
 fun SourceBreakpoint.copy(): SourceBreakpoint {
     val breakpoint = SourceBreakpoint()
