@@ -3,7 +3,7 @@ import { LanguageClient } from "vscode-languageclient/node"
 import { ConnectionFeature, MinecraftConnectionType } from "./minecraftConnection"
 import { FEATURE_CONFIG_DISABLE, FEATURE_CONFIG_ENABLE, getFeatureConfig, getLocalFeatureConfig, isCompatibilityCheckEnabled, SETTINGS_SCOPE, SETTINGS_SECTIONS, updateLocalFeatureConfig } from './settings'
 import { fileExists } from './extension'
-import { applyEdits, JSONPath, modify } from 'jsonc-parser'
+import { applyEdits, FormattingOptions, JSONPath, modify, parse, ParseError } from 'jsonc-parser'
 import { outputChannel } from './extensionLog'
 
 const COMPATIBILITY_CHECK_SETTING_NAME = SETTINGS_SCOPE + "." + SETTINGS_SECTIONS.checkExtensionCompatiblity
@@ -124,6 +124,13 @@ async function isSpyglassHighlightingOn(): Promise<boolean> {
                     const config = JSON.parse(Buffer.from(content).toString())
                     const semanticColoringOption = config.env?.feature?.semanticColoring
                     if(semanticColoringOption !== undefined) {
+                        if(semanticColoringOption !== null && typeof semanticColoringOption === "object") {
+                            const disabledLanguages = semanticColoringOption.disabledLanguages
+                            if(Array.isArray(disabledLanguages)) {
+                                return !disabledLanguages.includes("mcfunction")
+                            }
+                            return true
+                        }
                         return semanticColoringOption
                     }
                 } catch(err) {
@@ -138,10 +145,11 @@ async function isSpyglassHighlightingOn(): Promise<boolean> {
 }
 
 const SPYGLASS_SEMANTIC_COLORING_PATH: JSONPath = ["env", "feature", "semanticColoring"]
+const SPYGLASS_DISABLED_LANGUAGES_INSERT_PATH: JSONPath = ["env", "feature", "semanticColoring", "disabledLanguages", 0]
 
-//TODO: Only disable highlighting for functions, not mcdoc
 async function disableSpyglassHighlighting() {
     let foundFile = false
+    let foundFileWithError = false
     // Spyglass wants the `env` value in all workspaces to be the same, so set it everywhere
     for(const workspaceFolder of vscode.workspace.workspaceFolders!!) {
         for (const name of SPYGLASS_CONFIG_FILES) {
@@ -149,32 +157,82 @@ async function disableSpyglassHighlighting() {
             if(await fileExists(uri)) {
                 try {
                     const content = await vscode.workspace.fs.readFile(uri) 
-                    const config = Buffer.from(content).toString()
-                    const edits = modify(config, SPYGLASS_SEMANTIC_COLORING_PATH, false, {});
+                    let config = Buffer.from(content).toString()
+                    const parseErrors: ParseError[] = []
+                    const parsedConfig = parse(config, parseErrors)
+                    if(parseErrors.length !== 0) {
+                        outputChannel?.appendLine(`Errors parsing Spyglass config at ${uri}: ${parseErrors}`)
+                        foundFileWithError = true
+                        continue
+                    }
+
+                    // Can't set the value directly if it's currently a boolean or something, so make sure it's an object
+                    const currentSemanticTokens = parsedConfig?.env?.feature?.semanticColoring
+                    if(typeof currentSemanticTokens !== "object") {
+                        config = applyEdits(config, modify(config, SPYGLASS_SEMANTIC_COLORING_PATH, {}, {}))
+                    }
+
+                    config = applyEdits(config, modify(config, SPYGLASS_DISABLED_LANGUAGES_INSERT_PATH, "mcfunction", { isArrayInsertion: true, formattingOptions: getFormattingOptionsForFile(config)}))
                     // TODO: Also add a comment to jsonc files (once Spyglass supports them) that the value was updated by CommandCrafter
-                    const newConfig = applyEdits(config, edits)
-                    const newContent = Uint8Array.from(Buffer.from(newConfig))
+                    const newContent = Uint8Array.from(Buffer.from(config))
                     await vscode.workspace.fs.writeFile(uri, newContent)
                     foundFile = true
                 } catch(err) {
                     outputChannel?.appendLine(`Error modifying Spyglass config at ${uri}: ${err}`)
+                    foundFileWithError = true
                 }
             }
         }
     }
 
     if(!foundFile) {
+        if(foundFileWithError) {
+            // Don't write config file to not risk overriding anything. Alert the user instead
+            vscode.window.showErrorMessage(
+                "I failed to configure Spyglass, sorry :(. It looks you already have a config file but it contains errors"
+            )
+            return
+        }
         // Create new config file
         outputChannel?.appendLine("No existing Spyglass config found, creating new one")
         const uri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders!![0].uri, SPYGLASS_CONFIG_FILES[0])
         const newConfig = JSON.stringify({
             env: {
                 feature: {
-                    semanticColoring: false
+                    semanticColoring: {
+                        disabledLanguages: ["mcfunction"]
+                    }
                 }
             }
         }, null, 4)
         const newContent = Uint8Array.from(Buffer.from(newConfig))
         await vscode.workspace.fs.writeFile(uri, newContent)
     }
+}
+
+function getFormattingOptionsForFile(content: string): FormattingOptions {
+    const formattingOptions: FormattingOptions = {
+        eol: content.includes("\r\n") ? "\r\n" : "\n"
+    }
+
+    if(content.includes('\t')) {
+        formattingOptions.insertSpaces = false
+        return formattingOptions;
+    }
+    formattingOptions.insertSpaces = true
+
+    // Find the line with the smallest indent
+    const lines = content.split(formattingOptions.eol!!)
+    const lineStarts = lines.map(line => {
+        const trimmed = line.trimStart()
+        return line.length - trimmed.length
+    }).filter(startIndex => startIndex !== 0)
+    
+    if(lineStarts.length === 0) {
+        formattingOptions.tabSize = 4 // As a default value
+    } else {
+        formattingOptions.tabSize = Math.min(...lineStarts)
+    }
+
+    return formattingOptions
 }
