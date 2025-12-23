@@ -47,7 +47,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         const val SEMANTIC_TOKENS_REGISTRATION_ID = "command_crafter_semantic_tokens"
         const val SEMANTIC_TOKENS_REGISTRATION_NAME = "textDocument/semanticTokens"
 
-        val semanticTokenLanguages = listOf("mcfunction")
+        val semanticTokenLanguages = listOf("mcfunction", "json")
 
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
