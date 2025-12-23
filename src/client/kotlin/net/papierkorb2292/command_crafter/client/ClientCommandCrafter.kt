@@ -43,6 +43,7 @@ import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
 
 object ClientCommandCrafter : ClientModInitializer {
     override fun onInitializeClient() {
@@ -123,8 +124,9 @@ object ClientCommandCrafter : ClientModInitializer {
             NetworkServerConnection.requestAndCreate().thenAccept {
                 editorConnectionManager.minecraftServerConnection = it
                 editorConnectionManager.showMessage(MessageParams(MessageType.Info, "Successfully connected to Minecraft server"))
-            }.exceptionally {
-                val message = "Connecting to Minecraft server failed, keeping clientside connection: $it"
+            }.exceptionally { exception ->
+                val coreException = if(exception is CompletionException) exception.cause!! else exception
+                val message = "Connecting to Minecraft server failed, keeping clientside connection: ${coreException.message}"
                 CommandCrafter.LOGGER.warn(message)
                 editorConnectionManager.showMessage(MessageParams(MessageType.Warning, message))
                 null
