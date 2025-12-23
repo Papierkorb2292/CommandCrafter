@@ -252,7 +252,8 @@ class MacroAnalyzingCrawlerRunner(
         rootNode: CommandNode<CommandSource>,
         spawner: Spawner,
         spawnerIndex: Int,
-        attemptIndex: Int
+        attemptIndex: Int,
+        skippedNodeCount: Int,
     ): CrawlerResult {
         val analyzingResult = baseAnalyzingResult.copyInput()
         val startCursor = reader.cursor
@@ -328,12 +329,12 @@ class MacroAnalyzingCrawlerRunner(
         if(!hasAccessedMacro || !reader.canRead())
             // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
             // or because the command is done
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
 
         if(reader.furthestAccessedCursor <= startCursor + 1 && spawner.parent != null)
             // The parser doesn't seem to have found anything, there's no need to create a new spawner, since the parent spawner is also going to try
             // the following whitespaces
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
 
         // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
         // since the macro could have contained any data whatsoever. Create a new spawner to find the best match to continue parsing.
@@ -346,7 +347,7 @@ class MacroAnalyzingCrawlerRunner(
 
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
         if(nextAttemptIndex >= attemptPositions.size || invalidAttemptPositionsMarker[nextAttemptIndex])
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
         val childSpawner = Spawner(
             spawner,
             lastNode.resolveRedirects().children.filter { it.resolveRedirects().children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
@@ -354,7 +355,7 @@ class MacroAnalyzingCrawlerRunner(
             commandParseResults.context.lastChild
         )
         if(childSpawner.nextNodes.isEmpty())
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
         childSpawner.pushCrawler()
 
         // Use the difference in the attempt index from the parent spawner to add the child spawner instead of just using nextAttemptIndex
@@ -367,7 +368,7 @@ class MacroAnalyzingCrawlerRunner(
         }
         weightedSpawners[childSpawnerIndex] += childSpawner
 
-        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, childSpawner)
+        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, childSpawner)
         childSpawner.baseResult = crawlerResult
         return crawlerResult
     }
@@ -454,8 +455,6 @@ class MacroAnalyzingCrawlerRunner(
         var maxAttemptCountChecked: Int = 0
 
         var bestResult: CrawlerResult? = null
-        var bestResultAttemptCount: Int = -1
-        var bestResultSkippedNodeCount: Int = -1
 
         fun advance(): Boolean {
             if(isStartInvalid())
@@ -515,7 +514,7 @@ class MacroAnalyzingCrawlerRunner(
 
                     reader.cursor = startCursor
                     reader.furthestAccessedCursor = 0
-                    val result = tryParse(node, this, spawnerIndex, attemptIndex)
+                    val result = tryParse(node, this, spawnerIndex, attemptIndex, crawler.skippedNodeCount)
 
                     if(filterCrawlersByMaxLiterals) {
                         var totalPossibleLiterals = result.newLiteralNodeCount()
@@ -556,8 +555,6 @@ class MacroAnalyzingCrawlerRunner(
                 val crawlerBestResult = results.maxOrNull() ?: continue
                 if(bestResult == null || crawlerBestResult > bestResult!!) {
                     bestResult = crawlerBestResult
-                    bestResultAttemptCount = attemptCount
-                    bestResultSkippedNodeCount = crawler.skippedNodeCount
                 }
             }
         }
@@ -597,13 +594,9 @@ class MacroAnalyzingCrawlerRunner(
             crawlerAnalyzingResult.combineWithExceptCompletions(result.analyzingResult)
             // Don't add completion providers for trailing nodes, because those should be added by `addAllCompletionsProviders` (called in `run`) and they shouldn't be added twice
             if(newLiteralCount != 0) {
-                // If the spawner is near the end, it didn't have the chance to be cut off by a later spawner, so there were
-                // probably a lot of unnecessary attempts with bad auto complete. Thus, only add completions from the best attempts.
-                if(newLiteralCount <= CUT_OFF_MINIMUM_LITERAL_COUNT) {
-                    nextSpawner.addCompletionProvidersWithMatchingLiteralCount(crawlerAnalyzingResult, newLiteralCount)
-                } else {
-                    nextSpawner.addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult)
-                }
+                val attemptCount = result.baseAttemptIndex - nextSpawner.startAttemptIndex
+                nextSpawner.addCompletionProvidersWithMatchingLiteralCount(crawlerAnalyzingResult, attemptCount, newLiteralCount)
+                nextSpawner.addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult, attemptCount, result.baseSkippedNodeCount)
             }
             crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
@@ -613,14 +606,14 @@ class MacroAnalyzingCrawlerRunner(
         private fun isStartInvalid(): Boolean = invalidAttemptPositionsMarker[startAttemptIndex]
 
         /**
-         * Adds all completions from parsing attempts with an attemptCount less than or equal
-         * to the best result and a skippedNodeCount less than or equal to the best result.
+         * Adds all completions from parsing attempts with an attemptCount less than
+         * the chosen result and a skippedNodeCount less than or equal to the chosen result.
          * Other completions are deemed not necessary and maybe confusing.
          */
-        fun addCompletionProvidersUpToAttemptPosition(analyzingResult: AnalyzingResult) {
+        fun addCompletionProvidersUpToAttemptPosition(analyzingResult: AnalyzingResult, chosenAttemptCount: Int, chosenSkippedNodeCount: Int) {
             attemptResults.asSequence()
-                .take(bestResultAttemptCount + 1)
-                .flatMap { it.asSequence().take(bestResultSkippedNodeCount + 1) }
+                .take(chosenAttemptCount)
+                .flatMap { it.asSequence().take(chosenSkippedNodeCount + 1) }
                 .filterNotNull()
                 .flatten()
                 .forEach { result ->
@@ -628,9 +621,14 @@ class MacroAnalyzingCrawlerRunner(
                 }
         }
 
-        fun addCompletionProvidersWithMatchingLiteralCount(analyzingResult: AnalyzingResult, literalCount: Int) {
-            attemptResults.asSequence()
-                .flatten()
+        /**
+         * Adds all completions for parsing attempts with an attemptCount equal to the chosen result
+         * and a matching literal count. These completions are deemed to be the most accurate and other
+         * completions with the same attempt count but a lower literal count would probably
+         * be confusing.
+         */
+        fun addCompletionProvidersWithMatchingLiteralCount(analyzingResult: AnalyzingResult, chosenAttemptCount: Int, literalCount: Int) {
+            attemptResults[chosenAttemptCount]
                 .filterNotNull()
                 .flatten()
                 .forEach { result ->
@@ -682,7 +680,17 @@ class MacroAnalyzingCrawlerRunner(
         }
     }
 
-    private inner class CrawlerResult(val parsedNodeCount: Int, val literalNodeCount: Int, val semanticTokensCount: Int, val contextBuilder: CommandContextBuilder<CommandSource>, val analyzingResult: AnalyzingResult, val parentSpawner: Spawner, val childSpawner: Spawner?): Comparable<CrawlerResult> {
+    private inner class CrawlerResult(
+        val parsedNodeCount: Int,
+        val literalNodeCount: Int,
+        val semanticTokensCount: Int,
+        val contextBuilder: CommandContextBuilder<CommandSource>,
+        val analyzingResult: AnalyzingResult,
+        val parentSpawner: Spawner,
+        val baseAttemptIndex: Int,
+        val baseSkippedNodeCount: Int,
+        val childSpawner: Spawner?,
+    ): Comparable<CrawlerResult> {
         /**
          * Rate how successful this parsing attempt was and based on that remove any previous spawner that don't seem useful enough anymore.
          *
@@ -768,7 +776,15 @@ class MacroAnalyzingCrawlerRunner(
             else semanticTokensCount.compareTo(other.semanticTokensCount)
     }
 
-    private fun convertParseResultsToCrawlerResult(parseResults: ParseResults<CommandSource>, baseContext: CommandContextBuilder<CommandSource>, analyzingResult: AnalyzingResult, parentSpawner: Spawner, childSpawner: Spawner?): CrawlerResult {
+    private fun convertParseResultsToCrawlerResult(
+        parseResults: ParseResults<CommandSource>,
+        baseContext: CommandContextBuilder<CommandSource>,
+        analyzingResult: AnalyzingResult,
+        parentSpawner: Spawner,
+        baseAttemptIndex: Int,
+        baseSkippedNodeCount: Int,
+        childSpawner: Spawner?,
+    ): CrawlerResult {
         var previouslyCountedNodes = baseContext.nodes.size
 
         var parsedNodeCount = parentSpawner.baseResult?.parsedNodeCount ?: 0
@@ -790,6 +806,8 @@ class MacroAnalyzingCrawlerRunner(
             parseResults.context,
             analyzingResult,
             parentSpawner,
+            baseAttemptIndex,
+            baseSkippedNodeCount,
             childSpawner
         )
     }

@@ -623,6 +623,7 @@ object TestCommandCrafter {
             ${'$'}execute $(sub) run §
             ${'$'}execute if entity $(selector) run §execute run execute run $(something)
             ${'$'}execute $(sub) §
+            ${'$'}execute as @a at @s positioned $(Offset) unless entity @e[tag=a,distance=..0.1,gamemode=§] if entity @e[tag=$(anchor),distance=..10] run
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
         val commandDispatcher = getCommandDispatcher(context)
@@ -651,6 +652,13 @@ object TestCommandCrafter {
         context.assertTrue(
             line2Suggestions != null && line2Suggestions.size > 1000, // Just some large number of suggestions
             "Expected line 3 suggestions to be everything, was not enough suggestions"
+        )
+
+        val line3Suggestions = suggestions[3]?.map { it.label }?.toSet()
+        context.assertEquals(
+            line3Suggestions,
+            setOf("survival", "creative", "adventure", "spectator", "!survival", "!creative", "!adventure", "!spectator"),
+            "line 4 selector gamemode suggestions"
         )
 
         context.complete()
