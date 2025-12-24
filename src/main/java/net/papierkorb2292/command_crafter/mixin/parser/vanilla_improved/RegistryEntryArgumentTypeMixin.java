@@ -26,7 +26,7 @@ import java.util.List;
 
 @Mixin(RegistryEntryArgumentType.class)
 public class RegistryEntryArgumentTypeMixin<T> implements StringifiableArgumentType {
-    @Shadow @Final private Codec<RegistryEntry<T>> entryCodec;
+    @Shadow @Final private Codec<T> entryCodec;
 
     @Shadow @Final private RegistryWrapper.WrapperLookup registries;
 
@@ -36,6 +36,9 @@ public class RegistryEntryArgumentTypeMixin<T> implements StringifiableArgumentT
         //noinspection unchecked
         var argument = (RegistryEntry<T>)context.getArgument(name, RegistryEntry.class);
         RegistryOps<NbtElement> registryOps = registries.getOps(NbtOps.INSTANCE);
-        return Collections.singletonList(Either.left(entryCodec.encode(argument, registryOps, registryOps.empty()).getOrThrow().toString()));
+        return Collections.singletonList(Either.left(argument.getKeyOrValue().map(
+                key -> key.getValue().toShortString(),
+                value -> entryCodec.encode(value, registryOps, registryOps.empty()).getOrThrow().toString()
+        )));
     }
 }
