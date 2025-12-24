@@ -539,8 +539,8 @@ object TestCommandCrafter {
                 run tp @s ~ ~1 ~
             @language vanilla improved
             execute
-                align xyz run
-                summon minecraft:armor_stand
+                align xyz
+                run summon minecraft:armor_stand
             function {
                 say HI!            
             }
