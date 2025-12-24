@@ -138,6 +138,7 @@ class MacroAnalyzingCrawlerRunner(
         getNodeIdentifierForDispatcher(reader.dispatcher),
         getNodeMaxLiteralCounterForDispatcher(reader.dispatcher)
     )
+    private val inputsEndsInSpace = reader.string.endsWith(' ')
 
     private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
@@ -532,7 +533,9 @@ class MacroAnalyzingCrawlerRunner(
 
                     if(result.newNodeCount() == 0)
                         unnecessaryAttemptDeduplicator.markUnnecessaryAttempt(attemptIndex, node)
-                    else if(!reader.canRead() && result.newNodeCount() == 1) {
+                    else if(result.newNodeCount() == 1 && (reader.cursor == startCursor || !reader.canRead() && !inputsEndsInSpace)) {
+                        // Don't mark nodes at the end of the input if the input ends in space, because in that case the children of the node still matter for suggestions
+                        // Nodes that didn't advance the cursor are also marked, because in that case the node is likely meant to be wrong anyway and so the children don't matter
                         var lastNode: ParsedCommandNode<CommandSource>? = null
                         var context: CommandContextBuilder<CommandSource>? = result.contextBuilder
                         while(context != null) {
