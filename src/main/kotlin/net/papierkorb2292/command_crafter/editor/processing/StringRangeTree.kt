@@ -385,6 +385,7 @@ class StringRangeTree<TNode: Any>(
 
         companion object {
             val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
+            private const val EMPTY_MAP_PLACEHOLDER_KEY = "command_crafter:empty_map_placeholder"
 
             /**
              * Wraps the given dynamic ops with AnalyzingDynamicOps.
@@ -452,7 +453,7 @@ class StringRangeTree<TNode: Any>(
                         isEmpty = false
                         return@flatMap Stream.of(it)
                     }
-                    if(!isEmpty || !insertListPlaceholder(input, it))
+                    if(!isEmpty || !insertContainerPlaceholder(input, it))
                         return@flatMap Stream.empty()
                     Stream.of(it)
                 }
@@ -499,10 +500,7 @@ class StringRangeTree<TNode: Any>(
                     }
 
                     override fun entries(): Stream<Pair<TNode, TNode>> {
-                        return delegateMap.entries().map { pair ->
-                            getMapKeyNodes(input).add(pair.first)
-                            pair
-                        }
+                        return addMapStreamPlaceholder(input, delegateMap.entries())
                     }
 
                     override fun toString(): String {
@@ -523,7 +521,7 @@ class StringRangeTree<TNode: Any>(
                     }
                     if(isEmpty) {
                         val placeholder = delegate.emptyList()
-                        if(insertListPlaceholder(input, placeholder))
+                        if(insertContainerPlaceholder(input, placeholder))
                             entryConsumer.accept(placeholder)
                     }
                 }
@@ -537,18 +535,18 @@ class StringRangeTree<TNode: Any>(
 
         private val placeholders = mutableSetOf<TNode>()
 
-        private fun insertListPlaceholder(list: TNode, placeholder: TNode): Boolean {
-            if(list in placeholders) return false
+        private fun insertContainerPlaceholder(container: TNode, placeholder: TNode): Boolean {
+            if(container in placeholders) return false
 
             placeholders += placeholder
 
             val orderedNodes = tree.orderedNodes.toMutableList()
-            orderedNodes.add(orderedNodes.indexOf(list) + 1, placeholder)
+            orderedNodes.add(orderedNodes.indexOf(container) + 1, placeholder)
 
-            val listInnerRanges = tree.internalNodeRangesBetweenEntries[list]
-                ?: throw IllegalArgumentException("Node $list not found in internal node ranges between entries")
+            val listInnerRanges = tree.internalNodeRangesBetweenEntries[container]
+                ?: throw IllegalArgumentException("Node $container not found in internal node ranges between entries")
             val listInnerRange = listInnerRanges.stream().findFirst().orElseThrow {
-                IllegalArgumentException("No internal node ranges between entries found for node $list")
+                IllegalArgumentException("No internal node ranges between entries found for node $container")
             }
             val ranges = IdentityHashMap(tree.ranges)
             ranges[placeholder] = StringRange.at(listInnerRange.end)
@@ -566,20 +564,44 @@ class StringRangeTree<TNode: Any>(
             return true
         }
 
+        private fun addMapStreamPlaceholder(map: TNode, entries: Stream<Pair<TNode, TNode>>): Stream<Pair<TNode, TNode>> {
+            val placeholderValue = delegate.emptyList()
+            val placeholderKey = delegate.createString(EMPTY_MAP_PLACEHOLDER_KEY)
+            var isEmpty = true
+            return Stream.concat(entries, Stream.of(Pair(placeholderKey, placeholderValue))).flatMap { pair ->
+                if(pair.second !== placeholderValue) {
+                    getMapKeyNodes(map).add(pair.first)
+                    isEmpty = false
+                    return@flatMap Stream.of(pair)
+                }
+                if(!isEmpty)
+                    return@flatMap Stream.empty()
+                insertContainerPlaceholder(map, placeholderValue)
+                getMapKeyNodes(map).add(pair.first)
+                Stream.of(pair)
+            }
+        }
+
         //For later: Saving the path for each node to request suggestion descriptions for keys
         override fun getMapValues(input: TNode): DataResult<Stream<Pair<TNode, TNode>>> =
             delegate.getMapValues(input).map { stream ->
-                stream.peek { pair ->
-                    getMapKeyNodes(input).add(pair.first)
-                }
+                addMapStreamPlaceholder(input, stream)
             }
 
         override fun getMapEntries(input: TNode): DataResult<Consumer<BiConsumer<TNode, TNode>>> =
             delegate.getMapEntries(input).map { consumer ->
                 Consumer { biConsumer ->
+                    var isEmpty = true
                     consumer.accept { key, value ->
                         getMapKeyNodes(input).add(key)
                         biConsumer.accept(key, value)
+                        isEmpty = false
+                    }
+                    if(isEmpty) {
+                        val placeholderValue = delegate.emptyList()
+                        val placeholderKey = delegate.createString(EMPTY_MAP_PLACEHOLDER_KEY)
+                        if(insertContainerPlaceholder(input, placeholderValue))
+                            biConsumer.accept(placeholderKey, placeholderValue)
                     }
                 }
             }
