@@ -219,7 +219,7 @@ class MacroAnalyzingCrawlerRunner(
         trailingSpawnersPerAttemptIndex
             .subList(furthestLiteralPosition, trailingSpawnersPerAttemptIndex.size)
             .forEach { trailingSpawners += it }
-        val result = bestGlobalSpawner!!.buildCombinedAnalyzingResult(followingLiterals = 0, isLastChild = true)
+        val result = bestGlobalSpawner!!.buildCombinedAnalyzingResult(isChildTrailing = true, isLastChild = true)
         while(trailingSpawners.isNotEmpty()) {
             val completionSpawner = trailingSpawners.removeFirst()
             completionSpawner.addAllCompletionProviders(result)
@@ -581,21 +581,21 @@ class MacroAnalyzingCrawlerRunner(
             crawlers.add(Crawler(listOf(node), listOf()))
         }
 
-        fun buildCombinedAnalyzingResult(followingLiterals: Int, isLastChild: Boolean): AnalyzingResult {
+        fun buildCombinedAnalyzingResult(isChildTrailing: Boolean, isLastChild: Boolean): AnalyzingResult {
             val cutTargetCursor = if(isLastChild) reader.string.length else attemptPositions[startAttemptIndex]
             val result =
                 if(isLastChild) bestResult!!
                 else baseResult ?: return baseAnalyzingResult.copyInput()
-            val newLiteralCount = followingLiterals + result.newLiteralNodeCount()
+            val isTrailing = isChildTrailing && !result.hasNewLiteralNodes()
             // If `isLastChild`, the next spawner is `this` again, because the current call is processing this.bestResult so this.baseResult should be processed next
             val nextSpawner = if(isLastChild) this else parent!!
-            val parentAnalyzingResult = nextSpawner.buildCombinedAnalyzingResult(newLiteralCount, false)
+            val parentAnalyzingResult = nextSpawner.buildCombinedAnalyzingResult(isTrailing, false)
             val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
             crawlerAnalyzingResult.combineWithExceptCompletions(result.analyzingResult)
             // Don't add completion providers for trailing nodes, because those should be added by `addAllCompletionsProviders` (called in `run`) and they shouldn't be added twice
-            if(newLiteralCount != 0) {
+            if(!isTrailing) {
                 val attemptCount = result.baseAttemptIndex - nextSpawner.startAttemptIndex
-                nextSpawner.addCompletionProvidersWithMatchingLiteralCount(crawlerAnalyzingResult, attemptCount, newLiteralCount)
+                nextSpawner.addCompletionProvidersWithMatchingLiteralCount(crawlerAnalyzingResult, attemptCount, result.newLiteralNodeCount())
                 nextSpawner.addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult, attemptCount, result.baseSkippedNodeCount)
             }
             crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
