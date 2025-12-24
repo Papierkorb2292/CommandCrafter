@@ -8,10 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import net.minecraft.command.CommandSource;
-import net.minecraft.resource.DirectoryResourcePack;
-import net.minecraft.resource.FileResourcePackProvider;
-import net.minecraft.resource.ResourcePackManager;
-import net.minecraft.resource.ZipResourcePack;
+import net.minecraft.resource.*;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.DatapackCommand;
 import net.minecraft.server.command.ServerCommandSource;
@@ -51,20 +48,15 @@ public class DatapackCommandMixin {
         return builder.then(
                 CommandManager.literal("build")
                         .then(CommandManager.argument("name", StringArgumentType.string())
-                                .suggests((context, suggestionsBuilder) -> {
-                                    List<String> candidates = new ArrayList<>();
-                                    try {
-                                        FileResourcePackProvider.forEachProfile(
-                                                context.getSource().getServer().getSavePath(WorldSavePath.DATAPACKS),
-                                                ((MinecraftServerAccessor)context.getSource().getServer()).getSession().getLevelStorage().getSymlinkFinder(),
-                                                (path, pack) -> candidates.add(StringArgumentType.escapeIfRequired("file/" + path.getFileName().toString())));
-                                    } catch (IOException e) {
-                                        CommandCrafter.INSTANCE.getLOGGER().error("Encountered IOException while searching for buildable datapacks", e);
-                                    }
-                                    return CommandSource.suggestMatching(
-                                            candidates.stream(),
-                                            suggestionsBuilder);
-                                })
+                                .suggests((context, suggestionsBuilder) ->
+                                        CommandSource.suggestMatching(
+                                            context.getSource().getServer().getDataPackManager()
+                                                    .getProfiles().stream()
+                                                    .map(ResourcePackProfile::getId)
+                                                    .filter(id -> id.startsWith("file/"))
+                                                    .map(StringArgumentType::escapeIfRequired),
+                                            suggestionsBuilder)
+                                )
                                 .executes(context -> {
                                     command_crafter$buildDatapack(context, new DatapackBuildArgs.DatapackBuildArgsBuilder());
                                     return 1;
