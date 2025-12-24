@@ -16,6 +16,9 @@
     "editor.shader.GlBackendMixin",
     "editor.shader.ShaderLoaderAccessor",
     "editor.TranslationStorageAccessor",
-    "parser.ClientPlayNetworkHandlerAccessor"
+    "game.KeyboardMixin",
+    "game.MinecraftClientMixin",
+    "parser.ClientPlayNetworkHandlerAccessor",
+    "game.ItemStackMixin"
   ]
 }

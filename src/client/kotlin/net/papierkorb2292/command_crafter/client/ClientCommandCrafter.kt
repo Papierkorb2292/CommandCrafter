@@ -14,6 +14,7 @@ import net.minecraft.client.resource.waypoint.WaypointStyleAsset
 import net.minecraft.client.texture.atlas.AtlasSourceManager
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.command.permission.LeveledPermissionPredicate
+import net.minecraft.item.ItemStack
 import net.minecraft.item.equipment.EquipmentType
 import net.minecraft.resource.featuretoggle.FeatureFlags
 import net.minecraft.screen.ScreenTexts
@@ -159,4 +160,6 @@ object ClientCommandCrafter : ClientModInitializer {
         PackContentFileType.POST_EFFECTS_FILE_TYPE to PostEffectPipeline.CODEC,
         PackContentFileType.WAYPOINT_STYLE_FILE_TYPE to WaypointStyleAsset.CODEC,
     )
+
+    var currentlyHoveredItem: ItemStack? = null
 }
