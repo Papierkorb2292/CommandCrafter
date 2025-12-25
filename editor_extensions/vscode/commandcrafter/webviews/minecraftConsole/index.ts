@@ -1,7 +1,7 @@
 import "@vscode-elements/elements/dist/bundled.js";
 import './index.scss';
 import AnsiToHtmlConverter = require("ansi-to-html");
-import { Channel, ChannelName, ConsoleMessage } from '../../src/console';
+import { appendMessagesWithMaximumSize, Channel, ChannelName, ConsoleMessage, MAXIMUM_CONSOLE_MESSAGES } from '../../src/console';
 
 declare var acquireVsCodeApi: any;
 const vscode = acquireVsCodeApi();
@@ -80,9 +80,7 @@ function convertAnsiLines(lines: string[], converter: AnsiToHtmlConverter): HTML
 function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement, content: string) {
     // Only add messages when the channel is focused so it's easy to determine whether the channel should scroll to the bottom
     if(channelNamesByIndex[channelTabs.selectedIndex] !== targetChannel.name) {
-        if(targetChannel.pendingMessages.length > 255)
-            targetChannel.pendingMessages.splice(0, targetChannel.pendingMessages.length - 255);
-        targetChannel.pendingMessages.push(content);
+        appendMessagesWithMaximumSize(targetChannel.pendingMessages, content)
         return;
     }
 
@@ -136,7 +134,7 @@ function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement,
         logContent.scrollPos = logContent.scrollMax - logContent.offsetHeight;
     }
 
-    while(logContent.children.length > 256) {
+    while(logContent.children.length > MAXIMUM_CONSOLE_MESSAGES) {
         logContent.removeChild(logContent.firstChild!);
     }
 }

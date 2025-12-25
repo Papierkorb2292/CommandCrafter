@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The extension now recognizes if Spyglass is installed and asks to disable semantic tokens for one of two extensions
 - The extension and the mod now notify each other of their version
 
+### Fixed
+
+- The console view no longer takes too long to laod when already having received a lot of log messages from Minecraft
+
 ## 0.5.0
 
 ### Added
