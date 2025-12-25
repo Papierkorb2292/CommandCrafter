@@ -4,47 +4,47 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.datafixers.util.Either
 import com.mojang.datafixers.util.Pair
-import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.CommandFunction
-import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved.CommandFunctionArgumentTypeAccessor
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.CommandFunction
+import net.minecraft.resources.Identifier
+import net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved.FunctionArgumentAccessor
 
-class MutableFunctionArgument(val isTag: Boolean): CommandFunctionArgumentType.FunctionArgument {
+class MutableFunctionArgument(val isTag: Boolean): FunctionArgument.Result {
 
     var id: Identifier? = null
     @JsonIgnore
     val idSetter: (Identifier) -> Unit = { id = it }
 
-    override fun getFunctions(context: CommandContext<ServerCommandSource>): Collection<CommandFunction<ServerCommandSource>> {
+    override fun create(context: CommandContext<CommandSourceStack>): Collection<CommandFunction<CommandSourceStack>> {
         id.let {
             requireNotNull(it)
             return if(isTag)
-                CommandFunctionArgumentTypeAccessor.callGetFunctionTag(context,it)
+                FunctionArgumentAccessor.callGetFunctionTag(context,it)
             else
-                setOf(CommandFunctionArgumentTypeAccessor.callGetFunction(context, it))
+                setOf(FunctionArgumentAccessor.callGetFunction(context, it))
         }
     }
 
-    override fun getFunctionOrTag(context: CommandContext<ServerCommandSource?>?): Pair<Identifier?, Either<CommandFunction<ServerCommandSource>, Collection<CommandFunction<ServerCommandSource>>>?>? {
+    override fun unwrap(context: CommandContext<CommandSourceStack>): Pair<Identifier, Either<CommandFunction<CommandSourceStack>, Collection<CommandFunction<CommandSourceStack>>>> {
         id.let {
             requireNotNull(it)
             return Pair.of(it,
                 if (isTag)
-                    Either.right(CommandFunctionArgumentTypeAccessor.callGetFunctionTag(context, it))
+                    Either.right(FunctionArgumentAccessor.callGetFunctionTag(context, it))
                 else
-                    Either.left(CommandFunctionArgumentTypeAccessor.callGetFunction(context, it))
+                    Either.left(FunctionArgumentAccessor.callGetFunction(context, it))
             )
         }
     }
 
-    override fun getIdentifiedFunctions(context: CommandContext<ServerCommandSource>?): Pair<Identifier, Collection<CommandFunction<ServerCommandSource>>> {
+    override fun unwrapToCollection(context: CommandContext<CommandSourceStack>): Pair<Identifier, Collection<CommandFunction<CommandSourceStack>>> {
         id.let {
             requireNotNull(it)
             return Pair.of(it, if(isTag)
-                CommandFunctionArgumentTypeAccessor.callGetFunctionTag(context,it)
+                FunctionArgumentAccessor.callGetFunctionTag(context,it)
             else
-                setOf(CommandFunctionArgumentTypeAccessor.callGetFunction(context, it)))
+                setOf(FunctionArgumentAccessor.callGetFunction(context, it)))
         }
     }
 }

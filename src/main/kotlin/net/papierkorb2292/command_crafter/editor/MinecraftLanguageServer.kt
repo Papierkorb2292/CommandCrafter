@@ -4,8 +4,8 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.minecraft.registry.RegistryLoader
-import net.minecraft.util.Identifier
+import net.minecraft.resources.RegistryDataLoader
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -238,9 +238,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 PackContentFileType.ADVANCEMENTS_FILE_TYPE
             )
 
-            private val worldgenDatapackFileTypes = (RegistryLoader.DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES)
+            private val worldgenDatapackFileTypes = (RegistryDataLoader.WORLDGEN_REGISTRIES + RegistryDataLoader.DIMENSION_REGISTRIES)
                 .mapNotNullTo(mutableSetOf()) {
-                    val registryPath = it.key.value.path
+                    val registryPath = it.key.identifier().path
                     PackContentFileType.types[registryPath]
                 }
 
@@ -562,14 +562,14 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
             if(c == ':') {
                 val idStart = documentation.subSequence(0, i)
-                    .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
-                while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
+                    .indexOfLast { !IdentifierAccessor.callValidNamespaceChar(it) } + 1
+                while(reader.canRead() && Identifier.validPathChar(reader.peek()))
                     reader.skip()
                 val idEnd = reader.cursor
                 val resourceSearchKeywords = PackContentFileType.parseKeywords(reader.string, idStart, idEnd).toSet()
                 val range = StringRange(idStart, idEnd)
                 replacements += PackContentFileType.findWorkspaceResourceFromId(
-                    Identifier.of(documentation.substring(idStart, idEnd)),
+                    Identifier.parse(documentation.substring(idStart, idEnd)),
                     client,
                     resourceSearchKeywords
                 ).thenApply { resource ->

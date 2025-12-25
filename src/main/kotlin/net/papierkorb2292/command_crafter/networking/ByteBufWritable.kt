@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.networking
 
-import net.minecraft.network.PacketByteBuf
+import net.minecraft.network.FriendlyByteBuf
 
 interface ByteBufWritable {
-    fun write(buf: PacketByteBuf)
+    fun write(buf: FriendlyByteBuf)
 }

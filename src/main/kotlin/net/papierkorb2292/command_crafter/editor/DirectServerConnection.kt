@@ -2,21 +2,21 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.minecraft.command.CommandSource
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.Registries
-import net.minecraft.resource.ResourcePackManager
-import net.minecraft.screen.ScreenTexts
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.core.RegistryAccess
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.server.packs.repository.PackRepository
+import net.minecraft.network.chat.CommonComponents
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.CommandOutput
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.network.ServerPlayNetworkHandler
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.Vec2f
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.SaveProperties
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSource
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.server.network.ServerGamePacketListenerImpl
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
+import net.minecraft.world.phys.Vec2
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.storage.WorldData
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
@@ -51,7 +51,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         const val SERVER_LOG_CHANNEL = "server"
         private const val COMMAND_EXECUTOR_NAME = "{DirectServerConnection}"
 
-        val WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID = Identifier.of("reload_registries")
+        val WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID = Identifier.parse("reload_registries")
 
         private var datapackReloadWaitFuture: CompletableFuture<Unit>? = CompletableFuture.completedFuture(Unit)
         private var datapackReloadReconfigureFuture: CompletableFuture<Unit>? = null
@@ -70,12 +70,13 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 datapackReloadWaitFuture.whenCompleteAsync({ _, _ ->
                     val completableFuture = CompletableFuture<Unit>()
                     this.datapackReloadWaitFuture = completableFuture
-                    val resourcePackManager: ResourcePackManager = server.dataPackManager
-                    val saveProperties: SaveProperties = server.saveProperties
-                    val previouslyEnabledDatapacks = resourcePackManager.enabledIds
-                    val allEnabledDatapacks = ReloadCommandAccessor.callFindNewDataPacks(resourcePackManager, saveProperties, previouslyEnabledDatapacks)
+                    val resourcePackManager: PackRepository = server.packRepository
+                    val saveProperties: WorldData = server.worldData
+                    val previouslyEnabledDatapacks = resourcePackManager.selectedIds
+                    val allEnabledDatapacks = ReloadCommandAccessor.callDiscoverNewPacks(resourcePackManager, saveProperties, previouslyEnabledDatapacks)
 
-                    server.commandSource.sendFeedback({ Text.translatable("commands.reload.success") }, true)
+                    server.createCommandSourceStack()
+                        .sendSuccess({ Component.translatable("commands.reload.success") }, true)
                     server.reloadResources(allEnabledDatapacks).whenComplete { _, _ ->
                         datapackReloadReconfigureFuture = completableFuture
                         checkCompletedReconfigureAfterReload(server)
@@ -90,9 +91,9 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             // Wait until all players are done logging into the world, because otherwise mods like
             // Worldgen Devtools would push them back into configuration phase while still sending them some of
             // the initial play packets, leading to a disconnect due to unknown packets
-            val allPlayersConfigured = server.networkIo.connections.all {
+            val allPlayersConfigured = server.connection.connections.all {
                 val packetListener = it.packetListener
-                packetListener is ServerPlayNetworkHandler && packetListener.isConnectionOpen // isConnectionOpen would be false if a reconfiguration has been requested and no new network handler has been created yet
+                packetListener is ServerGamePacketListenerImpl && packetListener.isAcceptingMessages // isConnectionOpen would be false if a reconfiguration has been requested and no new network handler has been created yet
             }
             if(allPlayersConfigured) {
                 datapackReloadReconfigureFuture = null
@@ -101,29 +102,19 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         }
     }
 
-    private val commandDispatcherFactory: (CommandManager) -> CommandDispatcher<CommandSource> = { commandManager: CommandManager ->
-        val root = limitCommandTreeForSource(commandManager, ServerCommandSource(
-            CommandOutput.DUMMY,
-            Vec3d.ZERO,
-            Vec2f.ZERO,
-            null,
-            functionPermissions,
-            "",
-            ScreenTexts.EMPTY,
-            null,
-            null
-        ))
+    private val commandDispatcherFactory: (Commands) -> CommandDispatcher<SharedSuggestionProvider> = { commandManager: Commands ->
+        val root = limitCommandTreeForSource(commandManager, Commands.createCompilationContext(functionPermissions))
         CommandCrafter.removeLiteralsStartingWithForwardsSlash(root)
         CommandDispatcher(root)
     }.memoizeLast()
 
-    override val dynamicRegistryManager: DynamicRegistryManager
-        get() = server.registryManager
-    override val commandDispatcher: CommandDispatcher<CommandSource>
-        get() = commandDispatcherFactory(server.commandManager)
-    override val functionPermissions = server.functionPermissions
+    override val dynamicRegistryManager: RegistryAccess
+        get() = server.registryAccess()
+    override val commandDispatcher: CommandDispatcher<SharedSuggestionProvider>
+        get() = commandDispatcherFactory(server.commands)
+    override val functionPermissions = server.functionCompilationPermissions
     override val serverLog: Log? =
-        if(server.isDedicated)
+        if(server.isDedicatedServer)
             object : Log {
                 override val name
                     get() = SERVER_LOG_CHANNEL
@@ -134,15 +125,16 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         else null
     override val commandExecutor = object : CommandExecutor {
         override fun executeCommand(command: String) {
-            server.commandSource
-            server.commandManager.parseAndExecute(ServerCommandSource(
-                CommandOutput.DUMMY,
-                Vec3d.ZERO,
-                Vec2f.ZERO,
-                server.overworld,
+            server.createCommandSourceStack()
+            server.commands.performPrefixedCommand(
+                CommandSourceStack(
+                CommandSource.NULL,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                server.overworld(),
                 functionPermissions,
                 COMMAND_EXECUTOR_NAME,
-                Text.literal(COMMAND_EXECUTOR_NAME),
+                Component.literal(COMMAND_EXECUTOR_NAME),
                 server,
                 null
             ), command)
@@ -237,7 +229,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             val analyzingResult = AnalyzingResult(resetMappingInfo, Position())
             val resetReader = DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator)
             resetReader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(fullInput.cursor, true)
-            LanguageManager.analyse(resetReader, server.commandSource, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
+            LanguageManager.analyse(resetReader, server.createCommandSourceStack(), analyzingResult, LanguageManager.DEFAULT_CLOSURE)
             return analyzingResult.getCompletionProviderForCursor(fullInput.cursor)
                 ?.dataProvider?.invoke(fullInput.cursor)
                 ?: CompletableFuture.completedFuture(listOf())
@@ -248,8 +240,8 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
 
     override val canReloadWorldgen: Boolean
         get() {
-            val rule = Registries.GAME_RULE.get(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID) ?: return false
-            val value = server.saveProperties.gameRules.getValue(rule)
+            val rule = BuiltInRegistries.GAME_RULE.getValue(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID) ?: return false
+            val value = server.worldData.gameRules.get(rule)
             if(value !is Boolean) {
                 CommandCrafter.LOGGER.debug("Unexpected type of value for reload_registries game rule: {}", value)
                 return false

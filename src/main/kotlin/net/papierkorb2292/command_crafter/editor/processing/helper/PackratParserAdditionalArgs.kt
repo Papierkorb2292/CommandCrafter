@@ -4,9 +4,9 @@ import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
-import net.minecraft.command.CommandSource
-import net.minecraft.nbt.NbtElement
-import net.minecraft.util.packrat.ParsingStateImpl
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.nbt.Tag
+import net.minecraft.util.parsing.packrat.CachedParseState
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -17,7 +17,7 @@ object PackratParserAdditionalArgs {
     val analyzingResult = ThreadLocal<AnalyzingResultBranchingArgument>()
     val furthestAnalyzingResult = ThreadLocal<Pair<Int, AnalyzingResult?>>()
     val stringifiedArgument = ThreadLocal<StringifiedBranchingArgument>()
-    val nbtStringRangeTreeBuilder = ThreadLocal<StringRangeTreeBranchingArgument<NbtElement>>()
+    val nbtStringRangeTreeBuilder = ThreadLocal<StringRangeTreeBranchingArgument<Tag>>()
     val commandContextBuilder = ThreadLocal<CommandContextBuilderBranchingArgument>()
     val allowMalformed = ThreadLocal<Boolean>()
 
@@ -28,7 +28,7 @@ object PackratParserAdditionalArgs {
         BranchingArgumentContainer(commandContextBuilder, ::CommandContextBuilderBranchingArgument)
     )
 
-    val delayedDecodeNbtAnalyzeCallback = ThreadLocal<(DynamicOps<NbtElement>, Decoder<*>) -> Unit>()
+    val delayedDecodeNbtAnalyzeCallback = ThreadLocal<(DynamicOps<Tag>, Decoder<*>) -> Unit>()
 
     fun hasArgs() = branchingArgs.any { it.argument.getOrNull() != null}
 
@@ -141,10 +141,10 @@ object PackratParserAdditionalArgs {
         }
     }
 
-    data class CommandContextBuilderBranchingArgument(var commandContextBuilder: CommandContextBuilder<CommandSource>): BranchingArgument<CommandContextBuilder<CommandSource>> {
+    data class CommandContextBuilderBranchingArgument(var commandContextBuilder: CommandContextBuilder<SharedSuggestionProvider>): BranchingArgument<CommandContextBuilder<SharedSuggestionProvider>> {
         override fun get() = commandContextBuilder
-        override fun createBranch(): CommandContextBuilder<CommandSource> = commandContextBuilder.copy()
-        override fun mergeBranch(argument: CommandContextBuilder<CommandSource>, success: Boolean) {
+        override fun createBranch(): CommandContextBuilder<SharedSuggestionProvider> = commandContextBuilder.copy()
+        override fun mergeBranch(argument: CommandContextBuilder<SharedSuggestionProvider>, success: Boolean) {
             if(success)
                 commandContextBuilder = argument
         }

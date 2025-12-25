@@ -21,39 +21,39 @@ import it.unimi.dsi.fastutil.ints.Int2ByteLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
-import net.minecraft.command.CommandSource
-import net.minecraft.command.argument.AngleArgumentType
-import net.minecraft.command.argument.ArgumentTypes
-import net.minecraft.command.argument.BlockMirrorArgumentType
-import net.minecraft.command.argument.BlockRotationArgumentType
-import net.minecraft.command.argument.ColorArgumentType
-import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.command.argument.DimensionArgumentType
-import net.minecraft.command.argument.EntityAnchorArgumentType
-import net.minecraft.command.argument.GameModeArgumentType
-import net.minecraft.command.argument.HeightmapArgumentType
-import net.minecraft.command.argument.HexColorArgumentType
-import net.minecraft.command.argument.IdentifierArgumentType
-import net.minecraft.command.argument.ItemSlotArgumentType
-import net.minecraft.command.argument.MessageArgumentType
-import net.minecraft.command.argument.NumberRangeArgumentType
-import net.minecraft.command.argument.OperationArgumentType
-import net.minecraft.command.argument.RegistryEntryPredicateArgumentType
-import net.minecraft.command.argument.RegistryEntryReferenceArgumentType
-import net.minecraft.command.argument.RegistryKeyArgumentType
-import net.minecraft.command.argument.RegistryPredicateArgumentType
-import net.minecraft.command.argument.RegistrySelectorArgumentType
-import net.minecraft.command.argument.ScoreboardCriterionArgumentType
-import net.minecraft.command.argument.ScoreboardObjectiveArgumentType
-import net.minecraft.command.argument.ScoreboardSlotArgumentType
-import net.minecraft.command.argument.SlotRangeArgumentType
-import net.minecraft.command.argument.SwizzleArgumentType
-import net.minecraft.command.argument.TeamArgumentType
-import net.minecraft.command.argument.TimeArgumentType
-import net.minecraft.command.argument.UuidArgumentType
-import net.minecraft.command.argument.serialize.ArgumentSerializer
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.registry.Registries
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.AngleArgument
+import net.minecraft.commands.synchronization.ArgumentTypeInfos
+import net.minecraft.commands.arguments.TemplateMirrorArgument
+import net.minecraft.commands.arguments.TemplateRotationArgument
+import net.minecraft.commands.arguments.ColorArgument
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.arguments.DimensionArgument
+import net.minecraft.commands.arguments.EntityAnchorArgument
+import net.minecraft.commands.arguments.GameModeArgument
+import net.minecraft.commands.arguments.HeightmapTypeArgument
+import net.minecraft.commands.arguments.HexColorArgument
+import net.minecraft.commands.arguments.IdentifierArgument
+import net.minecraft.commands.arguments.SlotArgument
+import net.minecraft.commands.arguments.MessageArgument
+import net.minecraft.commands.arguments.RangeArgument
+import net.minecraft.commands.arguments.OperationArgument
+import net.minecraft.commands.arguments.ResourceOrTagArgument
+import net.minecraft.commands.arguments.ResourceArgument
+import net.minecraft.commands.arguments.ResourceKeyArgument
+import net.minecraft.commands.arguments.ResourceOrTagKeyArgument
+import net.minecraft.commands.arguments.ResourceSelectorArgument
+import net.minecraft.commands.arguments.ObjectiveCriteriaArgument
+import net.minecraft.commands.arguments.ObjectiveArgument
+import net.minecraft.commands.arguments.ScoreboardSlotArgument
+import net.minecraft.commands.arguments.SlotsArgument
+import net.minecraft.commands.arguments.coordinates.SwizzleArgument
+import net.minecraft.commands.arguments.TeamArgument
+import net.minecraft.commands.arguments.TimeArgument
+import net.minecraft.commands.arguments.UuidArgument
+import net.minecraft.commands.synchronization.ArgumentTypeInfo
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -106,7 +106,7 @@ import kotlin.math.min
  */
 @OptIn(ExperimentalUnsignedTypes::class)
 class MacroAnalyzingCrawlerRunner(
-    private val baseContext: CommandContextBuilder<CommandSource>,
+    private val baseContext: CommandContextBuilder<SharedSuggestionProvider>,
     private val reader: DirectiveStringReader<AnalyzingResourceCreator>,
     private val variableLocations: IntList,
     private val baseAnalyzingResult: AnalyzingResult
@@ -152,7 +152,7 @@ class MacroAnalyzingCrawlerRunner(
     private var bestGlobalSpawner: Spawner? = null
 
     fun run(): AnalyzingResult {
-        timeoutStartNs = Util.getMeasuringTimeNano()
+        timeoutStartNs = Util.getNanos()
 
         val trailingSpawnersPerAttemptIndex = MutableList<MutableList<Spawner>>(attemptPositions.size) { mutableListOf() }
         var furthestLiteralPosition: Int = 0
@@ -233,7 +233,7 @@ class MacroAnalyzingCrawlerRunner(
             return false
         // Increase timeout duration when running macro analyzing for the first time to avoid false positives when the running program isn't completely optimized yet
         val adjustedTimeoutDurationNs = if(isAnalyzingMacroForFirstTime) timeoutDurationNs * 10 else timeoutDurationNs
-        hasHitTimeout = Util.getMeasuringTimeNano() - adjustedTimeoutDurationNs >= timeoutStartNs
+        hasHitTimeout = Util.getNanos() - adjustedTimeoutDurationNs >= timeoutStartNs
         return hasHitTimeout
     }
 
@@ -250,7 +250,7 @@ class MacroAnalyzingCrawlerRunner(
     }
 
     private fun tryParse(
-        rootNode: CommandNode<CommandSource>,
+        rootNode: CommandNode<SharedSuggestionProvider>,
         spawner: Spawner,
         spawnerIndex: Int,
         attemptIndex: Int,
@@ -279,9 +279,9 @@ class MacroAnalyzingCrawlerRunner(
             // cause issues because the node is given to markInvalidAttemptPositions but might contain valid attempt positions
             attemptBaseContext.withNode(rootNode, StringRange.at(startCursor - 1)) // Subtracts one to exclude space
 
-        val commandParseResults: ParseResults<CommandSource>
+        val commandParseResults: ParseResults<SharedSuggestionProvider>
         @Suppress("UNCHECKED_CAST")
-        commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<CommandSource>).callParseNodes(
+        commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<SharedSuggestionProvider>).callParseNodes(
             rootNode,
             reader,
             attemptBaseContext
@@ -439,12 +439,12 @@ class MacroAnalyzingCrawlerRunner(
 
     private inner class Spawner(
         val parent: Spawner?,
-        var nextNodes: List<CommandNode<CommandSource>>,
+        var nextNodes: List<CommandNode<SharedSuggestionProvider>>,
         val startAttemptIndex: Int,
-        val baseContext: CommandContextBuilder<CommandSource>
+        val baseContext: CommandContextBuilder<SharedSuggestionProvider>
     ) {
-        val consumedCrawlerNodes = mutableSetOf<CommandNode<CommandSource>>()
-        val accessedChildNodes = mutableSetOf<CommandNode<CommandSource>>()
+        val consumedCrawlerNodes = mutableSetOf<CommandNode<SharedSuggestionProvider>>()
+        val accessedChildNodes = mutableSetOf<CommandNode<SharedSuggestionProvider>>()
         val crawlers = mutableListOf<Crawler>()
 
         /**
@@ -536,8 +536,8 @@ class MacroAnalyzingCrawlerRunner(
                     else if(result.newNodeCount() == 1 && (reader.cursor == startCursor || !reader.canRead() && !inputsEndsInSpace)) {
                         // Don't mark nodes at the end of the input if the input ends in space, because in that case the children of the node still matter for suggestions
                         // Nodes that didn't advance the cursor are also marked, because in that case the node is likely meant to be wrong anyway and so the children don't matter
-                        var lastNode: ParsedCommandNode<CommandSource>? = null
-                        var context: CommandContextBuilder<CommandSource>? = result.contextBuilder
+                        var lastNode: ParsedCommandNode<SharedSuggestionProvider>? = null
+                        var context: CommandContextBuilder<SharedSuggestionProvider>? = result.contextBuilder
                         while(context != null) {
                             lastNode = context.nodes.lastOrNull() ?: lastNode
                             context = context.child
@@ -580,7 +580,7 @@ class MacroAnalyzingCrawlerRunner(
 
         // Root node for the start of the command is added separately, because it is known that this node
         // must match the first position, so it's unnecessary to check its children or to try to match it on a later attempt position
-        fun addRootCrawler(node: RootCommandNode<CommandSource>) {
+        fun addRootCrawler(node: RootCommandNode<SharedSuggestionProvider>) {
             crawlers.add(Crawler(listOf(node), listOf()))
         }
 
@@ -657,7 +657,7 @@ class MacroAnalyzingCrawlerRunner(
             return goalLiteralCount
         }
 
-        private inner class Crawler(var nodes: List<CommandNode<CommandSource>>, var nodesWithSpaces: List<CommandNode<CommandSource>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
+        private inner class Crawler(var nodes: List<CommandNode<SharedSuggestionProvider>>, var nodesWithSpaces: List<CommandNode<SharedSuggestionProvider>>, val skippedNodeCount: Int = 0, var attemptCount: Int = 0) {
             // For any attempt not following a variable only parent nodes that contain spaces are tried. This is because if the parent
             // node can not contain spaces, then it's either contained by the macro variable, in which case its children
             // would appear at the first attempt position after the variable only, or the parent node could also be part of
@@ -687,7 +687,7 @@ class MacroAnalyzingCrawlerRunner(
         val parsedNodeCount: Int,
         val literalNodeCount: Int,
         val semanticTokensCount: Int,
-        val contextBuilder: CommandContextBuilder<CommandSource>,
+        val contextBuilder: CommandContextBuilder<SharedSuggestionProvider>,
         val analyzingResult: AnalyzingResult,
         val parentSpawner: Spawner,
         val baseAttemptIndex: Int,
@@ -751,7 +751,7 @@ class MacroAnalyzingCrawlerRunner(
 
         fun markInvalidAttemptPositions() {
             var attemptIndex = 0
-            var currentContextBuilder: CommandContextBuilder<CommandSource>? = contextBuilder
+            var currentContextBuilder: CommandContextBuilder<SharedSuggestionProvider>? = contextBuilder
             while(currentContextBuilder != null) {
                 for(parsedNode in currentContextBuilder.nodes) {
                     if(attemptIndex >= attemptPositions.size)
@@ -780,8 +780,8 @@ class MacroAnalyzingCrawlerRunner(
     }
 
     private fun convertParseResultsToCrawlerResult(
-        parseResults: ParseResults<CommandSource>,
-        baseContext: CommandContextBuilder<CommandSource>,
+        parseResults: ParseResults<SharedSuggestionProvider>,
+        baseContext: CommandContextBuilder<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
         parentSpawner: Spawner,
         baseAttemptIndex: Int,
@@ -823,7 +823,7 @@ class MacroAnalyzingCrawlerRunner(
         private val attemptPositionLiteralCounts = arrayOfNulls<Int2ByteLinkedOpenHashMap>(attemptPositions.size)
         private var dirtyPositionMax = -1
 
-        private val actualNodeLiteralCounts = arrayOfNulls<Object2ByteOpenHashMap<CommandNode<CommandSource>>>(attemptPositions.size)
+        private val actualNodeLiteralCounts = arrayOfNulls<Object2ByteOpenHashMap<CommandNode<SharedSuggestionProvider>>>(attemptPositions.size)
 
         fun getAttemptPositionLiteralCounts(positionIndex: Int): Int2ByteLinkedOpenHashMap {
             if(dirtyPositionMax < positionIndex) {
@@ -842,7 +842,7 @@ class MacroAnalyzingCrawlerRunner(
             return map
         }
 
-        fun getMaxPossibleLiteralsForAttempt(attemptRoot: CommandNode<CommandSource>, positionIndex: Int): UByte {
+        fun getMaxPossibleLiteralsForAttempt(attemptRoot: CommandNode<SharedSuggestionProvider>, positionIndex: Int): UByte {
             val inputLiterals = getAttemptPositionLiteralCounts(positionIndex)
 
             var total: UByte = 0U
@@ -862,10 +862,10 @@ class MacroAnalyzingCrawlerRunner(
         /**
          * @return the literal count from the last time this node was attempted at that position. Or 255 if the node wasn't attempted yet.
          */
-        fun getActualAttemptCount(attemptRoot: CommandNode<CommandSource>, positionIndex: Int): UByte =
+        fun getActualAttemptCount(attemptRoot: CommandNode<SharedSuggestionProvider>, positionIndex: Int): UByte =
             actualNodeLiteralCounts[positionIndex]?.getByte(attemptRoot)?.toUByte() ?: 255U
 
-        fun putActualAttemptCount(attemptRoot: CommandNode<CommandSource>, positionIndex: Int, literalCount: UByte) {
+        fun putActualAttemptCount(attemptRoot: CommandNode<SharedSuggestionProvider>, positionIndex: Int, literalCount: UByte) {
             var actualCounts = actualNodeLiteralCounts[positionIndex]
             if(actualCounts == null) {
                 actualCounts = Object2ByteOpenHashMap()
@@ -907,21 +907,21 @@ class MacroAnalyzingCrawlerRunner(
 
     private inner class UnnecessaryAttemptDeduplicator(private val nodeIdentifier: NodeIdentifier) {
         val unnecessaryAttemptsMarker = BooleanArray(nodeIdentifier.idCount * attemptPositions.size)
-        private fun getAttemptMarkerIndex(attemptPositionIndex: Int, attemptNode: CommandNode<CommandSource>): Int =
+        private fun getAttemptMarkerIndex(attemptPositionIndex: Int, attemptNode: CommandNode<SharedSuggestionProvider>): Int =
             attemptPositionIndex * nodeIdentifier.idCount + nodeIdentifier.getIdForNode(attemptNode)
 
-        fun shouldSkipAttempt(attemptPositionIndex: Int, attemptRootNode: CommandNode<CommandSource>): Boolean =
+        fun shouldSkipAttempt(attemptPositionIndex: Int, attemptRootNode: CommandNode<SharedSuggestionProvider>): Boolean =
             attemptRootNode.children.all {
                 unnecessaryAttemptsMarker[getAttemptMarkerIndex(attemptPositionIndex, it)]
             }
 
-        fun markUnnecessaryAttempt(attemptPositionIndex: Int, attemptRootNode: CommandNode<CommandSource>) {
+        fun markUnnecessaryAttempt(attemptPositionIndex: Int, attemptRootNode: CommandNode<SharedSuggestionProvider>) {
             for(child in attemptRootNode.children) {
                 unnecessaryAttemptsMarker[getAttemptMarkerIndex(attemptPositionIndex, child)] = true
             }
         }
 
-        fun markTrailingNode(attemptPositionIndex: Int, lastNode: CommandNode<CommandSource>) {
+        fun markTrailingNode(attemptPositionIndex: Int, lastNode: CommandNode<SharedSuggestionProvider>) {
             unnecessaryAttemptsMarker[getAttemptMarkerIndex(attemptPositionIndex, lastNode)] = true
         }
     }
@@ -932,7 +932,7 @@ class MacroAnalyzingCrawlerRunner(
      * The count for a node can be retrieved with [getLiteralCountsForNode] after calling [traverse] on the root node.
      */
     class NodeMaxLiteralCounter(private val nodeIdentifier: NodeIdentifier) {
-        private val nodeTraversalStack = LinkedHashSet<CommandNode<CommandSource>>()
+        private val nodeTraversalStack = LinkedHashSet<CommandNode<SharedSuggestionProvider>>()
 
         /**
          * All entries represent a loop of nodes (or multiple loops, if they all have the same key),
@@ -944,13 +944,13 @@ class MacroAnalyzingCrawlerRunner(
          * ii) Two entries are not allowed to overlap, because they should be merged instead. The new key will be whichever key comes
          * first in the stack.
          */
-        private val loopedDependants = mutableMapOf<CommandNode<CommandSource>, Set<CommandNode<CommandSource>>>()
+        private val loopedDependants = mutableMapOf<CommandNode<SharedSuggestionProvider>, Set<CommandNode<SharedSuggestionProvider>>>()
 
         /**
          * The literal counts for each processed node.
          * @see getLiteralCountsForNode
          */
-        private val nodeLiteralCounts = mutableMapOf<CommandNode<CommandSource>, UByteArray>()
+        private val nodeLiteralCounts = mutableMapOf<CommandNode<SharedSuggestionProvider>, UByteArray>()
 
         /**
          * Gets the literal counts for a node. The result is a [UByteArray], where the indices correspond to
@@ -958,9 +958,9 @@ class MacroAnalyzingCrawlerRunner(
          * (because of loops).
          * The literal counts for a node do not include the node itself, only its children (unless it can loop back to itself).
          */
-        fun getLiteralCountsForNode(node: CommandNode<CommandSource>): UByteArray = nodeLiteralCounts[node] ?: throw IllegalArgumentException("Tried retrieving literal counts for unprocessed node")
+        fun getLiteralCountsForNode(node: CommandNode<SharedSuggestionProvider>): UByteArray = nodeLiteralCounts[node] ?: throw IllegalArgumentException("Tried retrieving literal counts for unprocessed node")
 
-        fun traverse(node: CommandNode<CommandSource>): UByteArray? {
+        fun traverse(node: CommandNode<SharedSuggestionProvider>): UByteArray? {
             var literalCounts = nodeLiteralCounts[node]
             if(literalCounts != null)
                 return literalCounts
@@ -997,9 +997,9 @@ class MacroAnalyzingCrawlerRunner(
             return literalCounts
         }
 
-        private fun addLoop(duplicatedNode: CommandNode<CommandSource>) {
-            val loopNodes = mutableSetOf<CommandNode<CommandSource>>()
-            var topOverlappingLoop: Map.Entry<CommandNode<CommandSource>, Set<CommandNode<CommandSource>>>? = null
+        private fun addLoop(duplicatedNode: CommandNode<SharedSuggestionProvider>) {
+            val loopNodes = mutableSetOf<CommandNode<SharedSuggestionProvider>>()
+            var topOverlappingLoop: Map.Entry<CommandNode<SharedSuggestionProvider>, Set<CommandNode<SharedSuggestionProvider>>>? = null
 
             // Build loopNodes list and check for other loops that overlap with it
             for(loopNode in nodeTraversalStack.reversed()) {
@@ -1031,7 +1031,7 @@ class MacroAnalyzingCrawlerRunner(
             loopedDependants[newLoopKey] = loopNodes
         }
 
-        private fun processLoop(loopKey: CommandNode<CommandSource>, keyLiteralCounts: UByteArray) {
+        private fun processLoop(loopKey: CommandNode<SharedSuggestionProvider>, keyLiteralCounts: UByteArray) {
             val loopNodes = loopedDependants.remove(loopKey) ?: return
 
             for(loopNode in loopNodes) {
@@ -1061,7 +1061,7 @@ class MacroAnalyzingCrawlerRunner(
 
     class NodeIdentifier {
         private val serializedNodeIds = Object2IntOpenHashMap<SerializedNode>()
-        private val assignedIds = Object2IntOpenHashMap<CommandNode<CommandSource>>()
+        private val assignedIds = Object2IntOpenHashMap<CommandNode<SharedSuggestionProvider>>()
         // Literals are given a second id that is used for calculating how many literals a given
         // node can match at maximum in the remaining input
         private val literalIds = Object2IntOpenHashMap<String>()
@@ -1075,7 +1075,7 @@ class MacroAnalyzingCrawlerRunner(
             literalIds.defaultReturnValue(-1)
         }
 
-        fun getIdForNode(node: CommandNode<CommandSource>): Int {
+        fun getIdForNode(node: CommandNode<SharedSuggestionProvider>): Int {
             val id = assignedIds.getInt(node)
             if(id == -1)
                 throw IllegalArgumentException("Tried retrieving id for unregistered node")
@@ -1094,14 +1094,14 @@ class MacroAnalyzingCrawlerRunner(
          */
         fun tryGetIdForLiteral(literal: String) = literalIds.getInt(literal)
 
-        fun registerChildrenRecursive(parent: CommandNode<CommandSource>) {
+        fun registerChildrenRecursive(parent: CommandNode<SharedSuggestionProvider>) {
             for(child in parent.children) {
                 registerNode(child)
                 registerChildrenRecursive(child)
             }
         }
 
-        fun registerNode(node: CommandNode<CommandSource>) {
+        fun registerNode(node: CommandNode<SharedSuggestionProvider>) {
             val serialized = serializeNode(node)
             val serializedAssignedId = serializedNodeIds.getInt(serialized)
             val newNodeId: Int
@@ -1122,27 +1122,27 @@ class MacroAnalyzingCrawlerRunner(
                 literalIds.put(literal, literalIds.size)
         }
 
-        private fun serializeNode(node: CommandNode<CommandSource>): SerializedNode {
-            fun <TType : ArgumentType<*>, TProperties : ArgumentSerializer.ArgumentTypeProperties<TType>> writeArgumentType(
+        private fun serializeNode(node: CommandNode<SharedSuggestionProvider>): SerializedNode {
+            fun <TType : ArgumentType<*>, TProperties : ArgumentTypeInfo.Template<TType>> writeArgumentType(
                 type: TType,
-                serializer: ArgumentSerializer<TType, TProperties>,
-                buf: PacketByteBuf
+                serializer: ArgumentTypeInfo<TType, TProperties>,
+                buf: FriendlyByteBuf
             ) {
-                serializer.writePacket(serializer.getArgumentTypeProperties(type) as TProperties, buf)
+                serializer.serializeToNetwork(serializer.unpack(type) as TProperties, buf)
             }
 
             val buf = PacketByteBufs.create()
             val typeId: Int
-            val suggestionProvider: SuggestionProvider<CommandSource>?
+            val suggestionProvider: SuggestionProvider<SharedSuggestionProvider>?
             when(node) {
                 is LiteralCommandNode -> {
                     typeId = LITERAL_NODE_TYPE_ID
-                    buf.writeString(node.name)
+                    buf.writeUtf(node.name)
                     suggestionProvider = null
                 }
-                is ArgumentCommandNode<CommandSource, *> -> {
-                    val serializer = ArgumentTypes.get(node.type)
-                    typeId = Registries.COMMAND_ARGUMENT_TYPE.getRawId(serializer)
+                is ArgumentCommandNode<SharedSuggestionProvider, *> -> {
+                    val serializer = ArgumentTypeInfos.byClass(node.type)
+                    typeId = BuiltInRegistries.COMMAND_ARGUMENT_TYPE.getId(serializer)
                     writeArgumentType(node.type, serializer, buf)
                     suggestionProvider = node.customSuggestions
                 }
@@ -1153,7 +1153,7 @@ class MacroAnalyzingCrawlerRunner(
             return SerializedNode(typeId, array, suggestionProvider)
         }
 
-        private data class SerializedNode(val typeId: Int, val data: ByteArray, val suggestionProvider: SuggestionProvider<CommandSource>?) {
+        private data class SerializedNode(val typeId: Int, val data: ByteArray, val suggestionProvider: SuggestionProvider<SharedSuggestionProvider>?) {
             override fun equals(other: Any?): Boolean {
                 if(this === other) return true
                 if(javaClass != other?.javaClass) return false
@@ -1185,18 +1185,18 @@ class MacroAnalyzingCrawlerRunner(
         private const val CUT_OFF_MINIMUM_LITERAL_COUNT = 3
         private val macroLanguage = VanillaLanguage()
         private val emptyInputLiteralCountMap = Int2ByteLinkedOpenHashMap()
-        private val processedDispatcherData = WeakHashMap<CommandDispatcher<CommandSource>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
+        private val processedDispatcherData = WeakHashMap<CommandDispatcher<SharedSuggestionProvider>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
         private const val shouldCheckForTimeout = true
         private val timeoutDurationNs = TimeUnit.SECONDS.toNanos(1)
         private var isAnalyzingMacroForFirstTime = true
 
-        private fun getNodeIdentifierForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeIdentifier =
+        private fun getNodeIdentifierForDispatcher(dispatcher: CommandDispatcher<SharedSuggestionProvider>): NodeIdentifier =
             processCommandDispatcher(dispatcher).first
 
-        private fun getNodeMaxLiteralCounterForDispatcher(dispatcher: CommandDispatcher<CommandSource>): NodeMaxLiteralCounter =
+        private fun getNodeMaxLiteralCounterForDispatcher(dispatcher: CommandDispatcher<SharedSuggestionProvider>): NodeMaxLiteralCounter =
             processCommandDispatcher(dispatcher).second
 
-        private fun processCommandDispatcher(dispatcher: CommandDispatcher<CommandSource>): Pair<NodeIdentifier, NodeMaxLiteralCounter> {
+        private fun processCommandDispatcher(dispatcher: CommandDispatcher<SharedSuggestionProvider>): Pair<NodeIdentifier, NodeMaxLiteralCounter> {
             val cached = processedDispatcherData[dispatcher]
             if(cached != null)
                 return cached
@@ -1229,7 +1229,7 @@ class MacroAnalyzingCrawlerRunner(
             val argumentType = node.type
             if(argumentType is StringArgumentType && argumentType.type == StringArgumentType.StringType.GREEDY_PHRASE)
                 return true
-            if(argumentType is MessageArgumentType)
+            if(argumentType is MessageArgument)
                 return true
             return false
         }
@@ -1241,34 +1241,34 @@ class MacroAnalyzingCrawlerRunner(
             DoubleArgumentType::class.java,
             IntegerArgumentType::class.java,
             LongArgumentType::class.java,
-            ColorArgumentType::class.java,
-            HexColorArgumentType::class.java,
-            ScoreboardObjectiveArgumentType::class.java,
-            ScoreboardCriterionArgumentType::class.java,
-            OperationArgumentType::class.java,
-            AngleArgumentType::class.java,
-            ScoreboardSlotArgumentType::class.java,
-            SwizzleArgumentType::class.java,
-            TeamArgumentType::class.java,
-            ItemSlotArgumentType::class.java,
-            SlotRangeArgumentType::class.java,
-            IdentifierArgumentType::class.java,
-            CommandFunctionArgumentType::class.java,
-            EntityAnchorArgumentType::class.java,
-            NumberRangeArgumentType.IntRangeArgumentType::class.java,
-            NumberRangeArgumentType.FloatRangeArgumentType::class.java,
-            DimensionArgumentType::class.java,
-            GameModeArgumentType::class.java,
-            TimeArgumentType::class.java,
-            RegistryEntryPredicateArgumentType::class.java,
-            RegistryPredicateArgumentType::class.java,
-            RegistryEntryReferenceArgumentType::class.java,
-            RegistryKeyArgumentType::class.java,
-            RegistrySelectorArgumentType::class.java,
-            BlockMirrorArgumentType::class.java,
-            BlockRotationArgumentType::class.java,
-            HeightmapArgumentType::class.java,
-            UuidArgumentType::class.java
+            ColorArgument::class.java,
+            HexColorArgument::class.java,
+            ObjectiveArgument::class.java,
+            ObjectiveCriteriaArgument::class.java,
+            OperationArgument::class.java,
+            AngleArgument::class.java,
+            ScoreboardSlotArgument::class.java,
+            SwizzleArgument::class.java,
+            TeamArgument::class.java,
+            SlotArgument::class.java,
+            SlotsArgument::class.java,
+            IdentifierArgument::class.java,
+            FunctionArgument::class.java,
+            EntityAnchorArgument::class.java,
+            RangeArgument.Ints::class.java,
+            RangeArgument.Floats::class.java,
+            DimensionArgument::class.java,
+            GameModeArgument::class.java,
+            TimeArgument::class.java,
+            ResourceOrTagArgument::class.java,
+            ResourceOrTagKeyArgument::class.java,
+            ResourceArgument::class.java,
+            ResourceKeyArgument::class.java,
+            ResourceSelectorArgument::class.java,
+            TemplateMirrorArgument::class.java,
+            TemplateRotationArgument::class.java,
+            HeightmapTypeArgument::class.java,
+            UuidArgument::class.java
         )
     }
 }

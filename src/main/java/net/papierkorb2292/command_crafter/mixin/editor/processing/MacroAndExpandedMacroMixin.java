@@ -1,13 +1,13 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
-import net.minecraft.server.function.ExpandedMacro;
-import net.minecraft.server.function.Macro;
+import net.minecraft.commands.functions.PlainTextFunction;
+import net.minecraft.commands.functions.MacroFunction;
 import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 
-@Mixin({Macro.class, ExpandedMacro.class})
+@Mixin({MacroFunction.class, PlainTextFunction.class})
 public class MacroAndExpandedMacroMixin implements DocumentationContainer {
 
     @Nullable

@@ -10,10 +10,10 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtEnd;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.packrat.Parser;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.EndTag;
+import net.minecraft.core.Holder;
+import net.minecraft.util.parsing.packrat.commands.CommandArgumentParser;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -29,25 +29,25 @@ import java.util.function.Function;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(targets = "net/minecraft/util/packrat/Parser$2")
+@Mixin(targets = "net.minecraft.util.parsing.packrat.commands.CommandArgumentParser$2")
 public class ParserWithDecodingMixin<T> {
 
     @Shadow @Final
-    DynamicOps<T> field_57540;
+    DynamicOps<T> val$ops;
 
     @Shadow @Final
-    Codec<?> field_57539;
+    Codec<?> val$codec;
 
     @WrapOperation(
-            method = "parse",
+            method = "parseForCommands",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/packrat/Parser;parse(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
+                    target = "Lnet/minecraft/util/parsing/packrat/commands/CommandArgumentParser;parseForCommands(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
             )
     )
-    private T command_crafter$analyzeStringRangeTree(Parser<T> instance, StringReader reader, Operation<T> op) {
+    private T command_crafter$analyzeStringRangeTree(CommandArgumentParser<T> instance, StringReader reader, Operation<T> op) {
         // StringRangeTrees can only be build for nbt
-        if(!(field_57540.empty() instanceof NbtElement))
+        if(!(val$ops.empty() instanceof Tag))
             return op.call(instance, reader);
 
         if(!(reader instanceof DirectiveStringReader<?> directiveReader))
@@ -61,16 +61,16 @@ public class ParserWithDecodingMixin<T> {
         var start = reader.getCursor();
         var analyzingResult = analyzingResultArg.getAnalyzingResult();
         analyzingResultThreadLocal.remove();
-        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
-        NbtElement nbt;
+        var treeBuilder = new StringRangeTree.Builder<Tag>();
+        Tag nbt;
         try {
             try {
-                var partialBuilder = new StringRangeTree.PartialBuilder<NbtElement>();
+                var partialBuilder = new StringRangeTree.PartialBuilder<Tag>();
                 PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialBuilder));
-                nbt = (NbtElement) MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
+                nbt = (Tag) MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
                 partialBuilder.addToBasicBuilder(treeBuilder);
             } catch (CommandSyntaxException e) {
-                nbt = NbtEnd.INSTANCE;
+                nbt = EndTag.INSTANCE;
                 treeBuilder.addNode(nbt, new StringRange(start, reader.getCursor()), reader.getCursor());
             } finally {
                 PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
@@ -80,7 +80,7 @@ public class ParserWithDecodingMixin<T> {
             StringRangeTree.TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
-            ).analyzeFull(analyzingResult, true, field_57539);
+            ).analyzeFull(analyzingResult, true, val$codec);
         } finally {
             analyzingResultThreadLocal.set(analyzingResultArg);
         }
@@ -88,14 +88,14 @@ public class ParserWithDecodingMixin<T> {
     }
 
     @ModifyReceiver(
-            method = "parse",
+            method = "parseForCommands",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",
                     remap = false
             )
     )
-    private DataResult<RegistryEntry<T>> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<RegistryEntry<T>> original, Function<String, ?> stringEFunction, StringReader reader, @Cancellable CallbackInfoReturnable<RegistryEntry<T>> cir) {
+    private DataResult<Holder<T>> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<Holder<T>> original, Function<String, ?> stringEFunction, StringReader reader, @Cancellable CallbackInfoReturnable<Holder<T>> cir) {
         // Skip results with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyzeStringRangeTree
         // This also makes the analyzer more forgiving
         if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {

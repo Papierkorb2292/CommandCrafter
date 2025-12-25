@@ -3,8 +3,8 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
-import net.minecraft.registry.RegistryKey
-import net.minecraft.util.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.CombinedCompletionItemProvider
@@ -16,13 +16,13 @@ import org.eclipse.lsp4j.*
 
 class DirectiveManager {
     companion object {
-        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(RegistryKey.ofRegistry(Identifier.of("command_crafter", "directives"))).buildAndRegister()!!
+        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "directives"))).buildAndRegister()!!
     }
 
     fun readDirective(reader: DirectiveStringReader<*>) {
         val directive = reader.readUnquotedString()
         reader.expect(' ')
-        (DIRECTIVES.get(Identifier.of(directive))
+        (DIRECTIVES.getValue(Identifier.parse(directive))
             ?: throw IllegalArgumentException("Error while parsing function: Encountered unknown directive '$directive' on line ${reader.currentLine}"))
             .read(reader)
         if(!reader.canRead()) return
@@ -52,7 +52,7 @@ class DirectiveManager {
         val directiveStartCursor = reader.cursor - 1 // Subtract 1 to include '@'
         val directiveStartPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor - 1, reader.fileMappingInfo)
         val id = try {
-            Identifier.fromCommandInput(reader)
+            Identifier.read(reader)
         } catch(e: CommandSyntaxException) {
             analyzingResult.diagnostics += Diagnostic(
                 Range(
@@ -79,7 +79,7 @@ class DirectiveManager {
             return
         }
         reader.skip()
-        val directiveType = DIRECTIVES.get(id)
+        val directiveType = DIRECTIVES.getValue(id)
         if(directiveType == null) {
             analyzingResult.diagnostics += Diagnostic(
                 Range(directiveStartPos, directiveEndPos),
@@ -100,7 +100,7 @@ class DirectiveManager {
         analyzingResult.addCompletionProviderWithContinuosMapping(
             AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
             AnalyzingResult.RangedDataProvider(range, CombinedCompletionItemProvider(
-                DIRECTIVES.ids.map {
+                DIRECTIVES.keySet().map {
                     SimpleCompletionItemProvider(
                         "@" + it.toShortString(),
                         range.start,

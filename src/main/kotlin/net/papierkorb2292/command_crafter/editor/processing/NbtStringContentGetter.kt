@@ -1,13 +1,13 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import net.minecraft.nbt.NbtElement
-import net.minecraft.nbt.NbtString
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.StringTag
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 
-class NbtStringContentGetter(val tree: StringRangeTree<NbtElement>, val input: String): (NbtElement) -> Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
-    override fun invoke(p1: NbtElement): Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
-        if(p1 !is NbtString)
+class NbtStringContentGetter(val tree: StringRangeTree<Tag>, val input: String): (Tag) -> Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
+    override fun invoke(p1: Tag): Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
+        if(p1 !is StringTag)
             return null
         val range = tree.ranges[p1]!!
         val firstChar = input[range.start]

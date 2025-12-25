@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.mojang.brigadier.arguments.ArgumentType;
-import net.minecraft.server.command.RecipeCommand;
+import net.minecraft.server.commands.RecipeCommand;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,7 +16,7 @@ public class RecipeCommandMixin {
             method = "register",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/server/command/CommandManager;argument(Ljava/lang/String;Lcom/mojang/brigadier/arguments/ArgumentType;)Lcom/mojang/brigadier/builder/RequiredArgumentBuilder;",
+                    target = "Lnet/minecraft/commands/Commands;argument(Ljava/lang/String;Lcom/mojang/brigadier/arguments/ArgumentType;)Lcom/mojang/brigadier/builder/RequiredArgumentBuilder;",
                     ordinal = 0
             ),
             slice = @Slice(

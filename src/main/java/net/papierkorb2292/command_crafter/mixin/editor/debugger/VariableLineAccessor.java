@@ -1,13 +1,13 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
-import net.minecraft.command.MacroInvocation;
-import net.minecraft.server.function.Macro;
+import net.minecraft.commands.functions.StringTemplate;
+import net.minecraft.commands.functions.MacroFunction;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(Macro.VariableLine.class)
+@Mixin(MacroFunction.MacroEntry.class)
 public interface VariableLineAccessor {
 
     @Accessor
-    MacroInvocation getInvocation();
+    StringTemplate getTemplate();
 }

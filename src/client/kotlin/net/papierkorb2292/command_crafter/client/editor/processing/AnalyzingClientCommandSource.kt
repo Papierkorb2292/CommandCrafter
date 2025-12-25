@@ -4,18 +4,20 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.network.ClientCommandSource
-import net.minecraft.command.CommandSource
-import net.minecraft.command.permission.PermissionPredicate
-import net.minecraft.command.permission.PermissionSource
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
-import net.minecraft.resource.featuretoggle.FeatureSet
-import net.minecraft.util.Identifier
-import net.minecraft.world.World
+import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientPacketListener
+import net.minecraft.client.multiplayer.ClientSuggestionProvider
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.core.Registry
+import net.minecraft.core.RegistryAccess
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.server.permissions.PermissionSet
+import net.minecraft.server.permissions.PermissionSetSupplier
+import net.minecraft.world.flag.FeatureFlagSet
+import net.minecraft.world.level.Level
+import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -25,9 +27,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
 class AnalyzingClientCommandSource(
-    private val clientCommandSource: ClientCommandSource,
+    private val clientCommandSource: ClientSuggestionProvider,
     private val hasNetworkHandler: Boolean,
-) : CommandSource, PermissionSource {
+) : SharedSuggestionProvider, PermissionSetSupplier {
 
     companion object {
         // This is saved globally instead of per instance, because ClientCommandCrafter can only
@@ -35,38 +37,41 @@ class AnalyzingClientCommandSource(
         val allowServersideCompletions = ThreadLocal<Boolean>()
     }
 
-    constructor(minecraftClient: MinecraftClient): this(
-        minecraftClient.networkHandler?.commandSource ?: ClientCommandSource(null, minecraftClient, PermissionPredicate.ALL),
-        minecraftClient.networkHandler != null
+    constructor(minecraftClient: Minecraft): this(
+        minecraftClient.connection?.suggestionsProvider
+            ?: ClientSuggestionProvider(Util.nullIsFine<ClientPacketListener>(null), minecraftClient, PermissionSet.ALL_PERMISSIONS),
+        minecraftClient.connection != null
     )
 
-    override fun getPlayerNames(): Collection<String> =
-        if(hasNetworkHandler) clientCommandSource.playerNames else Collections.emptyList()
-    override fun getTeamNames(): Collection<String> =
-        if(hasNetworkHandler) clientCommandSource.teamNames else Collections.emptyList()
+    override fun getOnlinePlayerNames(): Collection<String> =
+        if(hasNetworkHandler) clientCommandSource.onlinePlayerNames else Collections.emptyList()
+    override fun getAllTeams(): Collection<String> =
+        if(hasNetworkHandler) clientCommandSource.allTeams else Collections.emptyList()
 
-    override fun getEntitySuggestions(): MutableCollection<String> = clientCommandSource.entitySuggestions
-    override fun getSoundIds(): Stream<Identifier> =
-        clientCommandSource.soundIds
-    override fun getWorldKeys(): MutableSet<RegistryKey<World>> = clientCommandSource.worldKeys
+    override fun getSelectedEntities(): MutableCollection<String> = clientCommandSource.selectedEntities
+    override fun getAvailableSounds(): Stream<Identifier> =
+        clientCommandSource.availableSounds
+    override fun levels(): MutableSet<ResourceKey<Level>> = clientCommandSource.levels()
     // TODO: Should probably use CommandCrafter's synced registries instead
-    override fun getRegistryManager(): DynamicRegistryManager =
-        if(hasNetworkHandler) clientCommandSource.registryManager else DynamicRegistryManager.of(Registries.REGISTRIES)
-    override fun getEnabledFeatures(): FeatureSet =
-        if(hasNetworkHandler) clientCommandSource.enabledFeatures else ClientCommandCrafter.defaultFeatureSet
+    override fun registryAccess(): RegistryAccess =
+        if(hasNetworkHandler) clientCommandSource.registryAccess() else RegistryAccess.fromRegistryOfRegistries(
+            BuiltInRegistries.REGISTRY
+        )
+    override fun enabledFeatures(): FeatureFlagSet =
+        if(hasNetworkHandler) clientCommandSource.enabledFeatures() else ClientCommandCrafter.defaultFeatureSet
 
-    override fun listIdSuggestions(
-        registryRef: RegistryKey<out Registry<*>>,
-        suggestedIdType: CommandSource.SuggestedIdType,
+    override fun suggestRegistryElements(
+        registryRef: ResourceKey<out Registry<*>>,
+        suggestedIdType: SharedSuggestionProvider.ElementSuggestionType,
         builder: SuggestionsBuilder,
         context: CommandContext<*>,
     ): CompletableFuture<Suggestions> =
-        if(registryManager.getOptional(registryRef).isPresent)
-            clientCommandSource.listIdSuggestions(registryRef, suggestedIdType, builder, context)
+        if(registryAccess().lookup(registryRef).isPresent)
+            clientCommandSource.suggestRegistryElements(registryRef, suggestedIdType, builder, context)
         else
-            getCompletions(context)
+            customSuggestion(context)
 
-    override fun getCompletions(context: CommandContext<*>): CompletableFuture<Suggestions> {
+    override fun customSuggestion(context: CommandContext<*>): CompletableFuture<Suggestions> {
         if(allowServersideCompletions.getOrNull() != true)
             return Suggestions.empty()
         allowServersideCompletions.remove() // Only allow once per completion invocation to reduce unnecessary processing
@@ -83,9 +88,9 @@ class AnalyzingClientCommandSource(
                 }
             }
         if(!VanillaLanguage.isReaderEasyNextLine(fullInput) && !VanillaLanguage.isReaderInlineResources(fullInput))
-            return clientCommandSource.getCompletions(context)
+            return clientCommandSource.customSuggestion(context)
         return Suggestions.empty()
     }
 
-    override fun getPermissions(): PermissionPredicate = PermissionPredicate.ALL
+    override fun permissions(): PermissionSet = PermissionSet.ALL_PERMISSIONS
 }

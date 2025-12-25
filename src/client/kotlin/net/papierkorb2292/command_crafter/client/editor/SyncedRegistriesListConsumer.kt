@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.client.editor
 
-import net.minecraft.registry.RegistryLoader
+import net.minecraft.resources.RegistryDataLoader
 
 interface SyncedRegistriesListConsumer {
-    fun `command_crafter$setSyncedRegistriesList`(syncedRegistriesList: List<RegistryLoader.Entry<*>>)
+    fun `command_crafter$setSyncedRegistriesList`(syncedRegistriesList: List<RegistryDataLoader.RegistryData<*>>)
 }

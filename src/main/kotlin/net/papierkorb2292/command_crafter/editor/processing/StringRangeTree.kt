@@ -7,7 +7,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.nbt.*
-import net.minecraft.registry.RegistryWrapper
+import net.minecraft.core.HolderLookup
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
@@ -225,13 +225,13 @@ class StringRangeTree<TNode: Any>(
         for(node in orderedNodes) {
             val (content, cursorMapper, stringEscaper) = stringGetter(node) ?: continue
             if(!content.startsWith('{') && !content.startsWith('[')) continue
-            val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
-            val nbtTreeBuilder = Builder<NbtElement>()
+            val nbtReader = TagParser.create(NbtOps.INSTANCE)
+            val nbtTreeBuilder = Builder<Tag>()
             @Suppress("UNCHECKED_CAST")
-            (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
+            (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
-            val nbtRoot = nbtReader.readAsArgument(StringReader(content))
+            val nbtRoot = nbtReader.parseAsArgument(StringReader(content))
             val nbtTree = nbtTreeBuilder.build(nbtRoot)
 
             var treeOperations = TreeOperations.forNbt(nbtTree, content)
@@ -269,7 +269,7 @@ class StringRangeTree<TNode: Any>(
         val stringGetter: (TNode) -> Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
         val nodeClass: KClass<out TNode>,
         var completionEscaper: StringEscaper = StringEscaper.Identity,
-        val registryWrapper: RegistryWrapper.WrapperLookup? = null,
+        val registryWrapper: HolderLookup.Provider? = null,
         val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     ) {
         // Size should never be 0, because a root element has to be present. If it is 1, there are no child elements.
@@ -298,28 +298,28 @@ class StringRangeTree<TNode: Any>(
                     JsonElement::class
                 )
 
-            fun forNbt(nbtTree: StringRangeTree<NbtElement>, content: String) =
+            fun forNbt(nbtTree: StringRangeTree<Tag>, content: String) =
                 TreeOperations(
                     nbtTree,
                     NbtOps.INSTANCE,
                     NbtSemanticTokenProvider(nbtTree, content),
                     NbtSuggestionResolver(content),
                     NbtStringContentGetter(nbtTree, content),
-                    NbtElement::class
+                    Tag::class
                 )
 
-            fun forNbt(nbtTree: StringRangeTree<NbtElement>, reader: DirectiveStringReader<*>) =
+            fun forNbt(nbtTree: StringRangeTree<Tag>, reader: DirectiveStringReader<*>) =
                 TreeOperations(
                     nbtTree,
                     NbtOps.INSTANCE,
                     NbtSemanticTokenProvider(nbtTree, reader.string),
                     NbtSuggestionResolver(reader),
                     NbtStringContentGetter(nbtTree, reader.string),
-                    NbtElement::class
+                    Tag::class
                 )
         }
 
-        fun withRegistry(wrapperLookup: RegistryWrapper.WrapperLookup?)
+        fun withRegistry(wrapperLookup: HolderLookup.Provider?)
             = copy(registryWrapper = wrapperLookup)
 
         fun withCompletionEscaper(escaper: StringEscaper) = copy(completionEscaper = escaper)
@@ -342,7 +342,7 @@ class StringRangeTree<TNode: Any>(
                         .iterator()
                 )
             }
-            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.getOps(ops) ?: ops)
+            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.createSerializationContext(ops) ?: ops)
             if(contentDecoder != null) {
                 AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
                     IS_ANALYZING_DECODER.runWithValue(true) {
@@ -364,7 +364,7 @@ class StringRangeTree<TNode: Any>(
             stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this)
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
-            val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.getOps(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
+            val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
             val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher, stringGetter)
             IS_ANALYZING_DECODER.runWithValue(true) {

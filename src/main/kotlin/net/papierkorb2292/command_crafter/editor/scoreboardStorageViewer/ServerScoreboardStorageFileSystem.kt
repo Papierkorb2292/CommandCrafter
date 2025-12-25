@@ -14,30 +14,30 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.nbt.NbtIo
-import net.minecraft.nbt.StringNbtReader
-import net.minecraft.registry.Registries
-import net.minecraft.scoreboard.ScoreHolder
-import net.minecraft.scoreboard.ScoreboardCriterion
-import net.minecraft.scoreboard.ScoreboardCriterion.RenderType
-import net.minecraft.scoreboard.number.NumberFormat
-import net.minecraft.scoreboard.number.NumberFormatTypes
+import net.minecraft.nbt.TagParser
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.world.scores.ScoreHolder
+import net.minecraft.world.scores.criteria.ObjectiveCriteria
+import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
+import net.minecraft.network.chat.numbers.NumberFormat
+import net.minecraft.network.chat.numbers.NumberFormatTypes
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayNetworkHandler
-import net.minecraft.stat.Stat
-import net.minecraft.stat.StatType
-import net.minecraft.text.Text
-import net.minecraft.text.TextCodecs
-import net.minecraft.util.Identifier
+import net.minecraft.server.network.ServerGamePacketListenerImpl
+import net.minecraft.stats.Stat
+import net.minecraft.stats.StatType
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.ComponentSerialization
+import net.minecraft.resources.Identifier
 import net.minecraft.util.Util
-import net.minecraft.util.WorldSavePath
-import net.minecraft.util.dynamic.Codecs
+import net.minecraft.world.level.storage.LevelResource
+import net.minecraft.util.ExtraCodecs
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.getOrNull
-import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.DataCommandStorageAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.CommandStorageAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardObjectiveAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ObjectiveAccessor
 import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -56,32 +56,32 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
         private var lastFileUpdateTimeMs = 0L
 
-        val createdFileSystems: MutableMap<ServerPlayNetworkHandler, MutableMap<UUID, ServerScoreboardStorageFileSystem>> = mutableMapOf()
+        val createdFileSystems: MutableMap<ServerGamePacketListenerImpl, MutableMap<UUID, ServerScoreboardStorageFileSystem>> = mutableMapOf()
 
-        private val CRITERION_CODEC = object : Codec<ScoreboardCriterion> {
-            override fun <T : Any?> encode(input: ScoreboardCriterion, ops: DynamicOps<T>, prefix: T)
+        private val CRITERION_CODEC = object : Codec<ObjectiveCriteria> {
+            override fun <T : Any?> encode(input: ObjectiveCriteria, ops: DynamicOps<T>, prefix: T)
                 = DataResult.success(ops.createString(input.name))
 
-            override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<ScoreboardCriterion, T>> {
+            override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<ObjectiveCriteria, T>> {
                 @Suppress("UNCHECKED_CAST")
                 val analyzingOps = (StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() as StringRangeTree.AnalyzingDynamicOps<T>?)
                 if(analyzingOps != null) {
                     analyzingOps.getNodeStartSuggestions(input).add {
                         Stream.concat(
-                            ScoreboardCriterion.getAllSimpleCriteria().stream(),
-                            Registries.STAT_TYPE.stream().flatMap { getStatNames(it) }
+                            ObjectiveCriteria.getCustomCriteriaNames().stream(),
+                            BuiltInRegistries.STAT_TYPE.stream().flatMap { getStatNames(it) }
                         ).map { StringRangeTree.Suggestion(ops.createString(it)) }
                     }
                 }
                 return ops.getStringValue(input).flatMap {  criterionName ->
-                    ScoreboardCriterion.getOrCreateStatCriterion(criterionName).map {
+                    ObjectiveCriteria.byName(criterionName).map {
                         DataResult.success(com.mojang.datafixers.util.Pair(it, ops.empty()))
                     }.orElse(DataResult.error { "Unknown criterion '$criterionName'" })
                 }
             }
 
-            private fun <T> getStatNames(statType: StatType<T>): Stream<String> =
-                statType.registry.stream().map { Stat.getName(statType, it) }
+            private fun <T: Any> getStatNames(statType: StatType<T>): Stream<String> =
+                statType.registry.stream().map { Stat.buildName(statType, it) }
         }
 
         // Puts 'type' first in the map and allows 'default' type
@@ -125,14 +125,14 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             RecordCodecBuilder.create {
                 it.group(
                     CRITERION_CODEC.fieldOf("criterion").forGetter(ObjectiveData::criterion),
-                    TextCodecs.CODEC.fieldOf("displayName").forGetter(ObjectiveData::displayName),
+                    ComponentSerialization.CODEC.fieldOf("displayName").forGetter(ObjectiveData::displayName),
                     RenderType.CODEC.fieldOf("renderType").forGetter(ObjectiveData::renderType),
                     NUMBER_FORMAT_CODEC.fieldOf("numberFormat").forGetter(ObjectiveData::numberFormat),
                     Codec.BOOL.fieldOf("displayAutoUpdate").forGetter(ObjectiveData::displayAutoUpdate)
                 ).apply(it, ::ObjectiveData)
             }
 
-        private val ENTRIES_CODEC: Codec<Map<String, Int>> = Codecs.strictUnboundedMap(Codec.STRING, Codec.INT)
+        private val ENTRIES_CODEC: Codec<Map<String, Int>> = ExtraCodecs.strictUnboundedMap(Codec.STRING, Codec.INT)
 
         val OBJECTIVE_CODEC: Codec<ObjectiveFile> =
             RecordCodecBuilder.create {
@@ -150,7 +150,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 DATA_UPDATE_QUEUE.clear()
             }
 
-            val timeMs = Util.getEpochTimeMs()
+            val timeMs = Util.getEpochMillis()
             if(timeMs - lastFileUpdateTimeMs < 2000)
                 return
             lastFileUpdateTimeMs = timeMs
@@ -217,13 +217,13 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             return CompletableFuture.completedFuture(it)
         }
         if(resolvedPath.fileName == null)
-            return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.DIRECTORY, 0, Util.getEpochTimeMs().toInt(), 1)))
+            return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.DIRECTORY, 0, Util.getEpochMillis().toInt(), 1)))
         val contentResult = getFileContent(resolvedPath.directory, resolvedPath.fileName)
         val content = contentResult.handleErrorAndGetResult {
             return CompletableFuture.completedFuture(it)
         }
         val contentSize = content.size
-        return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.FILE, 0, Util.getEpochTimeMs().toInt(), contentSize)))
+        return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.FILE, 0, Util.getEpochMillis().toInt(), contentSize)))
     }
 
     override fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>> {
@@ -242,7 +242,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             Directory.SCOREBOARDS -> server.scoreboard.objectives.sortedBy { it.name }.map {
                 ReadDirectoryResultEntry(createUrl(Directory.SCOREBOARDS, it.name, ".json"), FileType.FILE)
             }.toTypedArray()
-            Directory.STORAGES -> server.dataCommandStorage.ids.sorted { id1, id2 ->
+            Directory.STORAGES -> server.commandStorage.keys().sorted { id1, id2 ->
                 val namespaceCmp = id1.namespace.compareTo(id2.namespace)
                 if(namespaceCmp != 0)
                     return@sorted namespaceCmp
@@ -302,7 +302,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     private fun updateScoreboardData(resolvedPath: ResolvedPath, content: ByteArray): FileSystemResult<Unit> {
         if(!resolvedPath.fileName!!.endsWith(".json"))
             return FileSystemResult(FileNotFoundError("Only JSON files in scoreboards directory"))
-        val objective = server.scoreboard.getNullableObjective(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - 5))
+        val objective = server.scoreboard.getObjective(resolvedPath.fileName.substring(0, resolvedPath.fileName.length - 5))
             ?: return FileSystemResult(FileNotFoundError("Objective ${resolvedPath.fileName} not found"))
 
         val objectiveFile = try {
@@ -313,32 +313,32 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             return FileSystemResult(Unit)
         }
 
-        if(objective.criterion.isReadOnly) {
+        if(objective.criteria.isReadOnly) {
             onFileUpdate(Directory.SCOREBOARDS, objective.name, FileChangeType.Changed)
             return FileSystemResult(Unit)
         }
         for((owner, value) in objectiveFile.scores.entries) {
-            server.scoreboard.getOrCreateScore(ScoreHolder.fromName(owner), objective).score = value
+            server.scoreboard.getOrCreatePlayerScore(ScoreHolder.forNameOnly(owner), objective).set(value)
         }
-        for(entry in server.scoreboard.getScoreboardEntries(objective)) {
+        for(entry in server.scoreboard.listPlayerScores(objective)) {
             if(!objectiveFile.scores.containsKey(entry.owner))
-                server.scoreboard.removeScore(ScoreHolder.fromName(entry.owner), objective)
+                server.scoreboard.resetSinglePlayerScore(ScoreHolder.forNameOnly(entry.owner), objective)
         }
 
-        if(objective.criterion != objectiveFile.objectiveData.criterion) {
-            val objectivesByCriterion = (server.scoreboard as ScoreboardAccessor).objectivesByCriterion
-            objectivesByCriterion[objective.criterion]?.remove(objective)
+        if(objective.criteria != objectiveFile.objectiveData.criterion) {
+            val objectivesByCriterion = (server.scoreboard as ScoreboardAccessor).objectivesByCriteria
+            objectivesByCriterion[objective.criteria]?.remove(objective)
             objectivesByCriterion.computeIfAbsent(objectiveFile.objectiveData.criterion, Function { Lists.newArrayList() }).add(objective)
-            (objective as ScoreboardObjectiveAccessor).setCriterion(objectiveFile.objectiveData.criterion)
+            (objective as ObjectiveAccessor).setCriteria(objectiveFile.objectiveData.criterion)
         }
         if(objective.displayName != objectiveFile.objectiveData.displayName)
             objective.displayName = objectiveFile.objectiveData.displayName
         if(objective.renderType != objectiveFile.objectiveData.renderType)
             objective.renderType = objectiveFile.objectiveData.renderType
         val newNumberFormat = objectiveFile.objectiveData.numberFormat.orElse(null)
-        if(objective.numberFormat != newNumberFormat)
-            objective.numberFormat = newNumberFormat
-        if(objective.shouldDisplayAutoUpdate() != objectiveFile.objectiveData.displayAutoUpdate)
+        if(objective.numberFormat() != newNumberFormat)
+            objective.setNumberFormat(newNumberFormat)
+        if(objective.displayAutoUpdate() != objectiveFile.objectiveData.displayAutoUpdate)
             objective.setDisplayAutoUpdate(objectiveFile.objectiveData.displayAutoUpdate)
         return FileSystemResult(Unit)
     }
@@ -351,13 +351,13 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             ?: return FileSystemResult(FileNotFoundError("Storage ${resolvedPath.fileName} not found"))
         val nbtCompound = try {
             if(!isNbt)
-                StringNbtReader.readCompound(content.decodeToString())
+                TagParser.parseCompoundFully(content.decodeToString())
             else
-                NbtIo.readCompound(ByteStreams.newDataInput(content))
+                NbtIo.read(ByteStreams.newDataInput(content))
         } catch(e: Exception) {
             return FileSystemResult(FileNotFoundError("Invalid NBT content"))
         }
-        server.dataCommandStorage.set(id, nbtCompound)
+        server.commandStorage.set(id, nbtCompound)
         return FileSystemResult(Unit)
     }
 
@@ -375,8 +375,8 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         val storagePrefix = "command_storage_"
         val storageSuffix = ".dat"
 
-        val loadedNamespaces = (server.dataCommandStorage as DataCommandStorageAccessor).storages.keys
-        val dataDirectory = server.getSavePath(WorldSavePath.ROOT).resolve("data").toFile()
+        val loadedNamespaces = (server.commandStorage as CommandStorageAccessor).namespaces.keys
+        val dataDirectory = server.getWorldPath(LevelResource.ROOT).resolve("data").toFile()
         val fileNamespaces = dataDirectory.listFiles { file ->
             file.isFile && file.name.startsWith(storagePrefix) && file.name.endsWith(storageSuffix);
         }?.map { it.name.substring(storagePrefix.length, it.name.length - storageSuffix.length) } ?: emptyList()
@@ -386,7 +386,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     override fun loadStorageNamespace(params: LoadStorageNamespaceParams) {
-        server.dataCommandStorage.get(Identifier.of(params.namespace, ""))
+        server.commandStorage.get(Identifier.fromNamespaceAndPath(params.namespace, ""))
     }
 
     private fun resolveUri(uri: String): FileSystemResult<ResolvedPath> {
@@ -424,13 +424,13 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             Directory.SCOREBOARDS -> {
                 if(!fileName.endsWith(".json"))
                     return FileSystemResult(FileNotFoundError("Only JSON files in scoreboards directory"))
-                val objective = server.scoreboard.getNullableObjective(fileName.substring(0, fileName.length - 5))
+                val objective = server.scoreboard.getObjective(fileName.substring(0, fileName.length - 5))
                     ?: return FileSystemResult(FileNotFoundError("Objective $fileName not found"))
                 val scoresMap = LinkedHashMap<String, Int>()
-                for(entry in server.scoreboard.getScoreboardEntries(objective).sortedBy { it.owner }) {
+                for(entry in server.scoreboard.listPlayerScores(objective).sortedBy { it.owner }) {
                     scoresMap[entry.owner] = entry.value
                 }
-                val objectiveData = ObjectiveData(objective.criterion, objective.displayName, objective.renderType, Optional.ofNullable(objective.numberFormat), objective.shouldDisplayAutoUpdate())
+                val objectiveData = ObjectiveData(objective.criteria, objective.displayName, objective.renderType, Optional.ofNullable(objective.numberFormat()), objective.displayAutoUpdate())
                 val objectiveFile = ObjectiveFile(scoresMap, objectiveData)
                 val json = OBJECTIVE_CODEC.encodeStart(JsonOps.INSTANCE, objectiveFile).orThrow
                 val stringWriter = StringWriter()
@@ -445,14 +445,14 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                     return FileSystemResult(FileNotFoundError("Only NBT/SNBT files in storages directory"))
                 val id = Identifier.tryParse(fileName.substring(0, fileName.length - if(isNbt) 4 else 5))
                     ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
-                val nbtCompound = server.dataCommandStorage.get(id)
+                val nbtCompound = server.commandStorage.get(id)
                     ?: return FileSystemResult(FileNotFoundError("Storage $fileName not found"))
                 if(!isNbt) {
                     val snbt = nbtCompound.toString()
                     FileSystemResult(snbt.encodeToByteArray())
                 } else {
                     val dataOutput = ByteStreams.newDataOutput()
-                    NbtIo.writeCompound(nbtCompound, dataOutput)
+                    NbtIo.write(nbtCompound, dataOutput)
                     FileSystemResult(dataOutput.toByteArray())
                 }
             }
@@ -543,8 +543,8 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     data class FileUpdate(val directory: Directory, val objectName: String, val updateType: FileChangeType)
 
     class ObjectiveData(
-        val criterion: ScoreboardCriterion,
-        val displayName: Text,
+        val criterion: ObjectiveCriteria,
+        val displayName: Component,
         val renderType: RenderType,
         val numberFormat: Optional<NumberFormat>,
         val displayAutoUpdate: Boolean

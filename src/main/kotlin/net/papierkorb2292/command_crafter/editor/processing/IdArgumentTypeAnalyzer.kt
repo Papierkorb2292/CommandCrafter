@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Codec
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyDefinitionDefault
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.findWorkspaceResourceFromIdAndPackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
@@ -40,7 +40,7 @@ object IdArgumentTypeAnalyzer {
 
     fun registerFileTypeAdditionalDataType() {
         ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
-            Identifier.of("command_crafter","pack_content_file_type"),
+            Identifier.fromNamespaceAndPath("command_crafter","pack_content_file_type"),
             { argumentType ->
                 if(argumentType is PackContentFileTypeContainer) {
                     argumentType.`command_crafter$getPackContentFileType`()

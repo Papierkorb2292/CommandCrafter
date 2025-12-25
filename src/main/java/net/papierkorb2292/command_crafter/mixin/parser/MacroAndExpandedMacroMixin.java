@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.mixin.parser;
 
-import net.minecraft.server.function.ExpandedMacro;
-import net.minecraft.server.function.Macro;
-import net.minecraft.util.Identifier;
+import net.minecraft.commands.functions.PlainTextFunction;
+import net.minecraft.commands.functions.MacroFunction;
+import net.minecraft.resources.Identifier;
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionBreakpointLocation;
@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.Mixin;
 
 import java.util.List;
 
-@Mixin({Macro.class, ExpandedMacro.class})
+@Mixin({MacroFunction.class, PlainTextFunction.class})
 public class MacroAndExpandedMacroMixin implements ParsedResourceCreator.ParseResourceContainer, DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame>, FileSourceContainer {
 
     private ParsedResourceCreator command_crafter$resourceCreator;

@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.parser
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
-import net.minecraft.command.CommandSource
+import net.minecraft.commands.SharedSuggestionProvider
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
@@ -14,7 +14,7 @@ import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
     val fileMappingInfo: FileMappingInfo,
-    val dispatcher: CommandDispatcher<CommandSource>,
+    val dispatcher: CommandDispatcher<SharedSuggestionProvider>,
     val resourceCreator: ResourceCreator,
 ) : StringReader(""),
     LineAwareStringReader {

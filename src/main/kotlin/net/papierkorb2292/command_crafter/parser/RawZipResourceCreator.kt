@@ -6,11 +6,15 @@ import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Either
-import net.minecraft.command.CommandSource
-import net.minecraft.resource.*
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.mixin.parser.DirectoryResourcePackAccessor
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
+import net.minecraft.server.packs.FilePackResources
+import net.minecraft.server.packs.PackResources
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.PathPackResources
+import net.minecraft.server.packs.resources.IoSupplier
+import net.papierkorb2292.command_crafter.mixin.parser.PathPackResourcesAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.ZipFileProvider
 import java.io.BufferedReader
@@ -23,19 +27,19 @@ import java.util.zip.ZipOutputStream
 
 class RawZipResourceCreator {
     companion object {
-        private val UNKNOWN_DATAPACK_EXCEPTION = DynamicCommandExceptionType { Text.of("Datapack $it is of unknown type and cannot be build") }
-        private val PROCESSOR_EXCEPTION = Dynamic2CommandExceptionType { id, exception -> Text.of("Error while processing resource '$id' for datapack build: $exception") }
-        private val MISSING_PACK_META_EXCEPTION = SimpleCommandExceptionType(Text.of("Datapack is missing pack.mcmeta"))
+        private val UNKNOWN_DATAPACK_EXCEPTION = DynamicCommandExceptionType { Component.nullToEmpty("Datapack $it is of unknown type and cannot be build") }
+        private val PROCESSOR_EXCEPTION = Dynamic2CommandExceptionType { id, exception -> Component.nullToEmpty("Error while processing resource '$id' for datapack build: $exception") }
+        private val MISSING_PACK_META_EXCEPTION = SimpleCommandExceptionType(Component.nullToEmpty("Datapack is missing pack.mcmeta"))
 
         val DATA_TYPE_PROCESSORS: MutableList<DataTypeProcessor> = ArrayList()
 
-        fun buildDatapack(pack: ResourcePack, args: DatapackBuildArgs, dispatcher: CommandDispatcher<CommandSource>, output: ZipOutputStream) {
+        fun buildDatapack(pack: PackResources, args: DatapackBuildArgs, dispatcher: CommandDispatcher<SharedSuggestionProvider>, output: ZipOutputStream) {
             val resourceCreator = RawZipResourceCreator()
             when (pack) {
-                is DirectoryResourcePack -> {
-                    val dataRoot = (pack as DirectoryResourcePackAccessor).root.resolve(ResourceType.SERVER_DATA.directory)
-                    for(namespace in pack.getNamespaces(ResourceType.SERVER_DATA)) {
-                        DirectoryResourcePack.findResources(namespace, dataRoot.resolve(namespace), emptyList()) { fileId, content ->
+                is PathPackResources -> {
+                    val dataRoot = (pack as PathPackResourcesAccessor).root.resolve(PackType.SERVER_DATA.directory)
+                    for(namespace in pack.getNamespaces(PackType.SERVER_DATA)) {
+                        PathPackResources.listPath(namespace, dataRoot.resolve(namespace), emptyList()) { fileId, content ->
                             processFile(
                                 fileId,
                                 content,
@@ -46,9 +50,9 @@ class RawZipResourceCreator {
                         }
                     }
                 }
-                is ZipResourcePack -> {
+                is FilePackResources -> {
                     val zipFile = (pack as ZipFileProvider).`command_crafter$getZipFile`()
-                    val dataDirectory = ResourceType.SERVER_DATA.directory
+                    val dataDirectory = PackType.SERVER_DATA.directory
                     for(entry in zipFile.entries()) {
                         if(!entry.name.startsWith(dataDirectory)) continue
                         val entryPath = Path.of(dataDirectory).relativize(Path.of(entry.name))
@@ -56,21 +60,21 @@ class RawZipResourceCreator {
                         val namespace = entryPath.getName(0)
                         val path = namespace.relativize(entryPath)
                         processFile(
-                            Identifier.of(namespace.toString(), path.toString().replace('\\', '/')),
-                            InputSupplier.create(zipFile, entry),
+                            Identifier.fromNamespaceAndPath(namespace.toString(), path.toString().replace('\\', '/')),
+                            IoSupplier.create(zipFile, entry),
                             resourceCreator,
                             args,
                             dispatcher
                         )
                     }
                 }
-                else -> throw UNKNOWN_DATAPACK_EXCEPTION.create(pack.id)
+                else -> throw UNKNOWN_DATAPACK_EXCEPTION.create(pack.packId())
             }
 
-            val packMeta = (pack.openRoot(ResourcePack.PACK_METADATA_NAME)
+            val packMeta = (pack.getRootResource(PackResources.PACK_META)
                 ?: throw MISSING_PACK_META_EXCEPTION.create())
                 .get()
-            output.putNextEntry(ZipEntry(ResourcePack.PACK_METADATA_NAME))
+            output.putNextEntry(ZipEntry(PackResources.PACK_META))
             packMeta.copyTo(output)
             packMeta.close()
 
@@ -79,19 +83,19 @@ class RawZipResourceCreator {
 
         private fun processFile(
             fileId: Identifier,
-            content: InputSupplier<InputStream>,
+            content: IoSupplier<InputStream>,
             resourceCreator: RawZipResourceCreator,
             args: DatapackBuildArgs,
-            dispatcher: CommandDispatcher<CommandSource>,
+            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
         ) {
             val resourceExtension = Files.getFileExtension(fileId.path)
-            val resourceId = Identifier.of(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
+            val resourceId = Identifier.fromNamespaceAndPath(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
             for(processor in DATA_TYPE_PROCESSORS) {
                 if (resourceId.path.startsWith(processor.type)) {
                     val input = content.get()
                     val reader = input.bufferedReader()
                     val path = Path.of(resourceId.path)
-                    val id = Identifier.of(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
+                    val id = Identifier.fromNamespaceAndPath(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
                     try {
                         if (processor.shouldProcess(args)) {
                             processor.process(args, id, reader, resourceCreator, dispatcher)
@@ -138,12 +142,12 @@ class RawZipResourceCreator {
         resource.content.map { either ->
             either.map({ it }, content@{
                 it.id?.run { return@content toString() }
-                val childId = Identifier.of(parentFunctionId.namespace, "${parentFunctionId.path}--${numberSubResource(subResourceNumbering, it.type.prefix)}--craftergen")
+                val childId = Identifier.fromNamespaceAndPath(parentFunctionId.namespace, "${parentFunctionId.path}--${numberSubResource(subResourceNumbering, it.type.prefix)}--craftergen")
                 createResource(childId, parentFunctionId, it, zipOutput, subResourceNumbering)
                 childId.toString()
             })
         }.apply {
-            zipOutput.putNextEntry(ZipEntry("${Path.of("${ResourceType.SERVER_DATA.directory}/${currentId.namespace}").resolve(resource.type.prefix).resolve(currentId.path)}.${resource.type.fileExtension}"))
+            zipOutput.putNextEntry(ZipEntry("${Path.of("${PackType.SERVER_DATA.directory}/${currentId.namespace}").resolve(resource.type.prefix).resolve(currentId.path)}.${resource.type.fileExtension}"))
             zipOutput.writer(Charset.defaultCharset()).append(*toTypedArray()).flush()
         }
     }
@@ -151,7 +155,7 @@ class RawZipResourceCreator {
     interface DataTypeProcessor {
         val type: String
         fun shouldProcess(args: DatapackBuildArgs): Boolean
-        fun process(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, resourceCreator: RawZipResourceCreator, dispatcher: CommandDispatcher<CommandSource>)
-        fun validate(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, dispatcher: CommandDispatcher<CommandSource>)
+        fun process(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, resourceCreator: RawZipResourceCreator, dispatcher: CommandDispatcher<SharedSuggestionProvider>)
+        fun validate(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, dispatcher: CommandDispatcher<SharedSuggestionProvider>)
     }
 }

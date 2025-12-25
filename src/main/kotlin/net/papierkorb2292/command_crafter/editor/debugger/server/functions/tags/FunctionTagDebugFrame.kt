@@ -3,11 +3,11 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Either
-import net.minecraft.command.CommandAction
-import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.util.Identifier
+import net.minecraft.commands.execution.EntryAction
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionPausedThrowable
 import net.papierkorb2292.command_crafter.editor.debugger.helper.IdentifiedDebugInformationProvider
@@ -18,7 +18,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Comma
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroFunctionAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReturnValueAdderAccessor
 
 class FunctionTagDebugFrame(
@@ -26,21 +26,21 @@ class FunctionTagDebugFrame(
     val tagId: Identifier,
     val macroNames: List<String>,
     val macroArguments: List<String>,
-    val commandSource: ServerCommandSource,
+    val commandSource: CommandSourceStack,
     private val unpauseCallback: () -> Unit,
     var returnValueAdder: ReturnValueAdderAccessor? = null
 ) : PauseContext.DebugFrame {
 
     companion object {
         fun pushFrameForCommandArgumentIfIsTag(
-            context: CommandContext<ServerCommandSource>,
+            context: CommandContext<CommandSourceStack>,
             functionArgumentName: String,
             pauseContext: PauseContext,
-            macros: NbtCompound?,
+            macros: CompoundTag?,
             unpauseCallback: () -> Unit
         ): Boolean {
             val functionArgument = try {
-                CommandFunctionArgumentType.getFunctionOrTag(context, functionArgumentName)
+                FunctionArgument.getFunctionOrTag(context, functionArgumentName)
             } catch(e: CommandSyntaxException) {
                 return false
             }
@@ -48,9 +48,9 @@ class FunctionTagDebugFrame(
                 pauseContext.pushDebugFrame(FunctionTagDebugFrame(
                     pauseContext,
                     functionArgument.first,
-                    macros?.keys?.toList() ?: emptyList(),
-                    macros?.keys?.map {
-                        MacroAccessor.callToString(macros.get(it))
+                    macros?.keySet()?.toList() ?: emptyList(),
+                    macros?.keySet()?.map {
+                        MacroFunctionAccessor.callStringify(macros.get(it))
                     } ?: emptyList(),
                     context.source,
                     unpauseCallback
@@ -60,9 +60,9 @@ class FunctionTagDebugFrame(
             return false
         }
 
-        fun <TSource> wrapCommandActionWithTagPauseCheck(action: CommandAction<TSource>, entryIndex: Int): CommandAction<TSource> {
+        fun <TSource: Any> wrapCommandActionWithTagPauseCheck(action: EntryAction<TSource>, entryIndex: Int): EntryAction<TSource> {
             val accumulatedResultUpdater = getAccumulatedResultSingleTimeUpdater()
-            return CommandAction { context, frame ->
+            return EntryAction { context, frame ->
                 val pauseContext = PauseContext.currentPauseContext.getOrNull()
                 val tagDebugFrame = (pauseContext?.peekDebugFrame() as? FunctionTagDebugFrame)
                 if(tagDebugFrame != null) {
@@ -74,20 +74,20 @@ class FunctionTagDebugFrame(
             }
         }
 
-        fun getLastTagPauseCommandAction(): CommandAction<ServerCommandSource> {
+        fun getLastTagPauseCommandAction(): EntryAction<CommandSourceStack> {
             val accumulatedResultUpdater = getAccumulatedResultSingleTimeUpdater()
-            return CommandAction<ServerCommandSource> { _, _ ->
-                val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
-                val tagDebugFrame = pauseContext.peekDebugFrame() as? FunctionTagDebugFrame ?: return@CommandAction
+            return EntryAction<CommandSourceStack> { _, _ ->
+                val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@EntryAction
+                val tagDebugFrame = pauseContext.peekDebugFrame() as? FunctionTagDebugFrame ?: return@EntryAction
                 accumulatedResultUpdater(tagDebugFrame)
-                val pauseIndex = pauseContext.server.commandFunctionManager.getTag(tagDebugFrame.tagId).size
+                val pauseIndex = pauseContext.server.functions.getTag(tagDebugFrame.tagId).size
                 tagDebugFrame.checkPause(pauseIndex)
             }
         }
 
-        val COPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION = CommandAction<ServerCommandSource> { _, _ ->
-            val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@CommandAction
-            val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@CommandAction
+        val COPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION = EntryAction<CommandSourceStack> { _, _ ->
+            val pauseContext = PauseContext.currentPauseContext.getOrNull() ?: return@EntryAction
+            val tagDebugFrame = (pauseContext.peekDebugFrame() as? FunctionTagDebugFrame) ?: return@EntryAction
             pauseContext.commandResult = CommandResult(tagDebugFrame.accumulatedResult)
         }
 
@@ -125,8 +125,8 @@ class FunctionTagDebugFrame(
     fun setAccumulatedResult(successful: Boolean, returnValue: Int) {
         accumulatedResult = successful to returnValue
         returnValueAdder?.apply {
-            setSuccessful(successful)
-            setReturnValue(returnValue)
+            setAnyResult(successful)
+            setSum(returnValue)
         }
     }
 
@@ -180,9 +180,9 @@ class FunctionTagDebugFrame(
         debugPauseHandler?.run { return this }
         @Suppress("UNCHECKED_CAST")
         val handler = ((pauseContext.server as MinecraftServerAccessor)
-            .resourceManagerHolder
-            .dataPackContents
-            .functionLoader as IdentifiedDebugInformationProvider<*, FunctionTagDebugFrame>)
+            .resources
+            .managers
+            .functionLibrary as IdentifiedDebugInformationProvider<*, FunctionTagDebugFrame>)
             .`command_crafter$getDebugInformation`(tagId)!!
             .createDebugPauseHandler(this)
         debugPauseHandler = handler

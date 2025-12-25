@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
-import net.minecraft.command.CommandSource
-import net.minecraft.command.permission.PermissionPredicate
-import net.minecraft.registry.DynamicRegistryManager
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.server.permissions.PermissionSet
+import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
@@ -11,13 +11,13 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 
 interface MinecraftServerConnection {
-    val commandDispatcher: CommandDispatcher<CommandSource>
-    val functionPermissions: PermissionPredicate
+    val commandDispatcher: CommandDispatcher<SharedSuggestionProvider>
+    val functionPermissions: PermissionSet
     val serverLog: Log?
     val commandExecutor: CommandExecutor?
     val debugService: ServerDebugConnectionService?
     val contextCompletionProvider: ContextCompletionProvider?
-    val dynamicRegistryManager: DynamicRegistryManager
+    val dynamicRegistryManager: RegistryAccess
     val datapackReloader: (() -> Unit)?
     val canReloadWorldgen: Boolean
 

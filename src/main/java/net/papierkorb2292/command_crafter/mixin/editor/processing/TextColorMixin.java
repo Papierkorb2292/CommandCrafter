@@ -4,7 +4,7 @@ import com.google.common.collect.Streams;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.text.TextColor;
+import net.minecraft.network.chat.TextColor;
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 @Mixin(TextColor.class)
 public class TextColorMixin {
 
-    @Shadow @Final private static Map<String, TextColor> BY_NAME;
+    @Shadow @Final private static Map<String, TextColor> NAMED_COLORS;
 
     @ModifyExpressionValue(
             method = "<clinit>",
@@ -33,7 +33,7 @@ public class TextColorMixin {
             @Override
             public @NotNull <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
                 return Streams.concat(
-                        BY_NAME.keySet().stream().map(ops::createString),
+                        NAMED_COLORS.keySet().stream().map(ops::createString),
                         Stream.of(ops.createString("#FFFFFF"))
                 );
             }

@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
 import kotlinx.atomicfu.locks.SynchronizedObject
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame

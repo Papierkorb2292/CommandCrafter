@@ -2,23 +2,23 @@ package net.papierkorb2292.command_crafter.networking.packets
 
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.util.Identifier
-import net.minecraft.util.Uuids
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
+import net.minecraft.core.UUIDUtil
 import java.util.*
 
-class SourceReferenceAddedS2CPacket(val editorDebugConnection: UUID): CustomPayload {
+class SourceReferenceAddedS2CPacket(val editorDebugConnection: UUID): CustomPacketPayload {
     companion object {
-        val ID = CustomPayload.Id<SourceReferenceAddedS2CPacket>(Identifier.of("command_crafter", "source_reference_added"))
-        val CODEC: PacketCodec<ByteBuf, SourceReferenceAddedS2CPacket> = Uuids.PACKET_CODEC.xmap(
+        val ID = CustomPacketPayload.Type<SourceReferenceAddedS2CPacket>(Identifier.fromNamespaceAndPath("command_crafter", "source_reference_added"))
+        val CODEC: StreamCodec<ByteBuf, SourceReferenceAddedS2CPacket> = UUIDUtil.STREAM_CODEC.map(
             ::SourceReferenceAddedS2CPacket,
             SourceReferenceAddedS2CPacket::editorDebugConnection
         )
-        val TYPE: CustomPayload.Type<in RegistryByteBuf, SourceReferenceAddedS2CPacket> =
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SourceReferenceAddedS2CPacket> =
             PayloadTypeRegistry.playS2C().register(ID, CODEC)
     }
 
-    override fun getId() = ID
+    override fun type() = ID
 }

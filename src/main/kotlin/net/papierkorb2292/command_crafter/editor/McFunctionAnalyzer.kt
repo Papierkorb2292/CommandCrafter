@@ -1,11 +1,11 @@
 package net.papierkorb2292.command_crafter.editor
 
-import net.minecraft.command.CommandSource
-import net.minecraft.screen.ScreenTexts
-import net.minecraft.server.command.CommandOutput
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.util.math.Vec2f
-import net.minecraft.util.math.Vec3d
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.network.chat.CommonComponents
+import net.minecraft.commands.CommandSource
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.world.phys.Vec2
+import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
@@ -17,7 +17,7 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Position
 
 class McFunctionAnalyzer(
-    private val sourceProvider: (MinecraftLanguageServer) -> CommandSource,
+    private val sourceProvider: (MinecraftLanguageServer) -> SharedSuggestionProvider,
     private val resultWrapper: ((AnalyzingResult) -> AnalyzingResult)? = null
 ) : FileAnalyseHandler {
     override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")

@@ -4,11 +4,11 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.command.ControlFlowAware;
-import net.minecraft.command.ExecutionControl;
-import net.minecraft.command.ExecutionFlags;
-import net.minecraft.server.command.AbstractServerCommandSource;
-import net.minecraft.server.function.Tracer;
+import net.minecraft.commands.execution.CustomCommandExecutor;
+import net.minecraft.commands.execution.ExecutionControl;
+import net.minecraft.commands.execution.ChainModifiers;
+import net.minecraft.commands.ExecutionCommandSource;
+import net.minecraft.commands.execution.TraceCallbacks;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(ControlFlowAware.Helper.class)
-public class ControlFlowAwareHelperMixin<T extends AbstractServerCommandSource<T>> {
+@Mixin(CustomCommandExecutor.WithErrorHandling.class)
+public class ControlFlowAwareHelperMixin<T extends ExecutionCommandSource<T>> {
     /**
      * This function can delay sending an error until after the debugger checked whether it should pause at this command.
      * That is done because if the errors were always sent immediately, users will not see them if the pause is triggered by a breakpoint
@@ -30,18 +30,18 @@ public class ControlFlowAwareHelperMixin<T extends AbstractServerCommandSource<T
      * but I don't think it matters that much
      */
     @WrapOperation(
-            method = "execute(Lnet/minecraft/server/command/AbstractServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
+            method = "run(Lnet/minecraft/commands/ExecutionCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/ControlFlowAware$Helper;sendError(Lcom/mojang/brigadier/exceptions/CommandSyntaxException;Lnet/minecraft/server/command/AbstractServerCommandSource;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/server/function/Tracer;)V"
+                    target = "Lnet/minecraft/commands/execution/CustomCommandExecutor$WithErrorHandling;onError(Lcom/mojang/brigadier/exceptions/CommandSyntaxException;Lnet/minecraft/commands/ExecutionCommandSource;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/TraceCallbacks;)V"
             )
     )
-    private void command_crafter$delayErrorWhenDebuggingUntilAfterPauseCheck(ControlFlowAware.Helper<T> instance, CommandSyntaxException exception, T source, ExecutionFlags flags, @Nullable Tracer tracer, Operation<Void> op, T abstractServerCommandSource, ContextChain<T> contextChain, ExecutionFlags executionFlags, ExecutionControl<T> executionControl) {
+    private void command_crafter$delayErrorWhenDebuggingUntilAfterPauseCheck(CustomCommandExecutor.WithErrorHandling<T> instance, CommandSyntaxException exception, T source, ChainModifiers flags, @Nullable TraceCallbacks tracer, Operation<Void> op, T abstractServerCommandSource, ContextChain<T> contextChain, ChainModifiers executionFlags, ExecutionControl<T> executionControl) {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
         if(pauseContext == null) return;
 
         // This action will happen after any other actions that the command queued which might pause the debugger
-        executionControl.enqueueAction((control, frame) -> {
+        executionControl.queueNext((control, frame) -> {
             if(pauseContext.isDebugging()) {
                 op.call(instance, exception, source, flags, tracer);
             }

@@ -1,6 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 
 /**
  * The location of a function tag breakpoint.

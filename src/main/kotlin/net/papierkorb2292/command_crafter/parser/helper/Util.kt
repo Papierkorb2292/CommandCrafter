@@ -6,19 +6,19 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.chars.CharSet
-import net.minecraft.command.CommandSource
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.util.packrat.Cut
-import net.minecraft.util.packrat.ParseResults
-import net.minecraft.util.packrat.ParsingState
-import net.minecraft.util.packrat.Symbol
-import net.minecraft.util.packrat.Term
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.util.parsing.packrat.Control
+import net.minecraft.util.parsing.packrat.Scope
+import net.minecraft.util.parsing.packrat.ParseState
+import net.minecraft.util.parsing.packrat.Atom
+import net.minecraft.util.parsing.packrat.Term
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValue
-import net.papierkorb2292.command_crafter.mixin.editor.CommandManagerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.CommandsAccessor
 
 fun CommandNode<*>.visitChildrenRecursively(visitor: (CommandNode<*>) -> Unit) {
     visitor(this)
@@ -29,11 +29,11 @@ fun CommandNode<*>.visitChildrenRecursively(visitor: (CommandNode<*>) -> Unit) {
 
 val IS_BUILDING_CLIENTSIDE_COMMAND_TREE = ThreadLocal<Boolean>()
 
-fun limitCommandTreeForSource(commandManager: CommandManager, source: ServerCommandSource): RootCommandNode<CommandSource> {
-    val rootNode = RootCommandNode<ServerCommandSource>()
-    val newCommandTreeMapping = mutableMapOf<CommandNode<ServerCommandSource>, CommandNode<ServerCommandSource>>(commandManager.dispatcher.root to rootNode)
+fun limitCommandTreeForSource(commandManager: Commands, source: CommandSourceStack): RootCommandNode<SharedSuggestionProvider> {
+    val rootNode = RootCommandNode<CommandSourceStack>()
+    val newCommandTreeMapping = mutableMapOf<CommandNode<CommandSourceStack>, CommandNode<CommandSourceStack>>(commandManager.dispatcher.root to rootNode)
     IS_BUILDING_CLIENTSIDE_COMMAND_TREE.runWithValue(true) {
-        CommandManagerAccessor.callDeepCopyNodes(
+        CommandsAccessor.callFillUsableCommands(
             commandManager.dispatcher.root,
             rootNode,
             source,
@@ -41,7 +41,7 @@ fun limitCommandTreeForSource(commandManager: CommandManager, source: ServerComm
         )
     }
     @Suppress("UNCHECKED_CAST")
-    return rootNode as RootCommandNode<CommandSource>
+    return rootNode as RootCommandNode<SharedSuggestionProvider>
 }
 
 fun <S> CommandNode<S>.resolveRedirects(): CommandNode<S> {
@@ -56,11 +56,11 @@ fun <S> CommandContextBuilder<S>.getLastNodeWithRedirects(): CommandNode<S> {
     return lastChild.nodes.lastOrNull()?.node ?: lastChild.rootNode
 }
 
-fun <S> delegatingTerm(callback: (state: ParsingState<S>, results: ParseResults, cut: Cut) -> Term<S>): Term<S> =
-    Term<S> { state, results, cut -> callback(state, results, cut).matches(state, results, cut) }
+fun <S: Any> delegatingTerm(callback: (state: ParseState<S>, results: Scope, cut: Control) -> Term<S>): Term<S> =
+    Term<S> { state, results, cut -> callback(state, results, cut).parse(state, results, cut) }
 
 fun wrapTermAddEntryRanges(term: Term<StringReader>): Term<StringReader> = delegatingTerm { state, results, cut ->
-        val reader = state.reader
+        val reader = state.input()
         val stringRangeTreeBuilderArg = PackratParserAdditionalArgs.nbtStringRangeTreeBuilder.getOrNull()
         if(stringRangeTreeBuilderArg != null) {
             val node = stringRangeTreeBuilderArg.stringRangeTreeBuilder.peekNode()
@@ -74,15 +74,15 @@ fun wrapTermAddEntryRanges(term: Term<StringReader>): Term<StringReader> = deleg
         term
     }
 
-fun <TElement> wrapTermSkipToNextEntryIfMalformed(term: Term<StringReader>, entryDelimiters: CharSet, elementName: Symbol<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
+fun <TElement: Any> wrapTermSkipToNextEntryIfMalformed(term: Term<StringReader>, entryDelimiters: CharSet, elementName: Atom<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
     wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term, entryDelimiters, CharSet.of(), elementName, errorDefaultProvider)
 
-fun <TElement> wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term: Term<StringReader>, entryDelimiters: CharSet, illegalCharacters: CharSet, elementName: Symbol<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
+fun <TElement: Any> wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term: Term<StringReader>, entryDelimiters: CharSet, illegalCharacters: CharSet, elementName: Atom<TElement>, errorDefaultProvider: () -> TElement): Term<StringReader> =
     Term<StringReader> { state, results, cut ->
-        val reader = state.reader
+        val reader = state.input()
         // Start a new scope for errors such that suggestions for a malformed input can still be shown even though the term matches
-        val closeErrorListScopeCallback = (state.errors as? MalformedParseErrorList)?.startMalformedScope()
-        val originalMatches = term.matches(state, results, cut)
+        val closeErrorListScopeCallback = (state.errorCollector() as? MalformedParseErrorList)?.startMalformedScope()
+        val originalMatches = term.parse(state, results, cut)
         if(!PackratParserAdditionalArgs.shouldAllowMalformed())
             return@Term originalMatches
         if(!originalMatches)

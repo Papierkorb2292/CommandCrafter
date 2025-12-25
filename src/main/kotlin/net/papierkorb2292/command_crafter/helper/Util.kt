@@ -5,7 +5,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.AnalyzingDynamicOps
 import java.lang.reflect.Type
 import java.util.*

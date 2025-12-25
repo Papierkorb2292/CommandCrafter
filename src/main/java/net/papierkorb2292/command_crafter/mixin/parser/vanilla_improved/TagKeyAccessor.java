@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.util.Identifier;
+import net.minecraft.tags.TagKey;
+import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -9,5 +9,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface TagKeyAccessor {
 
     @Accessor
-    void setId(Identifier id);
+    void setLocation(Identifier id);
 }

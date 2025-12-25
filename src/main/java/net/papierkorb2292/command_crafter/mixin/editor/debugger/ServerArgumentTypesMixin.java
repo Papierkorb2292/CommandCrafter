@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.Identifier;
 import net.papierkorb2292.command_crafter.parser.helper.UtilKt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -25,7 +25,7 @@ public class ServerArgumentTypesMixin {
             remap = false,
             cancellable = true
     )
-    private static void command_crafter$checkForNullWhenSyncingCommandCrafterTree(ServerPlayerEntity player, CallbackInfoReturnable<Set<Identifier>> cir) {
+    private static void command_crafter$checkForNullWhenSyncingCommandCrafterTree(ServerPlayer player, CallbackInfoReturnable<Set<Identifier>> cir) {
         var isBuildingTree = getOrNull(UtilKt.getIS_BUILDING_CLIENTSIDE_COMMAND_TREE());
         if(player == null && isBuildingTree != null && isBuildingTree) {
             cir.setReturnValue(Set.of());

@@ -1,9 +1,13 @@
 package net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import net.minecraft.scoreboard.*;
-import net.minecraft.scoreboard.number.NumberFormat;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.numbers.NumberFormat;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.ServerScoreboard;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.ScoreHolder;
+import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem;
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -21,7 +25,7 @@ public class ScoreboardMixin {
             method = "addObjective",
             at = @At("HEAD")
     )
-    private void command_crafter$notifyFileSystemOfObjectiveCreation(String name, ScoreboardCriterion criterion, Text displayName, ScoreboardCriterion.RenderType renderType, boolean displayAutoUpdate, NumberFormat numberFormat, CallbackInfoReturnable<ScoreboardObjective> cir) {
+    private void command_crafter$notifyFileSystemOfObjectiveCreation(String name, ObjectiveCriteria criterion, Component displayName, ObjectiveCriteria.RenderType renderType, boolean displayAutoUpdate, NumberFormat numberFormat, CallbackInfoReturnable<Objective> cir) {
         //noinspection ConstantValue
         if(!((Object)this instanceof ServerScoreboard)) return;
         ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
@@ -35,7 +39,7 @@ public class ScoreboardMixin {
             method = "removeObjective",
             at = @At("HEAD")
     )
-    private void command_crafter$notifyFileSystemOfObjectiveDeletion(ScoreboardObjective objective, CallbackInfo ci) {
+    private void command_crafter$notifyFileSystemOfObjectiveDeletion(Objective objective, CallbackInfo ci) {
         //noinspection ConstantValue
         if(!((Object)this instanceof ServerScoreboard)) return;
         ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
@@ -46,7 +50,7 @@ public class ScoreboardMixin {
     }
 
     @ModifyExpressionValue(
-            method = "removeScores",
+            method = "resetAllPlayerScores",
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/util/Map;remove(Ljava/lang/Object;)Ljava/lang/Object;"
@@ -55,7 +59,7 @@ public class ScoreboardMixin {
     private Object command_crafter$notifyFileSystemOfObjectiveChangeOnEntityRemoved(Object scores) {
         //noinspection ConstantValue
         if(!((Object)this instanceof ServerScoreboard) || scores == null) return scores;
-        for(final var objective : ((ScoresAccessor)scores).callGetScores().keySet()) {
+        for(final var objective : ((PlayerScoresAccessor)scores).callListRawScores().keySet()) {
             ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
                     ServerScoreboardStorageFileSystem.Directory.SCOREBOARDS,
                     objective.getName(),
@@ -66,13 +70,13 @@ public class ScoreboardMixin {
     }
 
     @ModifyExpressionValue(
-            method = "removeScore",
+            method = "resetSinglePlayerScore",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/scoreboard/Scores;remove(Lnet/minecraft/scoreboard/ScoreboardObjective;)Z"
+                    target = "Lnet/minecraft/world/scores/PlayerScores;remove(Lnet/minecraft/world/scores/Objective;)Z"
             )
     )
-    private boolean command_crafter$notifyFileSystemOfObjectiveChangeOnScoreRemoved(boolean wasRemoved, ScoreHolder scoreHolder, ScoreboardObjective objective) {
+    private boolean command_crafter$notifyFileSystemOfObjectiveChangeOnScoreRemoved(boolean wasRemoved, ScoreHolder scoreHolder, Objective objective) {
         //noinspection ConstantValue
         if(!(((Object)this instanceof ServerScoreboard) && wasRemoved)) return wasRemoved;
         ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
@@ -84,10 +88,10 @@ public class ScoreboardMixin {
     }
 
     @ModifyVariable(
-            method = "getOrCreateScore(Lnet/minecraft/scoreboard/ScoreHolder;Lnet/minecraft/scoreboard/ScoreboardObjective;Z)Lnet/minecraft/scoreboard/ScoreAccess;",
+            method = "getOrCreatePlayerScore(Lnet/minecraft/world/scores/ScoreHolder;Lnet/minecraft/world/scores/Objective;Z)Lnet/minecraft/world/scores/ScoreAccess;",
             at = @At("RETURN")
     )
-    private MutableBoolean command_crafter$notifyFileSystemOfObjectiveChangeOnScoreCreation(MutableBoolean createdScore, ScoreHolder scoreHolder, ScoreboardObjective objective) {
+    private MutableBoolean command_crafter$notifyFileSystemOfObjectiveChangeOnScoreCreation(MutableBoolean createdScore, ScoreHolder scoreHolder, Objective objective) {
         //noinspection ConstantValue
         if(!(((Object)this instanceof ServerScoreboard) && createdScore.isTrue())) return createdScore;
         ServerScoreboardStorageFileSystem.Companion.onFileUpdate(

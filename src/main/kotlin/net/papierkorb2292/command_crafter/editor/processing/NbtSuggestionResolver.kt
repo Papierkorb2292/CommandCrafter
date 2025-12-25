@@ -2,14 +2,14 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.Tag
 import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.NbtString
-import net.minecraft.nbt.SnbtParsing
-import net.minecraft.util.packrat.PackratParser
-import net.minecraft.util.packrat.ParseErrorList
-import net.minecraft.util.packrat.ReaderBackedParsingState
-import net.minecraft.util.packrat.Symbol
+import net.minecraft.nbt.StringTag
+import net.minecraft.nbt.SnbtGrammar
+import net.minecraft.util.parsing.packrat.commands.Grammar
+import net.minecraft.util.parsing.packrat.ErrorCollector
+import net.minecraft.util.parsing.packrat.commands.StringReaderParserState
+import net.minecraft.util.parsing.packrat.Atom
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.getSymbolByName
 import net.papierkorb2292.command_crafter.helper.memoizeLast
@@ -19,19 +19,19 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItemKind
 import java.util.regex.Pattern
 
-class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader, private val quoteRootStringPredicate: ((NbtString) -> Boolean)? = null) : StringRangeTree.SuggestionResolver<NbtElement> {
+class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader, private val quoteRootStringPredicate: ((StringTag) -> Boolean)? = null) : StringRangeTree.SuggestionResolver<Tag> {
     private val SIMPLE_NAME = Pattern.compile("[A-Za-z0-9._+-]+")
 
-    constructor(directiveReader: DirectiveStringReader<*>, quoteRootStringPredicate: ((NbtString) -> Boolean)? = null): this(directiveReader::copy, quoteRootStringPredicate)
-    constructor(inputString: String, quoteRootStringPredicate: ((NbtString) -> Boolean)? = null): this({ StringReader(inputString) }, quoteRootStringPredicate)
+    constructor(directiveReader: DirectiveStringReader<*>, quoteRootStringPredicate: ((StringTag) -> Boolean)? = null): this(directiveReader::copy, quoteRootStringPredicate)
+    constructor(inputString: String, quoteRootStringPredicate: ((StringTag) -> Boolean)? = null): this({ StringReader(inputString) }, quoteRootStringPredicate)
 
     companion object {
-        val keyParser: PackratParser<String>
+        val keyParser: Grammar<String>
         init {
-            val snbtRules = SnbtParsing.createParser(NbtOps.INSTANCE).rules
+            val snbtRules = SnbtGrammar.createParser(NbtOps.INSTANCE).rules
             @Suppress("UNCHECKED_CAST")
-            val mapKeySymbol = snbtRules.getSymbolByName("map_key") as Symbol<String>
-            keyParser = PackratParser(snbtRules, snbtRules.get(mapKeySymbol));
+            val mapKeySymbol = snbtRules.getSymbolByName("map_key") as Atom<String>
+            keyParser = Grammar(snbtRules, snbtRules.getOrThrow(mapKeySymbol));
         }
     }
 
@@ -41,11 +41,11 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         reader.skipWhitespace()
         PackratParserAdditionalArgs.allowMalformed.runWithValue(true) {
             // Manually create parsing state so end cursor can be retrieved even when parsing wasn't successful
-            val errorList = ParseErrorList.Impl<StringReader>()
-            val parsingState = ReaderBackedParsingState(errorList, reader);
-            val success = keyParser.startParsing(parsingState).isPresent
+            val errorList = ErrorCollector.LongestOnly<StringReader>()
+            val parsingState = StringReaderParserState(errorList, reader);
+            val success = keyParser.parse(parsingState).isPresent
             if(!success)
-                reader.cursor = errorList.cursor
+                reader.cursor = errorList.cursor()
         }
         if(reader.canRead() && reader.peek() == ':') {
             reader.skip()
@@ -55,9 +55,9 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     }.memoizeLast()
 
     override fun resolveNodeSuggestion(
-        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<NbtElement>>,
-        tree: StringRangeTree<NbtElement>,
-        node: NbtElement,
+        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<Tag>>,
+        tree: StringRangeTree<Tag>,
+        node: Tag,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper,
@@ -72,7 +72,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             suggestion.element.asBoolean().orElseThrow {
                                 IllegalArgumentException("Boolean suggestion didn't represent a boolean: $suggestion")
                             }.toString()
-                        } else if(node != tree.root || suggestion.element !is NbtString || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
+                        } else if(node != tree.root || suggestion.element !is StringTag || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
                             suggestion.element.toString()
                         else
                             suggestion.element.value
@@ -83,9 +83,9 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     }
 
     override fun resolveMapKeySuggestion(
-        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<NbtElement>>,
-        tree: StringRangeTree<NbtElement>,
-        map: NbtElement,
+        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<Tag>>,
+        tree: StringRangeTree<Tag>,
+        map: Tag,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
         stringEscaper: StringRangeTree.StringEscaper,
@@ -101,9 +101,9 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
             keyEnd,
             StreamCompletionItemProvider(suggestionRange.end, { keyEnd }, mappingInfo, CompletionItemKind.Property) {
                 suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
-                    val key = (suggestion.element as? NbtString)?.value ?: suggestion.element.toString()
+                    val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
                     // Similar to StringNbtWriter.escapeName
-                    val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else NbtString.escape(key)
+                    val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else StringTag.quoteAndEscape(key)
                     StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key, suggestion.completionModifier)
                 }
             }

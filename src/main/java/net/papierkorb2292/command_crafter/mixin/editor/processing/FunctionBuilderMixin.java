@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import net.minecraft.server.command.AbstractServerCommandSource;
-import net.minecraft.server.function.CommandFunction;
-import net.minecraft.server.function.FunctionBuilder;
+import net.minecraft.commands.ExecutionCommandSource;
+import net.minecraft.commands.functions.CommandFunction;
+import net.minecraft.commands.functions.FunctionBuilder;
 import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(FunctionBuilder.class)
-public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> implements DocumentationContainer {
+public class FunctionBuilderMixin<T extends ExecutionCommandSource<T>> implements DocumentationContainer {
 
     @Nullable
     private String command_crafter$documentation;
@@ -28,7 +28,7 @@ public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> impl
     }
 
     @ModifyReturnValue(
-            method = "toCommandFunction",
+            method = "build",
             at = @At("RETURN")
     )
     private CommandFunction<T> command_crafter$addDocumentation(CommandFunction<T> function) {

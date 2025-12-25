@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
-import net.minecraft.util.Identifier
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.helper.removeExtension
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
 
@@ -12,10 +12,10 @@ data class PackagedId(
     val packPath: String
 ) {
     companion object {
-        val PACKET_CODEC: PacketCodec<ByteBuf, PackagedId> = PacketCodec.tuple(
-            Identifier.PACKET_CODEC,
+        val PACKET_CODEC: StreamCodec<ByteBuf, PackagedId> = StreamCodec.composite(
+            Identifier.STREAM_CODEC,
             PackagedId::resourceId,
-            PacketCodecs.STRING,
+            ByteBufCodecs.STRING_UTF8,
             PackagedId::packPath,
             ::PackagedId
         )

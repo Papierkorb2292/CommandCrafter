@@ -1,6 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger.helper
 
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.TagFinalEntriesValueGetter
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo

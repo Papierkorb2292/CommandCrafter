@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints
 
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser

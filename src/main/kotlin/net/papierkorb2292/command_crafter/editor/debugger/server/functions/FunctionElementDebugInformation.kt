@@ -5,13 +5,13 @@ import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
-import net.minecraft.command.SingleCommandAction
-import net.minecraft.command.argument.CommandFunctionArgumentType.FunctionArgument
+import net.minecraft.commands.execution.tasks.BuildContexts
+import net.minecraft.commands.arguments.item.FunctionArgument.Result
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.command.CommandOutput
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.Macro
-import net.minecraft.util.Identifier
+import net.minecraft.commands.CommandSource
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.MacroFunction
+import net.minecraft.resources.Identifier
 import com.fasterxml.jackson.annotation.JsonIgnore
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -30,7 +30,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.BuildContextsAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.VariableLineAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -234,7 +234,7 @@ class FunctionElementDebugInformation(
             val targets = mutableListOf<StepInTarget>()
             val targetsManager = debugFrame.pauseContext.stepInTargetsManager
             @Suppress("UNCHECKED_CAST")
-            val executable = (debugFrame.currentContextChain as ContextChainAccessor<ServerCommandSource>).executable
+            val executable = (debugFrame.currentContextChain as ContextChainAccessor<CommandSourceStack>).executable
             if(sectionContext == executable) {
                 if((executable.command as? PotentialDebugFrameInitiator)?.`command_crafter$willInitiateDebugFrame`(addServerToContext(executable)) == true && debugFrame.pauseContext.commandResult == null) {
                     targets += StepInTarget().also {
@@ -287,15 +287,15 @@ class FunctionElementDebugInformation(
             })
         }
 
-        private fun addServerToContext(context: CommandContext<ServerCommandSource>): CommandContext<ServerCommandSource> =
+        private fun addServerToContext(context: CommandContext<CommandSourceStack>): CommandContext<CommandSourceStack> =
             context.copyFor(
-                ServerCommandSource(
-                    CommandOutput.DUMMY,
+                CommandSourceStack(
+                    CommandSource.NULL,
                     context.source.position,
                     context.source.rotation,
-                    context.source.world,
-                    debugFrame.pauseContext.server.functionPermissions,
-                    context.source.name,
+                    context.source.level,
+                    debugFrame.pauseContext.server.functionCompilationPermissions,
+                    context.source.textName,
                     context.source.displayName,
                     debugFrame.pauseContext.server,
                     context.source.entity,
@@ -397,7 +397,7 @@ class FunctionElementDebugInformation(
         override fun getStackFrames(): List<MinecraftStackFrame> {
             val contextChain = debugFrame.currentContextChain
 
-            fun createServerCommandSourceScope(source: ServerCommandSource, setter: ((ServerCommandSource) -> Unit)? = null): Scope {
+            fun createServerCommandSourceScope(source: CommandSourceStack, setter: ((CommandSourceStack) -> Unit)? = null): Scope {
                 return ServerCommandSourceValueReference(debugFrame.pauseContext.variablesReferenceMapper, source, setter)
                     .createScope(COMMAND_SOURCE_SCOPE_NAME)
             }
@@ -462,7 +462,7 @@ class FunctionElementDebugInformation(
             }
 
             @Suppress("UNCHECKED_CAST")
-            val modifiers = (contextChain as ContextChainAccessor<ServerCommandSource>).modifiers
+            val modifiers = (contextChain as ContextChainAccessor<CommandSourceStack>).modifiers
             var lastRunningModifier = debugFrame.currentSectionIndex
             var sourceIndex = debugFrame.currentSectionSources.currentSourceIndex
 
@@ -471,7 +471,7 @@ class FunctionElementDebugInformation(
 
             if(debugFrame.currentSectionIndex == modifiers.size) {
                 @Suppress("UNCHECKED_CAST")
-                addStackFrameForSection((contextChain as ContextChainAccessor<ServerCommandSource>).executable, debugFrame.currentSectionIndex, sourceIndex)
+                addStackFrameForSection((contextChain as ContextChainAccessor<CommandSourceStack>).executable, debugFrame.currentSectionIndex, sourceIndex)
                 lastRunningModifier -= 1
                 sourceIndex = debugFrame.sectionSources[debugFrame.currentSectionIndex].parentSourceIndices.getOrNull(sourceIndex) ?: return stackFrames
             }
@@ -563,7 +563,7 @@ class FunctionElementDebugInformation(
     }
 
     class CommandContextElementProcessor(
-        val rootContext: CommandContext<ServerCommandSource>,
+        val rootContext: CommandContext<CommandSourceStack>,
         val isMacro: Boolean = false,
         val breakpointRangeGetter: ((ServerBreakpoint<FunctionBreakpointLocation>, Int?) -> StringRange)? = null
     ) : FunctionElementProcessor {
@@ -571,14 +571,14 @@ class FunctionElementDebugInformation(
         private val argumentBreakpointParserSuppliers: Map<ArgumentBreakpointParserSupplier, Any>
         init {
             val argumentBreakpointParserSuppliers = mutableMapOf<ArgumentBreakpointParserSupplier, Any>()
-            var context: CommandContext<ServerCommandSource>? = rootContext
+            var context: CommandContext<CommandSourceStack>? = rootContext
             while(context != null) {
                 for(parsedNode in context.nodes) {
                     val node = parsedNode.node
                     if(node is ArgumentCommandNode<*, *>) {
                         val type = node.type
                         if(type is ArgumentBreakpointParserSupplier) {
-                            argumentBreakpointParserSuppliers[type] = context.getArgument(node.name, FunctionArgument::class.java)
+                            argumentBreakpointParserSuppliers[type] = context.getArgument(node.name, Result::class.java)
                         }
                     }
                 }
@@ -635,7 +635,7 @@ class FunctionElementDebugInformation(
                 }
                 if(comparedToCurrentElement == 0) {
                     // The element contains the breakpoint
-                    var context: CommandContext<ServerCommandSource>? = this.rootContext
+                    var context: CommandContext<CommandSourceStack>? = this.rootContext
                     var prevCursorOffset = (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset()
                     // Find the context containing the breakpoint
                     contexts@while(context != null) {
@@ -736,7 +736,7 @@ class FunctionElementDebugInformation(
     class MacroElementProcessor(
         private val elementIndex: Int,
         private val macroFileRange: StringRange,
-        private val macroLine: Macro.VariableLine<ServerCommandSource>,
+        private val macroLine: MacroFunction.MacroEntry<CommandSourceStack>,
         private val fileCursorMapper: SplitProcessedInputCursorMapper,
         private val macroSkippedChars: Int
     ): FunctionElementProcessor {
@@ -761,9 +761,9 @@ class FunctionElementDebugInformation(
             }
             val pauseHandler = debugInformation.sourceReferenceDebugHandlers[sourceReference] ?: return
             val frame = pauseHandler.debugFrame
-            val action = frame.procedure.entries()[elementIndex] as? SingleCommandAction.Sourced ?: return
+            val action = frame.procedure.entries()[elementIndex] as? BuildContexts.Unbound ?: return
             @Suppress("UNCHECKED_CAST")
-            val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
+            val context = (action as BuildContextsAccessor<CommandSourceStack>).command.topContext
             CommandContextElementProcessor(context, true) { breakpoint, _ ->
                 getFileBreakpointRange(
                     breakpoint,
@@ -831,15 +831,15 @@ class FunctionElementDebugInformation(
             debugInformation: FunctionElementDebugInformation,
             frame: FunctionDebugFrame
         ) {
-            val action = (frame.procedure.entries()[elementIndex] as? SingleCommandAction.Sourced) ?: return
-            val invocation = (macroLine as VariableLineAccessor).invocation
-            val variableIndices = macroLine.dependentVariables
+            val action = (frame.procedure.entries()[elementIndex] as? BuildContexts.Unbound) ?: return
+            val invocation = (macroLine as VariableLineAccessor).template
+            val variableIndices = macroLine.parameters()
             val variableArguments = variableIndices.map { frame.macroArguments[it] }
             @Suppress("CAST_NEVER_SUCCEEDS")
             val resolvedMacroCursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(variableArguments)
 
             @Suppress("UNCHECKED_CAST")
-            val context = (action as SingleCommandActionAccessor<ServerCommandSource>).contextChain.topContext
+            val context = (action as BuildContextsAccessor<CommandSourceStack>).command.topContext
             CommandContextElementProcessor(context, true) { breakpoint, _ ->
                 val breakpointFileRange = getFileBreakpointRange(breakpoint, debugInformation.reader.fileMappingInfo)
                 val macroCursorOffset = macroFileRange.start - macroSkippedChars
@@ -861,14 +861,14 @@ class FunctionElementDebugInformation(
             if(path.endsWith(PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(PackagedId(debugInformation.sourceFunctionFile.withExtension(FunctionDebugHandler.FUNCTION_FILE_EXTENSTION), ""))))
                 return null
 
-            val action = frame.procedure.entries()[elementIndex] as? SingleCommandActionAccessor<*> ?: return null
-            val commandString = action.contextChain.topContext.input
+            val action = frame.procedure.entries()[elementIndex] as? BuildContextsAccessor<*> ?: return null
+            val commandString = action.command.topContext.input
 
             val startPos = AnalyzingResult.getPositionFromCursor(macroFileRange.start, debugInformation.reader.fileMappingInfo)
             val endPos = AnalyzingResult.getPositionFromCursor(macroFileRange.end, debugInformation.reader.fileMappingInfo)
 
-            val invocation = (macroLine as VariableLineAccessor).invocation
-            val variableIndices = macroLine.dependentVariables
+            val invocation = (macroLine as VariableLineAccessor).template
+            val variableIndices = macroLine.parameters()
             val variableArguments = variableIndices.map { frame.macroArguments[it] }
             @Suppress("CAST_NEVER_SUCCEEDS")
             val cursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(variableArguments)

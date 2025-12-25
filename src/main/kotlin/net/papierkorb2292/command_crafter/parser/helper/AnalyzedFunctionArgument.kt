@@ -3,22 +3,22 @@ package net.papierkorb2292.command_crafter.parser.helper
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.datafixers.util.Either
 import com.mojang.datafixers.util.Pair
-import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.CommandFunction
-import net.minecraft.util.Identifier
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.CommandFunction
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 
-class AnalyzedFunctionArgument(val result: AnalyzingResult) : CommandFunctionArgumentType.FunctionArgument {
-    override fun getFunctions(context: CommandContext<ServerCommandSource>?): MutableCollection<CommandFunction<ServerCommandSource>> {
+class AnalyzedFunctionArgument(val result: AnalyzingResult) : FunctionArgument.Result {
+    override fun create(context: CommandContext<CommandSourceStack>): MutableCollection<CommandFunction<CommandSourceStack>> {
         throw IllegalStateException("Tried to execute analyzed function argument")
     }
 
-    override fun getFunctionOrTag(context: CommandContext<ServerCommandSource>?): Pair<Identifier, Either<CommandFunction<ServerCommandSource>, MutableCollection<CommandFunction<ServerCommandSource>>>> {
+    override fun unwrap(context: CommandContext<CommandSourceStack>): Pair<Identifier, Either<CommandFunction<CommandSourceStack>, MutableCollection<CommandFunction<CommandSourceStack>>>> {
         throw IllegalStateException("Tried to execute analyzed function argument")
     }
 
-    override fun getIdentifiedFunctions(context: CommandContext<ServerCommandSource>?): Pair<Identifier, MutableCollection<CommandFunction<ServerCommandSource>>> {
+    override fun unwrapToCollection(context: CommandContext<CommandSourceStack>): Pair<Identifier, MutableCollection<CommandFunction<CommandSourceStack>>> {
         throw IllegalStateException("Tried to execute analyzed function argument")
     }
 }

@@ -6,19 +6,19 @@
     "defaultRequire": 1
   },
   "client": [
-    "ClientRegistriesMixin",
-    "SimpleOptionAccessor",
-    "editor.AtlasTextObjectContentsMixin",
-    "editor.KeyBindingAccessor",
-    "editor.KeybindTextContentMixin",
-    "editor.TranslatableTextContentMixin",
-    "editor.SpriteAtlasTextureAccessor",
-    "editor.shader.GlBackendMixin",
-    "editor.shader.ShaderLoaderAccessor",
-    "editor.TranslationStorageAccessor",
-    "game.KeyboardMixin",
-    "game.MinecraftClientMixin",
-    "parser.ClientPlayNetworkHandlerAccessor",
+    "RegistryDataCollectorMixin",
+    "OptionInstanceAccessor",
+    "editor.AtlasSpriteMixin",
+    "editor.KeyMappingAccessor",
+    "editor.KeybindContentsMixin",
+    "editor.TranslatableContentsMixin",
+    "editor.TextureAtlasAccessor",
+    "editor.shader.GlDeviceMixin",
+    "editor.shader.ShaderManagerAccessor",
+    "editor.ClientLanguageAccessor",
+    "game.KeyboardHandlerMixin",
+    "game.MinecraftMixin",
+    "parser.ClientPacketListenerAccessor",
     "game.ItemStackMixin"
   ]
 }

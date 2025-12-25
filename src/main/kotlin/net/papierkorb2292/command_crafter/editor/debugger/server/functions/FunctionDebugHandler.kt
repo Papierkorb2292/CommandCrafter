@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
@@ -47,7 +47,7 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
             this.path = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(functionId.withExtension(FUNCTION_FILE_EXTENSTION))
             this.sourceReference = fileSourceReference
         }
-        val optionalFunction = server.commandFunctionManager.getFunction(functionId.resourceId)
+        val optionalFunction = server.functions.get(functionId.resourceId)
         return optionalFunction.map { function ->
             @Suppress("UNCHECKED_CAST")
             val debugInformation = (function as DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame>).`command_crafter$getDebugInformation`()

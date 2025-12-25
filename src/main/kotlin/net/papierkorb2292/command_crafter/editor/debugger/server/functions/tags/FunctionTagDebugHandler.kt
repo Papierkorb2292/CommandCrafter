@@ -2,10 +2,10 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.google.gson.JsonElement
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.registry.RegistryKeys
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.function.FunctionLoader
-import net.minecraft.util.Identifier
+import net.minecraft.server.ServerFunctionLibrary
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
@@ -27,7 +27,7 @@ import java.util.*
 
 class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandler {
     companion object {
-        val TAG_PATH = RegistryKeys.getTagPath(FunctionLoader.FUNCTION_REGISTRY_KEY)
+        val TAG_PATH = Registries.tagsDirPath(ServerFunctionLibrary.TYPE_KEY)
         val TAG_PARSING_ELEMENT_RANGES = ThreadLocal<Map<*, StringRange>>()
         val TAG_FILE_EXTENSION = ".json"
 
@@ -54,7 +54,7 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
             this.sourceReference = file.sourceReference
         }
         @Suppress("CAST_NEVER_SUCCEEDS")
-        val functionLoader = ((server as MinecraftServerAccessor).resourceManagerHolder as ResourceManagerHolderAccessor).dataPackContents.functionLoader
+        val functionLoader = ((server as MinecraftServerAccessor).resources as ResourceManagerHolderAccessor).managers.functionLibrary
         @Suppress("UNCHECKED_CAST")
         val breakpointParser = (functionLoader as IdentifiedDebugInformationProvider<FunctionTagBreakpointLocation, *>).`command_crafter$getDebugInformation`(file.fileId.resourceId)
             ?: return MinecraftDebuggerServer.rejectAllBreakpoints(

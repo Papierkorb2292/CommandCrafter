@@ -4,17 +4,17 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.StringReader;
-import net.minecraft.command.argument.MessageArgumentType;
+import net.minecraft.commands.arguments.MessageArgument;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(MessageArgumentType.MessageFormat.class)
+@Mixin(MessageArgument.Message.class)
 public class MessageArgumentTypeMessageFormatMixin {
     @WrapMethod(
-            method = "parse(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/command/argument/MessageArgumentType$MessageFormat;"
+            method = "parseText(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/commands/arguments/MessageArgument$Message;"
     )
-    private static MessageArgumentType.MessageFormat command_crafter$fixMultiline(StringReader reader, boolean canUseSelectors, Operation<MessageArgumentType.MessageFormat> op) {
+    private static MessageArgument.Message command_crafter$fixMultiline(StringReader reader, boolean canUseSelectors, Operation<MessageArgument.Message> op) {
         if(!(reader instanceof DirectiveStringReader<?> directiveReader) || directiveReader.getOnlyReadEscapedMultiline()) {
             return op.call(reader, canUseSelectors);
         }

@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.server.network.ServerPlayNetworkHandler
-import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.server.network.ServerGamePacketListenerImpl
+import net.minecraft.server.level.ServerPlayer
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.collections.set
 
 class ServerNetworkDebugConnection(
-    player: ServerPlayerEntity,
+    player: ServerPlayer,
     val clientEditorDebugConnection: UUID,
     override val oneTimeDebugTarget: EditorDebugConnection.DebugTarget? = null,
     override var nextSourceReference: Int = 1,
@@ -29,7 +29,7 @@ class ServerNetworkDebugConnection(
     var currentPauseId: UUID? = null
         private set
 
-    val networkHandler: ServerPlayNetworkHandler = player.networkHandler
+    val networkHandler: ServerGamePacketListenerImpl = player.connection
 
     private val packetSender = ServerPlayNetworking.getSender(player)
     private val playerName = player.name.string

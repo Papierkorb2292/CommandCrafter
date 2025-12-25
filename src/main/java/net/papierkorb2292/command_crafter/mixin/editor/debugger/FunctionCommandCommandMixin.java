@@ -6,15 +6,15 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.ExecutionControl;
-import net.minecraft.command.ExecutionFlags;
-import net.minecraft.command.argument.CommandFunctionArgumentType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.function.CommandFunction;
-import net.minecraft.server.function.ExpandedMacro;
-import net.minecraft.server.function.Macro;
+import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.execution.ExecutionControl;
+import net.minecraft.commands.execution.ChainModifiers;
+import net.minecraft.commands.arguments.item.FunctionArgument;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.functions.CommandFunction;
+import net.minecraft.commands.functions.PlainTextFunction;
+import net.minecraft.commands.functions.MacroFunction;
 import net.papierkorb2292.command_crafter.CommandCrafter;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionContextContinueCallback;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.PotentialDebugFrameInitiator;
@@ -34,15 +34,15 @@ import java.util.Collection;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(targets = "net.minecraft.server.command.FunctionCommand$Command")
+@Mixin(targets = "net.minecraft.server.commands.FunctionCommand$FunctionCustomExecutor")
 public abstract class FunctionCommandCommandMixin implements PotentialDebugFrameInitiator {
 
-    @Shadow protected abstract @Nullable NbtCompound getArguments(CommandContext<ServerCommandSource> context) throws CommandSyntaxException;
+    @Shadow protected abstract @Nullable CompoundTag arguments(CommandContext<CommandSourceStack> context) throws CommandSyntaxException;
 
     @Override
-    public boolean command_crafter$willInitiateDebugFrame(@NotNull CommandContext<ServerCommandSource> context) {
+    public boolean command_crafter$willInitiateDebugFrame(@NotNull CommandContext<CommandSourceStack> context) {
         try {
-            CommandFunctionArgumentType.getFunctions(context, "name");
+            FunctionArgument.getFunctions(context, "name");
             return true;
         } catch (CommandSyntaxException e) {
             return false;
@@ -50,11 +50,11 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
     }
 
     @Override
-    public boolean command_crafter$isInitializedDebugFrameEmpty(@NotNull CommandContext<ServerCommandSource> context) {
+    public boolean command_crafter$isInitializedDebugFrameEmpty(@NotNull CommandContext<CommandSourceStack> context) {
         try {
-            return CommandFunctionArgumentType.getFunctions(context, "name").stream().allMatch(function ->
-                    function instanceof ExpandedMacro<ServerCommandSource> expandedMacro && expandedMacro.entries().isEmpty()
-                            || function instanceof Macro<ServerCommandSource> macro && ((MacroAccessor)macro).getLines().isEmpty()
+            return FunctionArgument.getFunctions(context, "name").stream().allMatch(function ->
+                    function instanceof PlainTextFunction<CommandSourceStack> expandedMacro && expandedMacro.entries().isEmpty()
+                            || function instanceof MacroFunction<CommandSourceStack> macro && ((MacroFunctionAccessor)macro).getEntries().isEmpty()
             );
         } catch (CommandSyntaxException e) {
             return true;
@@ -62,29 +62,29 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
     }
 
     @ModifyExpressionValue(
-            method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
+            method = "runGuarded(Lnet/minecraft/commands/CommandSourceStack;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/context/CommandContext;copyFor(Ljava/lang/Object;)Lcom/mojang/brigadier/context/CommandContext;",
                     remap = false
             )
     )
-    private CommandContext<ServerCommandSource> command_crafter$pauseAtCommandAndInitiateTagDebugFrame(
-            CommandContext<ServerCommandSource> functionContext,
-            ServerCommandSource serverCommandSource,
-            ContextChain<ServerCommandSource> contextChain,
-            ExecutionFlags executionFlags,
-            ExecutionControl<ServerCommandSource> executionControl
+    private CommandContext<CommandSourceStack> command_crafter$pauseAtCommandAndInitiateTagDebugFrame(
+            CommandContext<CommandSourceStack> functionContext,
+            CommandSourceStack serverCommandSource,
+            ContextChain<CommandSourceStack> contextChain,
+            ChainModifiers executionFlags,
+            ExecutionControl<CommandSourceStack> executionControl
     ) {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
-        NbtCompound macros = null;
+        CompoundTag macros = null;
         try {
-            macros = getArguments(functionContext);
+            macros = arguments(functionContext);
         } catch(CommandSyntaxException e) {
             CommandCrafter.INSTANCE.getLOGGER().debug("Error getting arguments for macro invocation when debugging /function", e);
         }
-        final NbtCompound finalMacros = macros;
-        executionControl.enqueueAction((context, frame) -> {
+        final CompoundTag finalMacros = macros;
+        executionControl.queueNext((context, frame) -> {
             FunctionDebugFrame.Companion.checkSimpleActionPause(contextChain.getTopContext(), serverCommandSource, FunctionDebugFrame.Companion.getCommandInfo(contextChain.getTopContext()));
             if(pauseContext != null)
                 FunctionTagDebugFrame.Companion.pushFrameForCommandArgumentIfIsTag(
@@ -99,9 +99,9 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
     }
 
     @WrapMethod(
-            method = "executeInner(Lnet/minecraft/server/command/ServerCommandSource;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V"
+            method = "runGuarded(Lnet/minecraft/commands/CommandSourceStack;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V"
     )
-    private void command_crafter$enqueueExitTagDebugFrame(ServerCommandSource serverCommandSource, ContextChain<ServerCommandSource> contextChain, ExecutionFlags executionFlags, ExecutionControl<ServerCommandSource> executionControl, Operation<Void> op) {
+    private void command_crafter$enqueueExitTagDebugFrame(CommandSourceStack serverCommandSource, ContextChain<CommandSourceStack> contextChain, ChainModifiers executionFlags, ExecutionControl<CommandSourceStack> executionControl, Operation<Void> op) {
         try {
             op.call(serverCommandSource, contextChain, executionFlags, executionControl);
         } finally {
@@ -109,12 +109,12 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
             // If they weren't removed, the current frame wouldn't resume. The next pause could only happen after the current frame is exited.
             var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
             if(pauseContext != null) {
-                executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
-                executionControl.enqueueAction(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
-                executionControl.enqueueAction(new ExitDebugFrameCommandAction(
+                executionControl.queueNext(FunctionTagDebugFrame.Companion.getLastTagPauseCommandAction());
+                executionControl.queueNext(FunctionTagDebugFrame.Companion.getCOPY_TAG_RESULT_TO_COMMAND_RESULT_COMMAND_ACTION());
+                executionControl.queueNext(new ExitDebugFrameCommandAction(
                         pauseContext.getDebugFrameDepth(),
                         pauseContext,
-                        !executionFlags.isInsideReturnRun(),
+                        !executionFlags.isReturn(),
                         null
                 ));
             }

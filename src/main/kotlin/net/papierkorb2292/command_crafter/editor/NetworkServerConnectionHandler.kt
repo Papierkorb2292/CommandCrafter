@@ -7,43 +7,42 @@ import it.unimi.dsi.fastutil.ints.IntList
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.command.CommandSource
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.command.permission.PermissionLevel
-import net.minecraft.loot.LootDataType
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.world.level.storage.loot.LootDataType
 import net.minecraft.nbt.NbtOps
-import net.minecraft.network.ClientConnection
-import net.minecraft.network.listener.ClientCommonPacketListener
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.network.packet.Packet
-import net.minecraft.network.packet.s2c.common.CustomPayloadS2CPacket
-import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
-import net.minecraft.network.packet.s2c.play.CommandTreeS2CPacket
-import net.minecraft.registry.*
-import net.minecraft.registry.tag.TagPacketSerializer
-import net.minecraft.resource.ResourcePackManager
+import net.minecraft.network.Connection
+import net.minecraft.network.protocol.common.ClientCommonPacketListener
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
+import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket
+import net.minecraft.network.protocol.game.ClientboundCommandsPacket
+import net.minecraft.tags.TagNetworkSerialization
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.network.ServerPlayNetworkHandler
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.util.Identifier
-import net.minecraft.world.SaveProperties
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.core.HolderLookup
+import net.minecraft.core.Registry
+import net.minecraft.core.RegistryAccess
+import net.minecraft.server.network.ServerGamePacketListenerImpl
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.resources.Identifier
+import net.minecraft.resources.RegistryDataLoader
+import net.minecraft.resources.ResourceKey
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.runWithValue
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.processing.SerializableRegistriesAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ServerRecipeManagerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.RegistrySynchronizationAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
-import net.papierkorb2292.command_crafter.mixin.parser.CommandManagerAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.CommandsAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
@@ -59,27 +58,27 @@ import java.util.stream.Collectors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
-    val ALL_DYNAMIC_REGISTRIES = RegistryLoader.DYNAMIC_REGISTRIES + LootDataType.stream().map {
+    val ALL_DYNAMIC_REGISTRIES = RegistryDataLoader.WORLDGEN_REGISTRIES + LootDataType.values().map {
         createRegistryLoaderEntryForLootDataType(it)
     }.toList()
-    val SYNCED_REGISTRIES = ALL_DYNAMIC_REGISTRIES + RegistryLoader.DIMENSION_REGISTRIES
+    val SYNCED_REGISTRIES = ALL_DYNAMIC_REGISTRIES + RegistryDataLoader.DIMENSION_REGISTRIES
 
     val SYNCED_REGISTRY_KEYS = SYNCED_REGISTRIES.mapTo(mutableSetOf()) { it.key }
 
-    private val currentConnections = mutableMapOf<ServerPlayNetworkHandler, DirectServerConnection>()
+    private val currentConnections = mutableMapOf<ServerGamePacketListenerImpl, DirectServerConnection>()
 
     private val scoreboardStorageWriteFileCombiner = PartialSequenceCombiner(PartialWriteFileParams::isLastPart, WriteFileParams::fromPartial)
 
-    private val editorDebugConnections = mutableMapOf<ServerPlayNetworkHandler, MutableMap<UUID, ServerNetworkDebugConnection>>()
+    private val editorDebugConnections = mutableMapOf<ServerGamePacketListenerImpl, MutableMap<UUID, ServerNetworkDebugConnection>>()
     private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
 
-    private val asyncServerPacketHandlers = mutableMapOf<CustomPayload.Id<*>, AsyncPacketHandler<*, AsyncC2SPacketContext>>()
+    private val asyncServerPacketHandlers = mutableMapOf<CustomPacketPayload.Type<*>, AsyncPacketHandler<*, AsyncC2SPacketContext>>()
     private val asyncServerPacketHandlerExecutor = Executors.newSingleThreadExecutor()
-    fun <TPayload : CustomPayload> registerAsyncServerPacketHandler(id: CustomPayload.Id<TPayload>, handler: AsyncPacketHandler<TPayload, AsyncC2SPacketContext>) {
+    fun <TPayload : CustomPacketPayload> registerAsyncServerPacketHandler(id: CustomPacketPayload.Type<TPayload>, handler: AsyncPacketHandler<TPayload, AsyncC2SPacketContext>) {
         asyncServerPacketHandlers[id] = handler
     }
-    fun <TPayload: CustomPayload> callPacketHandler(packet: TPayload, context: AsyncC2SPacketContext): Boolean {
-        val handler = asyncServerPacketHandlers[packet.id] ?: return false
+    fun <TPayload: CustomPacketPayload> callPacketHandler(packet: TPayload, context: AsyncC2SPacketContext): Boolean {
+        val handler = asyncServerPacketHandlers[packet.type()] ?: return false
         asyncServerPacketHandlerExecutor.execute {
             @Suppress("UNCHECKED_CAST")
             (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
@@ -87,8 +86,8 @@ object NetworkServerConnectionHandler {
         return true
     }
 
-    fun isPlayerAllowedConnection(player: ServerPlayerEntity) =
-        CommandManager.GAMEMASTERS_CHECK.allows(player.permissions)
+    fun isPlayerAllowedConnection(player: ServerPlayer) =
+        Commands.LEVEL_GAMEMASTERS.check(player.permissions())
 
     fun registerPacketHandlers() {
         // Don't use registerAsyncServerPacketHandler here, because the client wouldn't be able to check whether a handler is registered for the packet
@@ -98,7 +97,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "insufficient permissions",
-                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getINSPECTOR()),
+                        ClientboundCommandsPacket(RootCommandNode(), CommandsAccessor.getCOMMAND_NODE_INSPECTOR()),
                         0,
                         payload.requestId
                     )
@@ -110,7 +109,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "mismatched mod version (client=${payload.clientModVersion},server=${CommandCrafter.VERSION})",
-                        CommandTreeS2CPacket(RootCommandNode(), CommandManagerAccessor.getINSPECTOR()),
+                        ClientboundCommandsPacket(RootCommandNode(), CommandsAccessor.getCOMMAND_NODE_INSPECTOR()),
                         0,
                         payload.requestId
                     )
@@ -119,14 +118,14 @@ object NetworkServerConnectionHandler {
             }
 
             val connection = DirectServerConnection(context.server())
-            currentConnections[context.player().networkHandler] = connection
+            currentConnections[context.player().connection] = connection
 
             sendConnectionRequestResponse(
                 context.server(),
                 payload,
                 connection,
                 context.responseSender(),
-                context.player().networkHandler
+                context.player().connection
             )
 
             context.responseSender().sendPacket(NotifyCanReloadWorldgenS2CPacket(connection.canReloadWorldgen))
@@ -137,14 +136,14 @@ object NetworkServerConnectionHandler {
                         context.responseSender().sendPacket(LogMessageS2CPacket(e))
                     }
 
-                    override fun shouldRemoveCallback() = context.player().isDisconnected
+                    override fun shouldRemoveCallback() = context.player().hasDisconnected()
                 }
             )
         }
         registerAsyncServerPacketHandler(SetBreakpointsRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
-            val debugConnection = editorDebugConnections[context.player.networkHandler]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
+            val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
             serverConnection.debugService.setBreakpoints(
                 payload.breakpoints,
                 payload.source,
@@ -157,14 +156,14 @@ object NetworkServerConnectionHandler {
         }
         registerAsyncServerPacketHandler(EditorDebugConnectionRemovedC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
-            val debugConnection = editorDebugConnections[context.player.networkHandler]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
+            val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
             serverConnection.debugService.removeEditorDebugConnection(debugConnection)
         }
         registerAsyncServerPacketHandler(SourceReferenceRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
-            val debugConnection = editorDebugConnections[context.player.networkHandler]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
+            val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
             serverConnection.debugService.retrieveSourceReference(payload.sourceReference, debugConnection).thenAccept {
                 context.sendPacket(SourceReferenceResponseS2CPacket(it, payload.requestId))
             }
@@ -175,15 +174,15 @@ object NetworkServerConnectionHandler {
         }
         registerAsyncServerPacketHandler(ConfigurationDoneC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val debugConnection = editorDebugConnections[context.player.networkHandler]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+            val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
             debugConnection.lifecycle.configurationDoneEvent.complete(null)
         }
         // This is async, so it isn't delayed until the next server tick, which sometimes caused "setBreakpoints" to be run first, which created its own DebugConnection
         registerAsyncServerPacketHandler(DebugConnectionRegistrationC2SPacket.ID) { payload, context->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
             val debugConnection = ServerNetworkDebugConnection(context.player, payload.debugConnectionId, payload.oneTimeDebugTarget, payload.nextSourceReference, payload.suspendServer)
-            editorDebugConnections.getOrPut(context.player.networkHandler, ::mutableMapOf).putIfAbsent(payload.debugConnectionId, debugConnection)
+            editorDebugConnections.getOrPut(context.player.connection, ::mutableMapOf).putIfAbsent(payload.debugConnectionId, debugConnection)
             serverConnection.debugService.setupEditorDebugConnection(debugConnection)
         }
         registerAsyncServerPacketHandler(ScoreboardStorageFileNotificationC2SPacket.ADD_WATCH_PACKET.id) { payload, context ->
@@ -287,10 +286,10 @@ object NetworkServerConnectionHandler {
         }
         registerAsyncServerPacketHandler(ContextCompletionRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
             val server = context.server
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commandManager.dispatcher as CommandDispatcher<CommandSource>, AnalyzingResourceCreator(null, ""))
+            val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, ""))
             reader.cursor = payload.cursor
             serverConnection.contextCompletionProvider.getCompletions(reader).thenAccept {
                 context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
@@ -299,7 +298,7 @@ object NetworkServerConnectionHandler {
         registerAsyncServerPacketHandler(ReloadDatapacksC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             context.sendPacket(ReloadDatapacksAcknowledgementS2CPacket)
-            val serverConnection = currentConnections[context.player.networkHandler] ?: return@registerAsyncServerPacketHandler
+            val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
             serverConnection.datapackReloader()
         }
 
@@ -314,25 +313,25 @@ object NetworkServerConnectionHandler {
 
     }
 
-    private fun <T> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
-        RegistryLoader.Entry(dataType.registryKey, dataType.codec, false)
+    private fun <T: Any> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
+        RegistryDataLoader.RegistryData(dataType.registryKey, dataType.codec, false)
 
     private fun sendConnectionRequestResponse(
         server: MinecraftServer,
         requestPacket: RequestNetworkServerConnectionC2SPacket,
         connection: DirectServerConnection,
         packetSender: PacketSender,
-        networkHandler: ServerPlayNetworkHandler,
+        networkHandler: ServerGamePacketListenerImpl,
     ) {
         sendDynamicRegistries(server, networkHandler)
-        val functionPermissionLevel = (server.functionPermissions as? LeveledPermissionPredicate)?.level?.level
+        val functionPermissionLevel = (server.functionCompilationPermissions as? LevelBasedPermissionSet)?.level()?.id()
         if(functionPermissionLevel == null)
             CommandCrafter.LOGGER.warn("Unable to get function permission level for connection request: unexpected predicate type")
         @Suppress("UNCHECKED_CAST")
         val responsePacket = InitializeNetworkServerConnectionS2CPacket(
             true,
             null,
-            CommandTreeS2CPacket(connection.commandDispatcher.root as RootCommandNode<ServerCommandSource>, CommandManagerAccessor.getINSPECTOR()),
+            ClientboundCommandsPacket(connection.commandDispatcher.root as RootCommandNode<CommandSourceStack>, CommandsAccessor.getCOMMAND_NODE_INSPECTOR()),
             functionPermissionLevel ?: 2,
             requestPacket.requestId
         )
@@ -344,29 +343,29 @@ object NetworkServerConnectionHandler {
 
     fun sendDynamicRegistries(
         server: MinecraftServer,
-        networkHandler: ServerPlayNetworkHandler,
+        networkHandler: ServerGamePacketListenerImpl,
     ) {
         // Only send to players that have CommandCrafter installed and are connected
         if(networkHandler !in currentConnections)
             return
 
         // Used by the client to clear previous sync, just in case something went wrong
-        networkHandler.sendPacket(CustomPayloadS2CPacket(StartRegistrySyncS2CPacket))
+        networkHandler.send(ClientboundCustomPayloadPacket(StartRegistrySyncS2CPacket))
 
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
-        val registryManager = server.reloadableRegistries.createRegistryLookup() as DynamicRegistryManager
+        val registryManager = server.reloadableRegistries().lookup() as RegistryAccess
 
-        val tagWrapperLookup = (server.recipeManager as ServerRecipeManagerAccessor).registries
+        val tagWrapperLookup = (server.recipeManager as RecipeManagerAccessor).registries
 
         val serializedRegistriesTags = serializeTags(tagWrapperLookup, registryManager)
         // Sync tags of non-dynamic registries first, because
         // client builds registry manager once all SYNCED_REGISTRIES have been received
-        registryManager.streamAllRegistryKeys().forEach {
+        registryManager.listRegistryKeys().forEach {
             if(it in SYNCED_REGISTRY_KEYS) return@forEach
             val registryTags = serializedRegistriesTags[it] ?: return@forEach
-            networkHandler.sendPacket(
-                CustomPayloadS2CPacket(
-                    CommandCrafterDynamicRegistryS2CPacket(DynamicRegistriesS2CPacket(it, emptyList()), registryTags)
+            networkHandler.send(
+                ClientboundCustomPayloadPacket(
+                    CommandCrafterDynamicRegistryS2CPacket(ClientboundRegistryDataPacket(it, emptyList()), registryTags)
                 )
             )
         }
@@ -376,40 +375,40 @@ object NetworkServerConnectionHandler {
     }
 
     private fun serializeTags(
-        tagWrapperLookup: RegistryWrapper.WrapperLookup,
-        entryLookup: DynamicRegistryManager,
-    ): Map<RegistryKey<out Registry<*>>, TagPacketSerializer.Serialized> {
-        return tagWrapperLookup.streamAllRegistryKeys().map {
+        tagWrapperLookup: HolderLookup.Provider,
+        entryLookup: RegistryAccess,
+    ): Map<ResourceKey<out Registry<*>>, TagNetworkSerialization.NetworkPayload> {
+        return tagWrapperLookup.listRegistryKeys().map {
             val serializedTags = mutableMapOf<Identifier, IntList>()
-            val tagRegistry = tagWrapperLookup.getOrThrow(it)
-            val entryRegistry = entryLookup.getOrThrow(it)
-            for(tag in tagRegistry.tags.toList()) {
+            val tagRegistry = tagWrapperLookup.lookupOrThrow(it)
+            val entryRegistry = entryLookup.lookupOrThrow(it)
+            for(tag in tagRegistry.listTags().toList()) {
                 val serialized = IntArrayList(tag.size())
                 for(entry in tag) {
-                    val id = entry.key.orElseThrow { IllegalArgumentException("Synced tag entries must have an id") }
-                    serialized.add(entryRegistry.getRawId(entryRegistry.get(id)))
+                    val id = entry.unwrapKey().orElseThrow { IllegalArgumentException("Synced tag entries must have an id") }
+                    serialized.add(entryRegistry.getId(entryRegistry.getValue(id)))
                 }
-                serializedTags[tag.tag.id] = serialized
+                serializedTags[tag.key().location] = serialized
             }
             it to TagPacketSerializerSerializedAccessor.callInit(serializedTags)
         }.collect(Collectors.toMap({ it.first }, { it.second }))
     }
 
     private fun sendDynamicRegistry(
-        registryManager: DynamicRegistryManager,
-        registry: RegistryLoader.Entry<*>,
-        networkHandler: ServerPlayNetworkHandler,
-        registryTags: TagPacketSerializer.Serialized?,
+        registryManager: RegistryAccess,
+        registry: RegistryDataLoader.RegistryData<*>,
+        networkHandler: ServerGamePacketListenerImpl,
+        registryTags: TagNetworkSerialization.NetworkPayload?,
     ) {
-        SerializableRegistriesAccessor.callSerialize(
-            registryManager.getOps(NbtOps.INSTANCE),
+        RegistrySynchronizationAccessor.callPackRegistry(
+            registryManager.createSerializationContext(NbtOps.INSTANCE),
             registry,
             registryManager,
             emptySet()
         ) { registryKey, entries ->
-            networkHandler.sendPacket(
-                CustomPayloadS2CPacket(
-                    CommandCrafterDynamicRegistryS2CPacket(DynamicRegistriesS2CPacket(registryKey, entries), registryTags)
+            networkHandler.send(
+                ClientboundCustomPayloadPacket(
+                    CommandCrafterDynamicRegistryS2CPacket(ClientboundRegistryDataPacket(registryKey, entries), registryTags)
                 )
             )
         }
@@ -429,13 +428,13 @@ object NetworkServerConnectionHandler {
         }
     }
 
-    private fun getServerScoreboardStorageFileSystem(player: ServerPlayerEntity, id: UUID): ServerScoreboardStorageFileSystem? {
-        val serverConnection = currentConnections[player.networkHandler] ?: return null
-        return ServerScoreboardStorageFileSystem.createdFileSystems.getOrPut(player.networkHandler, ::mutableMapOf).getOrPut(id) {
+    private fun getServerScoreboardStorageFileSystem(player: ServerPlayer, id: UUID): ServerScoreboardStorageFileSystem? {
+        val serverConnection = currentConnections[player.connection] ?: return null
+        return ServerScoreboardStorageFileSystem.createdFileSystems.getOrPut(player.connection, ::mutableMapOf).getOrPut(id) {
             val fileSystem = serverConnection.createScoreboardStorageFileSystem()
             fileSystem.setOnDidChangeFileCallback {
-                player.networkHandler.sendPacket(
-                    CustomPayloadS2CPacket(ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.factory(id, it))
+                player.connection.send(
+                    ClientboundCustomPayloadPacket(ScoreboardStorageFileNotificationS2CPacket.DID_CHANGE_FILE_PACKET.factory(id, it))
                 )
             }
             fileSystem
@@ -456,12 +455,12 @@ object NetworkServerConnectionHandler {
     }
 
     data class AsyncC2SPacketContext(
-        val player: ServerPlayerEntity,
+        val player: ServerPlayer,
         val server: MinecraftServer,
-        val clientConnection: ClientConnection,
+        val clientConnection: Connection,
     ) {
-        fun sendPacket(packet: CustomPayload) {
-            sendPacket(CustomPayloadS2CPacket(packet))
+        fun sendPacket(packet: CustomPacketPayload) {
+            sendPacket(ClientboundCustomPayloadPacket(packet))
         }
 
         fun sendPacket(packet: Packet<ClientCommonPacketListener>) {

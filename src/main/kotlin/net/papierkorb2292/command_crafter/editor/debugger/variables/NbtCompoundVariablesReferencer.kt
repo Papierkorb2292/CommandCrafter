@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.Tag
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.Variable
 import org.eclipse.lsp4j.debug.VariablesArguments
@@ -10,19 +10,19 @@ import java.util.concurrent.CompletableFuture
 
 class NbtCompoundVariablesReferencer(
     private val mapper: VariablesReferenceMapper,
-    private var nbtCompound: NbtCompound,
-    private val nbtSetter: (NbtCompound) -> NbtCompound
+    private var nbtCompound: CompoundTag,
+    private val nbtSetter: (CompoundTag) -> CompoundTag
 ) : CountedVariablesReferencer {
 
     private val valueReferences = HashMap<String, VariableValueReference>()
     init {
-        valueReferences.putAll(nbtCompound.keys.map { key ->
+        valueReferences.putAll(nbtCompound.keySet().map { key ->
             key to createValueReference(key, nbtCompound[key]!!)
         })
     }
 
     override val namedVariableCount: Int
-        get() = nbtCompound.size
+        get() = nbtCompound.size()
     override val indexedVariableCount: Int
         get() = 0
 
@@ -30,7 +30,7 @@ class NbtCompoundVariablesReferencer(
         if(args.filter == VariablesArgumentsFilter.INDEXED) {
             return CompletableFuture.completedFuture(arrayOf())
         }
-        val keys = nbtCompound.keys
+        val keys = nbtCompound.keySet()
         val keysIterator = keys.iterator()
         val start = args.start
         if(start != null) {
@@ -60,7 +60,7 @@ class NbtCompoundVariablesReferencer(
         return CompletableFuture.completedFuture(null)
     }
 
-    private fun createValueReference(key: String, element: NbtElement): VariableValueReference {
+    private fun createValueReference(key: String, element: Tag): VariableValueReference {
         return NbtValueReference(mapper, element) {
             val newCompound = nbtCompound.copy()
             if(it != null) {
@@ -83,7 +83,7 @@ class NbtCompoundVariablesReferencer(
             }
         }
 
-        val compoundKeysIterator = nbtCompound.keys.iterator()
+        val compoundKeysIterator = nbtCompound.keySet().iterator()
         while(compoundKeysIterator.hasNext()) {
             val key = compoundKeysIterator.next()
             if(key !in valueReferences) {

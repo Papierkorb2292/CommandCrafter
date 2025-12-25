@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.registry.tag.TagEntry
+import net.minecraft.tags.TagEntry
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -45,12 +45,12 @@ class RangeFunctionTagDebugInformation(
             @Suppress("CAST_NEVER_SUCCEEDS")
             val inlineTagFunctionPath = (finalEntry.trackedEntry as InlineTagFunctionIdContainer).`command_crafter$getInlineTagFunctionId`()
             val identifier = if(inlineTagFunctionPath == null) {
-                Identifier.of(
+                Identifier.fromNamespaceAndPath(
                     finalEntry.sourceId.namespace,
                     "${PackContentFileType.FUNCTION_TAGS_FILE_TYPE.contentTypePath}/${finalEntry.sourceId.path}${FunctionTagDebugHandler.TAG_FILE_EXTENSION}"
                 )
             } else {
-                Identifier.of(
+                Identifier.fromNamespaceAndPath(
                     inlineTagFunctionPath.namespace,
                     "${PackContentFileType.FUNCTIONS_FILE_TYPE.contentTypePath}/${inlineTagFunctionPath.path}${FunctionDebugHandler.FUNCTION_FILE_EXTENSTION}"
                 )
@@ -326,7 +326,7 @@ class RangeFunctionTagDebugInformation(
                     id = debugFrame.pauseContext.stepInTargetsManager.addStepInTarget(StepInTargetsManager.Target {
                         debugFrame.pauseContext.stepIntoFrame()
                     })
-                    val currentFunctionId = debugFrame.pauseContext.server.commandFunctionManager
+                    val currentFunctionId = debugFrame.pauseContext.server.functions
                         .getTag(debugFrame.tagId)!!
                         .elementAt(debugFrame.currentEntryIndex)
                     label = "Step into function '$currentFunctionId'"

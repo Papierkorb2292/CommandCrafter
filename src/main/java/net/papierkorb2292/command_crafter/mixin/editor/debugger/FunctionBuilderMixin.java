@@ -2,10 +2,10 @@ package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import net.minecraft.command.SourcedCommandAction;
-import net.minecraft.server.command.AbstractServerCommandSource;
-import net.minecraft.server.function.CommandFunction;
-import net.minecraft.server.function.FunctionBuilder;
+import net.minecraft.commands.execution.UnboundEntryAction;
+import net.minecraft.commands.ExecutionCommandSource;
+import net.minecraft.commands.functions.CommandFunction;
+import net.minecraft.commands.functions.FunctionBuilder;
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugInformationContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.DebugPauseHandlerCreatorIndexConsumer;
@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(FunctionBuilder.class)
-public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> implements DebugPauseHandlerCreatorIndexConsumer, DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame> {
+public class FunctionBuilderMixin<T extends ExecutionCommandSource<T>> implements DebugPauseHandlerCreatorIndexConsumer, DebugInformationContainer<FunctionBreakpointLocation, FunctionDebugFrame> {
 
     @JsonIgnore
     private @Nullable Integer command_crafter$pauseHandlerCreatorIndex;
@@ -32,11 +32,11 @@ public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> impl
     }
 
     @ModifyVariable(
-            method = "addAction",
+            method = "addCommand",
             at = @At("HEAD"),
             argsOnly = true
     )
-    private SourcedCommandAction<T> command_crafter$addPauseHandlerCreatorIndexToAction(SourcedCommandAction<T> action) {
+    private UnboundEntryAction<T> command_crafter$addPauseHandlerCreatorIndexToAction(UnboundEntryAction<T> action) {
         if(this.command_crafter$pauseHandlerCreatorIndex != null
             && action instanceof DebugPauseHandlerCreatorIndexConsumer consumer) {
             consumer.command_crafter$setPauseHandlerCreatorIndex(this.command_crafter$pauseHandlerCreatorIndex);
@@ -45,7 +45,7 @@ public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> impl
     }
 
     @ModifyArg(
-            method = "addMacroCommand",
+            method = "addMacro",
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/util/List;add(Ljava/lang/Object;)Z",
@@ -60,7 +60,7 @@ public class FunctionBuilderMixin<T extends AbstractServerCommandSource<T>> impl
     }
 
     @ModifyReturnValue(
-            method = "toCommandFunction",
+            method = "build",
             at = @At("RETURN")
     )
     private CommandFunction<T> command_crafter$addDebugInformation(CommandFunction<T> function) {

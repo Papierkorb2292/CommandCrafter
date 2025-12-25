@@ -4,11 +4,11 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.network.PacketByteBuf
+import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.function.Procedure
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.MathHelper
+import net.minecraft.commands.functions.InstantiatedFunction
+import net.minecraft.resources.Identifier
+import net.minecraft.util.Mth
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.networking.*
 import org.eclipse.lsp4j.debug.*
@@ -46,16 +46,16 @@ fun <S> CommandContext<S>.isDebuggable(): Boolean {
 
 fun Identifier.removeExtension(extension: String)
     = if(!path.endsWith(extension)) null
-        else Identifier.of(namespace, path.substring(0, path.length - extension.length))
+        else Identifier.fromNamespaceAndPath(namespace, path.substring(0, path.length - extension.length))
 
 fun Identifier.withExtension(extension: String)
-    = Identifier.of(namespace, "$path$extension")
+    = Identifier.fromNamespaceAndPath(namespace, "$path$extension")
 
 operator fun StringRange.plus(value: Int) = StringRange(start + value, end + value)
 operator fun StringRange.minus(value: Int) = StringRange(start - value, end - value)
 fun StringRange.clamp(clampRange: StringRange) = StringRange(
-    MathHelper.clamp(start, clampRange.start, clampRange.end),
-    MathHelper.clamp(end, clampRange.start, clampRange.end)
+    Mth.clamp(start, clampRange.start, clampRange.end),
+    Mth.clamp(end, clampRange.start, clampRange.end)
 )
 
 fun SourceBreakpoint.copy(): SourceBreakpoint {
@@ -70,4 +70,4 @@ fun SourceBreakpoint.copy(): SourceBreakpoint {
 
 fun MinecraftServer.getDebugManager() = (this as ServerDebugManagerContainer).`command_crafter$getServerDebugManager`()
 
-fun Procedure<*>.getOriginalId(): Identifier = (this as? ProcedureOriginalIdContainer)?.`command_crafter$getOriginalId`() ?: id()
+fun InstantiatedFunction<*>.getOriginalId(): Identifier = (this as? ProcedureOriginalIdContainer)?.`command_crafter$getOriginalId`() ?: id()

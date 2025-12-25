@@ -14,17 +14,16 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import kotlin.Unit;
-import net.minecraft.command.argument.ItemStringReader;
-import net.minecraft.component.ComponentType;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtEnd;
+import net.minecraft.commands.arguments.item.ItemParser;
+import net.minecraft.core.component.DataComponentType;
+import net.minecraft.nbt.EndTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.StringNbtReader;
-import net.minecraft.registry.RegistryOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.resources.RegistryOps;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
@@ -46,22 +45,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-@Mixin(targets = "net.minecraft.command.argument.ItemStringReader$Reader")
+@Mixin(targets = "net.minecraft.commands.arguments.item.ItemParser$State")
 public class ItemStringReaderReaderMixin {
 
-    @Final @Shadow
-    ItemStringReader field_48970;
-
     @Shadow @Final private StringReader reader;
-    private final AnalyzingResult command_crafter$analyzingResult = ((AnalyzingResultDataContainer)field_48970).command_crafter$getAnalyzingResult();
-    private boolean command_crafter$allowMalformed = ((AllowMalformedContainer)field_48970).command_crafter$getAllowMalformed();
+    @Shadow
+    @Final
+    ItemParser field_48970;
+
+    private final AnalyzingResult command_crafter$analyzingResult = ((AnalyzingResultDataContainer) field_48970).command_crafter$getAnalyzingResult();
+    private boolean command_crafter$allowMalformed = ((AllowMalformedContainer) field_48970).command_crafter$getAllowMalformed();
     private int command_crafter$suggestionStartCursor = -1;
 
     @Inject(
             method = "readItem",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/Identifier;fromCommandInput(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/util/Identifier;",
+                    target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;",
                     shift = At.Shift.AFTER
             )
     )
@@ -75,7 +75,7 @@ public class ItemStringReaderReaderMixin {
             method = "readComponents",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;"
+                    target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/core/component/DataComponentType;"
             )
     )
     private void command_crafter$saveComponentTypeStart(CallbackInfo ci, @Share("componentTypeStart") LocalIntRef startCursor) {
@@ -86,7 +86,7 @@ public class ItemStringReaderReaderMixin {
             method = "readComponents",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;",
+                    target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/core/component/DataComponentType;",
                     shift = At.Shift.AFTER
             )
     )
@@ -97,42 +97,42 @@ public class ItemStringReaderReaderMixin {
     }
 
     @WrapOperation(
-            method = "readComponentValue",
+            method = "readComponent",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;readAsArgument(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
+                    target = "Lnet/minecraft/nbt/TagParser;parseAsArgument(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
             )
     )
-    private <O, T> O command_crafter$analyzeComponentNbt(StringNbtReader<O> instance, StringReader reader, Operation<O> op, StringNbtReader<O> originalNbtReader,  RegistryOps<O> ops, ComponentType<T> type) {
-        if (command_crafter$analyzingResult == null || type.getCodec() == null || !(ops.empty() instanceof NbtElement)) {
+    private <O, T> O command_crafter$analyzeComponentNbt(TagParser<O> instance, StringReader reader, Operation<O> op, TagParser<O> originalNbtReader, RegistryOps<O> ops, DataComponentType<T> type) {
+        if (command_crafter$analyzingResult == null || type.codec() == null || !(ops.empty() instanceof Tag)) {
             return op.call(instance, reader);
         }
         //noinspection unchecked
         final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
-        final var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
-        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
+        final var nbtReader = TagParser.create(NbtOps.INSTANCE);
+        var treeBuilder = new StringRangeTree.Builder<Tag>();
         //noinspection unchecked
-        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(command_crafter$allowMalformed);
         final var startCursor = reader.getCursor();
-        NbtElement nbt;
+        Tag nbt;
         try {
-            nbt = (NbtElement)MixinUtil.<O, CommandSyntaxException>callWithThrows(op, nbtReader, reader);
+            nbt = (Tag)MixinUtil.<O, CommandSyntaxException>callWithThrows(op, nbtReader, reader);
         } catch(CommandSyntaxException e) {
-            nbt = NbtEnd.INSTANCE;
+            nbt = EndTag.INSTANCE;
             treeBuilder.addNode(nbt, new StringRange(startCursor, reader.getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
         var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).withOps(((ItemStringReaderAccessor)field_48970).getOps());
-        treeOps.analyzeFull(command_crafter$analyzingResult, true, type.getCodec());
+        ).withOps(((ItemParserAccessor) field_48970).getRegistryOps());
+        treeOps.analyzeFull(command_crafter$analyzingResult, true, type.codec());
         return (O)nbt;
     }
 
     @ModifyReceiver(
-            method = "readComponentValue",
+            method = "readComponent",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",
@@ -174,16 +174,16 @@ public class ItemStringReaderReaderMixin {
             method = "readComponents",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;"
+                    target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/core/component/DataComponentType;"
             )
     )
-    private ComponentType<?> command_crafter$allowMalformedComponentName(StringReader reader, Operation<ComponentType<?>> op) throws CommandSyntaxException {
+    private DataComponentType<?> command_crafter$allowMalformedComponentName(StringReader reader, Operation<DataComponentType<?>> op) throws CommandSyntaxException {
         if(!command_crafter$allowMalformed) {
             return op.call(reader);
         }
 
         try {
-            return MixinUtil.<ComponentType<?>, CommandSyntaxException>callWithThrows(op, reader);
+            return MixinUtil.<DataComponentType<?>, CommandSyntaxException>callWithThrows(op, reader);
         } catch (CommandSyntaxException e) {
             command_crafter$suggestionStartCursor = reader.getCursor();
             // Skip to components
@@ -193,23 +193,23 @@ public class ItemStringReaderReaderMixin {
             if(reader.canRead())
                 command_crafter$suggestionStartCursor = -1;
         }
-        return ComponentType.<Unit>builder().codec(MapCodec.unit(Unit.INSTANCE).codec()).build();
+        return DataComponentType.<Unit>builder().persistent(MapCodec.unit(Unit.INSTANCE).codec()).build();
     }
 
     @WrapWithCondition(
-            method = "read",
+            method = "parse",
             at = @At(
                     value = "INVOKE:FIRST",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Callbacks;setSuggestor(Ljava/util/function/Function;)V"
+                    target = "Lnet/minecraft/commands/arguments/item/ItemParser$Visitor;visitSuggestions(Ljava/util/function/Function;)V"
             ),
             slice = @Slice(
                     from = @At(
                             value = "INVOKE",
-                            target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readItem()V"
+                            target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readItem()V"
                     )
             )
     )
-    private boolean command_crafter$suggestItemsForMalformedId(ItemStringReader.Callbacks instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
+    private boolean command_crafter$suggestItemsForMalformedId(ItemParser.Visitor instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
         return !command_crafter$allowMalformed || command_crafter$suggestionStartCursor == -1;
     }
 
@@ -217,17 +217,17 @@ public class ItemStringReaderReaderMixin {
             method = "readComponents",
             at = @At(
                     value = "INVOKE:FIRST",
-                    target = "Lnet/minecraft/command/argument/ItemStringReader$Callbacks;setSuggestor(Ljava/util/function/Function;)V"
+                    target = "Lnet/minecraft/commands/arguments/item/ItemParser$Visitor;visitSuggestions(Ljava/util/function/Function;)V"
             ),
             slice = @Slice(
                     from = @At(
                             value = "INVOKE",
-                            target = "Lnet/minecraft/command/argument/ItemStringReader$Reader;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/component/ComponentType;",
+                            target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/core/component/DataComponentType;",
                             ordinal = 1
                     )
             )
     )
-    private boolean command_crafter$suggestComponentsForMalformedComponentNames(ItemStringReader.Callbacks instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
+    private boolean command_crafter$suggestComponentsForMalformedComponentNames(ItemParser.Visitor instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
         return !command_crafter$allowMalformed || command_crafter$suggestionStartCursor == -1;
     }
 
@@ -278,9 +278,9 @@ public class ItemStringReaderReaderMixin {
 
     @ModifyVariable(
             method = {
-                    "suggestItems",
-                    "suggestComponents(Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture;",
-                    "suggestComponentsToRemove"
+                    "suggestItem",
+                    "suggestComponentAssignmentOrRemoval(Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture;",
+                    "suggestComponent"
             },
             at = @At("HEAD"),
             argsOnly = true

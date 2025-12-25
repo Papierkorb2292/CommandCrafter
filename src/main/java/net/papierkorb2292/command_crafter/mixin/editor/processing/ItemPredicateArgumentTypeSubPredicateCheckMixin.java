@@ -7,8 +7,8 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Decoder;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.Tag;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
@@ -20,10 +20,10 @@ import java.util.function.Predicate;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(targets = "net.minecraft.command.argument.ItemPredicateArgumentType$SubPredicateCheck")
+@Mixin(targets = "net.minecraft.commands.arguments.item.ItemPredicateArgument$PredicateWrapper")
 public class ItemPredicateArgumentTypeSubPredicateCheckMixin {
     @ModifyReceiver(
-            method = "createPredicate",
+            method = "decode",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/Decoder;parse(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/DataResult;",
@@ -32,15 +32,15 @@ public class ItemPredicateArgumentTypeSubPredicateCheckMixin {
     )
     private <T> Decoder<?> command_crafter$invokeDelayedDecodeNbtAnalyzing(Decoder<?> instance, Dynamic<T> input) {
         final var callback = getOrNull(PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback());
-        if(callback != null && input.getValue() instanceof NbtElement) {
+        if(callback != null && input.getValue() instanceof Tag) {
             //noinspection unchecked
-            callback.invoke((DynamicOps<NbtElement>)input.getOps(), instance);
+            callback.invoke((DynamicOps<Tag>)input.getOps(), instance);
         }
         return instance;
     }
 
     @ModifyReceiver(
-            method = "createPredicate",
+            method = "decode",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",

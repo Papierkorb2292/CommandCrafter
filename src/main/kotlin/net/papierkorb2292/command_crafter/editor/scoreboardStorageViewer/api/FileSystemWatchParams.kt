@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
 import net.papierkorb2292.command_crafter.networking.array
 
 class FileSystemWatchParams(
@@ -12,14 +12,14 @@ class FileSystemWatchParams(
     var excludes: Array<String>
 ) {
     companion object {
-        val PACKET_CODEC: PacketCodec<ByteBuf, FileSystemWatchParams> = PacketCodec.tuple(
-            PacketCodecs.STRING,
+        val PACKET_CODEC: StreamCodec<ByteBuf, FileSystemWatchParams> = StreamCodec.composite(
+            ByteBufCodecs.STRING_UTF8,
             FileSystemWatchParams::uri,
-            PacketCodecs.INTEGER,
+            ByteBufCodecs.INT,
             FileSystemWatchParams::watcherId,
-            PacketCodecs.BOOLEAN,
+            ByteBufCodecs.BOOL,
             FileSystemWatchParams::recursive,
-            PacketCodecs.STRING.array(),
+            ByteBufCodecs.STRING_UTF8.array(),
             FileSystemWatchParams::excludes,
             ::FileSystemWatchParams
         )

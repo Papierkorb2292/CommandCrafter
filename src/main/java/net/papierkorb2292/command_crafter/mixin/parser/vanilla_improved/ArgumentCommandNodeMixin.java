@@ -6,7 +6,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import com.mojang.datafixers.util.Either;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.CommandSourceStack;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
@@ -30,7 +30,7 @@ public class ArgumentCommandNodeMixin<S, T> implements StringifiableCommandNode 
     @Shadow(remap = false) @Final private String name;
 
     @Override
-    public @NotNull List<Either<String, RawResource>> command_crafter$stringifyNode(@NotNull CommandContext<ServerCommandSource> context, @NotNull StringRange range, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
+    public @NotNull List<Either<String, RawResource>> command_crafter$stringifyNode(@NotNull CommandContext<CommandSourceStack> context, @NotNull StringRange range, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
         if(type instanceof StringifiableArgumentType stringifiable) {
             var result = stringifiable.command_crafter$stringifyArgument(context, name, reader);
             if(result != null) {

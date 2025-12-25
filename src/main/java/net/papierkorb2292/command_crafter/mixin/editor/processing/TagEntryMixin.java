@@ -4,12 +4,12 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import kotlin.Unit;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntryList;
-import net.minecraft.registry.tag.TagEntry;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.HolderSet;
+import net.minecraft.tags.TagEntry;
+import net.minecraft.tags.TagKey;
+import net.minecraft.resources.Identifier;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
@@ -38,7 +38,7 @@ public class TagEntryMixin {
             slice = @Slice(
                     to = @At(
                             value = "FIELD",
-                            target = "Lnet/minecraft/registry/tag/TagEntry;CODEC:Lcom/mojang/serialization/Codec;",
+                            target = "Lnet/minecraft/tags/TagEntry;CODEC:Lcom/mojang/serialization/Codec;",
                             opcode = Opcodes.PUTSTATIC
                     )
             )
@@ -48,17 +48,17 @@ public class TagEntryMixin {
             final var registry = getOrNull(StringRangeTreeJsonResourceAnalyzer.Companion.getCURRENT_TAG_ANALYZING_REGISTRY());
             if (registry == null)
                 return DataResult.success(tagEntry);
-            final var entryExists = tagEntry.resolve(new TagEntry.ValueGetter<>() {
+            final var entryExists = tagEntry.build(new TagEntry.Lookup<>() {
                 @Override
-                public @Nullable Object direct(Identifier id, boolean required) {
+                public @Nullable Object element(Identifier id, boolean required) {
                     //noinspection rawtypes,unchecked
-                    return registry.getOptional(RegistryKey.of(((RegistryKey)registry.getKey()), id)).orElse(null);
+                    return registry.get(ResourceKey.create(((ResourceKey)registry.key()), id)).orElse(null);
                 }
 
                 @Override
                 public @Nullable Collection<Object> tag(Identifier id) {
                     //noinspection rawtypes,unchecked
-                    final Optional<Object> tag = registry.getOptional(TagKey.of(((RegistryKey)registry.getKey()), id));
+                    final Optional<Object> tag = registry.get(TagKey.create(((ResourceKey)registry.key()), id));
                     // Return null when no tag was found and not null when a tag was found
                     return tag.map(ignored -> Collections.emptyList()).orElse(null);
                 }

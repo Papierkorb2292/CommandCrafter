@@ -5,22 +5,22 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
-import net.minecraft.block.Block
-import net.minecraft.block.entity.BlockEntity
-import net.minecraft.block.entity.BlockEntityType
-import net.minecraft.command.CommandSource
-import net.minecraft.command.argument.BlockStateArgumentType
-import net.minecraft.command.argument.RegistryEntryReferenceArgumentType
-import net.minecraft.entity.Entity
-import net.minecraft.entity.EntityType
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.resource.featuretoggle.FeatureFlags
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.BlockPos
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.block.entity.BlockEntityType
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.blocks.BlockStateArgument
+import net.minecraft.commands.arguments.ResourceArgument
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EntityType
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.core.RegistryAccess
+import net.minecraft.core.registries.Registries
+import net.minecraft.world.flag.FeatureFlags
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.resources.Identifier
+import net.minecraft.core.BlockPos
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.helper.DummyWorld
@@ -30,14 +30,14 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.EntityTypeAcce
 import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
-class DataObjectDecoding(private val registries: DynamicRegistryManager) {
+class DataObjectDecoding(private val registries: RegistryAccess) {
     companion object {
         val GET_FOR_REGISTRIES = ::DataObjectDecoding.memoizeLast()
 
-        private val DATA_OBJECT_SOURCE_PACKET_CODEC: PacketCodec<ByteBuf, DataObjectSource> = PacketCodec.tuple(
+        private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
             enumConstantCodec(DataObjectSourceKind::class.java),
             DataObjectSource::kind,
-            PacketCodecs.STRING,
+            ByteBufCodecs.STRING_UTF8,
             DataObjectSource::argumentName,
             ::DataObjectSource
         )
@@ -50,7 +50,7 @@ class DataObjectDecoding(private val registries: DynamicRegistryManager) {
 
         fun registerDataObjectSourceAdditionalDataType() {
             ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
-                Identifier.of("command_crafter","data_object_source"),
+                Identifier.fromNamespaceAndPath("command_crafter","data_object_source"),
                 { argumentType ->
                     if(argumentType is DataObjectSourceContainer) {
                         argumentType.`command_crafter$getDataObjectSource`()
@@ -71,24 +71,24 @@ class DataObjectDecoding(private val registries: DynamicRegistryManager) {
         }
     }
 
-    val dummyWorld = DummyWorld(registries, FeatureFlags.FEATURE_MANAGER.featureSet)
+    val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
 
-    val dummyEntityDecoder = registries.getOrThrow(RegistryKeys.ENTITY_TYPE).entrySet.asSequence()
-        .mapNotNull { createDummyEntityDecoder(it.key.value, it.value) }
+    val dummyEntityDecoder = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
+        .mapNotNull { createDummyEntityDecoder(it.key.identifier(), it.value) }
         .toMap()
 
-    val dummyBlockEntityDecoders = registries.getOrThrow(RegistryKeys.BLOCK_ENTITY_TYPE).entrySet.asSequence()
-        .mapNotNull { createDummyBlockEntityDecoder(it.key.value, it.value) }
+    val dummyBlockEntityDecoders = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
+        .mapNotNull { createDummyBlockEntityDecoder(it.key.identifier(), it.value) }
         .flatten()
         .toMap()
 
-    fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<CommandSource>): Decoder<Unit>? {
+    fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SharedSuggestionProvider>): Decoder<Unit>? {
         return try {
             when(dataObjectSource.kind) {
                 DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
                     @Suppress("UNCHECKED_CAST")
-                    dummyEntityDecoder[RegistryEntryReferenceArgumentType.getEntityType(
-                        context as CommandContext<ServerCommandSource>,
+                    dummyEntityDecoder[ResourceArgument.getEntityType(
+                        context as CommandContext<CommandSourceStack>,
                         dataObjectSource.argumentName
                     ).value()]
                 }
@@ -103,7 +103,7 @@ class DataObjectDecoding(private val registries: DynamicRegistryManager) {
         try {
             @Suppress("UNCHECKED_CAST")
             val entity = (entityType as EntityTypeAccessor<T>).factory.create(entityType, dummyWorld) ?: return null
-            return entityType to DynamicOpsReadView.getReadDecoder(registries, entity::readData)
+            return entityType to DynamicOpsReadView.getReadDecoder(registries, entity::load)
         } catch(e: Throwable) {
             CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id", e)
             return null
@@ -114,9 +114,9 @@ class DataObjectDecoding(private val registries: DynamicRegistryManager) {
         try {
             @Suppress("UNCHECKED_CAST")
             val accessor = blockEntityType as BlockEntityTypeAccessor<T>
-            val blockEntity = accessor.factory.create(BlockPos.ORIGIN, accessor.blocks.first().defaultState) ?: return null
-            val decoder = DynamicOpsReadView.getReadDecoder(registries, blockEntity::read)
-            return accessor.blocks.asSequence().map { it to decoder }
+            val blockEntity = accessor.factory.create(BlockPos.ZERO, accessor.validBlocks.first().defaultBlockState()) ?: return null
+            val decoder = DynamicOpsReadView.getReadDecoder(registries, blockEntity::loadWithComponents)
+            return accessor.validBlocks.asSequence().map { it to decoder }
         } catch(e: Throwable) {
             CommandCrafter.LOGGER.warn("Error creating dummy block entity of type $id", e)
             return null

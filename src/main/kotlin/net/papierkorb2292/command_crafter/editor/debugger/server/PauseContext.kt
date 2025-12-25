@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
 import com.mojang.datafixers.util.Either
-import net.minecraft.network.packet.s2c.play.UpdateTickRateS2CPacket
+import net.minecraft.network.protocol.game.ClientboundTickingStatePacket
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.ServerTask
+import net.minecraft.server.TickTask
 import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -14,7 +14,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesRef
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonNetworkHandlerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonPacketListenerImplAccessor
 import org.eclipse.lsp4j.debug.*
 import java.lang.Thread
 import java.util.*
@@ -238,45 +238,45 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             throw executionPausedThrowable.get()
         suspendedServer = true
         val tickDelayMs = 50
-        var lastTickMs = Util.getMeasuringTimeMs()
+        var lastTickMs = Util.getMillis()
 
         // Flushing might be disabled, which would cause timeouts
         // (for example when the world is being ticked at the moment, which is
         // the case if for example the commands are run by a command block)
 
-        val flushDisabledNetworkHandlers = server.playerManager.playerList.map {
-            it.networkHandler
+        val flushDisabledNetworkHandlers = server.playerList.players.map {
+            it.connection
         }.filter {
-            (it as ServerCommonNetworkHandlerAccessor).flushDisabled
+            (it as ServerCommonPacketListenerImplAccessor).suspendFlushingOnServerThread
         }
 
         for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
-            flushDisabledNetworkHandler.enableFlush()
+            flushDisabledNetworkHandler.resumeFlushing()
 
         // Tell clients that the server is frozen so they don't really continue ticking
-        val serverAlreadyFrozen = server.tickManager.isFrozen
+        val serverAlreadyFrozen = server.tickRateManager().isFrozen
         if(!serverAlreadyFrozen)
-            server.playerManager.sendToAll(UpdateTickRateS2CPacket(server.tickManager.tickRate, true))
+            server.playerList.broadcastAll(ClientboundTickingStatePacket(server.tickRateManager().tickrate(), true))
 
         while(isPaused) {
-            val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMeasuringTimeMs()
+            val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMillis()
             if(sleepDurationMs > 0)
                 Thread.sleep(sleepDurationMs)
-            lastTickMs = Util.getMeasuringTimeMs()
+            lastTickMs = Util.getMillis()
             // Prevent watchdog from killing the server due to a too long tick
-            (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getMeasuringTimeNano())
+            (server as MinecraftServerAccessor).setNextTickTimeNanos(Util.getNanos())
             // Tick network handlers to keep connections alive
             // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
-        for(player in server.playerManager.playerList.toList())
-                (player.networkHandler as ServerCommonNetworkHandlerAccessor).callBaseTick()
+        for(player in server.playerList.players.toList())
+                (player.connection as ServerCommonPacketListenerImplAccessor).callKeepConnectionAlive()
             ServerScoreboardStorageFileSystem.runUpdates()
         }
 
         for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
-            flushDisabledNetworkHandler.disableFlush()
+            flushDisabledNetworkHandler.suspendFlushing()
 
         if(!serverAlreadyFrozen)
-            server.playerManager.sendToAll(UpdateTickRateS2CPacket(server.tickManager.tickRate, false))
+            server.playerList.broadcastAll(ClientboundTickingStatePacket(server.tickRateManager().tickrate(), false))
 
         suspendedServer = false
     }
@@ -442,7 +442,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         }
 
         fun runCallback(callback: () -> Unit) {
-            server.send(ServerTask(server.ticks, wrappers.fold(callback) { acc, wrapper -> { wrapper.runWrapped(acc) } }))
+            server.schedule(TickTask(server.tickCount, wrappers.fold(callback) { acc, wrapper -> { wrapper.runWrapped(acc) } }))
         }
     }
 }

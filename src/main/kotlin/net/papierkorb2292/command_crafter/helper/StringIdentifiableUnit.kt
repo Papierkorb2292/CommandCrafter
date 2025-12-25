@@ -1,10 +1,10 @@
 package net.papierkorb2292.command_crafter.helper
 
-import net.minecraft.util.StringIdentifiable
+import net.minecraft.util.StringRepresentable
 
-enum class StringIdentifiableUnit : StringIdentifiable {
+enum class StringIdentifiableUnit : StringRepresentable {
     INSTANCE {
-        override fun asString(): String {
+        override fun getSerializedName(): String {
             return "unit"
         }
     }

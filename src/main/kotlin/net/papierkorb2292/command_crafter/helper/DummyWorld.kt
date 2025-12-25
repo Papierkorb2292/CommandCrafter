@@ -1,144 +1,145 @@
 package net.papierkorb2292.command_crafter.helper
 
-import net.minecraft.block.Block
-import net.minecraft.block.BlockState
-import net.minecraft.component.type.MapIdComponent
-import net.minecraft.entity.Entity
-import net.minecraft.entity.boss.dragon.EnderDragonPart
-import net.minecraft.entity.damage.DamageSource
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.fluid.Fluid
-import net.minecraft.item.FuelRegistry
-import net.minecraft.item.map.MapState
-import net.minecraft.particle.BlockParticleEffect
-import net.minecraft.particle.ParticleEffect
-import net.minecraft.recipe.BrewingRecipeRegistry
-import net.minecraft.recipe.RecipeManager
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.entry.RegistryEntry
-import net.minecraft.resource.featuretoggle.FeatureSet
-import net.minecraft.scoreboard.Scoreboard
-import net.minecraft.sound.SoundCategory
-import net.minecraft.sound.SoundEvent
-import net.minecraft.util.collection.Pool
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Direction
-import net.minecraft.util.math.GlobalPos
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.BlockView
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.saveddata.maps.MapId
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart
+import net.minecraft.world.damagesource.DamageSource
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.material.Fluid
+import net.minecraft.world.level.block.entity.FuelValues
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData
+import net.minecraft.core.particles.ExplosionParticleInfo
+import net.minecraft.core.particles.ParticleOptions
+import net.minecraft.world.item.alchemy.PotionBrewing
+import net.minecraft.world.item.crafting.RecipeAccess
+import net.minecraft.core.RegistryAccess
+import net.minecraft.core.Holder
+import net.minecraft.world.flag.FeatureFlagSet
+import net.minecraft.world.scores.Scoreboard
+import net.minecraft.sounds.SoundSource
+import net.minecraft.sounds.SoundEvent
+import net.minecraft.util.random.WeightedList
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.core.GlobalPos
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.BlockGetter
 import net.minecraft.world.Difficulty
-import net.minecraft.world.MutableWorldProperties
-import net.minecraft.world.World
-import net.minecraft.world.WorldProperties
-import net.minecraft.world.attribute.WorldEnvironmentAttributeAccess
-import net.minecraft.world.biome.Biome
-import net.minecraft.world.biome.BiomeKeys
-import net.minecraft.world.border.WorldBorder
-import net.minecraft.world.chunk.Chunk
-import net.minecraft.world.chunk.ChunkManager
-import net.minecraft.world.chunk.ChunkStatus
-import net.minecraft.world.chunk.light.LightingProvider
-import net.minecraft.world.dimension.DimensionTypes
-import net.minecraft.world.entity.EntityLookup
-import net.minecraft.world.event.GameEvent
-import net.minecraft.world.explosion.ExplosionBehavior
-import net.minecraft.world.tick.QueryableTickScheduler
-import net.minecraft.world.tick.TickManager
+import net.minecraft.world.level.storage.WritableLevelData
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.storage.LevelData
+import net.minecraft.world.attribute.EnvironmentAttributeSystem
+import net.minecraft.world.level.biome.Biome
+import net.minecraft.world.level.biome.Biomes
+import net.minecraft.world.level.border.WorldBorder
+import net.minecraft.world.level.chunk.ChunkAccess
+import net.minecraft.world.level.chunk.ChunkSource
+import net.minecraft.world.level.chunk.status.ChunkStatus
+import net.minecraft.world.level.lighting.LevelLightEngine
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes
+import net.minecraft.world.level.entity.LevelEntityGetter
+import net.minecraft.world.level.gameevent.GameEvent
+import net.minecraft.world.level.ExplosionDamageCalculator
+import net.minecraft.world.ticks.LevelTickAccess
+import net.minecraft.world.TickRateManager
 import java.util.function.BooleanSupplier
 
-class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: FeatureSet) : World(DummyProperties(), null, registryManager, registryManager.getEntryOrThrow(DimensionTypes.OVERWORLD), false, false, 0, 0) {
+class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet) : Level(DummyProperties(), OVERWORLD, registryManager, registryManager.getOrThrow(
+    BuiltinDimensionTypes.OVERWORLD), false, false, 0, 0) {
     private val chunkManager = DummyChunkManager()
-    override fun getPlayers(): MutableList<out PlayerEntity> = mutableListOf()
+    override fun players(): MutableList<out Player> = mutableListOf()
 
-    override fun getBrightness(direction: Direction?, shaded: Boolean) = 0f
+    override fun getShade(direction: Direction, shaded: Boolean) = 0f
 
-    override fun getGeneratorStoredBiome(biomeX: Int, biomeY: Int, biomeZ: Int): RegistryEntry<Biome> {
-        return registryManager.getEntryOrThrow(BiomeKeys.PLAINS)
+    override fun getUncachedNoiseBiome(biomeX: Int, biomeY: Int, biomeZ: Int): Holder<Biome> {
+        return registryAccess().getOrThrow(Biomes.PLAINS)
     }
 
     override fun getSeaLevel() = 64
 
-    override fun getEnabledFeatures() = featureSet
+    override fun enabledFeatures() = featureSet
 
-    override fun getBlockTickScheduler(): QueryableTickScheduler<Block> {
+    override fun getBlockTicks(): LevelTickAccess<Block> {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getFluidTickScheduler(): QueryableTickScheduler<Fluid> {
+    override fun getFluidTicks(): LevelTickAccess<Fluid> {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getChunkManager(): ChunkManager = chunkManager
+    override fun getChunkSource(): ChunkSource = chunkManager
 
-    override fun playSound(
+    override fun playSeededSound(
         source: Entity?,
         x: Double,
         y: Double,
         z: Double,
-        sound: RegistryEntry<SoundEvent>?,
-        category: SoundCategory?,
+        sound: Holder<SoundEvent>,
+        category: SoundSource,
         volume: Float,
         pitch: Float,
         seed: Long,
     ) { }
 
-    override fun syncWorldEvent(source: Entity?, eventId: Int, pos: BlockPos?, data: Int) { }
+    override fun levelEvent(source: Entity?, eventId: Int, pos: BlockPos, data: Int) { }
 
-    override fun emitGameEvent(event: RegistryEntry<GameEvent>?, emitterPos: Vec3d?, emitter: GameEvent.Emitter?) { }
+    override fun gameEvent(event: Holder<GameEvent>, emitterPos: Vec3, emitter: GameEvent.Context) { }
 
-    override fun updateListeners(pos: BlockPos?, oldState: BlockState?, newState: BlockState?, flags: Int) { }
+    override fun sendBlockUpdated(pos: BlockPos, oldState: BlockState, newState: BlockState, flags: Int) { }
 
-    override fun playSoundFromEntity(
+    override fun playSeededSound(
         source: Entity?,
-        entity: Entity?,
-        sound: RegistryEntry<SoundEvent>?,
-        category: SoundCategory?,
+        entity: Entity,
+        sound: Holder<SoundEvent>,
+        category: SoundSource,
         volume: Float,
         pitch: Float,
         seed: Long,
     ) { }
 
-    override fun createExplosion(
+    override fun explode(
         entity: Entity?,
         damageSource: DamageSource?,
-        behavior: ExplosionBehavior?,
+        behavior: ExplosionDamageCalculator?,
         x: Double,
         y: Double,
         z: Double,
         power: Float,
         createFire: Boolean,
-        explosionSourceType: ExplosionSourceType?,
-        smallParticle: ParticleEffect?,
-        largeParticle: ParticleEffect?,
-        blockParticles: Pool<BlockParticleEffect?>?,
-        soundEvent: RegistryEntry<SoundEvent?>?,
+        explosionSourceType: ExplosionInteraction,
+        smallParticle: ParticleOptions,
+        largeParticle: ParticleOptions,
+        blockParticles: WeightedList<ExplosionParticleInfo>,
+        soundEvent: Holder<SoundEvent>,
     ) { }
 
-    override fun asString() = "DummyWorld"
+    override fun gatherChunkSourceStats() = "DummyWorld"
 
-    override fun setSpawnPoint(spawnPoint: WorldProperties.SpawnPoint) {
-        properties.spawnPoint = spawnPoint
+    override fun setRespawnData(spawnPoint: LevelData.RespawnData) {
+        levelData.setSpawn(spawnPoint)
     }
 
-    override fun getSpawnPoint(): WorldProperties.SpawnPoint {
-        return properties.spawnPoint
+    override fun getRespawnData(): LevelData.RespawnData {
+        return levelData.respawnData
     }
 
-    override fun getEntityById(id: Int) = null
+    override fun getEntity(id: Int) = null
 
-    override fun getEnderDragonParts(): MutableCollection<EnderDragonPart> {
+    override fun dragonParts(): MutableCollection<EnderDragonPart> {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getTickManager(): TickManager {
+    override fun tickRateManager(): TickRateManager {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getMapState(id: MapIdComponent?): MapState? {
+    override fun getMapData(id: MapId): MapItemSavedData {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun setBlockBreakingInfo(entityId: Int, pos: BlockPos?, progress: Int) {
+    override fun destroyBlockProgress(entityId: Int, pos: BlockPos, progress: Int) {
         throw NotImplementedError("Not supported by dummy")
     }
 
@@ -146,23 +147,23 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
 
     override fun getScoreboard() = dummyScoreboard
 
-    override fun getRecipeManager(): RecipeManager {
+    override fun recipeAccess(): RecipeAccess {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getEntityLookup(): EntityLookup<Entity> {
+    override fun getEntities(): LevelEntityGetter<Entity> {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    private val dummyEnvironmentAttributes = WorldEnvironmentAttributeAccess.builder().build()
+    private val dummyEnvironmentAttributes = EnvironmentAttributeSystem.builder().build()
 
-    override fun getEnvironmentAttributes(): WorldEnvironmentAttributeAccess = dummyEnvironmentAttributes
+    override fun environmentAttributes(): EnvironmentAttributeSystem = dummyEnvironmentAttributes
 
-    override fun getBrewingRecipeRegistry(): BrewingRecipeRegistry {
+    override fun potionBrewing(): PotionBrewing {
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun getFuelRegistry(): FuelRegistry {
+    override fun fuelValues(): FuelValues {
         throw NotImplementedError("Not supported by dummy")
     }
 
@@ -170,28 +171,28 @@ class DummyWorld(registryManager: DynamicRegistryManager, val featureSet: Featur
         throw NotImplementedError("Not supported by dummy")
     }
 
-    class DummyProperties : MutableWorldProperties {
-        private var spawnPoint = WorldProperties.SpawnPoint(GlobalPos(OVERWORLD, BlockPos.ORIGIN), 0f, 0f)
-        override fun getSpawnPoint(): WorldProperties.SpawnPoint = spawnPoint
-        override fun getTime() = 0L
-        override fun getTimeOfDay() = 0L
+    class DummyProperties : WritableLevelData {
+        private var spawnPoint = LevelData.RespawnData(GlobalPos(OVERWORLD, BlockPos.ZERO), 0f, 0f)
+        override fun getRespawnData(): LevelData.RespawnData = spawnPoint
+        override fun getGameTime() = 0L
+        override fun getDayTime() = 0L
         override fun isThundering() = false
         override fun isRaining() = false
         override fun setRaining(raining: Boolean) { }
         override fun isHardcore() = false
         override fun getDifficulty() = Difficulty.NORMAL
         override fun isDifficultyLocked() = false
-        override fun setSpawnPoint(spawnPoint: WorldProperties.SpawnPoint) {
+        override fun setSpawn(spawnPoint: LevelData.RespawnData) {
             this.spawnPoint = spawnPoint
         }
     }
 
-    inner class DummyChunkManager : ChunkManager() {
-        override fun getChunk(x: Int, z: Int, leastStatus: ChunkStatus, create: Boolean): Chunk? = null
+    inner class DummyChunkManager : ChunkSource() {
+        override fun getChunk(x: Int, z: Int, leastStatus: ChunkStatus, create: Boolean): ChunkAccess? = null
         override fun tick(shouldKeepTicking: BooleanSupplier, tickChunks: Boolean) { }
-        override fun getDebugString(): String = "dummy"
-        override fun getLoadedChunkCount(): Int = 0
-        override fun getLightingProvider(): LightingProvider = LightingProvider.DEFAULT
-        override fun getWorld(): BlockView? = this@DummyWorld
+        override fun gatherStats(): String = "dummy"
+        override fun getLoadedChunksCount(): Int = 0
+        override fun getLightEngine(): LevelLightEngine = LevelLightEngine.EMPTY
+        override fun getLevel(): BlockGetter = this@DummyWorld
     }
 }

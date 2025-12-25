@@ -6,14 +6,14 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.command.permission.PermissionLevel
-import net.minecraft.command.permission.PermissionPredicate
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.server.permissions.PermissionLevel
+import net.minecraft.server.permissions.PermissionSet
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.network.chat.Component
 import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs.DatapackBuildArgsParser.ARG_ALREADY_SPECIFIED_EXCEPTION
 
-class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: PermissionPredicate? = null) {
+class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: PermissionSet? = null) {
     companion object {
         private val ARGUMENTS: MutableMap<String, BuildArg> = HashMap()
 
@@ -51,7 +51,7 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: Pe
                     reader.skipWhitespace()
                     reader.expect('=')
                     reader.skipWhitespace()
-                    builder.permissions = LeveledPermissionPredicate.fromLevel(PermissionLevel.fromLevel(reader.readInt()))
+                    builder.permissions = LevelBasedPermissionSet.forLevel(PermissionLevel.byId(reader.readInt()))
                 }
 
                 override fun suggest(reader: StringReader, prefix: StringBuilder, builder: SuggestionsBuilder): Boolean {
@@ -78,9 +78,9 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: Pe
     object DatapackBuildArgsParser {
         private val INVALID_ARG_NAME_EXCEPTION = SimpleCommandExceptionType { "Error while parsing datapack build args: Encountered invalid or empty argument name" }
 
-        val ARG_ALREADY_SPECIFIED_EXCEPTION = DynamicCommandExceptionType { Text.of("Error while parsing datapack build args: Argument $it is specified multiple times") }
+        val ARG_ALREADY_SPECIFIED_EXCEPTION = DynamicCommandExceptionType { Component.nullToEmpty("Error while parsing datapack build args: Argument $it is specified multiple times") }
 
-        val SUGGESTION_PROVIDER = SuggestionProvider<ServerCommandSource> { _, builder ->
+        val SUGGESTION_PROVIDER = SuggestionProvider<CommandSourceStack> { _, builder ->
             val prefix = StringBuilder()
             val reader = StringReader(builder.remaining)
             val arguments = HashMap(ARGUMENTS)
@@ -124,7 +124,7 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: Pe
 
     class DatapackBuildArgsBuilder {
         var keepDirectives = false
-        var permissions: PermissionPredicate? = null
+        var permissions: PermissionSet? = null
 
         fun build(): DatapackBuildArgs {
             return DatapackBuildArgs(keepDirectives, permissions)

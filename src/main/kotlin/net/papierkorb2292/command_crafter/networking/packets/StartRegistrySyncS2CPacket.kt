@@ -1,17 +1,17 @@
 package net.papierkorb2292.command_crafter.networking.packets
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.util.Identifier
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
 
-object StartRegistrySyncS2CPacket : CustomPayload {
-    val ID = CustomPayload.Id<StartRegistrySyncS2CPacket>(Identifier.of("command_crafter", "start_registry_sync"))
-    val CODEC: PacketCodec<PacketByteBuf, StartRegistrySyncS2CPacket> = PacketCodec.unit(StartRegistrySyncS2CPacket)
-    val TYPE: CustomPayload.Type<in RegistryByteBuf, StartRegistrySyncS2CPacket> =
+object StartRegistrySyncS2CPacket : CustomPacketPayload {
+    val ID = CustomPacketPayload.Type<StartRegistrySyncS2CPacket>(Identifier.fromNamespaceAndPath("command_crafter", "start_registry_sync"))
+    val CODEC: StreamCodec<FriendlyByteBuf, StartRegistrySyncS2CPacket> = StreamCodec.unit(StartRegistrySyncS2CPacket)
+    val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, StartRegistrySyncS2CPacket> =
         PayloadTypeRegistry.playS2C().register(ID, CODEC)
 
-    override fun getId() = ID
+    override fun type() = ID
 }

@@ -1,13 +1,13 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.phys.Vec3
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
 
 class Vec3dValueReference(
     private val mapper: VariablesReferenceMapper,
-    private var vec3d: Vec3d?,
-    private val vec3dSetter: (Vec3d?) -> Vec3d?
+    private var vec3d: Vec3?,
+    private val vec3dSetter: (Vec3?) -> Vec3?
 ): VariableValueReference, CountedVariablesReferencer {
 
     companion object {
@@ -26,7 +26,7 @@ class Vec3dValueReference(
         vec3d?.run {
             valueReferences[X_COMPONENT_NAME] = DoubleValueReference(x) {
                 if(it == null) return@DoubleValueReference x
-                val newVec = vec3dSetter(Vec3d(it, y, z))
+                val newVec = vec3dSetter(Vec3(it, y, z))
                 vec3d = newVec
                 if(newVec == null) {
                     valueReferences.clear()
@@ -36,7 +36,7 @@ class Vec3dValueReference(
             }
             valueReferences[Y_COMPONENT_NAME] = DoubleValueReference(y) {
                 if(it == null) return@DoubleValueReference y
-                val newVec = vec3dSetter(Vec3d(x, it, z))
+                val newVec = vec3dSetter(Vec3(x, it, z))
                 vec3d = newVec
                 if(newVec == null) {
                     valueReferences.clear()
@@ -46,7 +46,7 @@ class Vec3dValueReference(
             }
             valueReferences[Z_COMPONENT_NAME] = DoubleValueReference(z) {
                 if(it == null) return@DoubleValueReference z
-                val newVec = vec3dSetter(Vec3d(x, y, it))
+                val newVec = vec3dSetter(Vec3(x, y, it))
                 vec3d = newVec
                 if(newVec == null) {
                     valueReferences.clear()
@@ -85,7 +85,7 @@ class Vec3dValueReference(
             if(VariableValueReference.isNone(value)) null
             else value.split(",").let {
                 if(it.size != 3) return@let null
-                Vec3d(it[0].toDoubleOrNull() ?: return@let null,
+                Vec3(it[0].toDoubleOrNull() ?: return@let null,
                     it[1].toDoubleOrNull() ?: return@let null,
                     it[2].toDoubleOrNull() ?: return@let null)
             }

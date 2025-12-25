@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.helper
 
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
 import net.papierkorb2292.command_crafter.networking.SCOPE_PACKET_CODEC
 import net.papierkorb2292.command_crafter.networking.array
 import net.papierkorb2292.command_crafter.networking.enumConstantCodec
@@ -16,8 +16,8 @@ class MinecraftStackFrame(
 ) {
     companion object {
         val PRESENTATION_HINT_CODEC = enumConstantCodec(StackFramePresentationHint::class.java)
-        val PACKET_CODEC = PacketCodec.tuple(
-            PacketCodecs.STRING,
+        val PACKET_CODEC = StreamCodec.composite(
+            ByteBufCodecs.STRING_UTF8,
             MinecraftStackFrame::name,
             DebuggerVisualContext.PACKET_CODEC,
             MinecraftStackFrame::visualContext,

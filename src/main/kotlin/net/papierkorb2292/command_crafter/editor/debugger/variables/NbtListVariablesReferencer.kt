@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import net.minecraft.nbt.AbstractNbtList
-import net.minecraft.nbt.NbtElement
+import net.minecraft.nbt.CollectionTag
+import net.minecraft.nbt.Tag
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.Variable
 import org.eclipse.lsp4j.debug.VariablesArguments
@@ -10,8 +10,8 @@ import java.util.concurrent.CompletableFuture
 
 class NbtListVariablesReferencer(
     private val mapper: VariablesReferenceMapper,
-    private var nbtList: AbstractNbtList,
-    private val nbtSetter: (AbstractNbtList) -> AbstractNbtList
+    private var nbtList: CollectionTag,
+    private val nbtSetter: (CollectionTag) -> CollectionTag
 ) : CountedVariablesReferencer {
     override val namedVariableCount: Int
         get() = 0
@@ -53,18 +53,18 @@ class NbtListVariablesReferencer(
         return CompletableFuture.completedFuture(null)
     }
 
-    private fun createValueReference(index: Int, element: NbtElement): VariableValueReference {
+    private fun createValueReference(index: Int, element: Tag): VariableValueReference {
         return NbtValueReference(mapper, element) {
-            val newList = nbtList.copy() as AbstractNbtList
+            val newList = nbtList.copy() as CollectionTag
             if(it != null) {
-                newList.setElement(index, it)
+                newList.setTag(index, it)
             } else {
-                newList.method_10536(index)
+                newList.remove(index)
             }
             nbtList = nbtSetter(newList)
             updateValueReferences()
             // get
-            nbtList.method_10534(index)
+            nbtList.get(index)
         }
     }
 
@@ -77,7 +77,7 @@ class NbtListVariablesReferencer(
             valueReferences.addAll(
                 nbtList.size() - valueReferences.size,
                 (valueReferences.size until nbtList.size()).map { index ->
-                    createValueReference(index, nbtList.method_10534(index))
+                    createValueReference(index, nbtList.get(index))
                 }
             )
         }

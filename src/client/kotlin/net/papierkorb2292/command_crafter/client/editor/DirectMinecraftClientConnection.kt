@@ -1,36 +1,36 @@
 package net.papierkorb2292.command_crafter.client.editor
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.resource.LifecycledResourceManagerImpl
-import net.minecraft.resource.ResourceType
-import net.minecraft.resource.SimpleResourceReload
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
+import net.minecraft.client.Minecraft
+import net.minecraft.server.packs.resources.MultiPackResourceManager
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.resources.SimpleReloadInstance
+import net.minecraft.network.chat.Component
+import net.minecraft.ChatFormatting
 import net.minecraft.util.Util
-import net.minecraft.util.profiler.DummyProfiler
+import net.minecraft.util.profiling.InactiveProfiler
 import net.papierkorb2292.command_crafter.editor.MinecraftClientConnection
 import net.papierkorb2292.command_crafter.editor.ReloadResourcesParams
-import net.papierkorb2292.command_crafter.mixin.client.editor.shader.ShaderLoaderAccessor
+import net.papierkorb2292.command_crafter.mixin.client.editor.shader.ShaderManagerAccessor
 import java.util.concurrent.CompletableFuture
 
 object DirectMinecraftClientConnection : MinecraftClientConnection {
-    private val client = MinecraftClient.getInstance()
+    private val client = Minecraft.getInstance()
     var isReloadingBuiltinShaders = false
     val vanillaOnlyShaders by lazy {
-        (client.shaderLoader as ShaderLoaderAccessor).callPrepare(
-            LifecycledResourceManagerImpl(ResourceType.CLIENT_RESOURCES, listOf(client.defaultResourcePack)),
-            DummyProfiler.INSTANCE
+        (client.shaderManager as ShaderManagerAccessor).callPrepare(
+            MultiPackResourceManager(PackType.CLIENT_RESOURCES, listOf(client.vanillaPackResources)),
+            InactiveProfiler.INSTANCE
         )
     }
     private var shaderReloadWaitFuture: CompletableFuture<*>? = CompletableFuture.completedFuture(Unit)
     override val isConnectedToServer: Boolean
-        get() = client.world != null
+        get() = client.level != null
 
     override fun reloadResources(params: ReloadResourcesParams) {
         if(params.onlyShaders != true) {
-            client.inGameHud.chatHud.addMessage(
-                Text.translatable("command_crafter.reload.resources").formatted(Formatting.GREEN))
-            client.reloadResources()
+            client.gui.chat.addMessage(
+                Component.translatable("command_crafter.reload.resources").withStyle(ChatFormatting.GREEN))
+            client.reloadResourcePacks()
             return
         }
 
@@ -41,17 +41,17 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
             shaderReloadWaitFuture.whenComplete{ _, _ ->
                 client.execute {
                     // Has to run on render thread
-                    client.inGameHud.chatHud.addMessage(
-                        Text.translatable("command_crafter.reload.shaders").formatted(Formatting.GREEN))
+                    client.gui.chat.addMessage(
+                        Component.translatable("command_crafter.reload.shaders").withStyle(ChatFormatting.GREEN))
                 }
-                DirectMinecraftClientConnection.shaderReloadWaitFuture = SimpleResourceReload.start(
+                DirectMinecraftClientConnection.shaderReloadWaitFuture = SimpleReloadInstance.create(
                     client.resourceManager,
-                    listOf(client.shaderLoader),
-                    Util.getMainWorkerExecutor(),
+                    listOf(client.shaderManager),
+                    Util.backgroundExecutor(),
                     client,
                     CompletableFuture.completedFuture(net.minecraft.util.Unit.INSTANCE),
                     false
-                ).whenComplete()
+                ).done()
             }
         }
     }

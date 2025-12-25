@@ -16,18 +16,18 @@ import com.github.difflib.text.DiffRow
 import com.github.difflib.text.DiffRowGenerator
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.CommandNode
-import net.minecraft.block.Block
-import net.minecraft.fluid.Fluid
-import net.minecraft.item.Item
-import net.minecraft.registry.Registry
-import net.minecraft.registry.entry.RegistryEntry
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.material.Fluid
+import net.minecraft.world.item.Item
+import net.minecraft.core.Registry
+import net.minecraft.core.Holder
 import net.minecraft.server.MinecraftServer
-import net.minecraft.test.TestContext
-import net.minecraft.text.Text
-import net.minecraft.world.World
+import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.network.chat.Component
+import net.minecraft.world.level.Level
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.IntList
-import net.papierkorb2292.command_crafter.mixin.test.TestContextAccessor
+import net.papierkorb2292.command_crafter.mixin.test.GameTestHelperAccessor
 import org.apache.logging.log4j.core.pattern.AnsiEscape
 import javax.swing.text.html.parser.Entity
 
@@ -36,9 +36,9 @@ object TestSnapshotHelper {
         .addSerializer(IntList::class.java, IntList.JacksonSerializer)
         .addSerializer(CommandDispatcher::class.java, NullSerializer.instance)
         .addSerializer(MinecraftServer::class.java, NullSerializer.instance)
-        .addSerializer(World::class.java, ToStringSerializer.instance)
+        .addSerializer(Level::class.java, ToStringSerializer.instance)
         .addSerializer(Registry::class.java, ToStringSerializer.instance)
-        .addSerializer(RegistryEntry::class.java, ToStringSerializer.instance)
+        .addSerializer(Holder::class.java, ToStringSerializer.instance)
         .addSerializer(CommandNode::class.java, MappedToStringSerializer<CommandNode<*>> { it.name })
         .addSerializer(Entity::class.java, ToStringSerializer.instance)
         .addSerializer(Block::class.java, ToStringSerializer.instance)
@@ -80,30 +80,30 @@ object TestSnapshotHelper {
         .build()
 
 
-    fun TestContext.assertEqualsSnapshot(value: Any?, idSuffix: String) {
-        assertEqualsSnapshot(value, Text.literal(idSuffix), idSuffix)
+    fun GameTestHelper.assertEqualsSnapshot(value: Any?, idSuffix: String) {
+        assertEqualsSnapshot(value, Component.literal(idSuffix), idSuffix)
     }
 
-    fun TestContext.assertEqualsSnapshot(value: Any?, message: Text, idSuffix: String? = null) {
-        val testId = (this as TestContextAccessor).test.instanceEntry.registryKey()
+    fun GameTestHelper.assertEqualsSnapshot(value: Any?, message: Component, idSuffix: String? = null) {
+        val testId = (this as GameTestHelperAccessor).testInfo.testHolder.key()
         val fileSuffix = if(idSuffix == null) "" else "_$idSuffix"
         val fileExtension = ".json"
-        val fileName = testId.value.namespace + "_" + testId.value.path + fileSuffix + fileExtension
+        val fileName = testId.identifier().namespace + "_" + testId.identifier().path + fileSuffix + fileExtension
         val file = TestCommandCrafter.snapshotDirectory.resolve(fileName).toFile()
         val jsonValue = try {
             objectMapper.writeValueAsString(value)
         } catch(e: JsonMappingException) {
-            throw createError("Failed to serialize snapshot: ${e.message}")
+            throw assertionException("Failed to serialize snapshot: ${e.message}")
         }
         if(!file.exists()) {
-            CommandCrafter.LOGGER.warn(Text.translatable("Found no snapshot file for test '%s', creating new snapshot...", fileName).string)
+            CommandCrafter.LOGGER.warn(Component.translatable("Found no snapshot file for test '%s', creating new snapshot...", fileName).string)
             file.parentFile.mkdirs()
             file.createNewFile()
             file.writeText(jsonValue)
             return
         }
         val snapshot = file.readText()
-        val errorText = Text.translatable("Test '%s' (%s) did not match snapshot, see diff.", fileName, message)
+        val errorText = Component.translatable("Test '%s' (%s) did not match snapshot, see diff.", fileName, message)
         if(snapshot != jsonValue) {
             val diff = diffRowGenerator.generateDiffRows(snapshot.lines(), jsonValue.lines())
             printDiffRows(diff, errorText)
@@ -117,7 +117,7 @@ object TestSnapshotHelper {
     /**
      * Formats and prints a side by side view of the old and new strings
      */
-    fun printDiffRows(diff: List<DiffRow>, message: Text) {
+    fun printDiffRows(diff: List<DiffRow>, message: Component) {
         val diffWithHeader = diff.toMutableList()
         // Add header followed by empty line to separate it from the rest
         diffWithHeader.add(0, DiffRow(DiffRow.Tag.CHANGE, EXPECTED_HEADER, ACTUAL_HEADER))

@@ -1,63 +1,61 @@
 package net.papierkorb2292.command_crafter.networking.packets
 
-import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.nbt.NbtElement
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.SerializableRegistries.SerializedRegistryEntry
-import net.minecraft.registry.tag.TagPacketSerializer
-import net.minecraft.util.Identifier
-import net.papierkorb2292.command_crafter.networking.nullable
-import java.util.*
-import java.util.function.BiFunction
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket
+import net.minecraft.resources.ResourceKey
+import net.minecraft.core.RegistrySynchronization.PackedRegistryEntry
+import net.minecraft.tags.TagNetworkSerialization
+import net.minecraft.resources.Identifier
+import net.papierkorb2292.command_crafter.networking.optional
+import net.papierkorb2292.command_crafter.networking.toOptional
 
 class CommandCrafterDynamicRegistryS2CPacket(
     /**
      * The dynamic registry. Has no entries for static registries.
      */
-    val dynamicRegistry: DynamicRegistriesS2CPacket,
-    val tags: TagPacketSerializer.Serialized?,
-) : CustomPayload {
+    val dynamicRegistry: ClientboundRegistryDataPacket,
+    val tags: TagNetworkSerialization.NetworkPayload?,
+) : CustomPacketPayload {
     companion object {
         // Uses custom packet codecs for dynamic registry to remove size limit for nbt elements (some datapacks can exceed the limit)
-        private val UNLIMITED_REGISTRY_ENTRY_CODEC = PacketCodec.tuple(
-            Identifier.PACKET_CODEC,
-            SerializedRegistryEntry::id,
-            PacketCodecs.UNLIMITED_NBT_ELEMENT.collect(PacketCodecs::optional),
-            SerializedRegistryEntry::data, ::SerializedRegistryEntry
+        private val UNLIMITED_REGISTRY_ENTRY_CODEC = StreamCodec.composite(
+            Identifier.STREAM_CODEC,
+            PackedRegistryEntry::id,
+            ByteBufCodecs.TRUSTED_TAG.apply(ByteBufCodecs::optional),
+            PackedRegistryEntry::data, ::PackedRegistryEntry
         )
 
-        private val UNLIMITED_DYNAMIC_REGISTRY_CODEC = PacketCodec.tuple(
-            Identifier.PACKET_CODEC.xmap(
-                { RegistryKey.ofRegistry<Any>(it) },
-                RegistryKey<*>::getValue
+        private val UNLIMITED_DYNAMIC_REGISTRY_CODEC = StreamCodec.composite(
+            Identifier.STREAM_CODEC.map(
+                { ResourceKey.createRegistryKey<Any>(it) },
+                ResourceKey<*>::identifier
             ),
-            DynamicRegistriesS2CPacket::registry,
-            UNLIMITED_REGISTRY_ENTRY_CODEC.collect(PacketCodecs.toList()),
-            DynamicRegistriesS2CPacket::entries,
-            ::DynamicRegistriesS2CPacket
+            ClientboundRegistryDataPacket::registry,
+            UNLIMITED_REGISTRY_ENTRY_CODEC.apply(ByteBufCodecs.list()),
+            ClientboundRegistryDataPacket::entries,
+            ::ClientboundRegistryDataPacket
         )
 
-        val ID = CustomPayload.Id<CommandCrafterDynamicRegistryS2CPacket>(Identifier.of("command_crafter", "dynamic_registry"))
-        val CODEC: PacketCodec<PacketByteBuf, CommandCrafterDynamicRegistryS2CPacket> = PacketCodec.tuple(
+        val ID = CustomPacketPayload.Type<CommandCrafterDynamicRegistryS2CPacket>(Identifier.fromNamespaceAndPath("command_crafter", "dynamic_registry"))
+        val CODEC: StreamCodec<FriendlyByteBuf, CommandCrafterDynamicRegistryS2CPacket> = StreamCodec.composite(
             UNLIMITED_DYNAMIC_REGISTRY_CODEC,
             CommandCrafterDynamicRegistryS2CPacket::dynamicRegistry,
-            PacketCodec.of(
-                TagPacketSerializer.Serialized::writeBuf,
-                TagPacketSerializer.Serialized::fromBuf
-            ).nullable(),
-            CommandCrafterDynamicRegistryS2CPacket::tags,
-            ::CommandCrafterDynamicRegistryS2CPacket
-        )
-        val TYPE: CustomPayload.Type<in RegistryByteBuf, CommandCrafterDynamicRegistryS2CPacket> =
+            StreamCodec.ofMember(
+                TagNetworkSerialization.NetworkPayload::write,
+                TagNetworkSerialization.NetworkPayload::read
+            ).optional(),
+            CommandCrafterDynamicRegistryS2CPacket::tags.toOptional(),
+        ) { dynamicRegistry, tags ->
+            CommandCrafterDynamicRegistryS2CPacket(dynamicRegistry, tags.orElse(null))
+        }
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, CommandCrafterDynamicRegistryS2CPacket> =
             PayloadTypeRegistry.playS2C().register(ID, CODEC)
     }
 
-    override fun getId() = ID
+    override fun type() = ID
 }

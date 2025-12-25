@@ -2,13 +2,13 @@ package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.command.EntitySelectorReader
-import net.minecraft.entity.Entity
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.predicate.NbtPredicate
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.storage.NbtReadView
-import net.minecraft.util.ErrorReporter
+import net.minecraft.commands.arguments.selector.EntitySelectorParser
+import net.minecraft.world.entity.Entity
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.advancements.criterion.NbtPredicate
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.world.level.storage.TagValueInput
+import net.minecraft.util.ProblemReporter
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.SetVariableResponse
 import org.eclipse.lsp4j.debug.Variable
@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture
 class EntityValueReference(
     private val mapper: VariablesReferenceMapper,
     private var entity: Entity?,
-    private val source: ServerCommandSource? = null,
+    private val source: CommandSourceStack,
     private val entitySetter: (Entity?) -> Entity?
 ): VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
 
@@ -30,10 +30,10 @@ class EntityValueReference(
     private var entityNbtValueReference = createEntityNbtValueReference()
 
     private fun createEntityNbtValueReference() = entity?.let { entity ->
-        NbtValueReference(mapper, NbtPredicate.entityToNbt(entity)) {
-            if (it is NbtCompound)
-                entity.readData(NbtReadView.create(ErrorReporter.EMPTY, entity.registryManager, it));
-            NbtPredicate.entityToNbt(entity)
+        NbtValueReference(mapper, NbtPredicate.getEntityTagToCompare(entity)) {
+            if (it is CompoundTag)
+                entity.load(TagValueInput.create(ProblemReporter.DISCARDING, entity.registryAccess(), it));
+            NbtPredicate.getEntityTagToCompare(entity)
         }
     }
 
@@ -45,7 +45,7 @@ class EntityValueReference(
             val customName = entity.customName
             if(customName != null)
                 return customName.string
-            return "${entity.type.name.string} ${entity.uuidAsString}"
+            return "${entity.type.description.string} ${entity.stringUUID}"
         }
         return VariableValueReference.NONE_VALUE
     }
@@ -78,7 +78,7 @@ class EntityValueReference(
             return
         }
         try {
-            val newEntity = EntitySelectorReader(StringReader(value), true).read().getEntities(source).firstOrNull()
+            val newEntity = EntitySelectorParser(StringReader(value), true).parse().findEntities(source).firstOrNull()
             entity = it(newEntity)
             entityNbtValueReference = createEntityNbtValueReference()
         } catch(_: CommandSyntaxException) { }

@@ -1,14 +1,14 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.CommandSourceStack
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
 
 class ServerCommandSourceValueReference(
     private val mapper: VariablesReferenceMapper,
-    private var source: ServerCommandSource,
-    private val setter: ((ServerCommandSource) -> Unit)? = null
+    private var source: CommandSourceStack,
+    private val setter: ((CommandSourceStack) -> Unit)? = null
 ) : VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
     companion object {
         const val ENTITY_VARIABLE_NAME = "@s"
@@ -35,17 +35,17 @@ class ServerCommandSourceValueReference(
             }
             source.entity
         }
-        content[DIMENSION_VARIABLE_NAME] = IdValueReference(source.world.registryKey.value) { newDimensionId ->
+        content[DIMENSION_VARIABLE_NAME] = IdValueReference(source.level.dimension().identifier()) { newDimensionId ->
             this.setter?.let { setter ->
-                val newRegistryKey = source.worldKeys.firstOrNull { it.value == newDimensionId }
+                val newRegistryKey = source.levels().firstOrNull { it.identifier() == newDimensionId }
                 if(newRegistryKey != null) {
                     updateSource(
-                        this.source.withWorld(source.server.getWorld(newRegistryKey)),
+                        this.source.withLevel(source.server.getLevel(newRegistryKey)!!),
                         setter
                     )
                 }
             }
-            return@IdValueReference source.world.registryKey.value
+            return@IdValueReference source.level.dimension().identifier()
         }
         content[POS_VARIABLE_NAME] = Vec3dValueReference(mapper, source.position) { newPosition ->
             this.setter?.let { setter ->
@@ -71,7 +71,7 @@ class ServerCommandSourceValueReference(
         }
     }
 
-    private fun updateSource(source: ServerCommandSource, setter: (ServerCommandSource) -> Unit) {
+    private fun updateSource(source: CommandSourceStack, setter: (CommandSourceStack) -> Unit) {
         if(this.source != source) {
             this.source = source
             setter.invoke(source)
@@ -81,7 +81,7 @@ class ServerCommandSourceValueReference(
 
     override fun getVariable(name: String) = Variable().also {
         it.name = name
-        it.value = source.name
+        it.value = source.textName
         it.type = "ServerCommandSource"
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = content.size
@@ -89,7 +89,7 @@ class ServerCommandSourceValueReference(
     }
 
     override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = source.name
+        it.value = source.textName
         it.type = "ServerCommandSource"
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = content.size

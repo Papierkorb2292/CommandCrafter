@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
 import net.papierkorb2292.command_crafter.networking.SET_VARIABLE_RESPONSE_PACKET_CODEC
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.SetVariableResponse
@@ -19,10 +19,10 @@ interface VariablesReferencer {
         val invalidateVariables: Boolean = false,
     ) {
         companion object {
-            val PACKET_CODEC: PacketCodec<ByteBuf, SetVariableResult> = PacketCodec.tuple(
+            val PACKET_CODEC: StreamCodec<ByteBuf, SetVariableResult> = StreamCodec.composite(
                 SET_VARIABLE_RESPONSE_PACKET_CODEC,
                 SetVariableResult::response,
-                PacketCodecs.BOOLEAN,
+                ByteBufCodecs.BOOL,
                 SetVariableResult::invalidateVariables,
                 ::SetVariableResult
             )

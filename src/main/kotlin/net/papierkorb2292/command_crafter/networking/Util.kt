@@ -3,25 +3,25 @@ package net.papierkorb2292.command_crafter.networking
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.debug.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
-import kotlin.jvm.optionals.getOrNull
+import java.util.function.Function
 
-fun <B : ByteBuf, V: Any> PacketCodec<B, V>.nullable(): PacketCodec<B, V?> =
-    PacketCodecs.optional(this).xmap(Optional<V>::getOrNull) { Optional.ofNullable(it) }
-fun <B : ByteBuf, V> PacketCodec<B, V>.list(): PacketCodec<B, List<V>> =
-    PacketCodecs.collection(::ArrayList, this)
-inline fun <B : ByteBuf, reified V> PacketCodec<B, V>.array(): PacketCodec<B, Array<V>> = list().xmap(
+fun <B : ByteBuf, V: Any> StreamCodec<B, V>.optional(): StreamCodec<B, Optional<V>> = ByteBufCodecs.optional(this)
+fun <T, R: Any> ((T) -> R?).toOptional(): Function<T, Optional<R>> = Function { Optional.ofNullable(this.invoke(it)) }
+fun <B : ByteBuf, V: Any> StreamCodec<B, V>.list(): StreamCodec<B, List<V>> =
+    ByteBufCodecs.collection(::ArrayList, this)
+inline fun <B : ByteBuf, reified V: Any> StreamCodec<B, V>.array(): StreamCodec<B, Array<V>> = list().map(
     List<V>::toTypedArray,
     Array<V>::toList
 )
-infix fun <B : ByteBuf, V1, V2> PacketCodec<B, V1>.makeEither(other: PacketCodec<B, V2>) = object : PacketCodec<B, Either<V1, V2>> {
+infix fun <B : ByteBuf, V1: Any, V2: Any> StreamCodec<B, V1>.makeEither(other: StreamCodec<B, V2>) = object : StreamCodec<B, Either<V1, V2>> {
     override fun decode(byteBuf: B): Either<V1, V2> {
         return if(byteBuf.readBoolean()) Either.forLeft(this@makeEither.decode(byteBuf))
         else Either.forRight(other.decode(byteBuf))
@@ -41,26 +41,26 @@ infix fun <B : ByteBuf, V1, V2> PacketCodec<B, V1>.makeEither(other: PacketCodec
     }
 }
 
-fun <T: Enum<T>> enumConstantCodec(enumClass: Class<T>): PacketCodec<ByteBuf, T> {
+fun <T: Enum<T>> enumConstantCodec(enumClass: Class<T>): StreamCodec<ByteBuf, T> {
     val values = enumClass.enumConstants
-    return PacketCodecs.VAR_INT.xmap(values::get) { it.ordinal }
+    return ByteBufCodecs.VAR_INT.map(values::get) { it.ordinal }
 }
 
-val UNIT_CODEC = PacketCodec.unit<ByteBuf, Unit>(Unit)
+val UNIT_CODEC = StreamCodec.unit<ByteBuf, Unit>(Unit)
 
-val NULLABLE_STRING_PACKET_CODEC = PacketCodecs.STRING.nullable()
-val NULLABLE_BOOL_PACKET_CODEC = PacketCodecs.BOOLEAN.nullable()
-val NULLABLE_VAR_INT_PACKET_CODEC = PacketCodecs.VAR_INT.nullable()
+val OPTIONAL_STRING_PACKET_CODEC = ByteBufCodecs.STRING_UTF8.optional()
+val OPTIONAL_BOOL_PACKET_CODEC = ByteBufCodecs.BOOL.optional()
+val OPTIONAL_VAR_INT_PACKET_CODEC = ByteBufCodecs.VAR_INT.optional()
 
-val POSITION_PACKET_CODEC: PacketCodec<ByteBuf, Position> = PacketCodec.tuple(
-    PacketCodecs.VAR_INT,
+val POSITION_PACKET_CODEC: StreamCodec<ByteBuf, Position> = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
     Position::getLine,
-    PacketCodecs.VAR_INT,
+    ByteBufCodecs.VAR_INT,
     Position::getCharacter,
     ::Position
 )
 
-val RANGE_PACKET_CODEC: PacketCodec<ByteBuf, Range> = PacketCodec.tuple(
+val RANGE_PACKET_CODEC: StreamCodec<ByteBuf, Range> = StreamCodec.composite(
     POSITION_PACKET_CODEC,
     Range::getStart,
     POSITION_PACKET_CODEC,
@@ -69,161 +69,161 @@ val RANGE_PACKET_CODEC: PacketCodec<ByteBuf, Range> = PacketCodec.tuple(
 )
 
 val OBJECT_PACKET_CODEC_GSON = Gson()
-val OBJECT_PACKET_CODEC: PacketCodec<ByteBuf, Any> = PacketCodecs.STRING.xmap<Any>(
+val OBJECT_PACKET_CODEC: StreamCodec<ByteBuf, Any> = ByteBufCodecs.STRING_UTF8.map<Any>(
     { OBJECT_PACKET_CODEC_GSON.fromJson(it, JsonElement::class.java) },
     { OBJECT_PACKET_CODEC_GSON.toJson(it) }
 )
-val NULLABLE_OBJECT_PACKET_CODEC = OBJECT_PACKET_CODEC.nullable()
+val OPTIONAL_OBJECT_PACKET_CODEC = OBJECT_PACKET_CODEC.optional()
 
-val SOURCE_PACKET_CODEC: PacketCodec<ByteBuf, Source> = PacketCodec.recursive { self ->
-    object : PacketCodec<ByteBuf, Source> {
-        val CHILDREN_CODEC = self.array().nullable()
-        val PRESENTATION_HINT_CODEC = enumConstantCodec(SourcePresentationHint::class.java).nullable()
+val SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, Source> = StreamCodec.recursive { self ->
+    object : StreamCodec<ByteBuf, Source> {
+        val CHILDREN_CODEC = self.array().optional()
+        val PRESENTATION_HINT_CODEC = enumConstantCodec(SourcePresentationHint::class.java).optional()
 
         override fun decode(buf: ByteBuf) = Source().apply {
-            name = PacketCodecs.STRING.decode(buf)
-            path = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-            sourceReference = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-            presentationHint = PRESENTATION_HINT_CODEC.decode(buf)
-            origin = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-            sources = CHILDREN_CODEC.decode(buf)
+            name = ByteBufCodecs.STRING_UTF8.decode(buf)
+            path = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+            sourceReference = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+            presentationHint = PRESENTATION_HINT_CODEC.decode(buf).orElse(null)
+            origin = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+            sources = CHILDREN_CODEC.decode(buf).orElse(null)
         }
 
         override fun encode(buf: ByteBuf, value: Source) {
-            PacketCodecs.STRING.encode(buf, value.name)
-            NULLABLE_STRING_PACKET_CODEC.encode(buf, value.path)
-            NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.sourceReference)
-            PRESENTATION_HINT_CODEC.encode(buf, value.presentationHint)
-            NULLABLE_STRING_PACKET_CODEC.encode(buf, value.origin)
-            CHILDREN_CODEC.encode(buf, value.sources)
+            ByteBufCodecs.STRING_UTF8.encode(buf, value.name)
+            OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.path))
+            OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.sourceReference))
+            PRESENTATION_HINT_CODEC.encode(buf, Optional.ofNullable(value.presentationHint))
+            OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.origin))
+            CHILDREN_CODEC.encode(buf, Optional.ofNullable(value.sources))
         }
     }
 }
-val NULLABLE_SOURCE_CODEC = SOURCE_PACKET_CODEC.nullable()
+val OPTIONAL_SOURCE_CODEC = SOURCE_PACKET_CODEC.optional()
 
-val BREAKPOINT_PACKET_CODEC = object : PacketCodec<ByteBuf, Breakpoint> {
+val BREAKPOINT_PACKET_CODEC = object : StreamCodec<ByteBuf, Breakpoint> {
     override fun decode(buf: ByteBuf) = Breakpoint().apply {
-        id = PacketCodecs.VAR_INT.decode(buf)
-        isVerified = PacketCodecs.BOOLEAN.decode(buf)
-        message = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        source = NULLABLE_SOURCE_CODEC.decode(buf)
-        line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        column = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        endLine = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        endColumn = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        id = ByteBufCodecs.VAR_INT.decode(buf)
+        isVerified = ByteBufCodecs.BOOL.decode(buf)
+        message = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        source = OPTIONAL_SOURCE_CODEC.decode(buf).orElse(null)
+        line = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        column = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        endLine = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        endColumn = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
     }
 
     override fun encode(buf: ByteBuf, value: Breakpoint) {
-        PacketCodecs.VAR_INT.encode(buf, value.id)
-        PacketCodecs.BOOLEAN.encode(buf, value.isVerified)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.message)
-        NULLABLE_SOURCE_CODEC.encode(buf, value.source)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.column)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endLine)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endColumn)
+        ByteBufCodecs.VAR_INT.encode(buf, value.id)
+        ByteBufCodecs.BOOL.encode(buf, value.isVerified)
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.message))
+        OPTIONAL_SOURCE_CODEC.encode(buf, Optional.ofNullable(value.source))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.line))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.column))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.endLine))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.endColumn))
     }
 }
 
-val SOURCE_BREAKPOINT_PACKET_CODEC: PacketCodec<ByteBuf, SourceBreakpoint> = PacketCodec.tuple(
-    PacketCodecs.VAR_INT,
+val SOURCE_BREAKPOINT_PACKET_CODEC: StreamCodec<ByteBuf, SourceBreakpoint> = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
     SourceBreakpoint::getLine,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    SourceBreakpoint::getColumn,
-    NULLABLE_STRING_PACKET_CODEC,
-    SourceBreakpoint::getCondition,
-    NULLABLE_STRING_PACKET_CODEC,
-    SourceBreakpoint::getHitCondition,
-    NULLABLE_STRING_PACKET_CODEC,
-    SourceBreakpoint::getLogMessage
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    SourceBreakpoint::getColumn.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    SourceBreakpoint::getCondition.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    SourceBreakpoint::getHitCondition.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    SourceBreakpoint::getLogMessage.toOptional()
 ) { line, column, condition, hitCondition, logMessage ->
     SourceBreakpoint().apply {
         this.line = line
-        this.column = column
-        this.condition = condition
-        this.hitCondition = hitCondition
-        this.logMessage = logMessage
+        this.column = column.orElse(null)
+        this.condition = condition.orElse(null)
+        this.hitCondition = hitCondition.orElse(null)
+        this.logMessage = logMessage.orElse(null)
     }
 }
 
-val UNPARSED_BREAKPOINT_PACKET_CODEC: PacketCodec<ByteBuf, UnparsedServerBreakpoint> = PacketCodec.tuple(
-    PacketCodecs.VAR_INT,
+val UNPARSED_BREAKPOINT_PACKET_CODEC: StreamCodec<ByteBuf, UnparsedServerBreakpoint> = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
     UnparsedServerBreakpoint::id,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    UnparsedServerBreakpoint::sourceReference,
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    UnparsedServerBreakpoint::sourceReference.toOptional(),
     SOURCE_BREAKPOINT_PACKET_CODEC,
     UnparsedServerBreakpoint::sourceBreakpoint
 ) { id, sourceReference, sourceBreakpoint ->
-    UnparsedServerBreakpoint(id, sourceReference, sourceBreakpoint)
+    UnparsedServerBreakpoint(id, sourceReference.orElse(null), sourceBreakpoint)
 }
 
-val SOURCE_RESPONSE_PACKET_CODEC: PacketCodec<ByteBuf, SourceResponse> = PacketCodec.tuple(
-    PacketCodecs.STRING,
+val SOURCE_RESPONSE_PACKET_CODEC: StreamCodec<ByteBuf, SourceResponse> = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
     SourceResponse::getContent,
-    NULLABLE_STRING_PACKET_CODEC,
-    SourceResponse::getMimeType
+    OPTIONAL_STRING_PACKET_CODEC,
+    SourceResponse::getMimeType.toOptional()
 ) { content, mimeType ->
     SourceResponse().apply {
         this.content = content
-        this.mimeType = mimeType
+        this.mimeType = mimeType.orElse(null)
     }
 }
 
-val SCOPE_PACKET_CODEC = object : PacketCodec<ByteBuf, Scope> {
+val SCOPE_PACKET_CODEC = object : StreamCodec<ByteBuf, Scope> {
     override fun decode(buf: ByteBuf) = Scope().apply {
-        name = PacketCodecs.STRING.decode(buf)
-        presentationHint = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        variablesReference = PacketCodecs.VAR_INT.decode(buf)
-        namedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        indexedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        isExpensive = PacketCodecs.BOOLEAN.decode(buf)
-        source = NULLABLE_SOURCE_CODEC.decode(buf)
-        line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        column = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        endLine = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        endColumn = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
+        name = ByteBufCodecs.STRING_UTF8.decode(buf)
+        presentationHint = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        variablesReference = ByteBufCodecs.VAR_INT.decode(buf)
+        namedVariables = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        indexedVariables = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        isExpensive = ByteBufCodecs.BOOL.decode(buf)
+        source = OPTIONAL_SOURCE_CODEC.decode(buf).orElse(null)
+        line = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        column = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        endLine = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        endColumn = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
     }
 
     override fun encode(buf: ByteBuf, value: Scope) {
-        PacketCodecs.STRING.encode(buf, value.name)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.presentationHint)
-        PacketCodecs.VAR_INT.encode(buf, value.variablesReference)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.namedVariables)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.indexedVariables)
-        PacketCodecs.BOOLEAN.encode(buf, value.isExpensive)
-        NULLABLE_SOURCE_CODEC.encode(buf, value.source)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.column)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endLine)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.endColumn)
+        ByteBufCodecs.STRING_UTF8.encode(buf, value.name)
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.presentationHint))
+        ByteBufCodecs.VAR_INT.encode(buf, value.variablesReference)
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.namedVariables))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.indexedVariables))
+        ByteBufCodecs.BOOL.encode(buf, value.isExpensive)
+        OPTIONAL_SOURCE_CODEC.encode(buf, Optional.ofNullable(value.source))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.line))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.column))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.endLine))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.endColumn))
     }
 }
 
-val STOPPED_EVENT_ARGUMENTS_PACKET_CODEC = object : PacketCodec<ByteBuf, StoppedEventArguments> {
-    val HIT_BREAKPOINT_IDS_CODEC = PacketCodecs.VAR_INT.array().nullable()
+val STOPPED_EVENT_ARGUMENTS_PACKET_CODEC = object : StreamCodec<ByteBuf, StoppedEventArguments> {
+    val HIT_BREAKPOINT_IDS_CODEC = ByteBufCodecs.VAR_INT.array().optional()
     override fun decode(buf: ByteBuf) = StoppedEventArguments().apply {
-        reason = PacketCodecs.STRING.decode(buf)
-        description = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        allThreadsStopped = NULLABLE_BOOL_PACKET_CODEC.decode(buf)
-        text = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        threadId = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        hitBreakpointIds = HIT_BREAKPOINT_IDS_CODEC.decode(buf)
-        preserveFocusHint = NULLABLE_BOOL_PACKET_CODEC.decode(buf)
+        reason = ByteBufCodecs.STRING_UTF8.decode(buf)
+        description = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        allThreadsStopped = OPTIONAL_BOOL_PACKET_CODEC.decode(buf).orElse(null)
+        text = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        threadId = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        hitBreakpointIds = HIT_BREAKPOINT_IDS_CODEC.decode(buf).orElse(null)
+        preserveFocusHint = OPTIONAL_BOOL_PACKET_CODEC.decode(buf).orElse(null)
     }
 
     override fun encode(buf: ByteBuf, value: StoppedEventArguments) {
-        PacketCodecs.STRING.encode(buf, value.reason)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.description)
-        NULLABLE_BOOL_PACKET_CODEC.encode(buf, value.allThreadsStopped)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.text)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.threadId)
-        HIT_BREAKPOINT_IDS_CODEC.encode(buf, value.hitBreakpointIds)
-        NULLABLE_BOOL_PACKET_CODEC.encode(buf, value.preserveFocusHint)
+        ByteBufCodecs.STRING_UTF8.encode(buf, value.reason)
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.description))
+        OPTIONAL_BOOL_PACKET_CODEC.encode(buf, Optional.ofNullable(value.allThreadsStopped))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.text))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.threadId))
+        HIT_BREAKPOINT_IDS_CODEC.encode(buf, Optional.ofNullable(value.hitBreakpointIds))
+        OPTIONAL_BOOL_PACKET_CODEC.encode(buf, Optional.ofNullable(value.preserveFocusHint))
     }
 }
 
-val BREAKPOINT_EVENT_ARGUMENTS_PACKET_CODEC: PacketCodec<ByteBuf, BreakpointEventArguments> = PacketCodec.tuple(
-    PacketCodecs.STRING,
+val BREAKPOINT_EVENT_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, BreakpointEventArguments> = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
     BreakpointEventArguments::getReason,
     BREAKPOINT_PACKET_CODEC,
     BreakpointEventArguments::getBreakpoint
@@ -234,216 +234,221 @@ val BREAKPOINT_EVENT_ARGUMENTS_PACKET_CODEC: PacketCodec<ByteBuf, BreakpointEven
     }
 }
 
-val OUTPUT_EVENT_ARGUMENTS_PACKET_CODEC = object : PacketCodec<ByteBuf, OutputEventArguments> {
-    val GROUP_CODEC = enumConstantCodec(OutputEventArgumentsGroup::class.java).nullable()
+val OUTPUT_EVENT_ARGUMENTS_PACKET_CODEC = object : StreamCodec<ByteBuf, OutputEventArguments> {
+    val GROUP_CODEC = enumConstantCodec(OutputEventArgumentsGroup::class.java).optional()
 
     override fun decode(buf: ByteBuf) = OutputEventArguments().apply {
-        category = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        output = PacketCodecs.STRING.decode(buf)
-        data = NULLABLE_OBJECT_PACKET_CODEC.decode(buf)
-        source = NULLABLE_SOURCE_CODEC.decode(buf)
-        line = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        column = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        variablesReference = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        group = GROUP_CODEC.decode(buf)
+        category = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        output = ByteBufCodecs.STRING_UTF8.decode(buf)
+        data = OPTIONAL_OBJECT_PACKET_CODEC.decode(buf)
+        source = OPTIONAL_SOURCE_CODEC.decode(buf).orElse(null)
+        line = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        column = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        variablesReference = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        group = GROUP_CODEC.decode(buf).orElse(null)
     }
 
     override fun encode(buf: ByteBuf, value: OutputEventArguments) {
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.category)
-        PacketCodecs.STRING.encode(buf, value.output)
-        NULLABLE_OBJECT_PACKET_CODEC.encode(buf, value.data)
-        NULLABLE_SOURCE_CODEC.encode(buf, value.source)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.line)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.column)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.variablesReference)
-        GROUP_CODEC.encode(buf, value.group)
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.category))
+        ByteBufCodecs.STRING_UTF8.encode(buf, value.output)
+        OPTIONAL_OBJECT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.data))
+        OPTIONAL_SOURCE_CODEC.encode(buf, Optional.ofNullable(value.source))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.line))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.column))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.variablesReference))
+        GROUP_CODEC.encode(buf, Optional.ofNullable(value.group))
     }
 }
 
-val EXITED_EVENT_ARGUMENTS_PACKET_CODEC: PacketCodec<ByteBuf, ExitedEventArguments> = PacketCodecs.VAR_INT.xmap(
+val EXITED_EVENT_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, ExitedEventArguments> = ByteBufCodecs.VAR_INT.map(
     { ExitedEventArguments().apply { exitCode = it }},
     ExitedEventArguments::getExitCode
 )
 
-val STEP_IN_TARGET_CODEC: PacketCodec<ByteBuf, StepInTarget> = PacketCodec.tuple(
-    PacketCodecs.VAR_INT,
+val STEP_IN_TARGET_CODEC: StreamCodec<ByteBuf, StepInTarget> = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
     StepInTarget::getId,
-    PacketCodecs.STRING,
+    ByteBufCodecs.STRING_UTF8,
     StepInTarget::getLabel,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    StepInTarget::getLine,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    StepInTarget::getColumn,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    StepInTarget::getEndLine,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    StepInTarget::getEndColumn,
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    StepInTarget::getLine.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    StepInTarget::getColumn.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    StepInTarget::getEndLine.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    StepInTarget::getEndColumn.toOptional(),
 ) { id, label, line, column, endLine, endColumn ->
     StepInTarget().apply {
         this.id = id
         this.label = label
-        this.line = line
-        this.column = column
-        this.endLine = endLine
-        this.endColumn = endColumn
+        this.line = line.orElse(null)
+        this.column = column.orElse(null)
+        this.endLine = endLine.orElse(null)
+        this.endColumn = endColumn.orElse(null)
     }
 }
 
-val STEP_IN_TARGETS_RESPONSE_PACKET_CODEC: PacketCodec<ByteBuf, StepInTargetsResponse> = STEP_IN_TARGET_CODEC.array().xmap(
+val STEP_IN_TARGETS_RESPONSE_PACKET_CODEC: StreamCodec<ByteBuf, StepInTargetsResponse> = STEP_IN_TARGET_CODEC.array().map(
     { StepInTargetsResponse().apply { targets = it } },
     { it.targets }
 )
 
-val VALUE_FORMAT_PACKET_CODEC: PacketCodec<ByteBuf, ValueFormat> = PacketCodecs.BOOLEAN.xmap(
+val VALUE_FORMAT_PACKET_CODEC: StreamCodec<ByteBuf, ValueFormat> = ByteBufCodecs.BOOL.map(
     { ValueFormat().apply { hex = it }},
     ValueFormat::getHex
 )
-val NULLABLE_VALUE_FORMAT_PACKET_CODEC = VALUE_FORMAT_PACKET_CODEC.nullable()
+val NULLABLE_VALUE_FORMAT_PACKET_CODEC = VALUE_FORMAT_PACKET_CODEC.optional()
 
-val VARIABLES_ARGUMENTS_PACKET_CODEC: PacketCodec<ByteBuf, VariablesArguments> = PacketCodec.tuple(
-    PacketCodecs.VAR_INT,
+val VARIABLES_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, VariablesArguments> = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
     VariablesArguments::getVariablesReference,
-    enumConstantCodec(VariablesArgumentsFilter::class.java).nullable(),
-    VariablesArguments::getFilter,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    VariablesArguments::getStart,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    VariablesArguments::getCount,
+    enumConstantCodec(VariablesArgumentsFilter::class.java).optional(),
+    VariablesArguments::getFilter.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    VariablesArguments::getStart.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    VariablesArguments::getCount.toOptional(),
     NULLABLE_VALUE_FORMAT_PACKET_CODEC,
-    VariablesArguments::getFormat
+    VariablesArguments::getFormat.toOptional()
 ) { variablesReference, filter, start, count, format ->
     VariablesArguments().apply {
         this.variablesReference = variablesReference
-        this.filter = filter
-        this.start = start
-        this.count = count
-        this.format = format
+        this.filter = filter.orElse(null)
+        this.start = start.orElse(null)
+        this.count = count.orElse(null)
+        this.format = format.orElse(null)
     }
 }
 
-val VARIABLE_PRESENTATION_HINT_PACKET_CODEC: PacketCodec<ByteBuf, VariablePresentationHint> = PacketCodec.tuple(
-    NULLABLE_STRING_PACKET_CODEC,
-    VariablePresentationHint::getKind,
-    PacketCodecs.STRING.array().nullable(),
-    VariablePresentationHint::getAttributes,
-    NULLABLE_STRING_PACKET_CODEC,
-    VariablePresentationHint::getVisibility,
-    NULLABLE_BOOL_PACKET_CODEC,
-    VariablePresentationHint::getLazy
+val VARIABLE_PRESENTATION_HINT_PACKET_CODEC: StreamCodec<ByteBuf, VariablePresentationHint> = StreamCodec.composite(
+    OPTIONAL_STRING_PACKET_CODEC,
+    VariablePresentationHint::getKind.toOptional(),
+    ByteBufCodecs.STRING_UTF8.array().optional(),
+    VariablePresentationHint::getAttributes.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    VariablePresentationHint::getVisibility.toOptional(),
+    OPTIONAL_BOOL_PACKET_CODEC,
+    VariablePresentationHint::getLazy.toOptional()
 ) { kind, attributes, visibility, lazy ->
     VariablePresentationHint().apply {
-        this.kind = kind
-        this.attributes = attributes
-        this.visibility = visibility
-        this.lazy = lazy
+        this.kind = kind.orElse(null)
+        this.attributes = attributes.orElse(null)
+        this.visibility = visibility.orElse(null)
+        this.lazy = lazy.orElse(null)
     }
 }
 
-val VARIABLE_PACKET_CODEC = object : PacketCodec<ByteBuf, Variable> {
-    val NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC = VARIABLE_PRESENTATION_HINT_PACKET_CODEC.nullable()
+val VARIABLE_PACKET_CODEC = object : StreamCodec<ByteBuf, Variable> {
+    val NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC = VARIABLE_PRESENTATION_HINT_PACKET_CODEC.optional()
     override fun decode(buf: ByteBuf) = Variable().apply {
-        name = PacketCodecs.STRING.decode(buf)
-        value = PacketCodecs.STRING.decode(buf)
-        type = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        presentationHint = NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC.decode(buf)
-        evaluateName = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        variablesReference = PacketCodecs.VAR_INT.decode(buf)
-        namedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        indexedVariables = NULLABLE_VAR_INT_PACKET_CODEC.decode(buf)
-        memoryReference = NULLABLE_STRING_PACKET_CODEC.decode(buf)
+        name = ByteBufCodecs.STRING_UTF8.decode(buf)
+        value = ByteBufCodecs.STRING_UTF8.decode(buf)
+        type = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        presentationHint = NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC.decode(buf).orElse(null)
+        evaluateName = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        variablesReference = ByteBufCodecs.VAR_INT.decode(buf)
+        namedVariables = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        indexedVariables = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
+        memoryReference = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
     }
 
     override fun encode(buf: ByteBuf, value: Variable) {
-        PacketCodecs.STRING.encode(buf, value.name)
-        PacketCodecs.STRING.encode(buf, value.value)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.type)
-        NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC.encode(buf, value.presentationHint)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.evaluateName)
-        PacketCodecs.VAR_INT.encode(buf, value.variablesReference)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.namedVariables)
-        NULLABLE_VAR_INT_PACKET_CODEC.encode(buf, value.indexedVariables)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.memoryReference)
+        ByteBufCodecs.STRING_UTF8.encode(buf, value.name)
+        ByteBufCodecs.STRING_UTF8.encode(buf, value.value)
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.type))
+        NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC.encode(buf, Optional.ofNullable(value.presentationHint))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.evaluateName))
+        ByteBufCodecs.VAR_INT.encode(buf, value.variablesReference)
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.namedVariables))
+        OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.indexedVariables))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.memoryReference))
     }
 }
 
-val SET_VARIABLE_ARGUMENTS_PACKET_CODEC: PacketCodec<ByteBuf, SetVariableArguments> = PacketCodec.tuple(
-    PacketCodecs.VAR_INT,
+val SET_VARIABLE_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, SetVariableArguments> = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
     SetVariableArguments::getVariablesReference,
-    PacketCodecs.STRING,
+    ByteBufCodecs.STRING_UTF8,
     SetVariableArguments::getName,
-    PacketCodecs.STRING,
+    ByteBufCodecs.STRING_UTF8,
     SetVariableArguments::getValue,
     NULLABLE_VALUE_FORMAT_PACKET_CODEC,
-    SetVariableArguments::getFormat
+    SetVariableArguments::getFormat.toOptional()
 ) { variablesReference, name, value, format ->
     SetVariableArguments().apply {
         this.variablesReference = variablesReference
         this.name = name
         this.value = value
-        this.format = format
+        this.format = format.orElse(null)
     }
 }
 
-val SET_VARIABLE_RESPONSE_PACKET_CODEC: PacketCodec<ByteBuf, SetVariableResponse> = PacketCodec.tuple(
-    PacketCodecs.STRING,
+val SET_VARIABLE_RESPONSE_PACKET_CODEC: StreamCodec<ByteBuf, SetVariableResponse> = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
     SetVariableResponse::getValue,
-    NULLABLE_STRING_PACKET_CODEC,
-    SetVariableResponse::getType,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    SetVariableResponse::getVariablesReference,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    SetVariableResponse::getNamedVariables,
-    NULLABLE_VAR_INT_PACKET_CODEC,
-    SetVariableResponse::getIndexedVariables
+    OPTIONAL_STRING_PACKET_CODEC,
+    SetVariableResponse::getType.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    SetVariableResponse::getVariablesReference.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    SetVariableResponse::getNamedVariables.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    SetVariableResponse::getIndexedVariables.toOptional()
 ) { value, type, variablesReference, namedVariables, indexedVariables ->
     SetVariableResponse().apply {
         this.value = value
-        this.type = type
-        this.variablesReference = variablesReference
-        this.namedVariables = namedVariables
-        this.indexedVariables = indexedVariables
+        this.type = type.orElse(null)
+        this.variablesReference = variablesReference.orElse(null)
+        this.namedVariables = namedVariables.orElse(null)
+        this.indexedVariables = indexedVariables.orElse(null)
     }
 }
 
-val COMPLETION_ITEM_LABEL_DETAILS_PACKET_CODEC = PacketCodec.tuple(
-    NULLABLE_STRING_PACKET_CODEC,
-    CompletionItemLabelDetails::getDetail,
-    NULLABLE_STRING_PACKET_CODEC,
-    CompletionItemLabelDetails::getDescription,
+val COMPLETION_ITEM_LABEL_DETAILS_PACKET_CODEC = StreamCodec.composite(
+    OPTIONAL_STRING_PACKET_CODEC,
+    CompletionItemLabelDetails::getDetail.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    CompletionItemLabelDetails::getDescription.toOptional(),
 ) { detail, description ->
     CompletionItemLabelDetails().apply {
-        this.detail = detail
-        this.description = description
+        this.detail = detail.orElse(null)
+        this.description = description.orElse(null)
     }
 }
 
-val COMMAND_PACKET_CODEC: PacketCodec<ByteBuf, Command> = PacketCodec.tuple(
-    PacketCodecs.STRING,
+val COMMAND_PACKET_CODEC: StreamCodec<ByteBuf, Command> = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
     Command::getTitle,
-    PacketCodecs.STRING,
+    ByteBufCodecs.STRING_UTF8,
     Command::getCommand,
-    OBJECT_PACKET_CODEC.list().nullable(),
-    Command::getArguments,
-    ::Command
-)
+    OBJECT_PACKET_CODEC.list().optional(),
+    Command::getArguments.toOptional(),
+) { title, command, arguments ->
+    Command().apply {
+        this.title = title
+        this.command = command
+        this.arguments = arguments.orElse(null)
+    }
+}
 
-val MARKUP_CONTENT_PACKET_CODEC: PacketCodec<ByteBuf, MarkupContent> = PacketCodec.tuple(
-    PacketCodecs.STRING,
+val MARKUP_CONTENT_PACKET_CODEC: StreamCodec<ByteBuf, MarkupContent> = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
     MarkupContent::getKind,
-    PacketCodecs.STRING,
+    ByteBufCodecs.STRING_UTF8,
     MarkupContent::getValue,
     ::MarkupContent
 )
 
-val TEXT_EDIT_PACKET_CODEC: PacketCodec<ByteBuf, TextEdit> = PacketCodec.tuple(
+val TEXT_EDIT_PACKET_CODEC: StreamCodec<ByteBuf, TextEdit> = StreamCodec.composite(
     RANGE_PACKET_CODEC,
     TextEdit::getRange,
-    PacketCodecs.STRING,
+    ByteBufCodecs.STRING_UTF8,
     TextEdit::getNewText,
     ::TextEdit
 )
-val INSERT_REPLACE_EDIT_PACKET_CODEC: PacketCodec<ByteBuf, InsertReplaceEdit> = PacketCodec.tuple(
-    PacketCodecs.STRING,
+val INSERT_REPLACE_EDIT_PACKET_CODEC: StreamCodec<ByteBuf, InsertReplaceEdit> = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
     InsertReplaceEdit::getNewText,
     RANGE_PACKET_CODEC,
     InsertReplaceEdit::getInsert,
@@ -458,54 +463,54 @@ val INSERT_REPLACE_EDIT_PACKET_CODEC: PacketCodec<ByteBuf, InsertReplaceEdit> = 
 }
 
 @Suppress("DEPRECATION")
-val COMPLETION_ITEM_PACKET_CODEC = object : PacketCodec<ByteBuf, CompletionItem> {
-    val NULLABLE_COMPLETION_ITEM_LABEL_DETAILS_CODEC = COMPLETION_ITEM_LABEL_DETAILS_PACKET_CODEC.nullable()
-    val NULLABLE_COMPLETION_ITEM_KIND_CODEC = enumConstantCodec(CompletionItemKind::class.java).nullable()
-    val NULLABLE_COMPLETION_ITEM_TAGS_CODEC = enumConstantCodec(CompletionItemTag::class.java).list().nullable()
-    val NULLABLE_COMPLETION_ITEM_INSERT_TEXT_FORMAT_CODEC = enumConstantCodec(InsertTextFormat::class.java).nullable()
-    val NULLABLE_COMPLETION_ITEM_INSERT_TEXT_MODE_CODEC = enumConstantCodec(InsertTextMode::class.java).nullable()
-    val NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC = PacketCodecs.STRING.list().nullable()
-    val NULLABLE_DOCUMENTATION_CODEC = (PacketCodecs.STRING makeEither MARKUP_CONTENT_PACKET_CODEC).nullable()
-    val NULLABLE_TEXT_EDIT_EITHER_CODEC = (TEXT_EDIT_PACKET_CODEC makeEither INSERT_REPLACE_EDIT_PACKET_CODEC).nullable()
-    val NULLABLE_TEXT_EDITS_CODEC = TEXT_EDIT_PACKET_CODEC.list().nullable()
+val COMPLETION_ITEM_PACKET_CODEC = object : StreamCodec<ByteBuf, CompletionItem> {
+    val NULLABLE_COMPLETION_ITEM_LABEL_DETAILS_CODEC = COMPLETION_ITEM_LABEL_DETAILS_PACKET_CODEC.optional()
+    val NULLABLE_COMPLETION_ITEM_KIND_CODEC = enumConstantCodec(CompletionItemKind::class.java).optional()
+    val NULLABLE_COMPLETION_ITEM_TAGS_CODEC = enumConstantCodec(CompletionItemTag::class.java).list().optional()
+    val NULLABLE_COMPLETION_ITEM_INSERT_TEXT_FORMAT_CODEC = enumConstantCodec(InsertTextFormat::class.java).optional()
+    val NULLABLE_COMPLETION_ITEM_INSERT_TEXT_MODE_CODEC = enumConstantCodec(InsertTextMode::class.java).optional()
+    val NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC = ByteBufCodecs.STRING_UTF8.list().optional()
+    val NULLABLE_DOCUMENTATION_CODEC = (ByteBufCodecs.STRING_UTF8 makeEither MARKUP_CONTENT_PACKET_CODEC).optional()
+    val NULLABLE_TEXT_EDIT_EITHER_CODEC = (TEXT_EDIT_PACKET_CODEC makeEither INSERT_REPLACE_EDIT_PACKET_CODEC).optional()
+    val NULLABLE_TEXT_EDITS_CODEC = TEXT_EDIT_PACKET_CODEC.list().optional()
 
     override fun decode(buf: ByteBuf) = CompletionItem().apply {
-        label = PacketCodecs.STRING.decode(buf)
-        labelDetails = NULLABLE_COMPLETION_ITEM_LABEL_DETAILS_CODEC.decode(buf)
-        kind = NULLABLE_COMPLETION_ITEM_KIND_CODEC.decode(buf)
-        tags = NULLABLE_COMPLETION_ITEM_TAGS_CODEC.decode(buf)
-        detail = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        documentation = NULLABLE_DOCUMENTATION_CODEC.decode(buf)
-        deprecated = NULLABLE_BOOL_PACKET_CODEC.decode(buf)
-        preselect = NULLABLE_BOOL_PACKET_CODEC.decode(buf)
-        sortText = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        filterText = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        insertText = NULLABLE_STRING_PACKET_CODEC.decode(buf)
-        insertTextFormat = NULLABLE_COMPLETION_ITEM_INSERT_TEXT_FORMAT_CODEC.decode(buf)
-        insertTextMode = NULLABLE_COMPLETION_ITEM_INSERT_TEXT_MODE_CODEC.decode(buf)
-        textEdit = NULLABLE_TEXT_EDIT_EITHER_CODEC.decode(buf)
-        additionalTextEdits = NULLABLE_TEXT_EDITS_CODEC.decode(buf)
-        commitCharacters = NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC.decode(buf)
-        data = NULLABLE_OBJECT_PACKET_CODEC.decode(buf)
+        label = ByteBufCodecs.STRING_UTF8.decode(buf)
+        labelDetails = NULLABLE_COMPLETION_ITEM_LABEL_DETAILS_CODEC.decode(buf).orElse(null)
+        kind = NULLABLE_COMPLETION_ITEM_KIND_CODEC.decode(buf).orElse(null)
+        tags = NULLABLE_COMPLETION_ITEM_TAGS_CODEC.decode(buf).orElse(null)
+        detail = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        documentation = NULLABLE_DOCUMENTATION_CODEC.decode(buf).orElse(null)
+        deprecated = OPTIONAL_BOOL_PACKET_CODEC.decode(buf).orElse(null)
+        preselect = OPTIONAL_BOOL_PACKET_CODEC.decode(buf).orElse(null)
+        sortText = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        filterText = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        insertText = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
+        insertTextFormat = NULLABLE_COMPLETION_ITEM_INSERT_TEXT_FORMAT_CODEC.decode(buf).orElse(null)
+        insertTextMode = NULLABLE_COMPLETION_ITEM_INSERT_TEXT_MODE_CODEC.decode(buf).orElse(null)
+        textEdit = NULLABLE_TEXT_EDIT_EITHER_CODEC.decode(buf).orElse(null)
+        additionalTextEdits = NULLABLE_TEXT_EDITS_CODEC.decode(buf).orElse(null)
+        commitCharacters = NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC.decode(buf).orElse(null)
+        data = OPTIONAL_OBJECT_PACKET_CODEC.decode(buf)
     }
 
     override fun encode(buf: ByteBuf, value: CompletionItem) {
-        PacketCodecs.STRING.encode(buf, value.label)
-        NULLABLE_COMPLETION_ITEM_LABEL_DETAILS_CODEC.encode(buf, value.labelDetails)
-        NULLABLE_COMPLETION_ITEM_KIND_CODEC.encode(buf, value.kind)
-        NULLABLE_COMPLETION_ITEM_TAGS_CODEC.encode(buf, value.tags)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.detail)
-        NULLABLE_DOCUMENTATION_CODEC.encode(buf, value.documentation)
-        NULLABLE_BOOL_PACKET_CODEC.encode(buf, value.deprecated)
-        NULLABLE_BOOL_PACKET_CODEC.encode(buf, value.preselect)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.sortText)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.filterText)
-        NULLABLE_STRING_PACKET_CODEC.encode(buf, value.insertText)
-        NULLABLE_COMPLETION_ITEM_INSERT_TEXT_FORMAT_CODEC.encode(buf, value.insertTextFormat)
-        NULLABLE_COMPLETION_ITEM_INSERT_TEXT_MODE_CODEC.encode(buf, value.insertTextMode)
-        NULLABLE_TEXT_EDIT_EITHER_CODEC.encode(buf, value.textEdit)
-        NULLABLE_TEXT_EDITS_CODEC.encode(buf, value.additionalTextEdits)
-        NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC.encode(buf, value.commitCharacters)
-        NULLABLE_OBJECT_PACKET_CODEC.encode(buf, value.data)
+        ByteBufCodecs.STRING_UTF8.encode(buf, value.label)
+        NULLABLE_COMPLETION_ITEM_LABEL_DETAILS_CODEC.encode(buf, Optional.ofNullable(value.labelDetails))
+        NULLABLE_COMPLETION_ITEM_KIND_CODEC.encode(buf, Optional.ofNullable(value.kind))
+        NULLABLE_COMPLETION_ITEM_TAGS_CODEC.encode(buf, Optional.ofNullable(value.tags))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.detail))
+        NULLABLE_DOCUMENTATION_CODEC.encode(buf, Optional.ofNullable(value.documentation))
+        OPTIONAL_BOOL_PACKET_CODEC.encode(buf, Optional.ofNullable(value.deprecated))
+        OPTIONAL_BOOL_PACKET_CODEC.encode(buf, Optional.ofNullable(value.preselect))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.sortText))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.filterText))
+        OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.insertText))
+        NULLABLE_COMPLETION_ITEM_INSERT_TEXT_FORMAT_CODEC.encode(buf, Optional.ofNullable(value.insertTextFormat))
+        NULLABLE_COMPLETION_ITEM_INSERT_TEXT_MODE_CODEC.encode(buf, Optional.ofNullable(value.insertTextMode))
+        NULLABLE_TEXT_EDIT_EITHER_CODEC.encode(buf, Optional.ofNullable(value.textEdit))
+        NULLABLE_TEXT_EDITS_CODEC.encode(buf, Optional.ofNullable(value.additionalTextEdits))
+        NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC.encode(buf, Optional.ofNullable(value.commitCharacters))
+        OPTIONAL_OBJECT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.data))
     }
 }

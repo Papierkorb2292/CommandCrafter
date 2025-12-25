@@ -1,41 +1,46 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.serialization.Lifecycle
-import net.minecraft.registry.*
-import net.minecraft.registry.Registry.PendingTagLoad
-import net.minecraft.registry.tag.TagGroupLoader
-import net.minecraft.resource.LifecycledResourceManagerImpl
-import net.minecraft.resource.ResourceType
-import net.minecraft.resource.VanillaDataPackProvider
+import net.minecraft.core.LayeredRegistryAccess
+import net.minecraft.core.MappedRegistry
+import net.minecraft.core.Registry
+import net.minecraft.core.Registry.PendingTags
+import net.minecraft.core.RegistryAccess
+import net.minecraft.resources.RegistryDataLoader
+import net.minecraft.server.RegistryLayer
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.repository.ServerPacksSource
+import net.minecraft.server.packs.resources.MultiPackResourceManager
+import net.minecraft.tags.TagLoader
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import java.util.stream.Stream
 
 class LoadedClientsideRegistries(
-    val combinedRegistries: CombinedDynamicRegistries<ServerDynamicRegistryType>,
-    private val pendingTagLoads: List<PendingTagLoad<*>>
+    val combinedRegistries: LayeredRegistryAccess<RegistryLayer>,
+    private val pendingTagLoads: List<PendingTags<*>>
 ) {
     companion object {
         fun load(): LoadedClientsideRegistries {
             // Static registries are copied so tags don't modify the original registries
-            val initialRegistries = getCopiedInitialRegistries(ServerDynamicRegistryType.createCombinedDynamicRegistries(), ServerDynamicRegistryType.STATIC)
-            val resourceManager = LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, listOf(VanillaDataPackProvider.createDefaultPack()))
-            val pendingTagLoads = TagGroupLoader.startReload(
-                resourceManager, initialRegistries.get(ServerDynamicRegistryType.STATIC)
+            val initialRegistries = getCopiedInitialRegistries(RegistryLayer.createRegistryAccess(), RegistryLayer.STATIC)
+            val resourceManager = MultiPackResourceManager(PackType.SERVER_DATA, listOf(ServerPacksSource.createVanillaPackSource()))
+            val pendingTagLoads = TagLoader.loadTagsForExistingRegistries(
+                resourceManager, initialRegistries.getLayer(RegistryLayer.STATIC)
             )
-            val precedingWorldgen = initialRegistries.getPrecedingRegistryManagers(ServerDynamicRegistryType.WORLDGEN)
-            val tagRegistries = TagGroupLoader.collectRegistries(precedingWorldgen, pendingTagLoads)
-            val dynamicRegistries = RegistryLoader.loadFromResource(
+            val precedingWorldgen = initialRegistries.getAccessForLoading(RegistryLayer.WORLDGEN)
+            val tagRegistries = TagLoader.buildUpdatedLookups(precedingWorldgen, pendingTagLoads)
+            val dynamicRegistries = RegistryDataLoader.load(
                 resourceManager,
                 tagRegistries,
                 NetworkServerConnectionHandler.ALL_DYNAMIC_REGISTRIES
             )
-            val tagAndDynamicRegistries = Stream.concat(tagRegistries.stream(), dynamicRegistries.stream()).toList()
-            val dimensionRegistries = RegistryLoader.loadFromResource(resourceManager, tagAndDynamicRegistries, RegistryLoader.DIMENSION_REGISTRIES)
-            val finalRegistries = initialRegistries.with(
-                ServerDynamicRegistryType.DIMENSIONS,
+            val tagAndDynamicRegistries = Stream.concat(tagRegistries.stream(), dynamicRegistries.listRegistries()).toList()
+            val dimensionRegistries = RegistryDataLoader.load(resourceManager, tagAndDynamicRegistries, RegistryDataLoader.DIMENSION_REGISTRIES)
+            val finalRegistries = initialRegistries.replaceFrom(
+                RegistryLayer.DIMENSIONS,
                 dimensionRegistries
-            ).with(
-                ServerDynamicRegistryType.RELOADABLE,
+            ).replaceFrom(
+                RegistryLayer.RELOADABLE,
                 dynamicRegistries
             )
             val registryLoader = LoadedClientsideRegistries(
@@ -46,21 +51,21 @@ class LoadedClientsideRegistries(
             return registryLoader
         }
 
-        fun <DynamicRegistryType> getCopiedInitialRegistries(combinedRegistries: CombinedDynamicRegistries<DynamicRegistryType>, registryType: DynamicRegistryType): CombinedDynamicRegistries<DynamicRegistryType> {
-            val copiedStatic = combinedRegistries.get(registryType)
-                .streamAllRegistries()
+        fun <DynamicRegistryType: Any> getCopiedInitialRegistries(combinedRegistries: LayeredRegistryAccess<DynamicRegistryType>, registryType: DynamicRegistryType): LayeredRegistryAccess<DynamicRegistryType> {
+            val copiedStatic = combinedRegistries.getLayer(registryType)
+                .registries()
                 .map { copyRegistry(it.value) }
                 .toList()
-            return combinedRegistries.with(
+            return combinedRegistries.replaceFrom(
                 registryType,
-                DynamicRegistryManager.ImmutableImpl(copiedStatic).toImmutable()
+                RegistryAccess.ImmutableRegistryAccess(copiedStatic).freeze()
             )
         }
 
-        fun <T> copyRegistry(registry: Registry<T>): Registry<T> {
-            val copy = SimpleRegistry(registry.key, Lifecycle.stable())
-            registry.streamEntries().forEach { entry ->
-                copy.add(entry.registryKey(), entry.value(), registry.getEntryInfo(entry.registryKey()).get())
+        fun <T: Any> copyRegistry(registry: Registry<T>): Registry<T> {
+            val copy = MappedRegistry(registry.key(), Lifecycle.stable())
+            registry.listElements().forEach { entry ->
+                copy.register(entry.key(), entry.value(), registry.registrationInfo(entry.key()).get())
             }
             copy.freeze()
             return copy

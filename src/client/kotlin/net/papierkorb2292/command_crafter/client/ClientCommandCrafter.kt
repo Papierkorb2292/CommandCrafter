@@ -5,44 +5,32 @@ import com.mojang.brigadier.context.StringRange
 import net.fabricmc.api.ClientModInitializer
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.font.FontManager
-import net.minecraft.client.gl.PostEffectPipeline
-import net.minecraft.client.item.ItemAsset
-import net.minecraft.client.render.model.json.BlockModelDefinition
-import net.minecraft.client.resource.waypoint.WaypointStyleAsset
-import net.minecraft.client.texture.atlas.AtlasSourceManager
-import net.minecraft.command.CommandRegistryAccess
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.item.ItemStack
-import net.minecraft.item.equipment.EquipmentType
-import net.minecraft.resource.featuretoggle.FeatureFlags
-import net.minecraft.screen.ScreenTexts
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.CommandOutput
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.util.math.Vec2f
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.waypoint.WaypointStyle
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.font.FontManager
+import net.minecraft.client.renderer.PostChainConfig
+import net.minecraft.client.renderer.block.model.BlockModelDefinition
+import net.minecraft.client.renderer.item.ClientItem
+import net.minecraft.client.renderer.texture.atlas.SpriteSources
+import net.minecraft.client.resources.WaypointStyle
+import net.minecraft.commands.CommandBuildContext
+import net.minecraft.commands.Commands
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.world.flag.FeatureFlags
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.equipment.ArmorType
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
-import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyCompletionsDefault
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.EditorConnectionManager
+import net.papierkorb2292.command_crafter.editor.McFunctionAnalyzer
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.SocketEditorConnectionType
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import net.papierkorb2292.command_crafter.parser.Language
-import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
-import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
-import org.eclipse.lsp4j.Position
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 
@@ -54,12 +42,12 @@ object ClientCommandCrafter : ClientModInitializer {
         }
     }
 
-    val defaultFeatureSet = FeatureFlags.FEATURE_MANAGER.featureSet
+    val defaultFeatureSet = FeatureFlags.REGISTRY.allFlags()
 
     var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
         SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
-            CommandDispatcher(), LeveledPermissionPredicate.NONE
+            CommandDispatcher(), LevelBasedPermissionSet.NO_PERMISSIONS
         ),
         DirectMinecraftClientConnection,
         CommandCrafter.serviceLaunchers
@@ -77,7 +65,7 @@ object ClientCommandCrafter : ClientModInitializer {
 
     private fun initializeEditor() {
         MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({
-            AnalyzingClientCommandSource(MinecraftClient.getInstance())
+            AnalyzingClientCommandSource(Minecraft.getInstance())
         }, { analyzingResult ->
             val finalResult = analyzingResult.copyExceptCompletions()
             finalResult.addCompletionProvider(
@@ -93,28 +81,18 @@ object ClientCommandCrafter : ClientModInitializer {
 
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
 
-        val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
+        val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
         fun setDefaultServerConnection() {
             val rootNode = limitCommandTreeForSource(
-                CommandManager(
-                    CommandManager.RegistrationEnvironment.ALL,
-                    CommandRegistryAccess.of(registryWrapperLookup, defaultFeatureSet)
-                ), ServerCommandSource(
-                    CommandOutput.DUMMY,
-                    Vec3d.ZERO,
-                    Vec2f.ZERO,
-                    null,
-                    LeveledPermissionPredicate.GAMEMASTERS,
-                    "",
-                    ScreenTexts.EMPTY,
-                    null,
-                    null
-                )
+                Commands(
+                    Commands.CommandSelection.ALL,
+                    CommandBuildContext.simple(registryWrapperLookup, defaultFeatureSet)
+                ), Commands.createCompilationContext(LevelBasedPermissionSet.GAMEMASTER)
             )
             CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
             editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
                 CommandDispatcher(rootNode),
-                LeveledPermissionPredicate.GAMEMASTERS
+                LevelBasedPermissionSet.GAMEMASTER
             )
         }
 
@@ -152,13 +130,13 @@ object ClientCommandCrafter : ClientModInitializer {
     }
 
     val clientsideJsonResourceCodecs = mutableMapOf(
-        PackContentFileType.ATLASES_FILE_TYPE to AtlasSourceManager.LIST_CODEC,
+        PackContentFileType.ATLASES_FILE_TYPE to SpriteSources.FILE_CODEC,
         PackContentFileType.BLOCKSTATES_FILE_TYPE to BlockModelDefinition.CODEC,
-        PackContentFileType.EQUIPMENT_FILE_TYPE to EquipmentType.CODEC,
-        PackContentFileType.FONTS_FILE_TYPE to FontManager.Providers.CODEC,
-        PackContentFileType.ITEMS_FILE_TYPE to ItemAsset.CODEC,
-        PackContentFileType.POST_EFFECTS_FILE_TYPE to PostEffectPipeline.CODEC,
-        PackContentFileType.WAYPOINT_STYLE_FILE_TYPE to WaypointStyleAsset.CODEC,
+        PackContentFileType.EQUIPMENT_FILE_TYPE to ArmorType.CODEC,
+        PackContentFileType.FONTS_FILE_TYPE to FontManager.FontDefinitionFile.CODEC,
+        PackContentFileType.ITEMS_FILE_TYPE to ClientItem.CODEC,
+        PackContentFileType.POST_EFFECTS_FILE_TYPE to PostChainConfig.CODEC,
+        PackContentFileType.WAYPOINT_STYLE_FILE_TYPE to WaypointStyle.CODEC,
     )
 
     var currentlyHoveredItem: ItemStack? = null

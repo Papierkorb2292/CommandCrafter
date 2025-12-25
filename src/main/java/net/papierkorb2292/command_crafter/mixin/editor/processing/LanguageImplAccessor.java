@@ -5,8 +5,8 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.Map;
 
-@Mixin(targets = "net/minecraft/util/Language$1")
+@Mixin(targets = "net.minecraft.locale.Language$1")
 public interface LanguageImplAccessor {
     @Accessor
-    Map<String, String> getField_25308();
+    Map<String, String> getVal$storage();
 }

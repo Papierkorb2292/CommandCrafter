@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.parser
 
-import net.minecraft.command.CommandSource
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.FunctionBuilder
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.FunctionBuilder
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -11,20 +11,20 @@ import net.papierkorb2292.command_crafter.parser.helper.RawResource
 interface Language {
     fun parseToVanilla(
         reader: DirectiveStringReader<RawZipResourceCreator>,
-        source: ServerCommandSource,
+        source: CommandSourceStack,
         resource: RawResource
     )
 
     fun analyze(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        source: CommandSource,
+        source: SharedSuggestionProvider,
         result: AnalyzingResult
     )
 
     fun parseToCommands(
         reader: DirectiveStringReader<ParsedResourceCreator?>,
-        source: ServerCommandSource,
-        builder: FunctionBuilder<ServerCommandSource>
+        source: CommandSourceStack,
+        builder: FunctionBuilder<CommandSourceStack>
     ): FunctionDebugInformation?
 
     interface LanguageClosure {

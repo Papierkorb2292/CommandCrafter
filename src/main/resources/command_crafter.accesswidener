@@ -1,15 +1,15 @@
 accessWidener v2 named
 
-accessible method net/minecraft/resource/ZipResourcePack$ZipFileWrapper open ()Ljava/util/zip/ZipFile;
-accessible class net/minecraft/server/function/FunctionBuilder
-accessible class net/minecraft/server/function/Macro$Line
-accessible class net/minecraft/server/function/Macro$VariableLine
-accessible class net/minecraft/command/argument/NbtPathArgumentType$PathNode
-accessible class net/minecraft/util/packrat/ParsingStateImpl$MemoizedValue
-extendable method net/minecraft/nbt/NbtByte <init> (B)V
-accessible class net/minecraft/client/font/FontManager$Providers
-accessible class net/minecraft/server/MinecraftServer$ResourceManagerHolder
-accessible class net/minecraft/client/option/SimpleOption$Callbacks
-accessible method net/minecraft/client/gl/ShaderLoader$ShaderSourceKey <init> (Lnet/minecraft/util/Identifier;Lcom/mojang/blaze3d/shaders/ShaderType;)V
-accessible class net/minecraft/block/entity/BlockEntityType$BlockEntityFactory
-accessible method net/minecraft/command/argument/ItemPredicateArgumentType$ComponentCheck <init> (Lnet/minecraft/util/Identifier;Ljava/util/function/Predicate;Lcom/mojang/serialization/Decoder;)V
+accessible method net/minecraft/server/packs/FilePackResources$SharedZipFileAccess getOrCreateZipFile ()Ljava/util/zip/ZipFile;
+accessible class net/minecraft/commands/functions/FunctionBuilder
+accessible class net/minecraft/commands/functions/MacroFunction$Entry
+accessible class net/minecraft/commands/functions/MacroFunction$MacroEntry
+accessible class net/minecraft/commands/arguments/NbtPathArgument$Node
+accessible class net/minecraft/util/parsing/packrat/CachedParseState$CacheEntry
+extendable method net/minecraft/nbt/ByteTag <init> (B)V
+accessible class net/minecraft/client/gui/font/FontManager$FontDefinitionFile
+accessible class net/minecraft/server/MinecraftServer$ReloadableResources
+accessible class net/minecraft/client/OptionInstance$ValueSet
+accessible method net/minecraft/client/renderer/ShaderManager$ShaderSourceKey <init> (Lnet/minecraft/resources/Identifier;Lcom/mojang/blaze3d/shaders/ShaderType;)V
+accessible class net/minecraft/world/level/block/entity/BlockEntityType$BlockEntitySupplier
+accessible method net/minecraft/commands/arguments/item/ItemPredicateArgument$ComponentWrapper <init> (Lnet/minecraft/resources/Identifier;Ljava/util/function/Predicate;Lcom/mojang/serialization/Decoder;)V

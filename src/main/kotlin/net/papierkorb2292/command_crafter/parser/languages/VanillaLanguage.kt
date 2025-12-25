@@ -18,35 +18,35 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.command.CommandSource
-import net.minecraft.command.MacroInvocation
-import net.minecraft.command.SingleCommandAction
-import net.minecraft.command.argument.CommandFunctionArgumentType
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.util.packrat.ParsingRule
-import net.minecraft.util.packrat.ParsingState
-import net.minecraft.nbt.NbtElement
-import net.minecraft.nbt.NbtEnd
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.functions.StringTemplate
+import net.minecraft.commands.execution.tasks.BuildContexts
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.util.parsing.packrat.Rule
+import net.minecraft.util.parsing.packrat.ParseState
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.EndTag
 import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.StringNbtReader
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.RegistryWrapper
-import net.minecraft.registry.entry.RegistryEntry
-import net.minecraft.registry.entry.RegistryEntryList
-import net.minecraft.registry.tag.TagEntry
-import net.minecraft.registry.tag.TagKey
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.FunctionBuilder
-import net.minecraft.server.function.Macro
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
-import net.minecraft.util.StringIdentifiable
+import net.minecraft.nbt.TagParser
+import net.minecraft.core.Registry
+import net.minecraft.resources.ResourceKey
+import net.minecraft.core.registries.Registries
+import net.minecraft.core.HolderLookup
+import net.minecraft.core.Holder
+import net.minecraft.core.HolderSet
+import net.minecraft.tags.TagEntry
+import net.minecraft.tags.TagKey
+import net.minecraft.commands.Commands
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.FunctionBuilder
+import net.minecraft.commands.functions.MacroFunction
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
+import net.minecraft.util.StringRepresentable
 import net.minecraft.util.Util
-import net.minecraft.util.math.MathHelper
-import net.minecraft.util.packrat.*
+import net.minecraft.util.Mth
+import net.minecraft.util.parsing.packrat.SuggestionSupplier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
@@ -76,7 +76,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
 data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources: Boolean = false) : Language {
     override fun parseToVanilla(
         reader: DirectiveStringReader<RawZipResourceCreator>,
-        source: ServerCommandSource,
+        source: CommandSourceStack,
         resource: RawResource,
     ) {
         while(skipToNextCommand(reader)) {
@@ -86,7 +86,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(reader.canRead() && reader.peek() == '$') {
                 val macro = readMacro(reader)
                 //For validation
-                FunctionBuilderAccessor_Parser.init<ServerCommandSource>().addMacroCommand(
+                FunctionBuilderAccessor_Parser.init<CommandSourceStack>().addMacro(
                     macro, reader.currentLine, source
                 )
 
@@ -112,7 +112,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     override fun analyze(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        source: CommandSource,
+        source: SharedSuggestionProvider,
         result: AnalyzingResult,
     ) {
         fun advanceToParseResults(parseResults: ParseResults<*>, reader: DirectiveStringReader<*>) {
@@ -237,7 +237,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     private fun readAndAnalyzeMacro(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        source: CommandSource,
+        source: SharedSuggestionProvider,
         result: AnalyzingResult,
     ) {
         val startCursor = reader.cursor
@@ -260,9 +260,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
         var fullResult = reader.resourceCreator.previousCache?.vanillaMacroCache[relevantLines]
         if(fullResult == null) {
-            val startTime = Util.getMeasuringTimeNano()
+            val startTime = Util.getNanos()
             val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
-                MacroInvocation.parse(macro)
+                StringTemplate.fromString(macro)
             }
             val macroVariableValues = macroInvocation.variables.map { "" }
 
@@ -293,7 +293,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 if(hasClosingParentheses) {
                     // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
                     // that aren't actually intended to be part of the name
-                    if(!MacroInvocation.isValidMacroName(variable)) {
+                    if(!StringTemplate.isValidVariableName(variable)) {
                         diagnostics += Diagnostic(
                             Range(
                                 AnalyzingResult.getPositionFromCursor(
@@ -327,7 +327,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 )
             }
 
-            val replacedMacro = macroInvocation.apply(macroVariableValues)
+            val replacedMacro = macroInvocation.substitute(macroVariableValues)
             // A macro variable is present at the beginning of every segment except for the first one
             val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
             macroVariableLocations.remove(0)
@@ -359,7 +359,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             macroAnalyzingResult.diagnostics += diagnostics
             fullResult = macroAnalyzingResult
             if(logMacroAnalyzingTime) {
-                val duration = (Util.getMeasuringTimeNano() - startTime) / 1000
+                val duration = (Util.getNanos() - startTime) / 1000
                 println("Took ${duration}µs to analyze macro: $macro")
             }
         }
@@ -369,8 +369,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
     override fun parseToCommands(
         reader: DirectiveStringReader<ParsedResourceCreator?>,
-        source: ServerCommandSource,
-        builder: FunctionBuilder<ServerCommandSource>,
+        source: CommandSourceStack,
+        builder: FunctionBuilder<CommandSourceStack>,
     ): FunctionDebugInformation? {
         val elementBreakpointParsers = mutableListOf<FunctionElementDebugInformation.FunctionElementProcessor>()
         while(skipToNextCommand(reader)) {
@@ -380,18 +380,18 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(reader.canRead() && reader.peek() == '$') {
                 val startCursor = reader.absoluteCursor
                 val startSkippedCharacters = reader.skippedChars
-                builder.addMacroCommand(
+                builder.addMacro(
                     readMacro(reader),
                     reader.currentLine,
                     source
                 )
                 val endCursorWithoutNewLine = reader.absoluteCursor - if(easyNewLine && reader.canRead(0) && reader.peek(-1) == '\n') 1 else 0
-                val macroLines = (builder as FunctionBuilderAccessor_Debug).macroLines
+                val macroLines = (builder as FunctionBuilderAccessor_Debug).macroEntries
                 @Suppress("UNCHECKED_CAST")
                 elementBreakpointParsers += FunctionElementDebugInformation.MacroElementProcessor(
                     macroLines.size - 1,
                     StringRange.between(startCursor, endCursorWithoutNewLine),
-                    macroLines.last() as Macro.VariableLine<ServerCommandSource>,
+                    macroLines.last() as MacroFunction.MacroEntry<CommandSourceStack>,
                     reader.cursorMapper,
                     startSkippedCharacters
                 )
@@ -410,7 +410,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parsed.reader)
             }
             elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(contextChain.topContext)
-            builder.addAction(SingleCommandAction.Sourced(string, contextChain))
+            builder.addCommand(BuildContexts.Unbound(string, contextChain))
             if(reader.canRead(0) && reader.peek(-1) != '\n')
                 break
         }
@@ -430,7 +430,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun <S: CommandSource> parseCommand(reader: DirectiveStringReader<*>, source: S): ParseResults<S> {
+    private fun <S: SharedSuggestionProvider> parseCommand(reader: DirectiveStringReader<*>, source: S): ParseResults<S> {
         try {
             @Suppress("UNCHECKED_CAST")
             val parseResults: ParseResults<S> = reader.dispatcher.parse(reader, source) as ParseResults<S>
@@ -456,7 +456,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 } else reader.skip()
             } else {
                 if (parseResults.reader.canRead()) {
-                    throw CommandManager.getException(parseResults)!!
+                    throw Commands.getParseException(parseResults)!!
                 }
             }
             return parseResults
@@ -523,7 +523,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return reader.canRead() && reader.currentLanguage == this
     }
 
-    private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: CommandSource, ignorePrevIndent: Boolean): Boolean {
+    private fun skipToNextCommandAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, source: SharedSuggestionProvider, ignorePrevIndent: Boolean): Boolean {
         if(reader.cursor != 0 && reader.peek(-1) != '\n') {
             if(!reader.canRead()) {
                 reader.checkEndLanguage()
@@ -561,7 +561,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    fun writeCommand(result: ParseResults<ServerCommandSource>, resource: RawResource, reader: DirectiveStringReader<RawZipResourceCreator>) {
+    fun writeCommand(result: ParseResults<CommandSourceStack>, resource: RawResource, reader: DirectiveStringReader<RawZipResourceCreator>) {
         var contextBuilder = result.context
         var context = contextBuilder.build(result.reader.string)
         var addLeadingSpace = false
@@ -611,7 +611,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return ParsedCommandNode(rootNode, StringRange.at(completionStart - 1))
     }
 
-    fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: CommandSource, analyzingResult: AnalyzingResult) {
+    fun suggestRootNode(reader: DirectiveStringReader<AnalyzingResourceCreator>, range: StringRange, commandSource: SharedSuggestionProvider, analyzingResult: AnalyzingResult) {
         reader.directiveManager.suggestDirectives(range, analyzingResult)
         val parsedRootNode = getAnalyzingParsedRootNode(reader.dispatcher.root, range.start)
         addNodeSuggestions(
@@ -635,7 +635,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     fun analyzeParsedCommand(
-        result: ParseResults<CommandSource>,
+        result: ParseResults<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         firstContextSkipNodesAmount: Int = 0
@@ -675,7 +675,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         gapRange: StringRange,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        commandSource: CommandSource,
+        commandSource: SharedSuggestionProvider,
     ) {
         if(!isReaderEasyNextLine(reader))
             // There can't be any improved command gaps
@@ -701,9 +701,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     private fun analyzeCommandNode(
-        parsedNode: ParsedCommandNode<CommandSource>,
-        parentNode: ParsedCommandNode<CommandSource>,
-        contextBuilder: CommandContextBuilder<CommandSource>,
+        parsedNode: ParsedCommandNode<SharedSuggestionProvider>,
+        parentNode: ParsedCommandNode<SharedSuggestionProvider>,
+        contextBuilder: CommandContextBuilder<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         skipAnalyzedChars: Boolean = false,
@@ -736,7 +736,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             context,
                             StringRange(
                                 parsedNode.range.start,
-                                MathHelper.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                                Mth.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
                             ),
                             analyzeReader,
                             nodeAnalyzingResult,
@@ -776,11 +776,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     }
 
     private fun addNodeSuggestions(
-        parentNode: ParsedCommandNode<CommandSource>,
+        parentNode: ParsedCommandNode<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
         parsedNodeRange: StringRange,
         completionReader: DirectiveStringReader<AnalyzingResourceCreator>,
-        contextBuilder: CommandContextBuilder<CommandSource>,
+        contextBuilder: CommandContextBuilder<SharedSuggestionProvider>,
         clampInCursorMapperGaps: Boolean,
         additionalCompletions: AnalyzingResult? = null,
         rootCompletions: AnalyzingResult? = null,
@@ -862,7 +862,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         )
     }
 
-    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<CommandSource>, context: CommandContextBuilder<CommandSource>, reader: DirectiveStringReader<AnalyzingResourceCreator>): CommandNode<CommandSource>? {
+    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<SharedSuggestionProvider>, context: CommandContextBuilder<SharedSuggestionProvider>, reader: DirectiveStringReader<AnalyzingResourceCreator>): CommandNode<SharedSuggestionProvider>? {
         val initialCursor = reader.cursor
         if(isReaderEasyNextLine(reader)) {
             // Don't skip more if a whitespace was already skipped, because the command parser won't skip both
@@ -886,7 +886,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.skip()
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
-        var furthestParsedContext: CommandContextBuilder<CommandSource>? = null
+        var furthestParsedContext: CommandContextBuilder<SharedSuggestionProvider>? = null
         for(nextNode in parentNode.node.resolveRedirects().children) {
             val newReader = reader.copy()
             val start = newReader.cursor
@@ -933,7 +933,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return furthestParsedContext.nodes.last().node
     }
 
-    private fun buildParentNodeForNextNodeAttempt(parsedNode: ParsedCommandNode<CommandSource>, dispatcher: CommandDispatcher<CommandSource>): ParsedCommandNode<CommandSource> {
+    private fun buildParentNodeForNextNodeAttempt(parsedNode: ParsedCommandNode<SharedSuggestionProvider>, dispatcher: CommandDispatcher<SharedSuggestionProvider>): ParsedCommandNode<SharedSuggestionProvider> {
         val node = parsedNode.node
         // Special case due to the ambiguity of the teleport command: The 'destination' argument could also be the 'targets' argument.
         // And since the 'destination' node doesn't have any children anyway, it's just replaced with the 'targets' node here.
@@ -946,19 +946,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return parsedNode
     }
 
-    data class CommandAnalyzingFootprint(val triedNextNode: CommandNode<CommandSource>?)
+    data class CommandAnalyzingFootprint(val triedNextNode: CommandNode<SharedSuggestionProvider>?)
 
     object VanillaLanguageType : LanguageManager.LanguageType {
-        enum class VanillaLanguageOptions(val optionName: String) : StringIdentifiable {
+        enum class VanillaLanguageOptions(val optionName: String) : StringRepresentable {
             DEFAULT("default"),
             ALL_FEATURES("improved"),
             EASY_NEW_LINE("easyNewLine"),
             INLINE_RESOURCES("inlineResources");
 
-            override fun asString() = optionName
+            override fun getSerializedName() = optionName
         }
         
-        override val argumentDecoder: Decoder<Language> = StringIdentifiable.createCodec(VanillaLanguageOptions.entries::toTypedArray)
+        override val argumentDecoder: Decoder<Language> = StringRepresentable.fromEnum(VanillaLanguageOptions.entries::toTypedArray)
             .orEmpty(VanillaLanguageOptions.DEFAULT)
             .map {
                 when(it!!) {
@@ -978,11 +978,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val shouldDisplayWarningOnMacroTimeout = true //TODO: Turn off before release
         val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")
 
-        private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Text.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
-        private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Text.of("Command doesn't end with a new line"))
+        private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Component.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
+        private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Component.nullToEmpty("Command doesn't end with a new line"))
 
         //TODO: Error on trailing data
-        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
+        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
 
             val crawlerRunner = MacroAnalyzingCrawlerRunner(
@@ -1057,56 +1057,56 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 // Unit to suggest {} for inline functions
                 Codec.EMPTY.codec(),
                 // Suggesting 'this'
-                StringIdentifiable.createCodec({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "this" })
+                StringRepresentable.fromEnumWithMapping({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "this" })
             )
         )
 
-        fun <T> parseRawRegistryTagTuple(
+        fun <T: Any> parseRawRegistryTagTuple(
             reader: DirectiveStringReader<RawZipResourceCreator>,
-            registry: RegistryWrapper.Impl<T>,
+            registry: HolderLookup.RegistryLookup<T>,
         ): RawResourceRegistryEntryList<T> =
             RawResourceRegistryEntryList(parseRawTagTupleEntries(
                 reader,
-                RawResource.RawResourceType(RegistryKeys.getTagPath(registry.key), "json")
+                RawResource.RawResourceType(Registries.tagsDirPath(registry.key()), "json")
             ))
 
         private val missingInlineTagReferencesException = Dynamic2CommandExceptionType { sourceFunction: Any, missing: Any ->
-            Text.of("Couldn't load function $sourceFunction, as a registry tag created by it is missing following references: $missing")
+            Component.nullToEmpty("Couldn't load function $sourceFunction, as a registry tag created by it is missing following references: $missing")
         }
 
-        fun <T> parseParsedRegistryTagTuple(
+        fun <T: Any> parseParsedRegistryTagTuple(
             reader: DirectiveStringReader<ParsedResourceCreator>,
-            registry: RegistryWrapper.Impl<T>,
-        ): RegistryEntryList.ListBacked<T> {
+            registry: HolderLookup.RegistryLookup<T>,
+        ): HolderSet.ListBacked<T> {
             val entries = parseTagTupleEntries(reader)
             @Suppress("UNCHECKED_CAST")
-            val registryKey = registry.key as RegistryKey<out Registry<T>>
-            return object : RegistryEntryList.ListBacked<T>() {
+            val registryKey = registry.key() as ResourceKey<out Registry<T>>
+            return object : HolderSet.ListBacked<T>() {
                 override fun isBound(): Boolean {
-                    val checkBoundValueGetter = object : TagEntry.ValueGetter<Any> {
-                        override fun direct(id: Identifier, required: Boolean) = Unit
+                    val checkBoundValueGetter = object : TagEntry.Lookup<Any> {
+                        override fun element(id: Identifier, required: Boolean) = Unit
 
                         override fun tag(id: Identifier): Collection<Any>? =
-                                if(registry.getOptional(TagKey.of(registryKey, id)).isPresent) emptyList() else null
+                                if(registry.get(TagKey.create(registryKey, id)).isPresent) emptyList() else null
                     }
                     for(entry in entries)
-                        if(!entry.resolve(checkBoundValueGetter) {})
+                        if(!entry.build(checkBoundValueGetter) {})
                             return false
                     return true
                 }
 
                 val resolvedEntries by lazy {
-                    val result: MutableList<RegistryEntry<T>> = ArrayList()
-                    val valueGetter = object : TagEntry.ValueGetter<RegistryEntry<T>> {
-                        override fun direct(id: Identifier, required: Boolean): RegistryEntry<T>
-                                = registry.getOrThrow(RegistryKey.of(registryKey, id))
+                    val result: MutableList<Holder<T>> = ArrayList()
+                    val valueGetter = object : TagEntry.Lookup<Holder<T>> {
+                        override fun element(id: Identifier, required: Boolean): Holder<T>
+                                = registry.getOrThrow(ResourceKey.create(registryKey, id))
 
-                        override fun tag(id: Identifier): Collection<RegistryEntry<T>>
-                                = registry.getOrThrow(TagKey.of(registryKey, id)).toList()
+                        override fun tag(id: Identifier): Collection<Holder<T>>
+                                = registry.getOrThrow(TagKey.create(registryKey, id)).toList()
                     }
                     val missingReferences: MutableList<TagEntry> = ArrayList()
                     for(entry in entries)
-                        if(!entry.resolve(valueGetter, result::add))
+                        if(!entry.build(valueGetter, result::add))
                             missingReferences += entry
                     if(missingReferences.isNotEmpty()) {
                         throw missingInlineTagReferencesException.create(
@@ -1122,20 +1122,20 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     resolvedEntries.toSet()
                 }
 
-                override fun getStorage(): Either<TagKey<T>, MutableList<RegistryEntry<T>>>
+                override fun unwrap(): Either<TagKey<T>, MutableList<Holder<T>>>
                         = Either.right(resolvedEntries)
 
-                override fun getTagKey() = Optional.empty<TagKey<T>>()
+                override fun unwrapKey() = Optional.empty<TagKey<T>>()
 
-                override fun getEntries() = resolvedEntries
+                override fun contents() = resolvedEntries
 
-                override fun contains(entry: RegistryEntry<T>?) = entrySet.contains(entry)
+                override fun contains(entry: Holder<T>) = entrySet.contains(entry)
             }
         }
 
-        fun <T> analyzeRegistryTagTuple(
+        fun <T: Any> analyzeRegistryTagTuple(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            registry: RegistryWrapper.Impl<T>,
+            registry: HolderLookup.RegistryLookup<T>,
             throwSyntaxErrors: Boolean = true,
             hasNegationChar: Boolean = false,
             suggestNegationChar: Boolean = false,
@@ -1144,7 +1144,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val codec = if(suggestNegationChar) Codec.either(
                 tagEntryListCodec,
                 // Also suggest inverted lists
-                StringIdentifiable.createCodec({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "![]" })
+                StringRepresentable.fromEnumWithMapping({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "![]" })
             ) else tagEntryListCodec
             StringRangeTreeJsonResourceAnalyzer.CURRENT_TAG_ANALYZING_REGISTRY.runWithValue(registry) {
                 analyzeTagTupleEntries(reader, analyzingResult, codec, throwSyntaxErrors, hasNegationChar)
@@ -1152,10 +1152,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return AnalyzedRegistryEntryList(analyzingResult)
         }
 
-        fun <T> parseRegistryTagTuple(
+        fun <T: Any> parseRegistryTagTuple(
             reader: DirectiveStringReader<*>,
-            registry: RegistryWrapper.Impl<T>,
-        ): RegistryEntryList<T> {
+            registry: HolderLookup.RegistryLookup<T>,
+        ): HolderSet<T> {
             reader.withNoMultilineRestriction<Nothing> {
                 it.resourceCreator.run {
                     if(this is RawZipResourceCreator) {
@@ -1177,7 +1177,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         private fun parseParsedInlineFunction(
             reader: DirectiveStringReader<ParsedResourceCreator>,
-            source: ServerCommandSource,
+            source: CommandSourceStack,
             idSetter: (Identifier) -> Unit,
         ) {
             val startCursor = reader.absoluteCursor
@@ -1191,14 +1191,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.resourceCreator.popOriginResource()
         }
 
-        private fun parseRawInlineFunction(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource): RawResource {
+        private fun parseRawInlineFunction(reader: DirectiveStringReader<RawZipResourceCreator>, source: CommandSourceStack): RawResource {
             reader.expect('{')
             val resource = RawResource(RawResource.FUNCTION_TYPE)
             LanguageManager.parseToVanilla(reader, source, resource, NestedVanillaClosure(reader.currentLanguage!!))
             return resource
         }
 
-        fun parseRawImprovedFunctionReference(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource): RawResourceFunctionArgument? {
+        fun parseRawImprovedFunctionReference(reader: DirectiveStringReader<RawZipResourceCreator>, source: CommandSourceStack): RawResourceFunctionArgument? {
             if(!reader.canRead()) {
                 return null
             }
@@ -1215,7 +1215,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return RawResourceFunctionArgument(parseRawTagTupleEntries(reader, RawResource.FUNCTION_TAG_TYPE), true)
         }
 
-        fun parseParsedImprovedFunctionReference(reader: DirectiveStringReader<ParsedResourceCreator>, source: ServerCommandSource): MutableFunctionArgument? {
+        fun parseParsedImprovedFunctionReference(reader: DirectiveStringReader<ParsedResourceCreator>, source: CommandSourceStack): MutableFunctionArgument? {
             if(!reader.canRead()) {
                 return null
             }
@@ -1241,7 +1241,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun analyzeInlineFunction(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            source: CommandSource,
+            source: SharedSuggestionProvider,
             analyzingResult: AnalyzingResult,
         ) {
             reader.expect('{')
@@ -1250,7 +1250,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun analyzeImprovedFunctionReference(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
-            source: CommandSource,
+            source: SharedSuggestionProvider,
             isAnalyzingParsedNode: Boolean = false,
         ): AnalyzedFunctionArgument? {
             val analyzingResult = AnalyzingResult(reader.fileMappingInfo, AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo))
@@ -1295,14 +1295,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return AnalyzedFunctionArgument(analyzingResult)
         }
 
-        fun parseImprovedFunctionReference(reader: DirectiveStringReader<*>, source: CommandSource): CommandFunctionArgumentType.FunctionArgument? {
+        fun parseImprovedFunctionReference(reader: DirectiveStringReader<*>, source: SharedSuggestionProvider): FunctionArgument.Result? {
             reader.withNoMultilineRestriction<Nothing> {
                 it.resourceCreator.run {
-                    if(this is RawZipResourceCreator && source is ServerCommandSource) {
+                    if(this is RawZipResourceCreator && source is CommandSourceStack) {
                         @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
                         return parseRawImprovedFunctionReference(it as DirectiveStringReader<RawZipResourceCreator>, source)
                     }
-                    if(this is ParsedResourceCreator && source is ServerCommandSource) {
+                    if(this is ParsedResourceCreator && source is CommandSourceStack) {
                         @Suppress("UNCHECKED_CAST") //It's not, it was checked in the previous 'if' statement
                         return parseParsedImprovedFunctionReference(it as DirectiveStringReader<ParsedResourceCreator>, source)
                     }
@@ -1319,15 +1319,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader: DirectiveStringReader<*>,
             saveFunctionTagRanges: Boolean = false,
         ): List<TagEntry> {
-            val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
-            val treeBuilder = StringRangeTree.Builder<NbtElement>()
+            val nbtReader = TagParser.create(NbtOps.INSTANCE)
+            val treeBuilder = StringRangeTree.Builder<Tag>()
             if(saveFunctionTagRanges) {
                 @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
-                (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(
+                (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(
                     treeBuilder
                 )
             }
-            val nbt = nbtReader.readAsArgument(reader)
+            val nbt = nbtReader.parseAsArgument(reader)
             if(saveFunctionTagRanges) {
                 val tree = treeBuilder.build(nbt)
                 val absoluteTargetRanges = tree.ranges.mapValues { it.value + reader.readSkippingChars }
@@ -1359,16 +1359,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val startCursor = reader.cursor
             // Copy reader when throwSyntaxErrors is true, such that the original reader can be used to parse without allowing malformed afterward
             val malformedReader = if(throwSyntaxErrors) reader.copy() else reader
-            val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
-            val treeBuilder = StringRangeTree.Builder<NbtElement>()
+            val nbtReader = TagParser.create(NbtOps.INSTANCE)
+            val treeBuilder = StringRangeTree.Builder<Tag>()
             @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
-            (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+            (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             val nbt = try {
-                nbtReader.readAsArgument(malformedReader)
+                nbtReader.parseAsArgument(malformedReader)
             } catch(e: Exception) {
-                treeBuilder.addNode(NbtEnd.INSTANCE, StringRange(startCursor, malformedReader.cursor), startCursor)
-                NbtEnd.INSTANCE
+                treeBuilder.addNode(EndTag.INSTANCE, StringRange(startCursor, malformedReader.cursor), startCursor)
+                EndTag.INSTANCE
             }
             var tree = treeBuilder.build(nbt)
             if(hasNegationChar) {
@@ -1383,7 +1383,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
             if(throwSyntaxErrors) {
                 // Read again without allowing malformed to get syntax errors
-                StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
+                TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader)
             }
         }
 
@@ -1410,11 +1410,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         override fun parseCondition(condition: String?, hitCondition: String?): BreakpointCondition {
             //TODO
             return object : BreakpointCondition {
-                override fun checkCondition(source: ServerCommandSource): Boolean {
+                override fun checkCondition(source: CommandSourceStack): Boolean {
                     return true
                 }
 
-                override fun checkHitCondition(source: ServerCommandSource): Boolean {
+                override fun checkHitCondition(source: CommandSourceStack): Boolean {
                     return true
                 }
 
@@ -1437,10 +1437,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    class InlineTagRule<Testee, TagEntry>(val registry: RegistryWrapper.Impl<TagEntry>, val testeeProjection: (Testee) -> RegistryEntry<TagEntry>) : ParsingRule<StringReader, Predicate<Testee>> {
-        override fun parse(state: ParsingState<StringReader>): Predicate<Testee>? {
-            val reader = state.reader
-            val cursor = state.cursor
+    class InlineTagRule<Testee, TagEntry: Any>(val registry: HolderLookup.RegistryLookup<TagEntry>, val testeeProjection: (Testee) -> Holder<TagEntry>) : Rule<StringReader, Predicate<Testee>> {
+        override fun parse(state: ParseState<StringReader>): Predicate<Testee>? {
+            val reader = state.input()
+            val cursor = state.mark()
             if(!isReaderInlineResources(reader))
                 return null
             val directiveReader = reader as DirectiveStringReader<*>
@@ -1465,7 +1465,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     parsed.contains(testeeProjection(it))
                 }
             } catch(e: Exception) {
-                state.errors.add(cursor, null, e)
+                state.errorCollector().store(cursor, SuggestionSupplier.empty(), e)
             }
             return null
         }

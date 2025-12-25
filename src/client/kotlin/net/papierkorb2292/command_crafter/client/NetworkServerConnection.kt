@@ -5,23 +5,23 @@ import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
 import io.netty.channel.local.LocalChannel
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents
-import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.network.ClientRegistries
-import net.minecraft.command.CommandRegistryAccess
-import net.minecraft.command.CommandSource
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.command.permission.PermissionLevel
-import net.minecraft.registry.DynamicRegistryManager
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
-import net.minecraft.resource.ResourceFactory
+import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.RegistryDataCollector
+import net.minecraft.commands.CommandBuildContext
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.core.Registry
+import net.minecraft.core.RegistryAccess
+import net.minecraft.resources.ResourceKey
+import net.minecraft.server.packs.resources.ResourceProvider
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.server.permissions.PermissionLevel
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.editor.SyncedRegistriesListConsumer
+import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkDebugPauseActions
+import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkVariablesReferencer
 import net.papierkorb2292.command_crafter.client.helper.ShouldCopyRegistriesContainer
 import net.papierkorb2292.command_crafter.editor.DirectServerConnection
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
@@ -30,8 +30,6 @@ import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
-import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkDebugPauseActions
-import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkVariablesReferencer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -41,8 +39,8 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.memoizeLast
-import net.papierkorb2292.command_crafter.mixin.editor.ClientConnectionAccessor
-import net.papierkorb2292.command_crafter.mixin.client.parser.ClientPlayNetworkHandlerAccessor
+import net.papierkorb2292.command_crafter.mixin.client.parser.ClientPacketListenerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.ConnectionAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
@@ -55,7 +53,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
-class NetworkServerConnection private constructor(private val client: MinecraftClient, private val initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
+class NetworkServerConnection private constructor(private val client: Minecraft, private val initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
     companion object {
         val currentGetVariablesRequests: MutableMap<UUID, CompletableFuture<Array<Variable>>> = mutableMapOf()
         val currentSetVariableRequests: MutableMap<UUID, CompletableFuture<VariablesReferencer.SetVariableResult?>> = mutableMapOf()
@@ -89,9 +87,9 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         private val editorDebugConnections: BiMap<EditorDebugConnection, UUID> = HashBiMap.create()
         private val scoreboardStorageFileSystems: MutableMap<UUID, NetworkScoreboardStorageFileSystem> = mutableMapOf()
 
-        private var receivedClientRegistries = ClientRegistries()
-        private val receivedRegistryKeys = mutableSetOf<RegistryKey<out Registry<*>>>()
-        private var receivedRegistryManager: DynamicRegistryManager? = null
+        private var receivedClientRegistries = RegistryDataCollector()
+        private val receivedRegistryKeys = mutableSetOf<ResourceKey<out Registry<*>>>()
+        private var receivedRegistryManager: RegistryAccess? = null
 
         private val currentConnections = mutableListOf<NetworkServerConnection>()
 
@@ -132,29 +130,29 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
                 // data, which means after the new sync they would contain duplicate entries, which leads to Minecraft throwing lots of errors
                 // and producing huge logs, so better make sure they're reset
                 receivedRegistryKeys.clear()
-                receivedClientRegistries = ClientRegistries()
+                receivedClientRegistries = RegistryDataCollector()
             }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
                 if(payload.dynamicRegistry.registry in NetworkServerConnectionHandler.SYNCED_REGISTRY_KEYS)
-                    receivedClientRegistries.putDynamicRegistry(payload.dynamicRegistry.registry, payload.dynamicRegistry.entries)
+                    receivedClientRegistries.appendContents(payload.dynamicRegistry.registry, payload.dynamicRegistry.entries)
                 if(payload.tags != null)
-                    receivedClientRegistries.putTags(mapOf(payload.dynamicRegistry.registry to payload.tags))
+                    receivedClientRegistries.appendTags(mapOf(payload.dynamicRegistry.registry to payload.tags!!))
                 receivedRegistryKeys += payload.dynamicRegistry.registry
                 if(NetworkServerConnectionHandler.SYNCED_REGISTRY_KEYS.all { it in receivedRegistryKeys }) {
                     (receivedClientRegistries as SyncedRegistriesListConsumer).`command_crafter$setSyncedRegistriesList`(NetworkServerConnectionHandler.SYNCED_REGISTRIES)
                     (receivedClientRegistries as ShouldCopyRegistriesContainer).`command_crafter$setShouldCopyRegistries`(true)
                     //All registries have been received
-                    ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
-                    receivedRegistryManager = receivedClientRegistries.createRegistryManager(
+                    ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
+                    receivedRegistryManager = receivedClientRegistries.collectGameRegistries(
                         //No resource loading is required, because no common packs were specified
-                        ResourceFactory.MISSING,
+                        ResourceProvider.EMPTY,
                         // Only matters if there are no registries to load, but there will always be some
-                        null,
+                        Util.nullIsFine<RegistryAccess.Frozen>(null),
                         // False to load all tags, including of registries where the entries are not synced
                         false
                     )
                     receivedRegistryKeys.clear()
-                    receivedClientRegistries = ClientRegistries()
+                    receivedClientRegistries = RegistryDataCollector()
                 }
             }
             ClientPlayNetworking.registerGlobalReceiver(LogMessageS2CPacket.ID) handler@{ payload, _ ->
@@ -289,18 +287,18 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    private val commandDispatcherFactory: (DynamicRegistryManager) -> CommandDispatcher<CommandSource> = { registryManager: DynamicRegistryManager ->
+    private val commandDispatcherFactory: (RegistryAccess) -> CommandDispatcher<SharedSuggestionProvider> = { registryManager: RegistryAccess ->
         @Suppress("UNCHECKED_CAST")
-        CommandDispatcher(initializePacket.commandTree.getCommandTree(CommandRegistryAccess.of(registryManager, client.networkHandler?.enabledFeatures), ClientPlayNetworkHandlerAccessor.getCOMMAND_NODE_FACTORY())) as CommandDispatcher<CommandSource>
+        CommandDispatcher(initializePacket.commandTree.getRoot(CommandBuildContext.simple(registryManager, client.connection!!.enabledFeatures()), ClientPacketListenerAccessor.getCOMMAND_NODE_BUILDER())) as CommandDispatcher<SharedSuggestionProvider>
     }.memoizeLast()
 
-    override val dynamicRegistryManager: DynamicRegistryManager
-        get() = receivedRegistryManager ?: ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager
+    override val dynamicRegistryManager: RegistryAccess
+        get() = receivedRegistryManager ?: ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
     override val commandDispatcher
         get() = commandDispatcherFactory(dynamicRegistryManager)
-    override val functionPermissions = LeveledPermissionPredicate.fromLevel(PermissionLevel.fromLevel(initializePacket.functionPermissionLevel))
+    override val functionPermissions = LevelBasedPermissionSet.forLevel(PermissionLevel.byId(initializePacket.functionPermissionLevel))
     override val serverLog =
-        if(client.networkHandler?.run { (connection as ClientConnectionAccessor).channel } is LocalChannel) {
+        if(client.connection?.run { (connection as ConnectionAccessor).channel } is LocalChannel) {
             null
         } else {
             NetworkServerLog()
@@ -406,10 +404,10 @@ class NetworkServerConnection private constructor(private val client: MinecraftC
         }
     }
 
-    class NetworkCommandExecutor(private val client: MinecraftClient) : CommandExecutor {
+    class NetworkCommandExecutor(private val client: Minecraft) : CommandExecutor {
         override fun executeCommand(command: String) {
-            client.inGameHud.chatHud.addToMessageHistory("/$command") //TODO: Test how multiple lines work in chat screen
-            client.networkHandler?.sendChatCommand(command)
+            client.gui.chat.addRecentChat("/$command") //TODO: Test how multiple lines work in chat screen
+            client.connection?.sendCommand(command)
         }
     }
 

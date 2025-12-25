@@ -1,11 +1,11 @@
 package net.papierkorb2292.command_crafter.editor.debugger.helper
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.function.Macro
-import net.minecraft.util.Identifier
+import net.minecraft.commands.functions.MacroFunction
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -29,12 +29,12 @@ interface EditorDebugConnection {
     fun onSourceReferenceAdded()
 
     companion object {
-        val DEBUG_TARGET_PACKET_CODEC: PacketCodec<ByteBuf, DebugTarget> = PacketCodec.tuple(
+        val DEBUG_TARGET_PACKET_CODEC: StreamCodec<ByteBuf, DebugTarget> = StreamCodec.composite(
             PackContentFileType.PACKET_CODEC,
             DebugTarget::targetFileType,
-            Identifier.PACKET_CODEC,
+            Identifier.STREAM_CODEC,
             DebugTarget::targetId,
-            PacketCodecs.BOOLEAN,
+            ByteBufCodecs.BOOL,
             DebugTarget::stopOnEntry,
             ::DebugTarget
         )
@@ -74,16 +74,16 @@ fun EditorDebugConnection.setupOneTimeDebugTarget(server: MinecraftServer) {
 private fun EditorDebugConnection.runOneTimeDebugTarget(server: MinecraftServer, oneTimeDebugTarget: EditorDebugConnection.DebugTarget) {
     when(oneTimeDebugTarget.targetFileType) {
         PackContentFileType.FUNCTIONS_FILE_TYPE -> {
-            val function = server.commandFunctionManager.getFunction(oneTimeDebugTarget.targetId)
+            val function = server.functions.get(oneTimeDebugTarget.targetId)
             function.ifPresentOrElse({
-                if(it is Macro<*>) {
+                if(it is MacroFunction<*>) {
                     output(OutputEventArguments().apply {
                         category = OutputEventArgumentsCategory.IMPORTANT
                         output = "Functions with macros can't be run directly"
                     })
                     return@ifPresentOrElse
                 }
-                server.commandFunctionManager.execute(it, server.commandSource)
+                server.functions.execute(it, server.createCommandSourceStack())
             }, {
                 output(OutputEventArguments().apply {
                     category = OutputEventArgumentsCategory.IMPORTANT

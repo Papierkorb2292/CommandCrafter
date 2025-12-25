@@ -2,11 +2,11 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.codecs.RecordCodecBuilder
-import net.minecraft.resource.ResourceType
-import net.minecraft.resource.metadata.PackFeatureSetMetadata
-import net.minecraft.resource.metadata.PackOverlaysMetadata
-import net.minecraft.resource.metadata.PackResourceMetadata
-import net.minecraft.resource.metadata.ResourceMetadataSerializer
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.FeatureFlagsMetadataSection
+import net.minecraft.server.packs.OverlayMetadataSection
+import net.minecraft.server.packs.metadata.pack.PackMetadataSection
+import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -21,22 +21,22 @@ object PackMetaAnalyzer : FileAnalyseHandler {
     private val NULL_PROVIDER = { _: Any? -> null }
     private val MERGED_DATAPACK_DECODER: Decoder<Unit> = RecordCodecBuilder.create {
         it.group(
-            toRootCodec(PackResourceMetadata.getSerializerFor(ResourceType.SERVER_DATA), false),
-            toRootCodec(PackFeatureSetMetadata.SERIALIZER, true),
-            toRootCodec(PackOverlaysMetadata.getSerializerFor(ResourceType.SERVER_DATA), true)
+            toRootCodec(PackMetadataSection.forPackType(PackType.SERVER_DATA), false),
+            toRootCodec(FeatureFlagsMetadataSection.TYPE, true),
+            toRootCodec(OverlayMetadataSection.forPackType(PackType.SERVER_DATA), true)
         ).apply(it) { _, _, _ -> }
     }
     private val MERGED_RESOURCEPACK_DECODER: Decoder<Unit> = RecordCodecBuilder.create {
         it.group(
-            toRootCodec(PackResourceMetadata.getSerializerFor(ResourceType.CLIENT_RESOURCES), false),
-            toRootCodec(PackFeatureSetMetadata.SERIALIZER, true),
-            toRootCodec(PackOverlaysMetadata.getSerializerFor(ResourceType.CLIENT_RESOURCES), true)
+            toRootCodec(PackMetadataSection.forPackType(PackType.CLIENT_RESOURCES), false),
+            toRootCodec(FeatureFlagsMetadataSection.TYPE, true),
+            toRootCodec(OverlayMetadataSection.forPackType(PackType.CLIENT_RESOURCES), true)
         ).apply(it) { _, _, _ -> }
     }
     private val MERGED_UNKNOWN_DECODER: Decoder<Unit> = RecordCodecBuilder.create {
         it.group(
-            toRootCodec(PackResourceMetadata.DESCRIPTION_SERIALIZER, false),
-            toRootCodec(PackFeatureSetMetadata.SERIALIZER, true)
+            toRootCodec(PackMetadataSection.FALLBACK_TYPE, false),
+            toRootCodec(FeatureFlagsMetadataSection.TYPE, true)
         ).apply(it) { _, _ -> }
     }
 
@@ -69,7 +69,7 @@ object PackMetaAnalyzer : FileAnalyseHandler {
             }, executor)
     }
 
-    private fun toRootCodec(serializer: ResourceMetadataSerializer<*>, optional: Boolean): RecordCodecBuilder<Unit, *> =
+    private fun toRootCodec(serializer: MetadataSectionType<*>, optional: Boolean): RecordCodecBuilder<Unit, *> =
         if(optional) serializer.codec.optionalFieldOf(serializer.name).forGetter(NULL_PROVIDER)
         else serializer.codec.fieldOf(serializer.name).forGetter(NULL_PROVIDER)
 }

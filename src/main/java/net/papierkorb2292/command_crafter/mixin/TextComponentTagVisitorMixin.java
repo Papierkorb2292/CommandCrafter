@@ -1,0 +1,48 @@
+package net.papierkorb2292.command_crafter.mixin;
+
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import net.minecraft.nbt.TextComponentTagVisitor;
+import net.papierkorb2292.command_crafter.CommandCrafter;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+
+@Mixin(TextComponentTagVisitor.class)
+public class TextComponentTagVisitorMixin {
+
+    @Shadow private int depth;
+
+    @ModifyExpressionValue(
+            method = {
+                    "visitByteArray",
+                    "visitIntArray",
+                    "visitLongArray",
+                    "visitList"
+            },
+            at = @At(
+                    value = "CONSTANT",
+                    args = "intValue=128"
+            )
+    )
+    private int command_crafter$deactivateEllipsisShortening(int value) {
+        if(!CommandCrafter.INSTANCE.getShortenNbt())
+            return Integer.MAX_VALUE;
+        return value;
+    }
+
+    @ModifyExpressionValue(
+            method = {
+                    "visitList",
+                    "visitCompound"
+            },
+            at = @At(
+                    value = "FIELD",
+                    target = "Lnet/minecraft/nbt/TextComponentTagVisitor;depth:I"
+            )
+    )
+    private int command_crafter$deactivateEllipsisForDepth(int value) {
+        if(!CommandCrafter.INSTANCE.getShortenNbt() && depth > 63)
+            return 63;
+        return value;
+    }
+}

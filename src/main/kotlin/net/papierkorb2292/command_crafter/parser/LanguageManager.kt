@@ -6,17 +6,17 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.serialization.Decoder
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
-import net.minecraft.command.CommandSource
-import net.minecraft.nbt.NbtElement
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.nbt.Tag
 import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.StringNbtReader
-import net.minecraft.registry.Registry
-import net.minecraft.registry.RegistryKey
+import net.minecraft.nbt.TagParser
+import net.minecraft.core.Registry
+import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.FunctionBuilder
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.FunctionBuilder
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.jvm.optionals.getOrNull
 
 object LanguageManager {
-    val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(RegistryKey.ofRegistry(Identifier.of("command_crafter", "languages"))).buildAndRegister()!!
+    val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "languages"))).buildAndRegister()!!
     val DEFAULT_CLOSURE = Language.TopLevelClosure(VanillaLanguage())
 
     val ANALYZER_CONFIG_PATH = ".mcfunction"
@@ -67,7 +67,7 @@ object LanguageManager {
             }
     }
 
-    fun parseToVanilla(reader: DirectiveStringReader<RawZipResourceCreator>, source: ServerCommandSource, resource: RawResource, closure: Language.LanguageClosure) {
+    fun parseToVanilla(reader: DirectiveStringReader<RawZipResourceCreator>, source: CommandSourceStack, resource: RawResource, closure: Language.LanguageClosure) {
         //TODO: Keep doc comment (or all comments)
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
@@ -83,11 +83,11 @@ object LanguageManager {
         reader.resourceCreator.resourceStack.pop()
     }
 
-    private val UNCLOSED_SCOPE_EXCEPTION = DynamicCommandExceptionType { Text.of("Encountered unclosed scope started at line $it") }
+    private val UNCLOSED_SCOPE_EXCEPTION = DynamicCommandExceptionType { Component.nullToEmpty("Encountered unclosed scope started at line $it") }
 
-    fun parseToCommands(reader: DirectiveStringReader<ParsedResourceCreator?>, source: ServerCommandSource, closure: Language.LanguageClosure): FunctionBuilder<ServerCommandSource> {
+    fun parseToCommands(reader: DirectiveStringReader<ParsedResourceCreator?>, source: CommandSourceStack, closure: Language.LanguageClosure): FunctionBuilder<CommandSourceStack> {
         val closureDepth = reader.closureDepth
-        val builder = FunctionBuilderAccessor.init<ServerCommandSource>()
+        val builder = FunctionBuilderAccessor.init<CommandSourceStack>()
         reader.enterClosure(closure)
         val documentation = readDocComment(reader)
         if(documentation != null)
@@ -122,7 +122,7 @@ object LanguageManager {
         return builder
     }
 
-    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: CommandSource, result: AnalyzingResult, closure: Language.LanguageClosure) {
+    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, result: AnalyzingResult, closure: Language.LanguageClosure) {
         reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
@@ -208,8 +208,8 @@ object LanguageManager {
                         val string = reader.string
                         val pathStartCursor = reader.cursor
                         val idStart = string.subSequence(0, reader.cursor - 1)
-                            .indexOfLast { !IdentifierAccessor.callIsNamespaceCharacterValid(it) } + 1
-                        while(reader.canRead() && Identifier.isPathCharacterValid(reader.peek()))
+                            .indexOfLast { !IdentifierAccessor.callValidNamespaceChar(it) } + 1
+                        while(reader.canRead() && Identifier.validPathChar(reader.peek()))
                             reader.skip()
                         val idEnd = reader.cursor
                         // Only highlight ids with a non-empty namespace and path (to avoid highlighting colons in normal text)
@@ -230,7 +230,7 @@ object LanguageManager {
                             result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
                                 val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
                                 languageServer.findFileAndAnalyze(
-                                    Identifier.of(string.substring(idStart, idEnd)),
+                                    Identifier.parse(string.substring(idStart, idEnd)),
                                     keywords
                                 ).thenCompose { analyzingResult ->
                                     if(analyzingResult == null) {
@@ -248,7 +248,7 @@ object LanguageManager {
                                     ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
                                 val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
                                 PackContentFileType.findWorkspaceResourceFromId(
-                                    Identifier.of(string.substring(idStart, idEnd)),
+                                    Identifier.parse(string.substring(idStart, idEnd)),
                                     client,
                                     keywords
                                 ).thenApply {
@@ -317,10 +317,10 @@ object LanguageManager {
     }
 
     init {
-        Registry.register(DirectiveManager.DIRECTIVES, Identifier.of("language"), object : DirectiveManager.DirectiveType {
+        Registry.register(DirectiveManager.DIRECTIVES, Identifier.parse("language"), object : DirectiveManager.DirectiveType {
             override fun read(reader: DirectiveStringReader<*>) {
                 val languageId = reader.readUnquotedString()
-                val languageType = requireNotNull(LANGUAGES.get(Identifier.of(languageId))) { "Error while parsing function: Encountered unknown language '$languageId' on line ${reader.currentLine}" }
+                val languageType = requireNotNull(LANGUAGES.getValue(Identifier.parse(languageId))) { "Error while parsing function: Encountered unknown language '$languageId' on line ${reader.currentLine}" }
                 reader.switchLanguage(readLanguageArgs(reader, languageType))
             }
 
@@ -332,7 +332,7 @@ object LanguageManager {
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, NbtOps.INSTANCE.empty()).orThrow
                 }
-                val args = StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
+                val args = TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader)
                 return languageType.argumentDecoder.parse(NbtOps.INSTANCE, args).orThrow
             }
 
@@ -340,7 +340,7 @@ object LanguageManager {
                 val startCursor = reader.cursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 val language = try {
-                    Identifier.fromCommandInput(reader)
+                    Identifier.read(reader)
                 } catch(e: CommandSyntaxException) {
                     analyzingResult.diagnostics += Diagnostic(
                         Range(
@@ -358,7 +358,7 @@ object LanguageManager {
                     AnalyzingResult.RangedDataProvider(
                         StringRange(startCursor, languageIdEndCursor),
                         CombinedCompletionItemProvider(
-                            LANGUAGES.ids.map {
+                            LANGUAGES.keySet().map {
                                 SimpleCompletionItemProvider(
                                     it.toShortString(),
                                     startCursor,
@@ -370,7 +370,7 @@ object LanguageManager {
                 )
 
                 val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
-                val languageType = LANGUAGES.get(language)
+                val languageType = LANGUAGES.getValue(language)
                 if(languageType == null) {
                     analyzingResult.diagnostics += Diagnostic(
                         Range(startPos, languageIdEndPos),
@@ -404,19 +404,19 @@ object LanguageManager {
                 reader.skip()
 
                 val allowMalformedReader = reader.copy()
-                val nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE)
+                val nbtReader = TagParser.create(NbtOps.INSTANCE)
                 @Suppress("KotlinConstantConditions")
                 (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
-                val treeBuilder = StringRangeTree.Builder<NbtElement>()
+                val treeBuilder = StringRangeTree.Builder<Tag>()
                 @Suppress("UNCHECKED_CAST")
-                (nbtReader as StringRangeTreeCreator<NbtElement>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+                (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
                 val nbt = if(reader.canRead() && reader.peek() == '\n') {
                     val empty = NbtOps.INSTANCE.empty()
                     treeBuilder.addNode(empty, StringRange(languageEnd + 1, reader.cursor), languageEnd + 1)
                     empty
                 } else {
                     try {
-                        nbtReader.readAsArgument(allowMalformedReader)
+                        nbtReader.parseAsArgument(allowMalformedReader)
                     } catch(e: CommandSyntaxException) {
                         val empty = NbtOps.INSTANCE.empty()
                         treeBuilder.addNode(empty, StringRange(languageEnd + 1, reader.cursor), languageEnd + 1)
@@ -434,7 +434,7 @@ object LanguageManager {
                 }
                 // Parse nbt with strict parser to mark syntax errors
                 try {
-                    StringNbtReader.fromOps(NbtOps.INSTANCE).readAsArgument(reader)
+                    TagParser.create(NbtOps.INSTANCE).parseAsArgument(reader)
                 } catch(e: CommandSyntaxException) {
                     val startPos = AnalyzingResult.getPositionFromCursor(e.cursor + reader.readCharacters, reader.fileMappingInfo)
                     reader.cursor = reader.nextLineEnd

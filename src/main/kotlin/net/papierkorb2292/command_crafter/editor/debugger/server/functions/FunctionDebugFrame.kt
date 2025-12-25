@@ -4,9 +4,9 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.ContextChain
 import com.mojang.datafixers.util.Either
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.function.Procedure
-import net.minecraft.util.Identifier
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.InstantiatedFunction
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
@@ -19,14 +19,14 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Pos
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.SingleCommandActionAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.BuildContextsAccessor
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.OutputEventArgumentsCategory
 
 class FunctionDebugFrame(
     val pauseContext: PauseContext,
-    val procedure: Procedure<ServerCommandSource>,
+    val procedure: InstantiatedFunction<CommandSourceStack>,
     private val debugPauseHandlerFactory: FunctionDebugPauseHandlerFactory,
     val macroNames: List<String>,
     val macroArguments: List<String>,
@@ -36,13 +36,13 @@ class FunctionDebugFrame(
 ) : PauseContext.DebugFrame, CommandFeedbackConsumer {
     companion object {
         val sourceReferenceCursorMapper = mutableMapOf<Pair<EditorDebugConnection, Int>, ProcessedInputCursorMapper>()
-        fun getCommandInfo(context: CommandContext<ServerCommandSource>): CommandInfo? {
+        fun getCommandInfo(context: CommandContext<CommandSourceStack>): CommandInfo? {
             val pauseContext = currentPauseContext.get() ?: return null
             val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return null
             return debugFrame.getCommandInfo(context)
         }
 
-        fun checkSimpleActionPause(context: CommandContext<ServerCommandSource>, source: ServerCommandSource, commandInfo: CommandInfo? = null) {
+        fun checkSimpleActionPause(context: CommandContext<CommandSourceStack>, source: CommandSourceStack, commandInfo: CommandInfo? = null) {
             val pauseContext = currentPauseContext.get() ?: return
             val debugFrame = pauseContext.peekDebugFrame() as? FunctionDebugFrame ?: return
             val resolvedCommandInfo = commandInfo ?: debugFrame.getCommandInfo(context) ?: return
@@ -58,9 +58,9 @@ class FunctionDebugFrame(
     }
 
     @Suppress("UNCHECKED_CAST")
-    val contextChains: List<ContextChain<ServerCommandSource>> =
+    val contextChains: List<ContextChain<CommandSourceStack>> =
         procedure.entries().mapNotNull {
-            (it as? SingleCommandActionAccessor<ServerCommandSource>)?.contextChain
+            (it as? BuildContextsAccessor<CommandSourceStack>)?.command
         }
 
     var commandFeedbackConsumer: CommandFeedbackConsumer? = null
@@ -69,14 +69,14 @@ class FunctionDebugFrame(
 
     var currentSectionIndex = 0
     var sectionSources: MutableList<SectionSources> = mutableListOf()
-    val currentContextChain: ContextChain<ServerCommandSource>
+    val currentContextChain: ContextChain<CommandSourceStack>
         get() = contextChains[currentCommandIndex]
 
-    val currentContext: CommandContext<ServerCommandSource>
+    val currentContext: CommandContext<CommandSourceStack>
         get() = currentContextChain[currentSectionIndex]!!
     val currentSectionSources: SectionSources
         get() = sectionSources[currentSectionIndex]
-    var currentSource: ServerCommandSource
+    var currentSource: CommandSourceStack
         get() = currentSectionSources.currentSource
         set(value) {
             currentSectionSources.currentSource = value
@@ -86,10 +86,10 @@ class FunctionDebugFrame(
     private val sourceFilePackagedIdWithoutExtension = sourceFilePackagedId.removeExtension(FunctionDebugHandler.FUNCTION_FILE_EXTENSTION) ?: throw IllegalArgumentException("Source file id $sourceFileId doesn't have .mcfunction extension")
     private val sourceFilePath = PackContentFileType.FUNCTIONS_FILE_TYPE.toStringPath(sourceFilePackagedId)
 
-    private var nextPauseRootContext: CommandContext<ServerCommandSource>? = null
+    private var nextPauseRootContext: CommandContext<CommandSourceStack>? = null
     private var nextPauseSectionIndex: Int = 0
 
-    private var lastPauseContext: CommandContext<ServerCommandSource>? = null
+    private var lastPauseContext: CommandContext<CommandSourceStack>? = null
     private var lastPauseSourceIndex: Int = 0
 
     private val createdSourceReferences = Reference2IntOpenHashMap<EditorDebugConnection>()
@@ -121,11 +121,11 @@ class FunctionDebugFrame(
         }
     }
 
-    fun getBreakpointsForCommand(commandRootContext: CommandContext<ServerCommandSource>): List<ServerBreakpoint<FunctionBreakpointLocation>> {
+    fun getBreakpointsForCommand(commandRootContext: CommandContext<CommandSourceStack>): List<ServerBreakpoint<FunctionBreakpointLocation>> {
         return breakpoints.filter { it.action?.location?.commandLocationRoot == commandRootContext }
     }
 
-    fun checkPause(commandInfo: CommandInfo, context: CommandContext<*>, source: ServerCommandSource) {
+    fun checkPause(commandInfo: CommandInfo, context: CommandContext<*>, source: CommandSourceStack) {
         currentCommandIndex = commandInfo.commandIndex
         if(lastPauseContext === context && lastPauseSourceIndex == currentSectionSources.currentSourceIndex)
             return
@@ -155,11 +155,11 @@ class FunctionDebugFrame(
 
     private var lastCommandInfoRequestedIndex = -1
 
-    fun getCommandInfo(commandContext: CommandContext<ServerCommandSource>): CommandInfo? {
+    fun getCommandInfo(commandContext: CommandContext<CommandSourceStack>): CommandInfo? {
         val commands = contextChains.subList(currentCommandIndex, contextChains.size)
         for(i in commands.indices) {
             val topContext = commands[i].topContext
-            var context: CommandContext<ServerCommandSource>? = topContext
+            var context: CommandContext<CommandSourceStack>? = topContext
             var sectionIndex = 0
             while(context != null) {
                 if(context == commandContext) {
@@ -178,7 +178,7 @@ class FunctionDebugFrame(
         return null
     }
 
-    fun pauseAtSection(rootContext: CommandContext<ServerCommandSource>, sectionIndex: Int) {
+    fun pauseAtSection(rootContext: CommandContext<CommandSourceStack>, sectionIndex: Int) {
         nextPauseRootContext = rootContext
         nextPauseSectionIndex = sectionIndex
         pauseContext.unpause()
@@ -281,12 +281,12 @@ class FunctionDebugFrame(
         }
     }
 
-    class SectionSources(val sources: MutableList<ServerCommandSource>, val parentSourceIndices: MutableList<Int>, var currentSourceIndex: Int) {
+    class SectionSources(val sources: MutableList<CommandSourceStack>, val parentSourceIndices: MutableList<Int>, var currentSourceIndex: Int) {
         fun hasCurrent(): Boolean = currentSourceIndex < sources.size
         fun hasNext(): Boolean = currentSourceIndex < sources.size - 1
-        fun getNext(): ServerCommandSource? = if(hasNext()) sources[currentSourceIndex + 1] else null
+        fun getNext(): CommandSourceStack? = if(hasNext()) sources[currentSourceIndex + 1] else null
 
-        var currentSource: ServerCommandSource
+        var currentSource: CommandSourceStack
             get() = sources[currentSourceIndex]
             set(value) {
                 sources[currentSourceIndex] = value

@@ -1,15 +1,15 @@
 package net.papierkorb2292.command_crafter.client.config
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.screen.option.GameOptionsScreen
-import net.minecraft.client.gui.tooltip.Tooltip
-import net.minecraft.client.option.GameOptions
-import net.minecraft.client.option.SimpleOption
-import net.minecraft.text.Text
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.options.OptionsSubScreen
+import net.minecraft.client.gui.components.Tooltip
+import net.minecraft.client.Options
+import net.minecraft.client.OptionInstance
+import net.minecraft.network.chat.Component
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 
-class CommandCrafterConfigScreen(val config: CommandCrafterConfig, parent: Screen, gameOptions: GameOptions, title: Text) : GameOptionsScreen(parent, gameOptions, title) {
+class CommandCrafterConfigScreen(val config: CommandCrafterConfig, parent: Screen, gameOptions: Options, title: Component) : OptionsSubScreen(parent, gameOptions, title) {
 
     constructor(
         config: CommandCrafterConfig,
@@ -17,16 +17,16 @@ class CommandCrafterConfigScreen(val config: CommandCrafterConfig, parent: Scree
     ) : this(
         config,
         parent,
-        MinecraftClient.getInstance().options,
-        Text.translatable("command_crafter.config.title")
+        Minecraft.getInstance().options,
+        Component.translatable("command_crafter.config.title")
     )
 
     override fun addOptions() {
-        body!!.addSingleOptionEntry(
-            SimpleOption(
+        list!!.addBig(
+            OptionInstance(
                 configNameToOptionKey(CommandCrafterConfig.SERVICES_PORT_NAME),
-                { Tooltip.of(Text.translatable(configNameToOptionKey(CommandCrafterConfig.SERVICES_PORT_NAME) + ".description")) },
-                { _, value -> Text.literal(value.toString())},
+                { Tooltip.create(Component.translatable(configNameToOptionKey(CommandCrafterConfig.SERVICES_PORT_NAME) + ".description")) },
+                { _, value -> Component.literal(value.toString())},
                 SimpleOptionIntCallbacks,
                 config.servicesPort,
                 config::servicesPort::set

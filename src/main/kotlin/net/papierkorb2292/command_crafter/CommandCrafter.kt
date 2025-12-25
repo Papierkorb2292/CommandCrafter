@@ -9,61 +9,68 @@ import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.advancement.Advancement
-import net.minecraft.block.entity.BannerPattern
-import net.minecraft.block.jukebox.JukeboxSong
-import net.minecraft.block.spawner.TrialSpawnerConfig
-import net.minecraft.command.CommandSource
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.dialog.type.Dialog
-import net.minecraft.enchantment.Enchantment
-import net.minecraft.enchantment.provider.EnchantmentProvider
-import net.minecraft.entity.damage.DamageType
-import net.minecraft.entity.decoration.painting.PaintingVariant
-import net.minecraft.entity.mob.ZombieNautilusVariant
-import net.minecraft.entity.passive.*
-import net.minecraft.item.Instrument
-import net.minecraft.item.equipment.trim.ArmorTrimMaterial
-import net.minecraft.item.equipment.trim.ArmorTrimPattern
-import net.minecraft.loot.LootTable
-import net.minecraft.loot.condition.LootCondition
-import net.minecraft.loot.function.LootFunctionTypes
-import net.minecraft.network.message.MessageType
-import net.minecraft.recipe.Recipe
-import net.minecraft.registry.Registries
-import net.minecraft.registry.Registry
-import net.minecraft.registry.tag.TagFile
-import net.minecraft.resource.featuretoggle.FeatureSet
-import net.minecraft.screen.ScreenTexts
-import net.minecraft.server.command.CommandOutput
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.server.dedicated.management.listener.BlankManagementListener
-import net.minecraft.structure.StructureSet
-import net.minecraft.structure.pool.StructurePool
-import net.minecraft.structure.processor.StructureProcessorType
-import net.minecraft.test.TestEnvironmentDefinition
-import net.minecraft.test.TestInstance
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.Vec2f
-import net.minecraft.util.math.Vec3d
-import net.minecraft.util.math.noise.DoublePerlinNoiseSampler
-import net.minecraft.world.attribute.timeline.Timeline
-import net.minecraft.world.biome.Biome
-import net.minecraft.world.biome.source.MultiNoiseBiomeSourceParameterList
-import net.minecraft.world.dimension.DimensionOptions
-import net.minecraft.world.dimension.DimensionType
-import net.minecraft.world.gen.FlatLevelGeneratorPreset
-import net.minecraft.world.gen.WorldPreset
-import net.minecraft.world.gen.carver.ConfiguredCarver
-import net.minecraft.world.gen.chunk.ChunkGeneratorSettings
-import net.minecraft.world.gen.densityfunction.DensityFunction
-import net.minecraft.world.gen.feature.ConfiguredFeature
-import net.minecraft.world.gen.feature.PlacedFeature
-import net.minecraft.world.gen.structure.JigsawStructure
-import net.minecraft.world.rule.GameRule
-import net.minecraft.world.rule.GameRuleCategory
-import net.minecraft.world.rule.GameRuleType
-import net.minecraft.world.rule.GameRuleVisitor
+import net.minecraft.advancements.Advancement
+import net.minecraft.world.level.block.entity.BannerPattern
+import net.minecraft.world.item.JukeboxSong
+import net.minecraft.world.level.block.entity.trialspawner.TrialSpawnerConfig
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.server.dialog.Dialog
+import net.minecraft.world.item.enchantment.Enchantment
+import net.minecraft.world.item.enchantment.providers.EnchantmentProvider
+import net.minecraft.world.damagesource.DamageType
+import net.minecraft.world.entity.decoration.painting.PaintingVariant
+import net.minecraft.world.entity.animal.nautilus.ZombieNautilusVariant
+import net.minecraft.world.item.Instrument
+import net.minecraft.world.item.equipment.trim.TrimMaterial
+import net.minecraft.world.item.equipment.trim.TrimPattern
+import net.minecraft.world.level.storage.loot.LootTable
+import net.minecraft.world.level.storage.loot.predicates.LootItemCondition
+import net.minecraft.world.level.storage.loot.functions.LootItemFunctions
+import net.minecraft.network.chat.ChatType
+import net.minecraft.world.item.crafting.Recipe
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.Registry
+import net.minecraft.tags.TagFile
+import net.minecraft.world.flag.FeatureFlagSet
+import net.minecraft.network.chat.CommonComponents
+import net.minecraft.commands.CommandSource
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.server.notifications.EmptyNotificationService
+import net.minecraft.world.level.levelgen.structure.StructureSet
+import net.minecraft.world.level.levelgen.structure.pools.StructureTemplatePool
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureProcessorType
+import net.minecraft.gametest.framework.TestEnvironmentDefinition
+import net.minecraft.gametest.framework.GameTestInstance
+import net.minecraft.resources.Identifier
+import net.minecraft.world.entity.animal.chicken.ChickenVariant
+import net.minecraft.world.entity.animal.cow.CowVariant
+import net.minecraft.world.entity.animal.feline.CatVariant
+import net.minecraft.world.entity.animal.frog.FrogVariant
+import net.minecraft.world.entity.animal.pig.PigVariant
+import net.minecraft.world.entity.animal.wolf.WolfSoundVariant
+import net.minecraft.world.entity.animal.wolf.WolfVariant
+import net.minecraft.world.phys.Vec2
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.levelgen.synth.NormalNoise
+import net.minecraft.world.timeline.Timeline
+import net.minecraft.world.level.biome.Biome
+import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList
+import net.minecraft.world.level.dimension.LevelStem
+import net.minecraft.world.level.dimension.DimensionType
+import net.minecraft.world.level.levelgen.flat.FlatLevelGeneratorPreset
+import net.minecraft.world.level.levelgen.presets.WorldPreset
+import net.minecraft.world.level.levelgen.carver.ConfiguredWorldCarver
+import net.minecraft.world.level.levelgen.NoiseGeneratorSettings
+import net.minecraft.world.level.levelgen.DensityFunction
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature
+import net.minecraft.world.level.levelgen.placement.PlacedFeature
+import net.minecraft.world.level.levelgen.structure.structures.JigsawStructure
+import net.minecraft.world.level.gamerules.GameRule
+import net.minecraft.world.level.gamerules.GameRuleCategory
+import net.minecraft.world.level.gamerules.GameRuleType
+import net.minecraft.world.level.gamerules.GameRuleTypeVisitor
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler.isPlayerAllowedConnection
@@ -132,7 +139,7 @@ object CommandCrafter: ModInitializer {
             MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
                 val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
                     ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
-                ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, directServerConnection.server.overworld, directServerConnection.functionPermissions, "", ScreenTexts.EMPTY, directServerConnection.server, null)
+                CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, "", CommonComponents.EMPTY, directServerConnection.server, null)
             }))
 
             if(config.runDedicatedServerServices) {
@@ -154,7 +161,7 @@ object CommandCrafter: ModInitializer {
     }
 
     private fun initializeParser() {
-        Registry.register(LanguageManager.LANGUAGES, Identifier.of(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
+        Registry.register(LanguageManager.LANGUAGES, Identifier.parse(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
         RawZipResourceCreator.DATA_TYPE_PROCESSORS += object : RawZipResourceCreator.DataTypeProcessor {
             override val type: String
                 get() = PackContentFileType.FUNCTIONS_FILE_TYPE.contentTypePath
@@ -166,11 +173,11 @@ object CommandCrafter: ModInitializer {
                 id: Identifier,
                 content: BufferedReader,
                 resourceCreator: RawZipResourceCreator,
-                dispatcher: CommandDispatcher<CommandSource>,
+                dispatcher: CommandDispatcher<SharedSuggestionProvider>,
             ) {
                 val reader = DirectiveStringReader(FileMappingInfo(content.lines().toList()), dispatcher, resourceCreator)
                 val resource = RawResource(RawResource.FUNCTION_TYPE)
-                val source = ServerCommandSource(CommandOutput.DUMMY, Vec3d.ZERO, Vec2f.ZERO, null, args.permissions ?: LeveledPermissionPredicate.GAMEMASTERS, "", ScreenTexts.EMPTY, null, null)
+                val source = Commands.createCompilationContext(args.permissions ?: LevelBasedPermissionSet.GAMEMASTER)
                 LanguageManager.parseToVanilla(
                     reader,
                     source,
@@ -184,7 +191,7 @@ object CommandCrafter: ModInitializer {
                 args: DatapackBuildArgs,
                 id: Identifier,
                 content: BufferedReader,
-                dispatcher: CommandDispatcher<CommandSource>,
+                dispatcher: CommandDispatcher<SharedSuggestionProvider>,
             ) {
                 process(args, id, content, RawZipResourceCreator(), dispatcher)
             }
@@ -196,27 +203,27 @@ object CommandCrafter: ModInitializer {
 
     private fun initializeConfig() {
         val shortenNbtGameRule = Registry.register(
-            Registries.GAME_RULE,
-            Identifier.of("command_crafter", "shorten_nbt"),
+            BuiltInRegistries.GAME_RULE,
+            Identifier.fromNamespaceAndPath("command_crafter", "shorten_nbt"),
             GameRule(
                 GameRuleCategory.CHAT,
                 GameRuleType.BOOL,
                 BoolArgumentType.bool(),
-                GameRuleVisitor::visitBoolean,
+                GameRuleTypeVisitor::visitBoolean,
                 Codec.BOOL,
                 { if(it) 1 else 0 },
                 true,
-                FeatureSet.empty()
+                FeatureFlagSet.of()
             )
         )
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
-            shortenNbt = server.saveProperties.gameRules.getValue(shortenNbtGameRule)
-            server.managementListener.addListener(object : BlankManagementListener() {
-                override fun <T : Any?> onGameRuleUpdated(arg: GameRule<T>, `object`: T) {
+            shortenNbt = server.worldData.gameRules.get(shortenNbtGameRule)
+            server.notificationManager().registerService(object : EmptyNotificationService() {
+                override fun <T : Any> onGameRuleChanged(arg: GameRule<T>, `object`: T) {
                     if(arg == shortenNbtGameRule)
                         shortenNbt = `object` as Boolean
-                    else if(arg.id == DirectServerConnection.WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID && `object` is Boolean)
-                        for(player in server.playerManager.playerList)
+                    else if(arg.identifier == DirectServerConnection.WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID && `object` is Boolean)
+                        for(player in server.playerList.players)
                             if(isPlayerAllowedConnection(player))
                                 ServerPlayNetworking.send(player, NotifyCanReloadWorldgenS2CPacket(`object`))
                 }
@@ -292,13 +299,13 @@ object CommandCrafter: ModInitializer {
 
     val serversideJsonResourceCodecs = mutableMapOf(
         PackContentFileType.ADVANCEMENTS_FILE_TYPE to Advancement.CODEC,
-        PackContentFileType.BANNER_PATTERN_FILE_TYPE to BannerPattern.CODEC,
-        PackContentFileType.ITEM_MODIFIER_FILE_TYPE to LootFunctionTypes.CODEC,
-        PackContentFileType.LOOT_TABLES_FILE_TYPE to LootTable.CODEC,
-        PackContentFileType.PREDICATES_FILE_TYPE to LootCondition.CODEC,
+        PackContentFileType.BANNER_PATTERN_FILE_TYPE to BannerPattern.DIRECT_CODEC,
+        PackContentFileType.ITEM_MODIFIER_FILE_TYPE to LootItemFunctions.ROOT_CODEC,
+        PackContentFileType.LOOT_TABLES_FILE_TYPE to LootTable.DIRECT_CODEC,
+        PackContentFileType.PREDICATES_FILE_TYPE to LootItemCondition.DIRECT_CODEC,
         PackContentFileType.RECIPES_FILE_TYPE to Recipe.CODEC,
-        PackContentFileType.CHAT_TYPE_FILE_TYPE to MessageType.CODEC,
-        PackContentFileType.DAMAGE_TYPE_FILE_TYPE to DamageType.CODEC,
+        PackContentFileType.CHAT_TYPE_FILE_TYPE to ChatType.DIRECT_CODEC,
+        PackContentFileType.DAMAGE_TYPE_FILE_TYPE to DamageType.DIRECT_CODEC,
         PackContentFileType.BANNER_PATTERN_TAGS_FILE_TYPE to TagFile.CODEC,
         PackContentFileType.BLOCK_TAGS_FILE_TYPE to TagFile.CODEC,
         PackContentFileType.CAT_VARIANT_TAGS_FILE_TYPE to TagFile.CODEC,
@@ -318,42 +325,42 @@ object CommandCrafter: ModInitializer {
         PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE to TagFile.CODEC,
         PackContentFileType.WORLDGEN_STRUCTURE_TAGS_FILE_TYPE to TagFile.CODEC,
         PackContentFileType.WORLDGEN_WORLD_PRESET_TAGS_FILE_TYPE to TagFile.CODEC,
-        PackContentFileType.TRIM_MATERIAL_FILE_TYPE to ArmorTrimMaterial.CODEC,
-        PackContentFileType.TRIM_PATTERN_FILE_TYPE to ArmorTrimPattern.CODEC,
-        PackContentFileType.WOLF_VARIANT_FILE_TYPE to WolfVariant.CODEC,
-        PackContentFileType.PIG_VARIANT_FILE_TYPE to PigVariant.CODEC,
-        PackContentFileType.CAT_VARIANT_FILE_TYPE to CatVariant.CODEC,
-        PackContentFileType.FROG_VARIANT_FILE_TYPE to FrogVariant.CODEC,
-        PackContentFileType.COW_VARIANT_FILE_TYPE to CowVariant.CODEC,
-        PackContentFileType.CHICKEN_VARIANT_FILE_TYPE to ChickenVariant.CODEC,
-        PackContentFileType.ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE to ZombieNautilusVariant.CODEC,
-        PackContentFileType.WOLF_SOUND_VARIANT_FILE_TYPE to WolfSoundVariant.CODEC,
-        PackContentFileType.DIMENSION_FILE_TYPE to DimensionOptions.CODEC,
-        PackContentFileType.DIMENSION_TYPE_FILE_TYPE to DimensionType.CODEC,
-        PackContentFileType.WORLDGEN_BIOME_FILE_TYPE to Biome.CODEC,
-        PackContentFileType.WORLDGEN_CONFIGURED_CARVER_FILE_TYPE to ConfiguredCarver.CODEC,
-        PackContentFileType.WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE to ConfiguredFeature.CODEC,
-        PackContentFileType.WORLDGEN_DENSITY_FUNCTION_FILE_TYPE to DensityFunction.CODEC,
-        PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE to FlatLevelGeneratorPreset.CODEC,
-        PackContentFileType.WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE to MultiNoiseBiomeSourceParameterList.CODEC,
-        PackContentFileType.WORLDGEN_NOISE_FILE_TYPE to DoublePerlinNoiseSampler.NoiseParameters.CODEC,
-        PackContentFileType.WORLDGEN_NOISE_SETTINGS_FILE_TYPE to ChunkGeneratorSettings.CODEC,
-        PackContentFileType.WORLDGEN_PLACED_FEATURE_FILE_TYPE to PlacedFeature.CODEC,
-        PackContentFileType.WORLDGEN_PROCESSOR_LIST_FILE_TYPE to StructureProcessorType.PROCESSORS_CODEC,
-        PackContentFileType.WORLDGEN_STRUCTURE_FILE_TYPE to JigsawStructure.STRUCTURE_CODEC,
-        PackContentFileType.WORLDGEN_STRUCTURE_SET_FILE_TYPE to StructureSet.CODEC,
-        PackContentFileType.WORLDGEN_TEMPLATE_POOL_FILE_TYPE to StructurePool.CODEC,
-        PackContentFileType.WORLDGEN_WORLD_PRESET_FILE_TYPE to WorldPreset.CODEC,
-        PackContentFileType.PAINTING_VARIANT_FILE_TYPE to PaintingVariant.CODEC,
-        PackContentFileType.JUKEBOX_SONG_FILE_TYPE to JukeboxSong.CODEC,
-        PackContentFileType.ENCHANTMENT_FILE_TYPE to Enchantment.CODEC,
-        PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE to EnchantmentProvider.CODEC,
-        PackContentFileType.DIALOG_FILE_TYPE to Dialog.CODEC,
-        PackContentFileType.TIMELINE_FILE_TYPE to Timeline.CODEC,
-        PackContentFileType.TRIAL_SPAWNER_FILE_TYPE to TrialSpawnerConfig.CODEC,
-        PackContentFileType.INSTRUMENT_FILE_TYPE to Instrument.CODEC,
-        PackContentFileType.TEST_ENVIRONMENT_FILE_TYPE to TestEnvironmentDefinition.CODEC,
-        PackContentFileType.TEST_INSTANCE_FILE_TYPE to TestInstance.CODEC,
+        PackContentFileType.TRIM_MATERIAL_FILE_TYPE to TrimMaterial.DIRECT_CODEC,
+        PackContentFileType.TRIM_PATTERN_FILE_TYPE to TrimPattern.DIRECT_CODEC,
+        PackContentFileType.WOLF_VARIANT_FILE_TYPE to WolfVariant.DIRECT_CODEC,
+        PackContentFileType.PIG_VARIANT_FILE_TYPE to PigVariant.DIRECT_CODEC,
+        PackContentFileType.CAT_VARIANT_FILE_TYPE to CatVariant.DIRECT_CODEC,
+        PackContentFileType.FROG_VARIANT_FILE_TYPE to FrogVariant.DIRECT_CODEC,
+        PackContentFileType.COW_VARIANT_FILE_TYPE to CowVariant.DIRECT_CODEC,
+        PackContentFileType.CHICKEN_VARIANT_FILE_TYPE to ChickenVariant.DIRECT_CODEC,
+        PackContentFileType.ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE to ZombieNautilusVariant.DIRECT_CODEC,
+        PackContentFileType.WOLF_SOUND_VARIANT_FILE_TYPE to WolfSoundVariant.DIRECT_CODEC,
+        PackContentFileType.DIMENSION_FILE_TYPE to LevelStem.CODEC,
+        PackContentFileType.DIMENSION_TYPE_FILE_TYPE to DimensionType.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_BIOME_FILE_TYPE to Biome.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_CONFIGURED_CARVER_FILE_TYPE to ConfiguredWorldCarver.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE to ConfiguredFeature.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_DENSITY_FUNCTION_FILE_TYPE to DensityFunction.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE to FlatLevelGeneratorPreset.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE to MultiNoiseBiomeSourceParameterList.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_NOISE_FILE_TYPE to NormalNoise.NoiseParameters.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_NOISE_SETTINGS_FILE_TYPE to NoiseGeneratorSettings.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_PLACED_FEATURE_FILE_TYPE to PlacedFeature.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_PROCESSOR_LIST_FILE_TYPE to StructureProcessorType.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_STRUCTURE_FILE_TYPE to JigsawStructure.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_STRUCTURE_SET_FILE_TYPE to StructureSet.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_TEMPLATE_POOL_FILE_TYPE to StructureTemplatePool.DIRECT_CODEC,
+        PackContentFileType.WORLDGEN_WORLD_PRESET_FILE_TYPE to WorldPreset.DIRECT_CODEC,
+        PackContentFileType.PAINTING_VARIANT_FILE_TYPE to PaintingVariant.DIRECT_CODEC,
+        PackContentFileType.JUKEBOX_SONG_FILE_TYPE to JukeboxSong.DIRECT_CODEC,
+        PackContentFileType.ENCHANTMENT_FILE_TYPE to Enchantment.DIRECT_CODEC,
+        PackContentFileType.ENCHANTMENT_PROVIDER_FILE_TYPE to EnchantmentProvider.DIRECT_CODEC,
+        PackContentFileType.DIALOG_FILE_TYPE to Dialog.DIRECT_CODEC,
+        PackContentFileType.TIMELINE_FILE_TYPE to Timeline.DIRECT_CODEC,
+        PackContentFileType.TRIAL_SPAWNER_FILE_TYPE to TrialSpawnerConfig.DIRECT_CODEC,
+        PackContentFileType.INSTRUMENT_FILE_TYPE to Instrument.DIRECT_CODEC,
+        PackContentFileType.TEST_ENVIRONMENT_FILE_TYPE to TestEnvironmentDefinition.DIRECT_CODEC,
+        PackContentFileType.TEST_INSTANCE_FILE_TYPE to GameTestInstance.DIRECT_CODEC,
     )
 
     private fun handleEditorServiceException(serviceName: String, e: Throwable): ResponseError {

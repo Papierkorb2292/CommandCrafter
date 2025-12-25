@@ -1,26 +1,26 @@
 package net.papierkorb2292.command_crafter.networking.packets
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.util.Identifier
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
 
 class NotifyCanReloadWorldgenS2CPacket(
     val canReloadWorldgen: Boolean
-): CustomPayload {
+): CustomPacketPayload {
     companion object {
-        val ID = CustomPayload.Id<NotifyCanReloadWorldgenS2CPacket>(Identifier.of("command_crafter", "notify_can_reload_worldgen"))
-        val CODEC: PacketCodec<PacketByteBuf, NotifyCanReloadWorldgenS2CPacket> = PacketCodec.tuple(
-            PacketCodecs.BOOLEAN,
+        val ID = CustomPacketPayload.Type<NotifyCanReloadWorldgenS2CPacket>(Identifier.fromNamespaceAndPath("command_crafter", "notify_can_reload_worldgen"))
+        val CODEC: StreamCodec<FriendlyByteBuf, NotifyCanReloadWorldgenS2CPacket> = StreamCodec.composite(
+            ByteBufCodecs.BOOL,
             NotifyCanReloadWorldgenS2CPacket::canReloadWorldgen,
             ::NotifyCanReloadWorldgenS2CPacket
         )
-        val TYPE: CustomPayload.Type<in RegistryByteBuf, NotifyCanReloadWorldgenS2CPacket> =
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, NotifyCanReloadWorldgenS2CPacket> =
             PayloadTypeRegistry.playS2C().register(ID, CODEC)
     }
 
-    override fun getId(): CustomPayload.Id<out CustomPayload> = ID
+    override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = ID
 }

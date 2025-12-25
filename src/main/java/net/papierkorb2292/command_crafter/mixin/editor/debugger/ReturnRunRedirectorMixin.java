@@ -2,10 +2,10 @@ package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
-import net.minecraft.command.ExecutionControl;
-import net.minecraft.command.ExecutionFlags;
-import net.minecraft.server.command.AbstractServerCommandSource;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.execution.ExecutionControl;
+import net.minecraft.commands.execution.ChainModifiers;
+import net.minecraft.commands.ExecutionCommandSource;
+import net.minecraft.commands.CommandSourceStack;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ForkableNoPauseFlag;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
@@ -19,26 +19,26 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
 
-@Mixin(targets = "net.minecraft.server.command.ReturnCommand$ReturnRunRedirector")
-public class ReturnRunRedirectorMixin<T extends AbstractServerCommandSource<T>> implements ForkableNoPauseFlag {
+@Mixin(targets = "net.minecraft.server.commands.ReturnCommand$ReturnFromCommandCustomModifier")
+public class ReturnRunRedirectorMixin<T extends ExecutionCommandSource<T>> implements ForkableNoPauseFlag {
     @Override
     public boolean command_crafter$cantPause() {
         return true;
     }
 
     @Inject(
-            method = "execute(Lnet/minecraft/server/command/AbstractServerCommandSource;Ljava/util/List;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/command/ExecutionFlags;Lnet/minecraft/command/ExecutionControl;)V",
+            method = "apply(Lnet/minecraft/commands/ExecutionCommandSource;Ljava/util/List;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V",
             at = @At("HEAD")
     )
-    private void command_crafter$passThroughFunctionFrameSectionSources(T abstractServerCommandSource, List<T> list, ContextChain<T> contextChain, ExecutionFlags executionFlags, ExecutionControl<T> executionControl, CallbackInfo ci) {
-        if(!(abstractServerCommandSource instanceof ServerCommandSource source)) return;
+    private void command_crafter$passThroughFunctionFrameSectionSources(T abstractServerCommandSource, List<T> list, ContextChain<T> contextChain, ChainModifiers executionFlags, ExecutionControl<T> executionControl, CallbackInfo ci) {
+        if(!(abstractServerCommandSource instanceof CommandSourceStack source)) return;
         var pauseContext = PauseContext.Companion.getCurrentPauseContext().get();
         if(pauseContext == null) return;
         var debugFrame = pauseContext.peekDebugFrame();
         if(!(debugFrame instanceof FunctionDebugFrame functionDebugFrame)) return;
 
         //noinspection unchecked
-        var commandInfo = functionDebugFrame.getCommandInfo((CommandContext<ServerCommandSource>) contextChain.getTopContext());
+        var commandInfo = functionDebugFrame.getCommandInfo((CommandContext<CommandSourceStack>) contextChain.getTopContext());
         if(commandInfo == null) return;
 
         var absoluteSectionIndex = commandInfo.getSectionOffset() + 1;

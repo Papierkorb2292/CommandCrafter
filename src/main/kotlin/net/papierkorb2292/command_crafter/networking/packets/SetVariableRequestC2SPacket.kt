@@ -2,30 +2,31 @@ package net.papierkorb2292.command_crafter.networking.packets
 
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.util.Identifier
-import net.minecraft.util.Uuids
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
+import net.minecraft.core.UUIDUtil
 import net.papierkorb2292.command_crafter.networking.SET_VARIABLE_ARGUMENTS_PACKET_CODEC
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import java.util.*
 
-class SetVariableRequestC2SPacket(val pauseId: UUID, val requestId: UUID, val args: SetVariableArguments): CustomPayload {
+class SetVariableRequestC2SPacket(val pauseId: UUID, val requestId: UUID, val args: SetVariableArguments):
+    CustomPacketPayload {
     companion object {
-        val ID = CustomPayload.Id<SetVariableRequestC2SPacket>(Identifier.of("command_crafter", "set_variable_request"))
-        val CODEC: PacketCodec<ByteBuf, SetVariableRequestC2SPacket> = PacketCodec.tuple(
-            Uuids.PACKET_CODEC,
+        val ID = CustomPacketPayload.Type<SetVariableRequestC2SPacket>(Identifier.fromNamespaceAndPath("command_crafter", "set_variable_request"))
+        val CODEC: StreamCodec<ByteBuf, SetVariableRequestC2SPacket> = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC,
             SetVariableRequestC2SPacket::pauseId,
-            Uuids.PACKET_CODEC,
+            UUIDUtil.STREAM_CODEC,
             SetVariableRequestC2SPacket::requestId,
             SET_VARIABLE_ARGUMENTS_PACKET_CODEC,
             SetVariableRequestC2SPacket::args,
             ::SetVariableRequestC2SPacket
         )
-        val TYPE: CustomPayload.Type<in RegistryByteBuf, SetVariableRequestC2SPacket> =
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SetVariableRequestC2SPacket> =
             PayloadTypeRegistry.playC2S().register(ID, CODEC)
     }
 
-    override fun getId() = ID
+    override fun type() = ID
 }

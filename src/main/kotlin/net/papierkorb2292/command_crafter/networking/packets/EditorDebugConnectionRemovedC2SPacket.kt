@@ -2,22 +2,22 @@ package net.papierkorb2292.command_crafter.networking.packets
 
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.network.RegistryByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.util.Identifier
-import net.minecraft.util.Uuids
+import net.minecraft.network.RegistryFriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
+import net.minecraft.core.UUIDUtil
 import java.util.*
 
-class EditorDebugConnectionRemovedC2SPacket(val debugConnectionId: UUID): CustomPayload {
+class EditorDebugConnectionRemovedC2SPacket(val debugConnectionId: UUID): CustomPacketPayload {
     companion object {
-        val ID = CustomPayload.Id<EditorDebugConnectionRemovedC2SPacket>(Identifier.of("command_crafter", "editor_debug_connection_removed"))
-        val CODEC: PacketCodec<ByteBuf, EditorDebugConnectionRemovedC2SPacket> = Uuids.PACKET_CODEC.xmap(
+        val ID = CustomPacketPayload.Type<EditorDebugConnectionRemovedC2SPacket>(Identifier.fromNamespaceAndPath("command_crafter", "editor_debug_connection_removed"))
+        val CODEC: StreamCodec<ByteBuf, EditorDebugConnectionRemovedC2SPacket> = UUIDUtil.STREAM_CODEC.map(
             ::EditorDebugConnectionRemovedC2SPacket,
             EditorDebugConnectionRemovedC2SPacket::debugConnectionId
         )
-        val TYPE: CustomPayload.Type<in RegistryByteBuf, EditorDebugConnectionRemovedC2SPacket> = PayloadTypeRegistry.playC2S().register(ID, CODEC)
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, EditorDebugConnectionRemovedC2SPacket> = PayloadTypeRegistry.playC2S().register(ID, CODEC)
     }
 
-    override fun getId() = ID
+    override fun type() = ID
 }

@@ -4,37 +4,37 @@
     "path" : "test"
   },
   "entries" : [ {
-    "command" : "execute as @a run say HI!",
-    "contextChain" : {
+    "commandInput" : "execute as @a run say HI!",
+    "command" : {
       "modifiers" : [ {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute as @a run say HI!",
         "arguments" : {
@@ -44,31 +44,31 @@
               "end" : 13
             },
             "result" : {
-              "limit" : 2147483647,
-              "includesNonPlayers" : false,
-              "localWorldOnly" : false,
-              "predicates" : [ ],
-              "positionOffset" : { },
-              "sorter" : { },
-              "senderOnly" : false,
-              "entityFilter" : {
-                "registryEntry" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
+              "maxResults" : 2147483647,
+              "includesEntities" : false,
+              "worldLimited" : false,
+              "contextFreePredicates" : [ ],
+              "position" : { },
+              "order" : { },
+              "currentEntity" : false,
+              "type" : {
+                "builtInRegistryHolder" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
                 "factory" : { },
-                "spawnGroup" : "MISC",
-                "canSpawnInside" : [ ],
-                "saveable" : false,
-                "summonable" : false,
+                "category" : "MISC",
+                "immuneTo" : [ ],
+                "serialize" : false,
+                "summon" : false,
                 "fireImmune" : false,
-                "spawnableFarFromPlayer" : true,
-                "maxTrackDistance" : 32,
-                "trackTickInterval" : 2,
-                "translationKey" : "entity.minecraft.player",
-                "lootTableKey" : {
-                  "registry" : {
+                "canSpawnFarFromPlayer" : true,
+                "clientTrackingRange" : 32,
+                "updateInterval" : 2,
+                "descriptionId" : "entity.minecraft.player",
+                "lootTable" : {
+                  "registryName" : {
                     "namespace" : "minecraft",
                     "path" : "loot_table"
                   },
-                  "value" : {
+                  "identifier" : {
                     "namespace" : "minecraft",
                     "path" : "entities/player"
                   }
@@ -78,7 +78,7 @@
                   "height" : 1.8,
                   "eyeHeight" : 1.62,
                   "attachments" : {
-                    "points" : {
+                    "attachments" : {
                       "PASSENGER" : [ {
                         "x" : 0.0,
                         "y" : 1.7999999523162842,
@@ -103,16 +103,16 @@
                   },
                   "fixed" : false
                 },
-                "spawnBoxScale" : 1.0,
+                "spawnDimensionsScale" : 1.0,
                 "requiredFeatures" : {
                   "universe" : {
-                    "name" : "main"
+                    "id" : "main"
                   },
-                  "featuresMask" : 1
+                  "mask" : 1
                 },
                 "allowedInPeaceful" : true
               },
-              "usesAt" : true
+              "usesSelector" : true
             }
           }
         },
@@ -148,33 +148,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute as @a run say HI!",
           "arguments" : { },
@@ -194,33 +194,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute as @a run say HI!",
             "command" : { },
@@ -231,8 +231,8 @@
                   "end" : 25
                 },
                 "result" : {
-                  "contents" : "HI!",
-                  "selectors" : [ ]
+                  "text" : "HI!",
+                  "parts" : [ ]
                 }
               }
             },
@@ -266,33 +266,33 @@
         "forks" : true
       }, {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute as @a run say HI!",
         "arguments" : { },
@@ -312,33 +312,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute as @a run say HI!",
           "command" : { },
@@ -349,8 +349,8 @@
                 "end" : 25
               },
               "result" : {
-                "contents" : "HI!",
-                "selectors" : [ ]
+                "text" : "HI!",
+                "parts" : [ ]
               }
             }
           },
@@ -382,33 +382,33 @@
       } ],
       "executable" : {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute as @a run say HI!",
         "command" : { },
@@ -419,8 +419,8 @@
               "end" : 25
             },
             "result" : {
-              "contents" : "HI!",
-              "selectors" : [ ]
+              "text" : "HI!",
+              "parts" : [ ]
             }
           }
         },
@@ -452,37 +452,37 @@
       "command_crafter$isMacro" : false
     }
   }, {
-    "command" : "execute if entity @s run tp @s ~ ~1 ~",
-    "contextChain" : {
+    "commandInput" : "execute if entity @s run tp @s ~ ~1 ~",
+    "command" : {
       "modifiers" : [ {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "command" : {
@@ -495,15 +495,15 @@
               "end" : 20
             },
             "result" : {
-              "limit" : 1,
-              "includesNonPlayers" : true,
-              "localWorldOnly" : false,
-              "predicates" : [ ],
-              "positionOffset" : { },
-              "sorter" : { },
-              "senderOnly" : true,
-              "entityFilter" : { },
-              "usesAt" : true
+              "maxResults" : 1,
+              "includesEntities" : true,
+              "worldLimited" : false,
+              "contextFreePredicates" : [ ],
+              "position" : { },
+              "order" : { },
+              "currentEntity" : true,
+              "type" : { },
+              "usesSelector" : true
             }
           }
         },
@@ -547,33 +547,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "arguments" : { },
@@ -593,33 +593,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "arguments" : { },
@@ -639,33 +639,33 @@
             },
             "child" : {
               "source" : {
-                "output" : null,
-                "position" : {
+                "source" : null,
+                "worldPosition" : {
                   "x" : 0.0,
                   "y" : 0.0,
                   "z" : 0.0
                 },
-                "world" : "ServerLevel[Test Level]",
+                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "name" : "Server",
+                "textName" : "Server",
                 "displayName" : {
-                  "content" : {
-                    "string" : "Server"
+                  "contents" : {
+                    "text" : "Server"
                   },
                   "siblings" : [ ],
                   "style" : { },
-                  "ordered" : { }
+                  "visualOrderText" : { }
                 },
                 "server" : null,
                 "silent" : false,
-                "returnValueConsumer" : { },
-                "entityAnchor" : "FEET",
+                "resultCallback" : { },
+                "anchor" : "FEET",
                 "rotation" : {
                   "x" : 0.0,
                   "y" : 0.0
                 },
-                "signedArguments" : { },
-                "messageChainTaskQueue" : { }
+                "signingContext" : { },
+                "chatMessageChainer" : { }
               },
               "input" : "execute if entity @s run tp @s ~ ~1 ~",
               "command" : { },
@@ -676,15 +676,15 @@
                     "end" : 30
                   },
                   "result" : {
-                    "limit" : 1,
-                    "includesNonPlayers" : true,
-                    "localWorldOnly" : false,
-                    "predicates" : [ ],
-                    "positionOffset" : { },
-                    "sorter" : { },
-                    "senderOnly" : true,
-                    "entityFilter" : { },
-                    "usesAt" : true
+                    "maxResults" : 1,
+                    "includesEntities" : true,
+                    "worldLimited" : false,
+                    "contextFreePredicates" : [ ],
+                    "position" : { },
+                    "order" : { },
+                    "currentEntity" : true,
+                    "type" : { },
+                    "usesSelector" : true
                   }
                 },
                 "location" : {
@@ -742,33 +742,33 @@
         "forks" : true
       }, {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "arguments" : { },
@@ -788,33 +788,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "arguments" : { },
@@ -834,33 +834,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "command" : { },
@@ -871,15 +871,15 @@
                   "end" : 30
                 },
                 "result" : {
-                  "limit" : 1,
-                  "includesNonPlayers" : true,
-                  "localWorldOnly" : false,
-                  "predicates" : [ ],
-                  "positionOffset" : { },
-                  "sorter" : { },
-                  "senderOnly" : true,
-                  "entityFilter" : { },
-                  "usesAt" : true
+                  "maxResults" : 1,
+                  "includesEntities" : true,
+                  "worldLimited" : false,
+                  "contextFreePredicates" : [ ],
+                  "position" : { },
+                  "order" : { },
+                  "currentEntity" : true,
+                  "type" : { },
+                  "usesSelector" : true
                 }
               },
               "location" : {
@@ -932,33 +932,33 @@
         "forks" : false
       }, {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "arguments" : { },
@@ -978,33 +978,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "command" : { },
@@ -1015,15 +1015,15 @@
                 "end" : 30
               },
               "result" : {
-                "limit" : 1,
-                "includesNonPlayers" : true,
-                "localWorldOnly" : false,
-                "predicates" : [ ],
-                "positionOffset" : { },
-                "sorter" : { },
-                "senderOnly" : true,
-                "entityFilter" : { },
-                "usesAt" : true
+                "maxResults" : 1,
+                "includesEntities" : true,
+                "worldLimited" : false,
+                "contextFreePredicates" : [ ],
+                "position" : { },
+                "order" : { },
+                "currentEntity" : true,
+                "type" : { },
+                "usesSelector" : true
               }
             },
             "location" : {
@@ -1075,33 +1075,33 @@
       } ],
       "executable" : {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "command" : { },
@@ -1112,15 +1112,15 @@
               "end" : 30
             },
             "result" : {
-              "limit" : 1,
-              "includesNonPlayers" : true,
-              "localWorldOnly" : false,
-              "predicates" : [ ],
-              "positionOffset" : { },
-              "sorter" : { },
-              "senderOnly" : true,
-              "entityFilter" : { },
-              "usesAt" : true
+              "maxResults" : 1,
+              "includesEntities" : true,
+              "worldLimited" : false,
+              "contextFreePredicates" : [ ],
+              "position" : { },
+              "order" : { },
+              "currentEntity" : true,
+              "type" : { },
+              "usesSelector" : true
             }
           },
           "location" : {
@@ -1172,37 +1172,37 @@
       "command_crafter$isMacro" : false
     }
   }, {
-    "command" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
-    "contextChain" : {
+    "commandInput" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+    "command" : {
       "modifiers" : [ {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "arguments" : {
@@ -1246,33 +1246,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "arguments" : { },
@@ -1292,33 +1292,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
             "command" : { },
@@ -1363,33 +1363,33 @@
         "forks" : false
       }, {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "arguments" : { },
@@ -1409,33 +1409,33 @@
         },
         "child" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "command" : { },
@@ -1476,33 +1476,33 @@
       } ],
       "executable" : {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "command" : { },
@@ -1543,38 +1543,38 @@
       "command_crafter$isMacro" : false
     }
   }, {
-    "command" : "function ",
-    "contextChain" : {
+    "commandInput" : "function ",
+    "command" : {
       "modifiers" : [ ],
       "executable" : {
         "source" : {
-          "output" : null,
-          "position" : {
+          "source" : null,
+          "worldPosition" : {
             "x" : 0.0,
             "y" : 0.0,
             "z" : 0.0
           },
-          "world" : "ServerLevel[Test Level]",
+          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "name" : "Server",
+          "textName" : "Server",
           "displayName" : {
-            "content" : {
-              "string" : "Server"
+            "contents" : {
+              "text" : "Server"
             },
             "siblings" : [ ],
             "style" : { },
-            "ordered" : { }
+            "visualOrderText" : { }
           },
           "server" : null,
           "silent" : false,
-          "returnValueConsumer" : { },
-          "entityAnchor" : "FEET",
+          "resultCallback" : { },
+          "anchor" : "FEET",
           "rotation" : {
             "x" : 0.0,
             "y" : 0.0
           },
-          "signedArguments" : { },
-          "messageChainTaskQueue" : { }
+          "signingContext" : { },
+          "chatMessageChainer" : { }
         },
         "input" : "function ",
         "command" : { },
@@ -1623,33 +1623,33 @@
       "elements" : [ {
         "rootContext" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute as @a run say HI!",
           "arguments" : {
@@ -1659,31 +1659,31 @@
                 "end" : 13
               },
               "result" : {
-                "limit" : 2147483647,
-                "includesNonPlayers" : false,
-                "localWorldOnly" : false,
-                "predicates" : [ ],
-                "positionOffset" : { },
-                "sorter" : { },
-                "senderOnly" : false,
-                "entityFilter" : {
-                  "registryEntry" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
+                "maxResults" : 2147483647,
+                "includesEntities" : false,
+                "worldLimited" : false,
+                "contextFreePredicates" : [ ],
+                "position" : { },
+                "order" : { },
+                "currentEntity" : false,
+                "type" : {
+                  "builtInRegistryHolder" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
                   "factory" : { },
-                  "spawnGroup" : "MISC",
-                  "canSpawnInside" : [ ],
-                  "saveable" : false,
-                  "summonable" : false,
+                  "category" : "MISC",
+                  "immuneTo" : [ ],
+                  "serialize" : false,
+                  "summon" : false,
                   "fireImmune" : false,
-                  "spawnableFarFromPlayer" : true,
-                  "maxTrackDistance" : 32,
-                  "trackTickInterval" : 2,
-                  "translationKey" : "entity.minecraft.player",
-                  "lootTableKey" : {
-                    "registry" : {
+                  "canSpawnFarFromPlayer" : true,
+                  "clientTrackingRange" : 32,
+                  "updateInterval" : 2,
+                  "descriptionId" : "entity.minecraft.player",
+                  "lootTable" : {
+                    "registryName" : {
                       "namespace" : "minecraft",
                       "path" : "loot_table"
                     },
-                    "value" : {
+                    "identifier" : {
                       "namespace" : "minecraft",
                       "path" : "entities/player"
                     }
@@ -1693,7 +1693,7 @@
                     "height" : 1.8,
                     "eyeHeight" : 1.62,
                     "attachments" : {
-                      "points" : {
+                      "attachments" : {
                         "PASSENGER" : [ {
                           "x" : 0.0,
                           "y" : 1.7999999523162842,
@@ -1718,16 +1718,16 @@
                     },
                     "fixed" : false
                   },
-                  "spawnBoxScale" : 1.0,
+                  "spawnDimensionsScale" : 1.0,
                   "requiredFeatures" : {
                     "universe" : {
-                      "name" : "main"
+                      "id" : "main"
                     },
-                    "featuresMask" : 1
+                    "mask" : 1
                   },
                   "allowedInPeaceful" : true
                 },
-                "usesAt" : true
+                "usesSelector" : true
               }
             }
           },
@@ -1763,33 +1763,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute as @a run say HI!",
             "arguments" : { },
@@ -1809,33 +1809,33 @@
             },
             "child" : {
               "source" : {
-                "output" : null,
-                "position" : {
+                "source" : null,
+                "worldPosition" : {
                   "x" : 0.0,
                   "y" : 0.0,
                   "z" : 0.0
                 },
-                "world" : "ServerLevel[Test Level]",
+                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "name" : "Server",
+                "textName" : "Server",
                 "displayName" : {
-                  "content" : {
-                    "string" : "Server"
+                  "contents" : {
+                    "text" : "Server"
                   },
                   "siblings" : [ ],
                   "style" : { },
-                  "ordered" : { }
+                  "visualOrderText" : { }
                 },
                 "server" : null,
                 "silent" : false,
-                "returnValueConsumer" : { },
-                "entityAnchor" : "FEET",
+                "resultCallback" : { },
+                "anchor" : "FEET",
                 "rotation" : {
                   "x" : 0.0,
                   "y" : 0.0
                 },
-                "signedArguments" : { },
-                "messageChainTaskQueue" : { }
+                "signingContext" : { },
+                "chatMessageChainer" : { }
               },
               "input" : "execute as @a run say HI!",
               "command" : { },
@@ -1846,8 +1846,8 @@
                     "end" : 25
                   },
                   "result" : {
-                    "contents" : "HI!",
-                    "selectors" : [ ]
+                    "text" : "HI!",
+                    "parts" : [ ]
                   }
                 }
               },
@@ -1884,33 +1884,33 @@
       }, {
         "rootContext" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "command" : {
@@ -1923,15 +1923,15 @@
                 "end" : 20
               },
               "result" : {
-                "limit" : 1,
-                "includesNonPlayers" : true,
-                "localWorldOnly" : false,
-                "predicates" : [ ],
-                "positionOffset" : { },
-                "sorter" : { },
-                "senderOnly" : true,
-                "entityFilter" : { },
-                "usesAt" : true
+                "maxResults" : 1,
+                "includesEntities" : true,
+                "worldLimited" : false,
+                "contextFreePredicates" : [ ],
+                "position" : { },
+                "order" : { },
+                "currentEntity" : true,
+                "type" : { },
+                "usesSelector" : true
               }
             }
           },
@@ -1975,33 +1975,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "arguments" : { },
@@ -2021,33 +2021,33 @@
             },
             "child" : {
               "source" : {
-                "output" : null,
-                "position" : {
+                "source" : null,
+                "worldPosition" : {
                   "x" : 0.0,
                   "y" : 0.0,
                   "z" : 0.0
                 },
-                "world" : "ServerLevel[Test Level]",
+                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "name" : "Server",
+                "textName" : "Server",
                 "displayName" : {
-                  "content" : {
-                    "string" : "Server"
+                  "contents" : {
+                    "text" : "Server"
                   },
                   "siblings" : [ ],
                   "style" : { },
-                  "ordered" : { }
+                  "visualOrderText" : { }
                 },
                 "server" : null,
                 "silent" : false,
-                "returnValueConsumer" : { },
-                "entityAnchor" : "FEET",
+                "resultCallback" : { },
+                "anchor" : "FEET",
                 "rotation" : {
                   "x" : 0.0,
                   "y" : 0.0
                 },
-                "signedArguments" : { },
-                "messageChainTaskQueue" : { }
+                "signingContext" : { },
+                "chatMessageChainer" : { }
               },
               "input" : "execute if entity @s run tp @s ~ ~1 ~",
               "arguments" : { },
@@ -2067,33 +2067,33 @@
               },
               "child" : {
                 "source" : {
-                  "output" : null,
-                  "position" : {
+                  "source" : null,
+                  "worldPosition" : {
                     "x" : 0.0,
                     "y" : 0.0,
                     "z" : 0.0
                   },
-                  "world" : "ServerLevel[Test Level]",
+                  "level" : "ServerLevel[Test Level]",
                   "permissions" : { },
-                  "name" : "Server",
+                  "textName" : "Server",
                   "displayName" : {
-                    "content" : {
-                      "string" : "Server"
+                    "contents" : {
+                      "text" : "Server"
                     },
                     "siblings" : [ ],
                     "style" : { },
-                    "ordered" : { }
+                    "visualOrderText" : { }
                   },
                   "server" : null,
                   "silent" : false,
-                  "returnValueConsumer" : { },
-                  "entityAnchor" : "FEET",
+                  "resultCallback" : { },
+                  "anchor" : "FEET",
                   "rotation" : {
                     "x" : 0.0,
                     "y" : 0.0
                   },
-                  "signedArguments" : { },
-                  "messageChainTaskQueue" : { }
+                  "signingContext" : { },
+                  "chatMessageChainer" : { }
                 },
                 "input" : "execute if entity @s run tp @s ~ ~1 ~",
                 "command" : { },
@@ -2104,15 +2104,15 @@
                       "end" : 30
                     },
                     "result" : {
-                      "limit" : 1,
-                      "includesNonPlayers" : true,
-                      "localWorldOnly" : false,
-                      "predicates" : [ ],
-                      "positionOffset" : { },
-                      "sorter" : { },
-                      "senderOnly" : true,
-                      "entityFilter" : { },
-                      "usesAt" : true
+                      "maxResults" : 1,
+                      "includesEntities" : true,
+                      "worldLimited" : false,
+                      "contextFreePredicates" : [ ],
+                      "position" : { },
+                      "order" : { },
+                      "currentEntity" : true,
+                      "type" : { },
+                      "usesSelector" : true
                     }
                   },
                   "location" : {
@@ -2197,39 +2197,39 @@
           "functionPackId" : "testPack",
           "functions" : [ {
             "resource" : {
-              "actions" : [ {
-                "command" : "say HI!",
-                "contextChain" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "output" : null,
-                      "position" : {
+                      "source" : null,
+                      "worldPosition" : {
                         "x" : 0.0,
                         "y" : 0.0,
                         "z" : 0.0
                       },
-                      "world" : "ServerLevel[Test Level]",
+                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "name" : "Server",
+                      "textName" : "Server",
                       "displayName" : {
-                        "content" : {
-                          "string" : "Server"
+                        "contents" : {
+                          "text" : "Server"
                         },
                         "siblings" : [ ],
                         "style" : { },
-                        "ordered" : { }
+                        "visualOrderText" : { }
                       },
                       "server" : null,
                       "silent" : false,
-                      "returnValueConsumer" : { },
-                      "entityAnchor" : "FEET",
+                      "resultCallback" : { },
+                      "anchor" : "FEET",
                       "rotation" : {
                         "x" : 0.0,
                         "y" : 0.0
                       },
-                      "signedArguments" : { },
-                      "messageChainTaskQueue" : { }
+                      "signingContext" : { },
+                      "chatMessageChainer" : { }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2240,8 +2240,8 @@
                           "end" : 7
                         },
                         "result" : {
-                          "contents" : "HI!",
-                          "selectors" : [ ]
+                          "text" : "HI!",
+                          "parts" : [ ]
                         }
                       }
                     },
@@ -2273,7 +2273,7 @@
                   "command_crafter$isMacro" : false
                 }
               } ],
-              "usedVariables" : [ ]
+              "macroArguments" : [ ]
             }
           } ],
           "functionTags" : [ ],
@@ -2312,33 +2312,33 @@
       "elements" : [ {
         "rootContext" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "arguments" : {
@@ -2382,33 +2382,33 @@
           },
           "child" : {
             "source" : {
-              "output" : null,
-              "position" : {
+              "source" : null,
+              "worldPosition" : {
                 "x" : 0.0,
                 "y" : 0.0,
                 "z" : 0.0
               },
-              "world" : "ServerLevel[Test Level]",
+              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "name" : "Server",
+              "textName" : "Server",
               "displayName" : {
-                "content" : {
-                  "string" : "Server"
+                "contents" : {
+                  "text" : "Server"
                 },
                 "siblings" : [ ],
                 "style" : { },
-                "ordered" : { }
+                "visualOrderText" : { }
               },
               "server" : null,
               "silent" : false,
-              "returnValueConsumer" : { },
-              "entityAnchor" : "FEET",
+              "resultCallback" : { },
+              "anchor" : "FEET",
               "rotation" : {
                 "x" : 0.0,
                 "y" : 0.0
               },
-              "signedArguments" : { },
-              "messageChainTaskQueue" : { }
+              "signingContext" : { },
+              "chatMessageChainer" : { }
             },
             "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
             "arguments" : { },
@@ -2428,33 +2428,33 @@
             },
             "child" : {
               "source" : {
-                "output" : null,
-                "position" : {
+                "source" : null,
+                "worldPosition" : {
                   "x" : 0.0,
                   "y" : 0.0,
                   "z" : 0.0
                 },
-                "world" : "ServerLevel[Test Level]",
+                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "name" : "Server",
+                "textName" : "Server",
                 "displayName" : {
-                  "content" : {
-                    "string" : "Server"
+                  "contents" : {
+                    "text" : "Server"
                   },
                   "siblings" : [ ],
                   "style" : { },
-                  "ordered" : { }
+                  "visualOrderText" : { }
                 },
                 "server" : null,
                 "silent" : false,
-                "returnValueConsumer" : { },
-                "entityAnchor" : "FEET",
+                "resultCallback" : { },
+                "anchor" : "FEET",
                 "rotation" : {
                   "x" : 0.0,
                   "y" : 0.0
                 },
-                "signedArguments" : { },
-                "messageChainTaskQueue" : { }
+                "signingContext" : { },
+                "chatMessageChainer" : { }
               },
               "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
               "command" : { },
@@ -2502,33 +2502,33 @@
       }, {
         "rootContext" : {
           "source" : {
-            "output" : null,
-            "position" : {
+            "source" : null,
+            "worldPosition" : {
               "x" : 0.0,
               "y" : 0.0,
               "z" : 0.0
             },
-            "world" : "ServerLevel[Test Level]",
+            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "name" : "Server",
+            "textName" : "Server",
             "displayName" : {
-              "content" : {
-                "string" : "Server"
+              "contents" : {
+                "text" : "Server"
               },
               "siblings" : [ ],
               "style" : { },
-              "ordered" : { }
+              "visualOrderText" : { }
             },
             "server" : null,
             "silent" : false,
-            "returnValueConsumer" : { },
-            "entityAnchor" : "FEET",
+            "resultCallback" : { },
+            "anchor" : "FEET",
             "rotation" : {
               "x" : 0.0,
               "y" : 0.0
             },
-            "signedArguments" : { },
-            "messageChainTaskQueue" : { }
+            "signingContext" : { },
+            "chatMessageChainer" : { }
           },
           "input" : "function ",
           "command" : { },
@@ -2595,39 +2595,39 @@
           "functionPackId" : "testPack",
           "functions" : [ {
             "resource" : {
-              "actions" : [ {
-                "command" : "say HI!",
-                "contextChain" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "output" : null,
-                      "position" : {
+                      "source" : null,
+                      "worldPosition" : {
                         "x" : 0.0,
                         "y" : 0.0,
                         "z" : 0.0
                       },
-                      "world" : "ServerLevel[Test Level]",
+                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "name" : "Server",
+                      "textName" : "Server",
                       "displayName" : {
-                        "content" : {
-                          "string" : "Server"
+                        "contents" : {
+                          "text" : "Server"
                         },
                         "siblings" : [ ],
                         "style" : { },
-                        "ordered" : { }
+                        "visualOrderText" : { }
                       },
                       "server" : null,
                       "silent" : false,
-                      "returnValueConsumer" : { },
-                      "entityAnchor" : "FEET",
+                      "resultCallback" : { },
+                      "anchor" : "FEET",
                       "rotation" : {
                         "x" : 0.0,
                         "y" : 0.0
                       },
-                      "signedArguments" : { },
-                      "messageChainTaskQueue" : { }
+                      "signingContext" : { },
+                      "chatMessageChainer" : { }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2638,8 +2638,8 @@
                           "end" : 7
                         },
                         "result" : {
-                          "contents" : "HI!",
-                          "selectors" : [ ]
+                          "text" : "HI!",
+                          "parts" : [ ]
                         }
                       }
                     },
@@ -2671,7 +2671,7 @@
                   "command_crafter$isMacro" : false
                 }
               } ],
-              "usedVariables" : [ ]
+              "macroArguments" : [ ]
             }
           } ],
           "functionTags" : [ ],

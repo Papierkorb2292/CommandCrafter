@@ -6,38 +6,38 @@ import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.serialization.Encoder
 import com.mojang.serialization.JsonOps
 import io.netty.handler.codec.DecoderException
-import net.minecraft.command.CommandRegistryAccess
-import net.minecraft.command.argument.serialize.ArgumentSerializer
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.util.Identifier
+import net.minecraft.commands.CommandBuildContext
+import net.minecraft.commands.synchronization.ArgumentTypeInfo
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.getOrNull
 
 class ArgumentTypeAdditionalDataSerializer<A: ArgumentType<*>>(
-    val delegate: ArgumentSerializer<A, ArgumentSerializer.ArgumentTypeProperties<A>>
-) : ArgumentSerializer<A, ArgumentSerializer.ArgumentTypeProperties<A>> {
+    val delegate: ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>>
+) : ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> {
     companion object {
         private val additionalDataTypes = mutableMapOf<Identifier, AdditionalDataType<*>>()
         val shouldWriteAdditionalDataTypes = ThreadLocal<Boolean>()
         const val ADDITIONAL_DATA_KEY = "command_crafter:additional_data"
 
-        fun <TData> registerAdditionalDataType(
+        fun <TData: Any> registerAdditionalDataType(
             id: Identifier,
             getter: (ArgumentType<*>) -> TData?,
             setter: (ArgumentType<*>, TData) -> Boolean,
-            packetCodec: PacketCodec<PacketByteBuf, TData>,
+            packetCodec: StreamCodec<FriendlyByteBuf, TData>,
             encoder: Encoder<TData>
         ) {
             additionalDataTypes[id] = AdditionalDataType(getter, setter, packetCodec, encoder)
         }
     }
 
-    override fun writePacket(properties: ArgumentSerializer.ArgumentTypeProperties<A>, buf: PacketByteBuf) {
+    override fun serializeToNetwork(properties: ArgumentTypeInfo.Template<A>, buf: FriendlyByteBuf) {
         if(properties is WrappedArgumentTypeProperties) {
-            delegate.writePacket(properties.delegate, buf)
+            delegate.serializeToNetwork(properties.delegate, buf)
             if(shouldWriteAdditionalDataTypes.getOrNull() == true && properties.additionalData.isNotEmpty()) {
-                buf.writeString(ADDITIONAL_DATA_KEY)
+                buf.writeUtf(ADDITIONAL_DATA_KEY)
                 buf.writeVarInt(properties.additionalData.size)
                 for((id, data) in properties.additionalData) {
                     buf.writeIdentifier(id)
@@ -45,15 +45,15 @@ class ArgumentTypeAdditionalDataSerializer<A: ArgumentType<*>>(
                 }
             }
         } else {
-            delegate.writePacket(properties, buf)
+            delegate.serializeToNetwork(properties, buf)
         }
     }
 
-    override fun fromPacket(buf: PacketByteBuf): ArgumentSerializer.ArgumentTypeProperties<A> {
-        val baseProperties = delegate.fromPacket(buf)
+    override fun deserializeFromNetwork(buf: FriendlyByteBuf): ArgumentTypeInfo.Template<A> {
+        val baseProperties = delegate.deserializeFromNetwork(buf)
         buf.markReaderIndex()
         try {
-            if(buf.readString() == ADDITIONAL_DATA_KEY) {
+            if(buf.readUtf() == ADDITIONAL_DATA_KEY) {
                 val additionalData = mutableMapOf<Identifier, Any?>()
                 for(i in 0 until buf.readVarInt()) {
                     val id = buf.readIdentifier()
@@ -76,18 +76,18 @@ class ArgumentTypeAdditionalDataSerializer<A: ArgumentType<*>>(
         return WrappedArgumentTypeProperties(baseProperties, emptyMap())
     }
 
-    override fun getArgumentTypeProperties(argumentType: A): ArgumentSerializer.ArgumentTypeProperties<A> {
-        val delegateProperties = delegate.getArgumentTypeProperties(argumentType)
+    override fun unpack(argumentType: A): ArgumentTypeInfo.Template<A> {
+        val delegateProperties = delegate.unpack(argumentType)
         val additionalData = additionalDataTypes.mapValues { it.value.getter(argumentType) }.filterValues { it != null }
         return WrappedArgumentTypeProperties(delegateProperties, additionalData)
     }
 
-    override fun writeJson(properties: ArgumentSerializer.ArgumentTypeProperties<A>, json: JsonObject) {
+    override fun serializeToJson(properties: ArgumentTypeInfo.Template<A>, json: JsonObject) {
         if(properties !is WrappedArgumentTypeProperties) {
-            delegate.writeJson(properties, json)
+            delegate.serializeToJson(properties, json)
             return
         }
-        delegate.writeJson(properties.delegate, json)
+        delegate.serializeToJson(properties.delegate, json)
         val serializedData = JsonObject()
         for((id, data) in properties.additionalData) {
             serializedData.add(id.toString(), additionalDataTypes.getValue(id).uncheckedWriteDataToJson(data))
@@ -95,10 +95,10 @@ class ArgumentTypeAdditionalDataSerializer<A: ArgumentType<*>>(
         json.add(ADDITIONAL_DATA_KEY, serializedData)
     }
 
-    class AdditionalDataType<T>(
+    class AdditionalDataType<T: Any>(
         val getter: (ArgumentType<*>) -> T?,
         val setter: (ArgumentType<*>, T) -> Boolean,
-        val packetCodec: PacketCodec<PacketByteBuf, T>,
+        val packetCodec: StreamCodec<FriendlyByteBuf, T>,
         val encoder: Encoder<T>,
     ) {
         fun uncheckedTryAddDataToArgumentType(argument: ArgumentType<*>, data: Any?) {
@@ -107,7 +107,7 @@ class ArgumentTypeAdditionalDataSerializer<A: ArgumentType<*>>(
                 CommandCrafter.LOGGER.warn("Failed to set additional data '$data' for argument type '$argument'")
         }
 
-        fun uncheckedWriteDataToPacket(buf: PacketByteBuf, data: Any?) {
+        fun uncheckedWriteDataToPacket(buf: FriendlyByteBuf, data: Any?) {
             @Suppress("UNCHECKED_CAST")
             packetCodec.encode(buf, data as T)
         }
@@ -118,16 +118,16 @@ class ArgumentTypeAdditionalDataSerializer<A: ArgumentType<*>>(
         }
     }
 
-    private inner class WrappedArgumentTypeProperties(val delegate: ArgumentSerializer.ArgumentTypeProperties<A>, val additionalData: Map<Identifier, Any?>): ArgumentSerializer.ArgumentTypeProperties<A> {
-        override fun createType(commandRegistryAccess: CommandRegistryAccess?): A {
-            val argumentType = delegate.createType(commandRegistryAccess)
+    private inner class WrappedArgumentTypeProperties(val delegate: ArgumentTypeInfo.Template<A>, val additionalData: Map<Identifier, Any?>): ArgumentTypeInfo.Template<A> {
+        override fun instantiate(commandRegistryAccess: CommandBuildContext): A {
+            val argumentType = delegate.instantiate(commandRegistryAccess)
             for((id, data) in additionalData) {
                 additionalDataTypes.getValue(id).uncheckedTryAddDataToArgumentType(argumentType, data)
             }
             return argumentType
         }
 
-        override fun getSerializer(): ArgumentSerializer<A, *> {
+        override fun type(): ArgumentTypeInfo<A, *> {
             return this@ArgumentTypeAdditionalDataSerializer
         }
     }

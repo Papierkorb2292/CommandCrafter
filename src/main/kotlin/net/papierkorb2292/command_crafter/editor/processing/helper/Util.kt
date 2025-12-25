@@ -3,13 +3,13 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import com.mojang.serialization.DynamicOps
-import net.minecraft.registry.RegistryOps
-import net.minecraft.util.packrat.ParsingRules
-import net.minecraft.util.packrat.Symbol
+import net.minecraft.resources.RegistryOps
+import net.minecraft.util.parsing.packrat.Dictionary
+import net.minecraft.util.parsing.packrat.Atom
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.helper.binarySearch
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ForwardingDynamicOpsAccessor
-import net.papierkorb2292.command_crafter.mixin.packrat.ParsingRulesAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.DelegatingOpsAccessor
+import net.papierkorb2292.command_crafter.mixin.packrat.DictionaryAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
@@ -204,22 +204,22 @@ fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCurs
  * instance if the input is one, but the delegate of the RegistryOps will be exchanged for
  * the new wrapped ops.
  */
-inline fun <TData, TWrappedOps: DynamicOps<TData>> wrapDynamicOps(
+inline fun <TData: Any, TWrappedOps: DynamicOps<TData>> wrapDynamicOps(
     delegate: DynamicOps<TData>,
     wrapper: (DynamicOps<TData>) -> TWrappedOps,
 ): Pair<TWrappedOps, DynamicOps<TData>> {
     if(delegate is RegistryOps) {
         @Suppress("UNCHECKED_CAST")
-        val wrappedOps = wrapper((delegate as ForwardingDynamicOpsAccessor).delegate as DynamicOps<TData>)
-        return wrappedOps to delegate.withDelegate(wrappedOps)
+        val wrappedOps = wrapper((delegate as DelegatingOpsAccessor).delegate as DynamicOps<TData>)
+        return wrappedOps to delegate.withParent(wrappedOps)
     }
     val wrappedOps = wrapper(delegate)
     return wrappedOps to wrappedOps
 }
 
 // This method must be used instead of creating a new symbol with the same name, because ParsingRules uses an IdentityHashMap
-fun <S> ParsingRules<S>.getSymbolByName(name: String): Symbol<*>? {
+fun <S: Any> Dictionary<S>.getSymbolByName(name: String): Atom<*>? {
     @Suppress("UNCHECKED_CAST")
-    return (this as ParsingRulesAccessor<S>).rules.keys
+    return (this as DictionaryAccessor<S>).terms.keys
         .firstOrNull { it.name == name }
 }

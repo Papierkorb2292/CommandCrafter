@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.codec.PacketCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.codec.ByteBufCodecs
 
 @JvmInline
 value class FileType(val value: Int) {
@@ -12,7 +12,7 @@ value class FileType(val value: Int) {
         val DIRECTORY = FileType(2)
         val SYMBOLIC_LINK = FileType(64)
 
-        val PACKET_CODEC: PacketCodec<ByteBuf, FileType> = PacketCodecs.INTEGER.xmap(
+        val PACKET_CODEC: StreamCodec<ByteBuf, FileType> = ByteBufCodecs.INT.map(
             ::FileType,
             FileType::value
         )

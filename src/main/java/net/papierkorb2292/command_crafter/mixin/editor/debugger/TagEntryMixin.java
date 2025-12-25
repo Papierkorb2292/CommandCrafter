@@ -7,7 +7,7 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.registry.tag.TagEntry;
+import net.minecraft.tags.TagEntry;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler;
 import org.jetbrains.annotations.NotNull;

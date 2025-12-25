@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(targets = "net/minecraft/server/command/FunctionCommand$ReturnValueAdder")
+@Mixin(targets = "net.minecraft.server.commands.FunctionCommand$1Accumulator")
 public class ReturnValueAdderMixin {
     @Inject(
             method = "<init>",

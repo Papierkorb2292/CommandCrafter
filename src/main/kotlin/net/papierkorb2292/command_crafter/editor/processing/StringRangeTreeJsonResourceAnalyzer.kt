@@ -2,9 +2,9 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryWrapper
-import net.minecraft.util.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.core.HolderLookup
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -25,7 +25,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         val tagPrefix = "tags/"
         val tagRegistry = if(contentTypeFilePath.startsWith(tagPrefix)) {
             languageServer.dynamicRegistryManager
-                .getOptional<Any?>(RegistryKey.ofRegistry(Identifier.ofVanilla(contentTypeFilePath.substring(tagPrefix.length))))
+                .lookup(ResourceKey.createRegistryKey(Identifier.withDefaultNamespace(contentTypeFilePath.substring(tagPrefix.length))))
                 .getOrNull()
         } else null
         val analyzingResult = if(tagRegistry != null) {
@@ -43,7 +43,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
 
     companion object {
         const val JSON_ANALYZER_CONFIG_PATH_PREFIX = ".json"
-        val CURRENT_TAG_ANALYZING_REGISTRY = ThreadLocal<RegistryWrapper.Impl<*>>()
+        val CURRENT_TAG_ANALYZING_REGISTRY = ThreadLocal<HolderLookup.RegistryLookup<*>>()
 
         fun addJsonAnalyzers(resourceTypes: Map<PackContentFileType, Codec<*>>) {
             FileTypeDispatchingAnalyzer.analyzers += resourceTypes.mapValues { entry ->

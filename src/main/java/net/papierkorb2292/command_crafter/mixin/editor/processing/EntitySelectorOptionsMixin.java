@@ -8,16 +8,16 @@ import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.command.EntitySelectorOptions;
-import net.minecraft.command.EntitySelectorReader;
-import net.minecraft.entity.EntityType;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
+import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.StringNbtReader;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.InvalidIdentifierException;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.IdentifierException;
 import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
@@ -38,10 +38,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class EntitySelectorOptionsMixin {
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -51,15 +51,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightXOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightXOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -69,15 +69,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightYOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightYOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -87,15 +87,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightZOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightZOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -105,15 +105,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightDXOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightDXOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -123,15 +123,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightDYOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightDYOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -141,15 +141,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightDZOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightDZOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -159,15 +159,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightDistanceOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightDistanceOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -177,15 +177,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightLevelOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightLevelOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -195,15 +195,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightLimitOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightLimitOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -213,15 +213,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightXRotationOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightXRotationOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -231,15 +231,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightYRotationOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightYRotationOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getNUMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -249,15 +249,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightNameOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightNameOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getSTRING());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -267,15 +267,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightTeamOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightTeamOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getSTRING());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -285,15 +285,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightTagOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightTagOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getSTRING());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -303,15 +303,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightSortOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightSortOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getENUM_MEMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -321,15 +321,15 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightGamemodeOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightGamemodeOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getENUM_MEMBER());
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -339,7 +339,7 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightTypeOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightTypeOption(EntitySelectorOptions.Modifier handler) {
         return selectorReader -> {
             var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
             var reader = selectorReader.getReader();
@@ -358,7 +358,7 @@ public class EntitySelectorOptionsMixin {
                 var isTag = reader.canRead() && reader.peek() == '#';
                 if(isTag) reader.skip();
                 try {
-                    var tagId = Identifier.fromCommandInput(reader);
+                    var tagId = Identifier.read(reader);
                     if(isTag) {
                         //noinspection unchecked
                         IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(
@@ -376,14 +376,14 @@ public class EntitySelectorOptionsMixin {
                                 0
                         );
                     }
-                } catch(InvalidIdentifierException ignored) { }
+                } catch(IdentifierException ignored) { }
                 maxEndCursor = reader.getCursor();
                 reader.setCursor(startCursor);
             }
             if(VanillaLanguage.Companion.isReaderInlineResources(reader)) {
                 var isInlineTag = reader.canRead() && reader.peek() == '[';
                 //noinspection unchecked
-                var parsed = VanillaLanguage.Companion.analyzeRegistryTagTuple((DirectiveStringReader<AnalyzingResourceCreator>) reader, Registries.ENTITY_TYPE, false, hasNegationChar, true);
+                var parsed = VanillaLanguage.Companion.analyzeRegistryTagTuple((DirectiveStringReader<AnalyzingResourceCreator>) reader, BuiltInRegistries.ENTITY_TYPE, false, hasNegationChar, true);
                 if(parsed instanceof AnalyzedRegistryEntryList<EntityType<?>> analyzed) {
                     if(!isInlineTag) {
                         parsed.getAnalyzingResult().getDiagnostics().removeIf(diagnostic -> diagnostic.getSeverity() == DiagnosticSeverity.Error);
@@ -399,10 +399,10 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyArg(
-            method = "register",
+            method = "bootStrap",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/command/EntitySelectorOptions;putOption(Ljava/lang/String;Lnet/minecraft/command/EntitySelectorOptions$SelectorHandler;Ljava/util/function/Predicate;Lnet/minecraft/text/Text;)V",
+                    target = "Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions;register(Ljava/lang/String;Lnet/minecraft/commands/arguments/selector/options/EntitySelectorOptions$Modifier;Ljava/util/function/Predicate;Lnet/minecraft/network/chat/Component;)V",
                     ordinal = 0
             ),
             slice = @Slice(
@@ -412,11 +412,11 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightPredicateOption(EntitySelectorOptions.SelectorHandler handler) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightPredicateOption(EntitySelectorOptions.Modifier handler) {
         return command_crafter$highlightFullOption(handler, TokenType.Companion.getPARAMETER());
     }
 
-    private static EntitySelectorOptions.SelectorHandler command_crafter$highlightFullOption(EntitySelectorOptions.SelectorHandler handler, TokenType tokenType) {
+    private static EntitySelectorOptions.Modifier command_crafter$highlightFullOption(EntitySelectorOptions.Modifier handler, TokenType tokenType) {
         return selectorReader -> {
             var cursor = selectorReader.getReader().getCursor();
             handler.handle(selectorReader);
@@ -436,27 +436,27 @@ public class EntitySelectorOptionsMixin {
             method = "method_9966",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/StringNbtReader;readCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/NbtCompound;"
+                    target = "Lnet/minecraft/nbt/TagParser;parseCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/CompoundTag;"
             )
     )
-    private static NbtCompound command_crafter$highlightNbtOption(StringReader reader, Operation<NbtCompound> op, EntitySelectorReader selectorReader) throws CommandSyntaxException {
+    private static CompoundTag command_crafter$highlightNbtOption(StringReader reader, Operation<CompoundTag> op, EntitySelectorParser selectorReader) throws CommandSyntaxException {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult == null)
             return op.call(reader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>) selectorReader.getReader();
-        var treeBuilder = new StringRangeTree.Builder<NbtElement>();
-        var nbtReader = StringNbtReader.fromOps(NbtOps.INSTANCE);
+        var treeBuilder = new StringRangeTree.Builder<Tag>();
+        var nbtReader = TagParser.create(NbtOps.INSTANCE);
         //noinspection unchecked
-        ((StringRangeTreeCreator<NbtElement>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
-        var nbt = nbtReader.readAsArgument(directiveReader);
+        var nbt = nbtReader.parseAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
         ).analyzeFull(analyzingResult, true, null);
-        return nbt instanceof NbtCompound ? (NbtCompound)nbt : null;
+        return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 
     @ModifyExpressionValue(
@@ -467,7 +467,7 @@ public class EntitySelectorOptionsMixin {
             ),
             remap = false
     )
-    private static String command_crafter$highlightScoreOptionScoreboardName(String name, EntitySelectorReader selectorReader) {
+    private static String command_crafter$highlightScoreOptionScoreboardName(String name, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult != null) {
             analyzingResult.getSemanticTokens().addMultiline(
@@ -484,10 +484,10 @@ public class EntitySelectorOptionsMixin {
             method = "method_9975",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/predicate/NumberRange$IntRange;parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/predicate/NumberRange$IntRange;"
+                    target = "Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;fromReader(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;"
             )
     )
-    private static void command_crafter$storeScoreOptionNumberCursor(EntitySelectorReader reader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
+    private static void command_crafter$storeScoreOptionNumberCursor(EntitySelectorParser reader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
         numberCursorRef.set(reader.getReader().getCursor());
     }
 
@@ -495,11 +495,11 @@ public class EntitySelectorOptionsMixin {
             method = "method_9975",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/predicate/NumberRange$IntRange;parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/predicate/NumberRange$IntRange;",
+                    target = "Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;fromReader(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;",
                     shift = At.Shift.AFTER
             )
     )
-    private static void command_crafter$highlightScoreOptionNumber(EntitySelectorReader selectorReader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
+    private static void command_crafter$highlightScoreOptionNumber(EntitySelectorParser selectorReader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult != null) {
             analyzingResult.getSemanticTokens().addMultiline(
@@ -515,10 +515,10 @@ public class EntitySelectorOptionsMixin {
             method = "method_9974",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/Identifier;fromCommandInput(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/util/Identifier;"
+                    target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;"
             )
     )
-    private static void command_crafter$storeAdvancementOptionIdentifierCursor(EntitySelectorReader reader, CallbackInfo ci, @Share("startCursor") LocalIntRef startCursorRef) {
+    private static void command_crafter$storeAdvancementOptionIdentifierCursor(EntitySelectorParser reader, CallbackInfo ci, @Share("startCursor") LocalIntRef startCursorRef) {
         startCursorRef.set(reader.getReader().getCursor());
     }
 
@@ -526,10 +526,10 @@ public class EntitySelectorOptionsMixin {
             method = "method_9974",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/Identifier;fromCommandInput(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/util/Identifier;"
+                    target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;"
             )
     )
-    private static Identifier command_crafter$highlightAdvancementOptionIdentifier(Identifier id, EntitySelectorReader selectorReader, @Share("startCursor") LocalIntRef startCursorRef) {
+    private static Identifier command_crafter$highlightAdvancementOptionIdentifier(Identifier id, EntitySelectorParser selectorReader, @Share("startCursor") LocalIntRef startCursorRef) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult != null) {
             analyzingResult.getSemanticTokens().addMultiline(
@@ -550,7 +550,7 @@ public class EntitySelectorOptionsMixin {
             ),
             remap = false
     )
-    private static String command_crafter$highlightAdvancementOptionCriterionName(String name, EntitySelectorReader selectorReader) {
+    private static String command_crafter$highlightAdvancementOptionCriterionName(String name, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult != null) {
             analyzingResult.getSemanticTokens().addMultiline(
@@ -571,7 +571,7 @@ public class EntitySelectorOptionsMixin {
             ),
             remap = false
     )
-    private static boolean command_crafter$highlightAdvancementOptionBoolean(boolean value, EntitySelectorReader selectorReader) {
+    private static boolean command_crafter$highlightAdvancementOptionBoolean(boolean value, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
         if(analyzingResult != null) {
             var length = value ? 4 : 5;

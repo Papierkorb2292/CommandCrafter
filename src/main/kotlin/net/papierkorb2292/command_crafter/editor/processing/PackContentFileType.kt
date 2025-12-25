@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.processing.helper.getKeywordsFromPath
@@ -133,7 +133,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                     val potentialContentTypePath = path.subpath(i + 1, j).name.replace('\\', '/')
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
-                    val resourceId = Identifier.of(
+                    val resourceId = Identifier.fromNamespaceAndPath(
                         path.getName(i + 1).name,
                         path.subpath(j, path.nameCount).name.replace('\\', '/')
                     ) ?: continue
@@ -153,7 +153,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                     val potentialContentTypePath = segments.subList(i + 2, j).joinToString("/")
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
-                    val resourceId = Identifier.of(
+                    val resourceId = Identifier.fromNamespaceAndPath(
                         segments[i + 1],
                         segments.subList(j, segments.size).joinToString("/")
                     ) ?: continue

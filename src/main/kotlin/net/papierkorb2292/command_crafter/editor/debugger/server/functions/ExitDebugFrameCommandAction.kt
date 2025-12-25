@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
-import net.minecraft.command.CommandAction
-import net.minecraft.command.CommandExecutionContext
-import net.minecraft.command.Frame
-import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.commands.execution.EntryAction
+import net.minecraft.commands.execution.ExecutionContext
+import net.minecraft.commands.execution.Frame
+import net.minecraft.commands.CommandSourceStack
 import net.papierkorb2292.command_crafter.editor.debugger.server.CommandResultContainer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 
@@ -16,9 +16,9 @@ class ExitDebugFrameCommandAction(
     private val frameResultContainer: CommandResultContainer? = null,
     private val clearFrameResult: Boolean = true,
     private val afterExitCallback: (() -> Unit)? = null,
-) : CommandAction<ServerCommandSource> {
+) : EntryAction<CommandSourceStack> {
 
-    override fun execute(context: CommandExecutionContext<ServerCommandSource>, frame: Frame) {
+    override fun execute(context: ExecutionContext<CommandSourceStack>, frame: Frame) {
         val pauseContext = PauseContext.currentPauseContext.get() ?: return
         frameResultContainer?.let {
             // A value of null means to the debug pause handler that no call

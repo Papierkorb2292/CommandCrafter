@@ -1,10 +1,10 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.brigadier.CommandDispatcher
-import net.minecraft.command.CommandSource
-import net.minecraft.command.permission.LeveledPermissionPredicate
-import net.minecraft.command.permission.PermissionPredicate
-import net.minecraft.registry.DynamicRegistryManager
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.server.permissions.PermissionSet
+import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
@@ -13,18 +13,18 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 
 class ClientDummyServerConnection(
-    override val commandDispatcher: CommandDispatcher<CommandSource>,
-    override val functionPermissions: PermissionPredicate,
+    override val commandDispatcher: CommandDispatcher<SharedSuggestionProvider>,
+    override val functionPermissions: PermissionSet,
     override val serverLog: Log? = null,
     override val commandExecutor: CommandExecutor? = null,
     override val debugService: ServerDebugConnectionService? = null,
     override val contextCompletionProvider: ContextCompletionProvider? = null,
-    val dynamicRegistryManagerGetter: () -> DynamicRegistryManager = { ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.combinedRegistryManager },
+    val dynamicRegistryManagerGetter: () -> RegistryAccess = { ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.compositeAccess() },
     val scoreboardStorageFileSystemGetter: () -> ScoreboardStorageFileSystem? = { null },
     override val datapackReloader: (() -> Unit)? = null,
     override val canReloadWorldgen: Boolean = false
 ) : MinecraftServerConnection {
-    override val dynamicRegistryManager: DynamicRegistryManager
+    override val dynamicRegistryManager: RegistryAccess
         get() = dynamicRegistryManagerGetter()
 
     override fun createScoreboardStorageFileSystem() = scoreboardStorageFileSystemGetter()

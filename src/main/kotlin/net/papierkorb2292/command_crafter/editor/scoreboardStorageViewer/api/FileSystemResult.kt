@@ -8,8 +8,8 @@ import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonWriter
 import io.netty.buffer.ByteBuf
 import io.netty.handler.codec.DecoderException
-import net.minecraft.network.PacketByteBuf
-import net.minecraft.network.codec.PacketCodec
+import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.network.codec.StreamCodec
 import org.eclipse.lsp4j.jsonrpc.json.adapters.TypeUtils
 
 class FileSystemResult<out TResultType> private constructor(
@@ -21,23 +21,23 @@ class FileSystemResult<out TResultType> private constructor(
     constructor(error: FileNotFoundError) : this(ResultType.FILE_NOT_FOUND_ERROR, null, error)
 
     companion object {
-        fun <TResultType> createCodec(resultCodec: PacketCodec<ByteBuf, TResultType>): PacketCodec<PacketByteBuf, FileSystemResult<TResultType>> {
-            return object : PacketCodec<PacketByteBuf, FileSystemResult<TResultType>> {
-                override fun decode(buf: PacketByteBuf): FileSystemResult<TResultType> {
+        fun <TResultType: Any> createCodec(resultCodec: StreamCodec<ByteBuf, TResultType>): StreamCodec<FriendlyByteBuf, FileSystemResult<TResultType>> {
+            return object : StreamCodec<FriendlyByteBuf, FileSystemResult<TResultType>> {
+                override fun decode(buf: FriendlyByteBuf): FileSystemResult<TResultType> {
                     val typeOrdinal = buf.readByte().toInt()
                     if(typeOrdinal < 0 || typeOrdinal >= ResultType.entries.size)
                         throw DecoderException("Unknown FileSystemResult type ordinal: $typeOrdinal")
                     return when(ResultType.entries[typeOrdinal]) {
                         ResultType.SUCCESS -> FileSystemResult(resultCodec.decode(buf))
-                        ResultType.FILE_NOT_FOUND_ERROR -> FileSystemResult(FileNotFoundError(buf.readString()))
+                        ResultType.FILE_NOT_FOUND_ERROR -> FileSystemResult(FileNotFoundError(buf.readUtf()))
                     }
                 }
 
-                override fun encode(buf: PacketByteBuf, value: FileSystemResult<TResultType>) {
+                override fun encode(buf: FriendlyByteBuf, value: FileSystemResult<TResultType>) {
                     buf.writeByte(value.type.ordinal)
                     when(value.type) {
-                        ResultType.SUCCESS -> resultCodec.encode(buf, value.result)
-                        ResultType.FILE_NOT_FOUND_ERROR -> buf.writeString(value.fileNotFoundError!!.fileNotFoundErrorMessage)
+                        ResultType.SUCCESS -> resultCodec.encode(buf, value.result!!)
+                        ResultType.FILE_NOT_FOUND_ERROR -> buf.writeUtf(value.fileNotFoundError!!.fileNotFoundErrorMessage)
                     }
                 }
             }

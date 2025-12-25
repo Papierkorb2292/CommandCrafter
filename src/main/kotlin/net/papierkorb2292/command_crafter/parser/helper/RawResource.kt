@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.datafixers.util.Either
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 
 class RawResource(val type: RawResourceType) {

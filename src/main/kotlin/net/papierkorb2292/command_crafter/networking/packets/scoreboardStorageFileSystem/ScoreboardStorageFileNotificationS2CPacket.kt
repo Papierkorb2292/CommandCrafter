@@ -2,29 +2,29 @@ package net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageF
 
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
-import net.minecraft.network.codec.PacketCodec
-import net.minecraft.network.packet.CustomPayload
-import net.minecraft.util.Identifier
-import net.minecraft.util.Uuids
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.resources.Identifier
+import net.minecraft.core.UUIDUtil
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FILE_EVENT_ARRAY_PACKET_CODEC
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import java.util.*
 
-class ScoreboardStorageFileNotificationS2CPacket<TParams>(private val packetId: CustomPayload.Id<ScoreboardStorageFileNotificationS2CPacket<TParams>>, val fileSystemId: UUID, val params: TParams) :
-    CustomPayload {
+class ScoreboardStorageFileNotificationS2CPacket<TParams>(private val packetId: CustomPacketPayload.Type<ScoreboardStorageFileNotificationS2CPacket<TParams>>, val fileSystemId: UUID, val params: TParams) :
+    CustomPacketPayload {
     companion object {
         val DID_CHANGE_FILE_PACKET: Type<Array<FileEvent>> = createType(
-            Identifier.of("command_crafter", "scoreboard_storage_file_did_change"),
+            Identifier.fromNamespaceAndPath("command_crafter", "scoreboard_storage_file_did_change"),
             FILE_EVENT_ARRAY_PACKET_CODEC
         )
 
         fun <TParams : Any> createType(
             packetId: Identifier,
-            paramsCodec: PacketCodec<ByteBuf, TParams>,
+            paramsCodec: StreamCodec<ByteBuf, TParams>,
         ): Type<TParams> {
-            val payloadId = CustomPayload.Id<ScoreboardStorageFileNotificationS2CPacket<TParams>>(packetId)
-            val codec = PacketCodec.tuple(
-                Uuids.PACKET_CODEC,
+            val payloadId = CustomPacketPayload.Type<ScoreboardStorageFileNotificationS2CPacket<TParams>>(packetId)
+            val codec = StreamCodec.composite(
+                UUIDUtil.STREAM_CODEC,
                 ScoreboardStorageFileNotificationS2CPacket<TParams>::fileSystemId,
                 paramsCodec,
                 ScoreboardStorageFileNotificationS2CPacket<TParams>::params
@@ -40,7 +40,7 @@ class ScoreboardStorageFileNotificationS2CPacket<TParams>(private val packetId: 
         }
     }
 
-    override fun getId() = packetId
+    override fun type() = packetId
 
-    class Type<TParams>(val id: CustomPayload.Id<ScoreboardStorageFileNotificationS2CPacket<TParams>>, val factory: (fileSystemId: UUID, TParams) -> ScoreboardStorageFileNotificationS2CPacket<TParams>)
+    class Type<TParams>(val id: CustomPacketPayload.Type<ScoreboardStorageFileNotificationS2CPacket<TParams>>, val factory: (fileSystemId: UUID, TParams) -> ScoreboardStorageFileNotificationS2CPacket<TParams>)
 }

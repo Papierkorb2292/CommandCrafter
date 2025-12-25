@@ -2,24 +2,24 @@ package net.papierkorb2292.command_crafter.mixin.packrat;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import net.minecraft.util.packrat.Cut;
-import net.minecraft.util.packrat.ParseResults;
-import net.minecraft.util.packrat.ParsingState;
-import net.minecraft.util.packrat.Term;
+import net.minecraft.util.parsing.packrat.Control;
+import net.minecraft.util.parsing.packrat.Scope;
+import net.minecraft.util.parsing.packrat.ParseState;
+import net.minecraft.util.parsing.packrat.Term;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(value = {Term.OptionalTerm.class, Term.RepeatWithSeparatorTerm.class})
+@Mixin(value = {Term.Maybe.class, Term.RepeatedWithSeparator.class})
 public class OptionalTermsMixin<S> {
     @WrapOperation(
-            method = "matches",
+            method = "parse",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/packrat/Term;matches(Lnet/minecraft/util/packrat/ParsingState;Lnet/minecraft/util/packrat/ParseResults;Lnet/minecraft/util/packrat/Cut;)Z"
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;parse(Lnet/minecraft/util/parsing/packrat/ParseState;Lnet/minecraft/util/parsing/packrat/Scope;Lnet/minecraft/util/parsing/packrat/Control;)Z"
             )
     )
-    private boolean command_crafter$branchAnalyzingResult(Term<S> term, ParsingState<S> parsingState, ParseResults parseResults, Cut cut, Operation<Boolean> op) {
+    private boolean command_crafter$branchAnalyzingResult(Term<S> term, ParseState<S> parsingState, Scope parseResults, Control cut, Operation<Boolean> op) {
         var branchCallback = PackratParserAdditionalArgs.INSTANCE.branchAllArgs();
         boolean result = false;
         try {

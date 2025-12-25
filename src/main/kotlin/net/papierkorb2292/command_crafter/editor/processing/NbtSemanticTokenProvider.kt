@@ -2,17 +2,17 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.nbt.AbstractNbtList
-import net.minecraft.nbt.AbstractNbtNumber
-import net.minecraft.nbt.NbtElement
-import net.minecraft.nbt.NbtString
+import net.minecraft.nbt.CollectionTag
+import net.minecraft.nbt.NumericTag
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.StringTag
 
-class NbtSemanticTokenProvider(val tree: StringRangeTree<NbtElement>, val input: String) : StringRangeTree.SemanticTokenProvider<NbtElement> {
-    override fun getMapNameTokenInfo(map: NbtElement) = StringRangeTree.TokenInfo(TokenType.PROPERTY, 0)
+class NbtSemanticTokenProvider(val tree: StringRangeTree<Tag>, val input: String) : StringRangeTree.SemanticTokenProvider<Tag> {
+    override fun getMapNameTokenInfo(map: Tag) = StringRangeTree.TokenInfo(TokenType.PROPERTY, 0)
 
-    override fun getNodeTokenInfo(node: NbtElement) = when(node) {
-        is NbtString -> StringRangeTree.TokenInfo(TokenType.STRING, 0)
-        is AbstractNbtNumber -> {
+    override fun getNodeTokenInfo(node: Tag) = when(node) {
+        is StringTag -> StringRangeTree.TokenInfo(TokenType.STRING, 0)
+        is NumericTag -> {
             val startChar = input[tree.ranges[node]!!.start]
             if(startChar == 't' || startChar == 'f')
                 // Number is a boolean
@@ -23,8 +23,8 @@ class NbtSemanticTokenProvider(val tree: StringRangeTree<NbtElement>, val input:
         else -> null
     }
 
-    override fun getAdditionalTokens(node: NbtElement) = when(node) {
-        is AbstractNbtList -> {
+    override fun getAdditionalTokens(node: Tag) = when(node) {
+        is CollectionTag -> {
             val nodeStart = tree.ranges[node]!!.start
             if(input.length > nodeStart + 2 && !StringReader.isQuotedStringStart(input[nodeStart + 1]) && input[nodeStart + 2] == ';')
                 // Is a primitive array
