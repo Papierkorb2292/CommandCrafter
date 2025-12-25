@@ -414,6 +414,10 @@ object TestCommandCrafter {
 
         assertLiteralCount(command2.children.first(), "a_second_leaf_node", 1U)
 
+        // A node only counts child literals, but not itself
+        assertLiteralCount(leafCommand, "leaf_command", 0U)
+        assertLiteralCount(rootNode, "leaf_command", 1U)
+
         context.complete()
     }
 

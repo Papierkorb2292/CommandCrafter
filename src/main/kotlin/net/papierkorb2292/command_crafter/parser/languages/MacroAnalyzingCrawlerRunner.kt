@@ -956,6 +956,7 @@ class MacroAnalyzingCrawlerRunner(
          * Gets the literal counts for a node. The result is a [UByteArray], where the indices correspond to
          * the literal ids from [nodeIdentifier]. A value of 255 means a literal may match any amount of times
          * (because of loops).
+         * The literal counts for a node do not include the node itself, only its children (unless it can loop back to itself).
          */
         fun getLiteralCountsForNode(node: CommandNode<CommandSource>): UByteArray = nodeLiteralCounts[node] ?: throw IllegalArgumentException("Tried retrieving literal counts for unprocessed node")
 
@@ -977,12 +978,14 @@ class MacroAnalyzingCrawlerRunner(
             for(child in children) {
                 val childLiteralCounts = traverse(child) ?: continue
                 maxLiteralCounts(literalCounts, childLiteralCounts)
-            }
 
-            // Add self to literal counts
-            if(node is LiteralCommandNode<*>) {
-                val literalId = nodeIdentifier.getIdForLiteral(node.literal)
-                addToLiteralCount(literalCounts, literalId)
+                // Also add the child itself to the literal counts
+                if(child is LiteralCommandNode<*>) {
+                    val literalId = nodeIdentifier.getIdForLiteral(child.literal)
+                    if(literalCounts[literalId] == childLiteralCounts[literalId] && literalCounts[literalId] < 255U) {
+                        literalCounts[literalId]++
+                    }
+                }
             }
 
             processLoop(node, literalCounts)
