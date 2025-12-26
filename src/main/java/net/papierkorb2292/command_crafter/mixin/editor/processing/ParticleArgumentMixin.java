@@ -54,13 +54,14 @@ public class ParticleArgumentMixin implements AnalyzingCommandNode {
         } catch (CommandSyntaxException ignored) {}
 
         final var hasNbt = reader.canRead() && reader.peek() == '{';
+        if(!hasNbt) {
+            // Don't read too much, since there might still be other arguments there and analyzer shouldn't skip whitespace that's not part of the node (important for macros)
+            // But still try to read in NBT for suggestions and error checking
+            reader.setString(reader.getString().substring(0, reader.getCursor()));
+        }
 
         var nbtReader = TagParser.create(NbtOps.INSTANCE);
         var treeBuilder = new StringRangeTree.Builder<Tag>();
-        // Clamped tree ranges if there's no nbt, because otherwise the tree might contain the whitespace after the argument and completions would replace it
-        if(!hasNbt) {
-            treeBuilder.setClampNodeRange(StringRange.at(reader.getCursor()));
-        }
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
