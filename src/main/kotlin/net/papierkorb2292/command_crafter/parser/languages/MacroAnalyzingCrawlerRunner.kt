@@ -2,13 +2,7 @@ package net.papierkorb2292.command_crafter.parser.languages
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
-import com.mojang.brigadier.arguments.ArgumentType
-import com.mojang.brigadier.arguments.BoolArgumentType
-import com.mojang.brigadier.arguments.DoubleArgumentType
-import com.mojang.brigadier.arguments.FloatArgumentType
-import com.mojang.brigadier.arguments.IntegerArgumentType
-import com.mojang.brigadier.arguments.LongArgumentType
-import com.mojang.brigadier.arguments.StringArgumentType
+import com.mojang.brigadier.arguments.*
 import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.ParsedCommandNode
 import com.mojang.brigadier.context.StringRange
@@ -22,38 +16,13 @@ import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
 import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.commands.arguments.AngleArgument
-import net.minecraft.commands.synchronization.ArgumentTypeInfos
-import net.minecraft.commands.arguments.TemplateMirrorArgument
-import net.minecraft.commands.arguments.TemplateRotationArgument
-import net.minecraft.commands.arguments.ColorArgument
-import net.minecraft.commands.arguments.item.FunctionArgument
-import net.minecraft.commands.arguments.DimensionArgument
-import net.minecraft.commands.arguments.EntityAnchorArgument
-import net.minecraft.commands.arguments.GameModeArgument
-import net.minecraft.commands.arguments.HeightmapTypeArgument
-import net.minecraft.commands.arguments.HexColorArgument
-import net.minecraft.commands.arguments.IdentifierArgument
-import net.minecraft.commands.arguments.SlotArgument
-import net.minecraft.commands.arguments.MessageArgument
-import net.minecraft.commands.arguments.RangeArgument
-import net.minecraft.commands.arguments.OperationArgument
-import net.minecraft.commands.arguments.ResourceOrTagArgument
-import net.minecraft.commands.arguments.ResourceArgument
-import net.minecraft.commands.arguments.ResourceKeyArgument
-import net.minecraft.commands.arguments.ResourceOrTagKeyArgument
-import net.minecraft.commands.arguments.ResourceSelectorArgument
-import net.minecraft.commands.arguments.ObjectiveCriteriaArgument
-import net.minecraft.commands.arguments.ObjectiveArgument
-import net.minecraft.commands.arguments.ScoreboardSlotArgument
-import net.minecraft.commands.arguments.SlotsArgument
+import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.coordinates.SwizzleArgument
-import net.minecraft.commands.arguments.TeamArgument
-import net.minecraft.commands.arguments.TimeArgument
-import net.minecraft.commands.arguments.UuidArgument
+import net.minecraft.commands.arguments.item.FunctionArgument
 import net.minecraft.commands.synchronization.ArgumentTypeInfo
-import net.minecraft.network.FriendlyByteBuf
+import net.minecraft.commands.synchronization.ArgumentTypeInfos
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -64,9 +33,8 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.Command
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.getLastNodeWithRedirects
 import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
-import java.util.WeakHashMap
+import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.collections.plusAssign
 import kotlin.math.max
 import kotlin.math.min
 
@@ -298,6 +266,9 @@ class MacroAnalyzingCrawlerRunner(
             reader.skip() // Also skip spaces
 
         val nextNodeStartCursor = reader.cursor
+        reader.skipWhitespace()
+        val nextNodeNonWhitespaceStart = reader.cursor
+        reader.cursor = nextNodeStartCursor
         // This can also skip more characters when trying to analyze the next command node
         val analyzingFootprint = macroLanguage.analyzeParsedCommand(
             commandParseResults,
@@ -316,7 +287,8 @@ class MacroAnalyzingCrawlerRunner(
         // because the macros likely lead the parser to fail but the lenient parser will skip them.
         if(analyzingFootprint.triedNextNode != null && !isGreedyString(analyzingFootprint.triedNextNode)) {
             var skippedAttemptIndex = attemptIndex
-            while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] <= nextNodeStartCursor)
+            // Use 'nextNodeNonWhitespaceStart' in case the analyzer skips leading whitespace, but it shouldn't be marked as invalid attempt position
+            while(skippedAttemptIndex < attemptPositions.size && attemptPositions[skippedAttemptIndex] <= nextNodeNonWhitespaceStart)
                 skippedAttemptIndex++
             // Include the next variable position as well (if the parser reached it), because everything up to there is probably part of this argument
             val lastArgEnd = max(reader.cursor, if(hasAccessedMacro) nextVariableLocation + 1 else 0)
@@ -332,7 +304,8 @@ class MacroAnalyzingCrawlerRunner(
             // or because the command is done
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
 
-        if(reader.furthestAccessedCursor <= startCursor + 1 && spawner.parent != null)
+        val onlyFoundWhitespace = reader.string.subSequence(startCursor, reader.furthestAccessedCursor).all { it == ' ' }
+        if(onlyFoundWhitespace && spawner.parent != null)
             // The parser doesn't seem to have found anything, there's no need to create a new spawner, since the parent spawner is also going to try
             // the following whitespaces
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
@@ -1186,7 +1159,7 @@ class MacroAnalyzingCrawlerRunner(
         private val macroLanguage = VanillaLanguage()
         private val emptyInputLiteralCountMap = Int2ByteLinkedOpenHashMap()
         private val processedDispatcherData = WeakHashMap<CommandDispatcher<SharedSuggestionProvider>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
-        private const val shouldCheckForTimeout = true
+        private const val shouldCheckForTimeout = false
         private val timeoutDurationNs = TimeUnit.SECONDS.toNanos(1)
         private var isAnalyzingMacroForFirstTime = true
 
