@@ -76,6 +76,8 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             suggestion.element.value
                     StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = { completion ->
                         if(suggestion.element is CompoundTag && suggestion.element.isEmpty || suggestion.element is CollectionTag && suggestion.element.isEmpty) {
+                            // Must be done with a command instead of additionalTextEdit, because the latter would cause problems when the cursor is at the end of a line
+                            // (and additionalTextEdit isn't meant to be used for completions at the cursor position)
                             completion.command = Command("Move cursor into node", "cursorLeft")
                         }
                         suggestion.completionModifier?.invoke(completion)

@@ -291,6 +291,8 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         Streams.write(suggestion.element, jsonWriter)
                         StreamCompletionItemProvider.Completion(stringEscaper.escape(stringWriter.toString()), completionModifier = { completion ->
                             if(suggestion.element is JsonObject && suggestion.element.isEmpty || suggestion.element is JsonArray && suggestion.element.isEmpty) {
+                                // Must be done with a command instead of additionalTextEdit, because the latter would cause problems when the cursor is at the end of a line
+                                // (and additionalTextEdit isn't meant to be used for completions at the cursor position)
                                 completion.command = Command("Move cursor into node", "cursorLeft")
                             }
                             suggestion.completionModifier?.invoke(completion)
