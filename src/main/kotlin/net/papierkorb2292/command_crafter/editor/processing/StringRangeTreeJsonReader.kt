@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCurso
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
+import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.CompletionItemKind
 import java.io.IOException
 import java.io.Reader
@@ -288,7 +289,12 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         val jsonWriter = JsonWriter(stringWriter)
                         jsonWriter.formattingStyle = formattingStyle
                         Streams.write(suggestion.element, jsonWriter)
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape(stringWriter.toString()), completionModifier = suggestion.completionModifier)
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape(stringWriter.toString()), completionModifier = { completion ->
+                            if(suggestion.element is JsonObject && suggestion.element.isEmpty || suggestion.element is JsonArray && suggestion.element.isEmpty) {
+                                completion.command = Command("Move cursor into node", "cursorLeft")
+                            }
+                            suggestion.completionModifier?.invoke(completion)
+                        })
                     }
                 }
             )

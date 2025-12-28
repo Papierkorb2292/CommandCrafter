@@ -2,20 +2,18 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.nbt.Tag
-import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.StringTag
-import net.minecraft.nbt.SnbtGrammar
-import net.minecraft.util.parsing.packrat.commands.Grammar
-import net.minecraft.util.parsing.packrat.ErrorCollector
-import net.minecraft.util.parsing.packrat.commands.StringReaderParserState
+import net.minecraft.nbt.*
 import net.minecraft.util.parsing.packrat.Atom
+import net.minecraft.util.parsing.packrat.ErrorCollector
+import net.minecraft.util.parsing.packrat.commands.Grammar
+import net.minecraft.util.parsing.packrat.commands.StringReaderParserState
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.getSymbolByName
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import org.eclipse.lsp4j.Command
 import org.eclipse.lsp4j.CompletionItemKind
 import java.util.regex.Pattern
 
@@ -76,7 +74,12 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             suggestion.element.toString()
                         else
                             suggestion.element.value
-                    StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = suggestion.completionModifier)
+                    StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = { completion ->
+                        if(suggestion.element is CompoundTag && suggestion.element.isEmpty || suggestion.element is CollectionTag && suggestion.element.isEmpty) {
+                            completion.command = Command("Move cursor into node", "cursorLeft")
+                        }
+                        suggestion.completionModifier?.invoke(completion)
+                    })
                 }
             }
         )
