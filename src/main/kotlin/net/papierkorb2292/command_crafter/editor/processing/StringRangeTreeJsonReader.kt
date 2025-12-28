@@ -314,11 +314,17 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Property) {
-                    suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
-                        val element = suggestion.element
-                        val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key, suggestion.completionModifier)
-                    }
+                    val existingKeys = tree.mapKeyRanges[map]!!.asSequence()
+                        .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
+                        .map { it.first }
+                        .toSet()
+                    suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct()
+                        .filter { it.element !in existingKeys }
+                        .map { suggestion ->
+                            val element = suggestion.element
+                            val key = if(element.isJsonPrimitive) element.asString else element.toString()
+                            StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key, suggestion.completionModifier)
+                        }
                 }
             )
         }

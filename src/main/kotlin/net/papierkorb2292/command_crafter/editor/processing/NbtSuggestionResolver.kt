@@ -105,12 +105,18 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         return StringRangeTree.ResolvedSuggestion(
             keyEnd,
             StreamCompletionItemProvider(suggestionRange.end, { keyEnd }, mappingInfo, CompletionItemKind.Property) {
-                suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
-                    val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
-                    // Similar to StringNbtWriter.escapeName
-                    val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else StringTag.quoteAndEscape(key)
-                    StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key, suggestion.completionModifier)
-                }
+                val existingKeys = tree.mapKeyRanges[map]!!.asSequence()
+                    .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
+                    .map { it.first }
+                    .toSet()
+                suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct()
+                    .filter { it.element !in existingKeys }
+                    .map { suggestion ->
+                        val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
+                        // Similar to StringNbtWriter.escapeName
+                        val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else StringTag.quoteAndEscape(key)
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key, suggestion.completionModifier)
+                    }
             }
         )
     }

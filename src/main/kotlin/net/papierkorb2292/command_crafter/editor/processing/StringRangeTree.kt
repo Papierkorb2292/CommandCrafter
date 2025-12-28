@@ -6,8 +6,10 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
-import net.minecraft.nbt.*
 import net.minecraft.core.HolderLookup
+import net.minecraft.nbt.NbtOps
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.TagParser
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
@@ -27,6 +29,37 @@ import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
 import kotlin.collections.ArrayDeque
+import kotlin.collections.ArrayList
+import kotlin.collections.Collection
+import kotlin.collections.Iterator
+import kotlin.collections.LinkedHashMap
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.MutableCollection
+import kotlin.collections.Set
+import kotlin.collections.asSequence
+import kotlin.collections.binarySearch
+import kotlin.collections.contains
+import kotlin.collections.emptyList
+import kotlin.collections.firstNotNullOfOrNull
+import kotlin.collections.firstOrNull
+import kotlin.collections.flatMap
+import kotlin.collections.forEach
+import kotlin.collections.isNotEmpty
+import kotlin.collections.last
+import kotlin.collections.lastIndex
+import kotlin.collections.listOf
+import kotlin.collections.map
+import kotlin.collections.mapIndexed
+import kotlin.collections.mutableListOf
+import kotlin.collections.mutableMapOf
+import kotlin.collections.mutableSetOf
+import kotlin.collections.plus
+import kotlin.collections.plusAssign
+import kotlin.collections.set
+import kotlin.collections.toList
+import kotlin.collections.toMutableList
+import kotlin.collections.withIndex
 import kotlin.math.min
 import kotlin.reflect.KClass
 import kotlin.reflect.safeCast
@@ -484,19 +517,13 @@ class StringRangeTree<TNode: Any>(
                 getMapKeySuggestions(input).add { suggestedKeys.stream().map { Suggestion(it) } }
                 object : MapLike<TNode> {
                     override fun get(key: TNode): TNode? {
-                        val value = delegateMap.get(key)
-                        if(value == null) {
-                            suggestedKeys += key
-                        }
-                        return value
+                        suggestedKeys += key
+                        return delegateMap.get(key)
                     }
 
                     override fun get(key: String): TNode? {
-                        val value = delegateMap.get(key)
-                        if(value == null) {
-                            suggestedKeys += delegate.createString(key)
-                        }
-                        return value
+                        suggestedKeys += delegate.createString(key)
+                        return delegateMap.get(key)
                     }
 
                     override fun entries(): Stream<Pair<TNode, TNode>> {
