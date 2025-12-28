@@ -4,5 +4,6 @@
   "command_crafter.config.services_port.description": "The port the CommandCrafter services are running on. This needs to match up with the port configured in your editor.",
   "command_crafter.reload.resources": "[CommandCrafter] Reloading resources...",
   "command_crafter.reload.shaders": "[CommandCrafter] Reloading shaders...",
-  "command_crafter.debug.inspect.item": "[CommandCrafter] Copied item data to clipboard"
+  "command_crafter.debug.inspect.item": "[CommandCrafter] Copied item data to clipboard",
+  "command_crafter.debug.inspect.item.default": "[CommandCrafter] Copied Default item data to clipboard"
 }

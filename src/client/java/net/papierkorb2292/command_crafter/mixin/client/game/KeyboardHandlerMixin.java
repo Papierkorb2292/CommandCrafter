@@ -3,7 +3,11 @@ package net.papierkorb2292.command_crafter.mixin.client.game;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.TypedDataComponent;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -19,6 +23,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
+import java.util.Collections;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -38,7 +43,7 @@ public abstract class KeyboardHandlerMixin {
                     target = "Lnet/minecraft/client/Minecraft;hitResult:Lnet/minecraft/world/phys/HitResult;"
             )
     )
-    private HitResult command_crafter$copyItemsWithDebugCopy(HitResult original) {
+    private HitResult command_crafter$copyItemsWithDebugCopy(HitResult original, boolean hasPermissions, boolean notPressingShift) {
         // Only copy items when the player is not looking at something or hovering over an item in the inventory
         if(original == null) {
             return null;
@@ -62,7 +67,10 @@ public abstract class KeyboardHandlerMixin {
 
         final var id = item.getItemHolder().getRegisteredName();
         final var componentBuilder = new StringBuilder();
-        final var addedRemovedPair = item.getComponentsPatch().split();
+        // Copy component changes by default, or copy the item's default components when shift is held
+        final var addedRemovedPair = notPressingShift
+                ? item.getComponentsPatch().split()
+                : new DataComponentPatch.SplitResult(command_crafter$copyItemComponentsWithoutDefaults(item.getItem()), Collections.emptySet());
 
         for(final var added : addedRemovedPair.added()) {
             final var encoded = command_crafter$encodeComponent(added);
@@ -90,7 +98,10 @@ public abstract class KeyboardHandlerMixin {
 
         String giveCommand = String.format(Locale.ROOT, "/give @s %s%s%s", id, componentBuilder, count);
         setClipboard(giveCommand);
-        showDebugChat(Component.translatable("command_crafter.debug.inspect.item").withStyle(ChatFormatting.GREEN));
+        if(notPressingShift)
+            showDebugChat(Component.translatable("command_crafter.debug.inspect.item").withStyle(ChatFormatting.GREEN));
+        else
+            showDebugChat(Component.translatable("command_crafter.debug.inspect.item.default").withStyle(ChatFormatting.GREEN));
 
         return null;
     }
@@ -107,5 +118,19 @@ public abstract class KeyboardHandlerMixin {
                 NbtOps.INSTANCE.empty()
         );
         return encoded.result().orElse(new CompoundTag());
+    }
+
+    private DataComponentMap command_crafter$copyItemComponentsWithoutDefaults(Item item) {
+        final var result = DataComponentMap.builder();
+        for(final var typedComponent : item.components()) {
+            if(!typedComponent.value().equals(DataComponents.COMMON_ITEM_COMPONENTS.get(typedComponent.type()))) {
+                command_crafter$addTypedComponentToMap(typedComponent, result);
+            }
+        }
+        return result.build();
+    }
+
+    private <T> void command_crafter$addTypedComponentToMap(TypedDataComponent<T> component, DataComponentMap.Builder builder) {
+        builder.set(component.type(), component.value());
     }
 }
