@@ -3,7 +3,7 @@ export const SETTINGS_SCOPE = "CommandCrafter"
 export const SETTINGS_SECTIONS = {
     minecraftAddress: "MinecraftAddress",
     featureConfig: "FeatureConfig",
-    checkExtensionCompatiblity: "CheckExtensionCompatiblity"
+    checkExtensionCompatibility: "CheckExtensionCompatibility"
 }
 
 export function getMinecraftAddress(): string | undefined {
@@ -11,7 +11,7 @@ export function getMinecraftAddress(): string | undefined {
 }
 
 export function isCompatibilityCheckEnabled(): boolean {
-    return vscode.workspace.getConfiguration(SETTINGS_SCOPE).get<boolean>(SETTINGS_SECTIONS.checkExtensionCompatiblity, true)
+    return vscode.workspace.getConfiguration(SETTINGS_SCOPE).get<boolean>(SETTINGS_SECTIONS.checkExtensionCompatibility, true)
 }
 
 export function getFeatureConfig(): FeatureConfig {

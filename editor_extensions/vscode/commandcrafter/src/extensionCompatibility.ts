@@ -6,7 +6,7 @@ import { fileExists } from './extension'
 import { applyEdits, FormattingOptions, JSONPath, modify, parse, ParseError } from 'jsonc-parser'
 import { outputChannel } from './extensionLog'
 
-const COMPATIBILITY_CHECK_SETTING_NAME = SETTINGS_SCOPE + "." + SETTINGS_SECTIONS.checkExtensionCompatiblity
+const COMPATIBILITY_CHECK_SETTING_NAME = SETTINGS_SCOPE + "." + SETTINGS_SECTIONS.checkExtensionCompatibility
 const SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS = {
     ignore: "Ignore",
     disableForSpyglass: "Disable Spyglass highlighting",
