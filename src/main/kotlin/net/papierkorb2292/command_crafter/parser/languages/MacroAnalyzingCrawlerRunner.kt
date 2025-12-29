@@ -483,7 +483,7 @@ class MacroAnalyzingCrawlerRunner(
                         return@mapNotNull null
                     if(filterCrawlersByMaxLiterals) {
                         val cachedLiteralCount = attemptLiteralCounter.getActualAttemptCount(node, attemptIndex).toInt()
-                        if(cachedLiteralCount != 255 && cachedLiteralCount < getRequiredLiteralCountToMatchBest())
+                        if(cachedLiteralCount != LITERAL_COUNT_INFINITY.toInt() && cachedLiteralCount < getRequiredLiteralCountToMatchBest())
                             return@mapNotNull null
                     }
 
@@ -501,7 +501,7 @@ class MacroAnalyzingCrawlerRunner(
                         attemptLiteralCounter.putActualAttemptCount(
                             node,
                             attemptIndex,
-                            if(totalPossibleLiterals > 255) 255U else totalPossibleLiterals.toUByte()
+                            if(totalPossibleLiterals > LITERAL_COUNT_INFINITY.toInt()) LITERAL_COUNT_INFINITY else totalPossibleLiterals.toUByte()
                         )
                     }
 
@@ -645,7 +645,7 @@ class MacroAnalyzingCrawlerRunner(
 
                 val removedNodes = nodes.asSequence().filter { node ->
                     val maxCount = attemptLiteralCounter.getMaxPossibleLiteralsForAttempt(node, attemptIndex).toInt()
-                    maxCount != 255 && maxCount < goalLiteralCount
+                    maxCount != LITERAL_COUNT_INFINITY.toInt() && maxCount < goalLiteralCount
                 }.toSet()
 
                 if(removedNodes.isEmpty())
@@ -824,8 +824,8 @@ class MacroAnalyzingCrawlerRunner(
             val nodeLiteralCounts = nodeMaxLiteralCounter.getLiteralCountsForNode(attemptRoot)
             for((literalId, count) in inputLiterals.int2ByteEntrySet().fastIterator()) {
                 val newCount = minOf(count.toUByte(), nodeLiteralCounts[literalId])
-                if(255U - total <= newCount) {
-                    total = 255U
+                if(LITERAL_COUNT_INFINITY - total <= newCount) {
+                    total = LITERAL_COUNT_INFINITY
                     break
                 }
                 total = (total + newCount).toUByte()
@@ -837,13 +837,13 @@ class MacroAnalyzingCrawlerRunner(
          * @return the literal count from the last time this node was attempted at that position. Or 255 if the node wasn't attempted yet.
          */
         fun getActualAttemptCount(attemptRoot: CommandNode<SharedSuggestionProvider>, positionIndex: Int): UByte =
-            actualNodeLiteralCounts[positionIndex]?.getByte(attemptRoot)?.toUByte() ?: 255U
+            actualNodeLiteralCounts[positionIndex]?.getByte(attemptRoot)?.toUByte() ?: LITERAL_COUNT_INFINITY
 
         fun putActualAttemptCount(attemptRoot: CommandNode<SharedSuggestionProvider>, positionIndex: Int, literalCount: UByte) {
             var actualCounts = actualNodeLiteralCounts[positionIndex]
             if(actualCounts == null) {
                 actualCounts = Object2ByteOpenHashMap()
-                actualCounts.defaultReturnValue(255U.toByte())
+                actualCounts.defaultReturnValue(LITERAL_COUNT_INFINITY.toByte())
                 actualNodeLiteralCounts[positionIndex] = actualCounts
             }
             actualCounts.put(attemptRoot, literalCount.toByte())
@@ -863,7 +863,7 @@ class MacroAnalyzingCrawlerRunner(
                 return parentMap
 
             val prevCount = parentMap.get(candidateId).toUByte()
-            if(prevCount == 255U.toUByte())
+            if(prevCount == LITERAL_COUNT_INFINITY)
                 return parentMap
 
             val map = parentMap.clone()
@@ -956,7 +956,7 @@ class MacroAnalyzingCrawlerRunner(
                 // Also add the child itself to the literal counts
                 if(child is LiteralCommandNode<*>) {
                     val literalId = nodeIdentifier.getIdForLiteral(child.literal)
-                    if(literalCounts[literalId] == childLiteralCounts[literalId] && literalCounts[literalId] < 255U) {
+                    if(literalCounts[literalId] == childLiteralCounts[literalId] && literalCounts[literalId] < LITERAL_COUNT_INFINITY) {
                         literalCounts[literalId]++
                     }
                 }
