@@ -24,6 +24,7 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfos
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.util.Util
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
@@ -1159,7 +1160,7 @@ class MacroAnalyzingCrawlerRunner(
         private val macroLanguage = VanillaLanguage()
         private val emptyInputLiteralCountMap = Int2ByteLinkedOpenHashMap()
         private val processedDispatcherData = WeakHashMap<CommandDispatcher<SharedSuggestionProvider>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
-        private const val shouldCheckForTimeout = false
+        private val shouldCheckForTimeout = !CommandCrafter.getBooleanSystemProperty("cc_no_macro_timeout")
         private val timeoutDurationNs = TimeUnit.SECONDS.toNanos(1)
         private var isAnalyzingMacroForFirstTime = true
 
