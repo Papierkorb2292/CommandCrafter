@@ -174,12 +174,6 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 DATA_UPDATE_QUEUE += update
             }
         }
-
-        fun registerTickUpdateRunner() {
-            ServerTickEvents.END_SERVER_TICK.register {
-                runUpdates()
-            }
-        }
     }
 
     private val watches: Int2ObjectMap<Watch> = Int2ObjectArrayMap()

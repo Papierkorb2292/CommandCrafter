@@ -129,7 +129,6 @@ object CommandCrafter: ModInitializer {
         MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
-        ServerScoreboardStorageFileSystem.registerTickUpdateRunner()
         IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
         DataObjectDecoding.registerDataObjectSourceAdditionalDataType()
 

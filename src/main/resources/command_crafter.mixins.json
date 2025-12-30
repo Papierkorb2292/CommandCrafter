@@ -143,6 +143,7 @@
     "editor.scoreboardStorageViewer.CommandStorageAccessor",
     "editor.scoreboardStorageViewer.CommandStorageMixin",
     "editor.scoreboardStorageViewer.DataCommandStoragePersistentStateAccessor",
+    "editor.scoreboardStorageViewer.MinecraftServerMixin",
     "editor.scoreboardStorageViewer.ObjectiveAccessor",
     "editor.scoreboardStorageViewer.ObjectiveMixin",
     "editor.scoreboardStorageViewer.PlayerScoresAccessor",
