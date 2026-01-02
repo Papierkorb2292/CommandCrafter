@@ -1,16 +1,10 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.network.chat.CommonComponents
-import net.minecraft.commands.CommandSource
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.world.phys.Vec2
-import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -20,6 +14,8 @@ class McFunctionAnalyzer(
     private val sourceProvider: (MinecraftLanguageServer) -> SharedSuggestionProvider,
     private val resultWrapper: ((AnalyzingResult) -> AnalyzingResult)? = null
 ) : FileAnalyseHandler {
+    val ANALYZER_CONFIG_PATH = ".mcfunction"
+
     override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
 
     override fun analyze(
@@ -42,7 +38,7 @@ class McFunctionAnalyzer(
         reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         LanguageManager.analyse(reader, sourceProvider(languageServer), result, Language.TopLevelClosure(VanillaLanguage()))
         reader.resourceCreator.resourceStack.pop()
-        result.clearDisabledFeatures(languageServer.featureConfig, listOf(LanguageManager.ANALYZER_CONFIG_PATH, ""))
+        result.clearDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
         if(!Thread.currentThread().isInterrupted)
             file.persistentAnalyzerData = reader.resourceCreator.newCache
         if(resultWrapper != null)
