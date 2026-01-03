@@ -47,6 +47,9 @@ body {
     max-width: 20px;
 }
 
+.NonExpandableLogEntry, .ExpandableLogEntryTitle, .ExpandableLogEntryDetail {
+    word-wrap: break-word;
+}
 .ExpandableLogEntryDetail {
     white-space: pre-wrap;
     overflow: hidden;
