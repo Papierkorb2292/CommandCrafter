@@ -1,129 +1,82 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
+import net.minecraft.core.Registry
+import net.minecraft.core.registries.Registries
+import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.server.ServerFunctionLibrary
 import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.processing.helper.getKeywordsFromPath
 import net.papierkorb2292.command_crafter.editor.processing.helper.standardizeKeyword
-import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.io.path.name
 
-enum class PackContentFileType(val contentTypePath: String, val packType: PackType, val keywords: List<String>) {
-    FUNCTIONS_FILE_TYPE("function", PackType.DATA),
-    ADVANCEMENTS_FILE_TYPE("advancement", PackType.DATA),
-    BANNER_PATTERN_FILE_TYPE("banner_pattern", PackType.DATA),
-    ITEM_MODIFIER_FILE_TYPE("item_modifier", PackType.DATA),
-    LOOT_TABLES_FILE_TYPE("loot_table", PackType.DATA),
-    PREDICATES_FILE_TYPE("predicate", PackType.DATA),
-    RECIPES_FILE_TYPE("recipe", PackType.DATA),
-    STRUCTURES_FILE_TYPE("structure", PackType.DATA),
-    CHAT_TYPE_FILE_TYPE("chat_type", PackType.DATA),
-    DAMAGE_TYPE_FILE_TYPE("damage_type", PackType.DATA),
-    BANNER_PATTERN_TAGS_FILE_TYPE("tags/banner_pattern", PackType.DATA),
-    BLOCK_TAGS_FILE_TYPE("tags/block", PackType.DATA),
-    CAT_VARIANT_TAGS_FILE_TYPE("tags/cat_variant", PackType.DATA),
-    DAMAGE_TYPE_TAGS_FILE_TYPE("tags/damage_type", PackType.DATA),
-    DIALOG_TAGS_FILE_TYPE("tags/dialog", PackType.DATA),
-    ENCHANTMENT_TAGS_FILE_TYPE("tags/enchantment", PackType.DATA),
-    ENTITY_TYPE_TAGS_FILE_TYPE("tags/entity_type", PackType.DATA),
-    FLUID_TAGS_FILE_TYPE("tags/fluid", PackType.DATA),
-    FUNCTION_TAGS_FILE_TYPE("tags/function", PackType.DATA),
-    GAME_EVENT_TAGS_FILE_TYPE("tags/game_event", PackType.DATA),
-    INSTRUMENT_TAGS_FILE_TYPE("tags/instrument", PackType.DATA),
-    ITEM_TAGS_FILE_TYPE("tags/item", PackType.DATA),
-    PAINTING_VARIANT_TAGS_FILE_TYPE("tags/painting_variant", PackType.DATA),
-    POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE("tags/point_of_interest_type", PackType.DATA),
-    TIMELINE_TAGS_FILE_TYPE("tags/timeline", PackType.DATA),
-    WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE("tags/worldgen/biome", PackType.DATA),
-    WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE("tags/worldgen/flat_level_generator_preset", PackType.DATA),
-    WORLDGEN_STRUCTURE_TAGS_FILE_TYPE("tags/structure", PackType.DATA),
-    WORLDGEN_WORLD_PRESET_TAGS_FILE_TYPE("tags/world_preset", PackType.DATA),
-    TRIM_MATERIAL_FILE_TYPE("trim_material", PackType.DATA),
-    TRIM_PATTERN_FILE_TYPE("trim_pattern", PackType.DATA),
-    WOLF_VARIANT_FILE_TYPE("wolf_variant", PackType.DATA),
-    PIG_VARIANT_FILE_TYPE("pig_variant", PackType.DATA),
-    CAT_VARIANT_FILE_TYPE("cat_variant", PackType.DATA),
-    FROG_VARIANT_FILE_TYPE("frog_variant", PackType.DATA),
-    COW_VARIANT_FILE_TYPE("cow_variant", PackType.DATA),
-    CHICKEN_VARIANT_FILE_TYPE("chicken_variant", PackType.DATA),
-    ZOMBIE_NAUTILUS_VARIANT_FILE_TYPE("zombie_nautilus_variant", PackType.DATA),
-    WOLF_SOUND_VARIANT_FILE_TYPE("wolf_sound_variant", PackType.DATA),
-    DIMENSION_FILE_TYPE("dimension", PackType.DATA),
-    DIMENSION_TYPE_FILE_TYPE("dimension_type", PackType.DATA),
-    WORLDGEN_BIOME_FILE_TYPE("worldgen/biome", PackType.DATA),
-    WORLDGEN_CONFIGURED_CARVER_FILE_TYPE("worldgen/configured_carver", PackType.DATA),
-    WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE("worldgen/configured_feature", PackType.DATA),
-    WORLDGEN_DENSITY_FUNCTION_FILE_TYPE("worldgen/density_function", PackType.DATA),
-    WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_FILE_TYPE("worldgen/flat_level_generator_preset", PackType.DATA),
-    WORLDGEN_MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST_FILE_TYPE("worldgen/multi_noise_biome_source_parameter_list", PackType.DATA),
-    WORLDGEN_NOISE_FILE_TYPE("worldgen/noise", PackType.DATA),
-    WORLDGEN_NOISE_SETTINGS_FILE_TYPE("worldgen/noise_settings", PackType.DATA),
-    WORLDGEN_PLACED_FEATURE_FILE_TYPE("worldgen/placed_feature", PackType.DATA),
-    WORLDGEN_PROCESSOR_LIST_FILE_TYPE("worldgen/processor_list", PackType.DATA),
-    WORLDGEN_STRUCTURE_FILE_TYPE("worldgen/structure", PackType.DATA),
-    WORLDGEN_STRUCTURE_SET_FILE_TYPE("worldgen/structure_set", PackType.DATA),
-    WORLDGEN_TEMPLATE_POOL_FILE_TYPE("worldgen/template_pool", PackType.DATA),
-    WORLDGEN_WORLD_PRESET_FILE_TYPE("worldgen/world_preset", PackType.DATA),
-    PAINTING_VARIANT_FILE_TYPE("painting_variant", PackType.DATA),
-    JUKEBOX_SONG_FILE_TYPE("jukebox_song", PackType.DATA),
-    ENCHANTMENT_FILE_TYPE("enchantment", PackType.DATA),
-    ENCHANTMENT_PROVIDER_FILE_TYPE("enchantment_provider", PackType.DATA),
-    DIALOG_FILE_TYPE("dialog", PackType.DATA),
-    TIMELINE_FILE_TYPE("timeline", PackType.DATA),
-    TRIAL_SPAWNER_FILE_TYPE("trial_spawner", PackType.DATA),
-    INSTRUMENT_FILE_TYPE("instrument", PackType.DATA),
-    TEST_ENVIRONMENT_FILE_TYPE("test_environment", PackType.DATA),
-    TEST_INSTANCE_FILE_TYPE("test_instance", PackType.DATA),
+class PackContentFileType private constructor(val contentTypePath: String, val packType: PackType, val keywords: List<String>) {
+    private constructor(contentTypePath: String, packType: PackType) : this(contentTypePath, packType, getKeywordsFromPath(contentTypePath))
 
-    ATLASES_FILE_TYPE("atlases", PackType.RESOURCE),
-    BLOCKSTATES_FILE_TYPE("blockstates", PackType.RESOURCE),
-    EQUIPMENT_FILE_TYPE("equipment", PackType.RESOURCE),
-    FONTS_FILE_TYPE("font", PackType.RESOURCE),
-    ITEMS_FILE_TYPE("items", PackType.RESOURCE),
-    LANGUAGES_FILE_TYPE("lang", PackType.RESOURCE),
-    MODELS_FILE_TYPE("models", PackType.RESOURCE),
-    PARTICLES_FILE_TYPE("particles", PackType.RESOURCE),
-    POST_EFFECTS_FILE_TYPE("post_effect", PackType.RESOURCE),
-    CORE_SHADERS_FILE_TYPE("shaders/core", PackType.RESOURCE),
-    INCLUDE_SHADERS_FILE_TYPE("shaders/include", PackType.RESOURCE),
-    POST_SHADERS_FILE_TYPE("shaders/post", PackType.RESOURCE),
-    SOUNDS_FILE_TYPE("sounds", PackType.RESOURCE),
-    TEXTS_FILE_TYPE("texts", PackType.RESOURCE),
-    TEXTURES_FILE_TYPE("textures", PackType.RESOURCE),
-    WAYPOINT_STYLE_FILE_TYPE("waypoint_style", PackType.RESOURCE);
-
-    constructor(contentTypePath: String, packType: PackType) : this(contentTypePath, packType, getKeywordsFromPath(contentTypePath))
+    init {
+        mutableEntries += this
+        mutableTypes[contentTypePath] = this
+        mutableKeywords += keywords
+    }
 
     companion object {
-        val types = entries.associateBy { it.contentTypePath }
-        val keywords = types.values.flatMap { it.keywords }.toSet()
+        private val mutableEntries = mutableListOf<PackContentFileType>()
+        private val mutableTypes = mutableMapOf<String, PackContentFileType>()
+        private val mutableKeywords = mutableSetOf<String>()
+        val entries: List<PackContentFileType> get() = mutableEntries
+        val types: Map<String, PackContentFileType> get() = mutableTypes
+        val keywords: Set<String> get() = mutableKeywords
+
+        val FUNCTIONS_FILE_TYPE = getOrCreateTypeForDynamicRegistry(ServerFunctionLibrary.TYPE_KEY)
+        val FUNCTION_TAGS_FILE_TYPE = getOrCreateTypeForRegistryTag(ServerFunctionLibrary.TYPE_KEY)
+        val ADVANCEMENTS_FILE_TYPE = getOrCreateTypeForDynamicRegistry(Registries.ADVANCEMENT)
+        val ITEM_MODIFIER_FILE_TYPE = getOrCreateTypeForDynamicRegistry(Registries.ITEM_MODIFIER)
+        val LOOT_TABLES_FILE_TYPE = getOrCreateTypeForDynamicRegistry(Registries.LOOT_TABLE)
+        val PREDICATES_FILE_TYPE = getOrCreateTypeForDynamicRegistry(Registries.PREDICATE)
+        val RECIPES_FILE_TYPE = getOrCreateTypeForDynamicRegistry(Registries.RECIPE)
+        val STRUCTURES_FILE_TYPE = PackContentFileType("structure", PackType.DATA)
+
+        val ATLASES_FILE_TYPE = PackContentFileType("atlases", PackType.RESOURCE)
+        val BLOCKSTATES_FILE_TYPE = PackContentFileType("blockstates", PackType.RESOURCE)
+        val EQUIPMENT_FILE_TYPE = PackContentFileType("equipment", PackType.RESOURCE)
+        val FONTS_FILE_TYPE = PackContentFileType("font", PackType.RESOURCE)
+        val ITEMS_FILE_TYPE = PackContentFileType("items", PackType.RESOURCE)
+        val LANGUAGES_FILE_TYPE = PackContentFileType("lang", PackType.RESOURCE)
+        val MODELS_FILE_TYPE = PackContentFileType("models", PackType.RESOURCE)
+        val PARTICLES_FILE_TYPE = PackContentFileType("particles", PackType.RESOURCE)
+        val POST_EFFECTS_FILE_TYPE = PackContentFileType("post_effect", PackType.RESOURCE)
+        val CORE_SHADERS_FILE_TYPE = PackContentFileType("shaders/core", PackType.RESOURCE)
+        val INCLUDE_SHADERS_FILE_TYPE = PackContentFileType("shaders/include", PackType.RESOURCE)
+        val POST_SHADERS_FILE_TYPE = PackContentFileType("shaders/post", PackType.RESOURCE)
+        val SOUNDS_FILE_TYPE = PackContentFileType("sounds", PackType.RESOURCE)
+        val TEXTS_FILE_TYPE = PackContentFileType("texts", PackType.RESOURCE)
+        val TEXTURES_FILE_TYPE = PackContentFileType("textures", PackType.RESOURCE)
+        val WAYPOINT_STYLE_FILE_TYPE = PackContentFileType("waypoint_style", PackType.RESOURCE)
 
         val packTypeFolders = PackType.entries.associateBy { it.folderName }
-        val PACKET_CODEC = enumConstantCodec(PackContentFileType::class.java)
+        val PACKET_CODEC = ByteBufCodecs.STRING_UTF8.map({ types[it]!! }, PackContentFileType::contentTypePath)
 
-        val tagTypes = arrayOf(
-            BANNER_PATTERN_TAGS_FILE_TYPE,
-            BLOCK_TAGS_FILE_TYPE,
-            CAT_VARIANT_TAGS_FILE_TYPE,
-            DAMAGE_TYPE_TAGS_FILE_TYPE,
-            DIALOG_TAGS_FILE_TYPE,
-            ENCHANTMENT_TAGS_FILE_TYPE,
-            ENTITY_TYPE_TAGS_FILE_TYPE,
-            FLUID_TAGS_FILE_TYPE,
-            FUNCTION_TAGS_FILE_TYPE,
-            GAME_EVENT_TAGS_FILE_TYPE,
-            INSTRUMENT_TAGS_FILE_TYPE,
-            ITEM_TAGS_FILE_TYPE,
-            PAINTING_VARIANT_TAGS_FILE_TYPE,
-            POINT_OF_INTEREST_TYPE_TAGS_FILE_TYPE,
-            WORLDGEN_BIOME_TYPE_TAGS_FILE_TYPE,
-            WORLDGEN_FLAT_LEVEL_GENERATOR_PRESET_TAGS_FILE_TYPE,
-            WORLDGEN_STRUCTURE_TAGS_FILE_TYPE,
-            WORLDGEN_WORLD_PRESET_TAGS_FILE_TYPE,
-        )
+        fun getOrCreateTypeForDynamicRegistry(key: ResourceKey<out Registry<*>>): PackContentFileType {
+            // Note that Fabric mixes into elementsDirPath to add namespace
+            val path = Registries.elementsDirPath(key)
+            val existing = types[path]
+            if(existing != null) return existing
+            // Will be registered in constructor
+            return PackContentFileType(path, PackType.DATA)
+        }
+        fun getOrCreateTypeForRegistryTag(key: ResourceKey<out Registry<*>>): PackContentFileType {
+            // Note that Fabric mixes into elementsDirPath to add namespace
+            val path = Registries.tagsDirPath(key)
+            val existing = types[path]
+            if(existing != null) return existing
+            // Will be registered in constructor
+            return PackContentFileType(path, PackType.DATA)
+        }
 
         fun parsePath(path: Path): ParsedPath? {
             for(i in 0 until path.nameCount - 2) {
@@ -133,7 +86,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                     val potentialContentTypePath = path.subpath(i + 1, j).name.replace('\\', '/')
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
-                    val resourceId = Identifier.fromNamespaceAndPath(
+                    val resourceId = Identifier.tryBuild(
                         path.getName(i + 1).name,
                         path.subpath(j, path.nameCount).name.replace('\\', '/')
                     ) ?: continue
@@ -153,7 +106,7 @@ enum class PackContentFileType(val contentTypePath: String, val packType: PackTy
                     val potentialContentTypePath = segments.subList(i + 2, j).joinToString("/")
                     val type = types[potentialContentTypePath] ?: continue
                     if(type.packType.folderName != currentFolder) continue
-                    val resourceId = Identifier.fromNamespaceAndPath(
+                    val resourceId = Identifier.tryBuild(
                         segments[i + 1],
                         segments.subList(j, segments.size).joinToString("/")
                     ) ?: continue

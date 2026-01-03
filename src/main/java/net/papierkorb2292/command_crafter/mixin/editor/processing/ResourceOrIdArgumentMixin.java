@@ -11,13 +11,11 @@ import com.mojang.serialization.Codec;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceOrIdArgument;
-import net.minecraft.nbt.*;
 import net.minecraft.core.Registry;
 import net.minecraft.nbt.EndTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.resources.RegistryFileCodec;
 import net.minecraft.resources.Identifier;
@@ -53,15 +51,8 @@ public class ResourceOrIdArgumentMixin<T> implements AnalyzingCommandNode {
             method = "<init>",
             at = @At("TAIL")
     )
-    private void command_crafter$selectPackContentFileType(CommandBuildContext registryAccess, ResourceKey<?> registry, Codec<?> entryCodec, CallbackInfo ci) {
-        if(registry == Registries.PREDICATE)
-            command_crafter$packContentFileType = PackContentFileType.PREDICATES_FILE_TYPE;
-        else if(registry == Registries.ITEM_MODIFIER)
-            command_crafter$packContentFileType = PackContentFileType.ITEM_MODIFIER_FILE_TYPE;
-        else if(registry == Registries.LOOT_TABLE)
-            command_crafter$packContentFileType = PackContentFileType.LOOT_TABLES_FILE_TYPE;
-        else if(registry == Registries.DIALOG)
-            command_crafter$packContentFileType = PackContentFileType.DIALOG_FILE_TYPE;
+    private void command_crafter$selectPackContentFileType(CommandBuildContext commandBuildContext, ResourceKey<? extends Registry<?>> resourceKey, Codec<?> codec, CallbackInfo ci) {
+        command_crafter$packContentFileType = PackContentFileType.Companion.getOrCreateTypeForDynamicRegistry(resourceKey);
     }
 
     @Override

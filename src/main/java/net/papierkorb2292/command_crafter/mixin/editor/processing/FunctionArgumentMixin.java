@@ -35,7 +35,7 @@ public class FunctionArgumentMixin implements AnalyzingCommandNode, CustomComple
         try {
             // Use `fromCommandInput` because there might be trailing data that isn't supposed to throw an error
             var id = Identifier.read(new StringReader(isTag ? stringArgument.substring(1) : stringArgument));
-            var fileType = isTag ? PackContentFileType.FUNCTION_TAGS_FILE_TYPE : PackContentFileType.FUNCTIONS_FILE_TYPE;
+            var fileType = isTag ? PackContentFileType.Companion.getFUNCTION_TAGS_FILE_TYPE() : PackContentFileType.Companion.getFUNCTIONS_FILE_TYPE();
             IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(id, fileType, range, result, reader);
         } catch(IdentifierException ignored) { }
         if(VanillaLanguage.Companion.isReaderInlineResources(reader)) {

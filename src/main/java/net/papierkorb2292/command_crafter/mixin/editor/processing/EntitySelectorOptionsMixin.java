@@ -10,6 +10,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -363,7 +364,7 @@ public class EntitySelectorOptionsMixin {
                         //noinspection unchecked
                         IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(
                                 tagId,
-                                PackContentFileType.ENTITY_TYPE_TAGS_FILE_TYPE,
+                                PackContentFileType.Companion.getOrCreateTypeForRegistryTag(Registries.ENTITY_TYPE),
                                 new StringRange(startCursor, reader.getCursor()),
                                 analyzingResult,
                                 (DirectiveStringReader<AnalyzingResourceCreator>) reader

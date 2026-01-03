@@ -94,7 +94,7 @@ public class ServerFunctionLibraryMixin implements ParsedResourceCreator.ParseRe
         resourceCreator.getOriginResourceIdSetEventStack().pop();
         ((FinalTagContentProvider) tagsLoader).command_crafter$getFileContent().put(
                 new PackagedId(
-                        Identifier.fromNamespaceAndPath(id.getNamespace(), PackContentFileType.FUNCTIONS_FILE_TYPE.getContentTypePath() + "/" + id.getPath() + FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()),
+                        Identifier.fromNamespaceAndPath(id.getNamespace(), PackContentFileType.Companion.getFUNCTIONS_FILE_TYPE().getContentTypePath() + "/" + id.getPath() + FunctionDebugHandler.Companion.getFUNCTION_FILE_EXTENSTION()),
                         PackagedId.Companion.getPackIdWithoutPrefix(resourceEntry.getValue().sourcePackId())
                 ),
                 reader.getFileMappingInfo()

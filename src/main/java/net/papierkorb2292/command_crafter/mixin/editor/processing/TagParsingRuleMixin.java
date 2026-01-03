@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import net.minecraft.commands.arguments.item.ComponentPredicateParser;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.util.parsing.packrat.NamedRule;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ResourceLookupRuleMixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,6 +18,6 @@ public class TagParsingRuleMixin extends ResourceLookupRuleMixin {
     )
     private void command_crafter$initIdAnalyzing(NamedRule<?, ?> idParsingRule, ComponentPredicateParser.Context<?, ?, ?> callbacks, CallbackInfo ci) {
         command_crafter$setStartOffset(-1);
-        command_crafter$setPackContentFileType(PackContentFileType.ITEM_TAGS_FILE_TYPE);
+        command_crafter$setPackContentFileType(PackContentFileType.Companion.getOrCreateTypeForRegistryTag(Registries.ITEM));
     }
 }

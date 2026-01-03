@@ -9,6 +9,7 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Decoder;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -108,7 +109,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
             //noinspection unchecked
             IdArgumentTypeAnalyzer.INSTANCE.analyzeForId(
                     id,
-                    PackContentFileType.BLOCK_TAGS_FILE_TYPE,
+                    PackContentFileType.Companion.getOrCreateTypeForRegistryTag(Registries.BLOCK),
                     new StringRange(startCursor, reader.getCursor()),
                     command_crafter$analyzingResult,
                     (DirectiveStringReader<AnalyzingResourceCreator>) directiveStringReader

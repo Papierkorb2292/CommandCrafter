@@ -4,7 +4,6 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
@@ -229,7 +228,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             )
 
             private val relodableDatapackFileTypes = setOf(
-                *PackContentFileType.tagTypes,
                 PackContentFileType.LOOT_TABLES_FILE_TYPE,
                 PackContentFileType.PREDICATES_FILE_TYPE,
                 PackContentFileType.ITEM_MODIFIER_FILE_TYPE,
@@ -237,12 +235,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 PackContentFileType.FUNCTIONS_FILE_TYPE,
                 PackContentFileType.ADVANCEMENTS_FILE_TYPE
             )
-
-            private val worldgenDatapackFileTypes = (RegistryDataLoader.WORLDGEN_REGISTRIES + RegistryDataLoader.DIMENSION_REGISTRIES)
-                .mapNotNullTo(mutableSetOf()) {
-                    val registryPath = it.key.identifier().path
-                    PackContentFileType.types[registryPath]
-                }
 
             override fun didSave(params: DidSaveTextDocumentParams) {
                 // If enabled: Automatically reload files
@@ -257,8 +249,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH
                         if(!featureConfig.isEnabled(configPath, false))
                             return
-                        if(packContentFileType !in relodableDatapackFileTypes) {
-                            if(!minecraftServer.canReloadWorldgen || packContentFileType !in worldgenDatapackFileTypes) {
+                        if(packContentFileType !in relodableDatapackFileTypes && !packContentFileType.contentTypePath.startsWith("tags/")) {
+                            // Everything is reloadable with Worldgen Devtools (I think)
+                            if(!minecraftServer.canReloadWorldgen) {
                                 if(minecraftClient?.isConnectedToServer != false)
                                     client!!.logMinecraftMessage(
                                         ConsoleMessage(

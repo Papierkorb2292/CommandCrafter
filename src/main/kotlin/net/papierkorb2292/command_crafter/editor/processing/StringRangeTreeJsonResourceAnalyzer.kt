@@ -2,9 +2,9 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
-import net.minecraft.resources.ResourceKey
 import net.minecraft.core.HolderLookup
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult

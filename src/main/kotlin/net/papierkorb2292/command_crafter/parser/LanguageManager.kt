@@ -47,8 +47,6 @@ object LanguageManager {
     val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "languages"))).buildAndRegister()!!
     val DEFAULT_CLOSURE = Language.TopLevelClosure(VanillaLanguage())
 
-    val ANALYZER_CONFIG_PATH = ".mcfunction"
-
     private val SKIP_DEBUG_INFORMATION = object : FunctionDebugInformation {
         override fun parseBreakpoints(
             breakpoints: Queue<ServerBreakpoint<FunctionBreakpointLocation>>,

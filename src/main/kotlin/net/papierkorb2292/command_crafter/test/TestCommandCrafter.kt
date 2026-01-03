@@ -69,22 +69,6 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun checkAllDynamicRegistriesHaveAnalyzer(context: GameTestHelper) {
-        val existingAnalyzers = CommandCrafter.serversideJsonResourceCodecs.mapKeys { it.key.contentTypePath }
-        for(dynamicRegistry in RegistryDataLoader.WORLDGEN_REGISTRIES) {
-            context.assertTrue(
-                dynamicRegistry.key.identifier().path in existingAnalyzers,
-                "Analyzer for registry ${dynamicRegistry.key.identifier().path} missing"
-            )
-            context.assertTrue(
-                existingAnalyzers[dynamicRegistry.key.identifier().path] == dynamicRegistry.elementCodec,
-                "Analyzer codec for registry ${dynamicRegistry.key.identifier().path} didn't match"
-            )
-        }
-        context.succeed()
-    }
-
-    @GameTest
     fun testMacroInvocationCursorMapperEndingWithSegment(context: GameTestHelper) {
         val macroInvocation = StringTemplate.fromString("say $(greeting), $(name)!")
         val arguments = listOf("What's up", "your highness")

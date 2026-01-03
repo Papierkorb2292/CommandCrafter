@@ -64,6 +64,9 @@ object ClientCommandCrafter : ClientModInitializer {
     }
 
     private fun initializeEditor() {
+        CommandCrafter.registerDynamicRegistries()
+        CommandCrafter.registerRegistryTags()
+
         MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({
             AnalyzingClientCommandSource(Minecraft.getInstance())
         }, { analyzingResult ->

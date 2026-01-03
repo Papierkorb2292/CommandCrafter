@@ -28,7 +28,7 @@ public class AdvancementCommandsMixin {
                 if(child.getName().equals("advancement") && child instanceof ArgumentCommandNode<?,?> argument) {
                     var type = argument.getType();
                     if(type instanceof PackContentFileTypeContainer packContentFileTypeContainer) {
-                        packContentFileTypeContainer.command_crafter$setPackContentFileType(PackContentFileType.ADVANCEMENTS_FILE_TYPE);
+                        packContentFileTypeContainer.command_crafter$setPackContentFileType(PackContentFileType.Companion.getADVANCEMENTS_FILE_TYPE());
                     }
                 }
                 return Unit.INSTANCE;

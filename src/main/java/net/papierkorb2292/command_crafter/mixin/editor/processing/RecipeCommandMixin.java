@@ -28,7 +28,7 @@ public class RecipeCommandMixin {
             )
     )
     private static ArgumentType<?> command_crafter$analyzeRecipeArgument(ArgumentType<?> argumentType) {
-        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.RECIPES_FILE_TYPE);
+        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.Companion.getRECIPES_FILE_TYPE());
         return argumentType;
     }
 }

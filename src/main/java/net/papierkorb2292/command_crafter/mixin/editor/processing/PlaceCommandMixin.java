@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.mojang.brigadier.arguments.ArgumentType;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.server.commands.PlaceCommand;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer;
@@ -27,7 +28,7 @@ public class PlaceCommandMixin {
             )
     )
     private static ArgumentType<?> command_crafter$analyzeStructureIdArgument(ArgumentType<?> argumentType) {
-        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.WORLDGEN_STRUCTURE_FILE_TYPE);
+        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.Companion.getOrCreateTypeForDynamicRegistry(Registries.STRUCTURE));
         return argumentType;
     }
 
@@ -46,7 +47,7 @@ public class PlaceCommandMixin {
             )
     )
     private static ArgumentType<?> command_crafter$analyzeTemplateIdArgument(ArgumentType<?> argumentType) {
-        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.STRUCTURES_FILE_TYPE);
+        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.Companion.getSTRUCTURES_FILE_TYPE());
         return argumentType;
     }
 
@@ -65,7 +66,7 @@ public class PlaceCommandMixin {
             )
     )
     private static ArgumentType<?> command_crafter$analyzeFeatureIdArgument(ArgumentType<?> argumentType) {
-        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.WORLDGEN_CONFIGURED_FEATURE_FILE_TYPE);
+        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.Companion.getOrCreateTypeForDynamicRegistry(Registries.CONFIGURED_FEATURE));
         return argumentType;
     }
 
@@ -84,7 +85,7 @@ public class PlaceCommandMixin {
             )
     )
     private static ArgumentType<?> command_crafter$analyzeJigsawIdArgument(ArgumentType<?> argumentType) {
-        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.WORLDGEN_TEMPLATE_POOL_FILE_TYPE);
+        ((PackContentFileTypeContainer)argumentType).command_crafter$setPackContentFileType(PackContentFileType.Companion.getOrCreateTypeForDynamicRegistry(Registries.TEMPLATE_POOL));
         return argumentType;
     }
 }
