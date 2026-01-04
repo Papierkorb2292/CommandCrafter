@@ -3,8 +3,8 @@ package net.papierkorb2292.command_crafter.networking
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.CompletionItem
@@ -240,7 +240,7 @@ val OUTPUT_EVENT_ARGUMENTS_PACKET_CODEC = object : StreamCodec<ByteBuf, OutputEv
     override fun decode(buf: ByteBuf) = OutputEventArguments().apply {
         category = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
         output = ByteBufCodecs.STRING_UTF8.decode(buf)
-        data = OPTIONAL_OBJECT_PACKET_CODEC.decode(buf)
+        data = OPTIONAL_OBJECT_PACKET_CODEC.decode(buf).orElse(null)
         source = OPTIONAL_SOURCE_CODEC.decode(buf).orElse(null)
         line = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
         column = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
@@ -491,7 +491,7 @@ val COMPLETION_ITEM_PACKET_CODEC = object : StreamCodec<ByteBuf, CompletionItem>
         textEdit = NULLABLE_TEXT_EDIT_EITHER_CODEC.decode(buf).orElse(null)
         additionalTextEdits = NULLABLE_TEXT_EDITS_CODEC.decode(buf).orElse(null)
         commitCharacters = NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC.decode(buf).orElse(null)
-        data = OPTIONAL_OBJECT_PACKET_CODEC.decode(buf)
+        data = OPTIONAL_OBJECT_PACKET_CODEC.decode(buf).orElse(null)
     }
 
     override fun encode(buf: ByteBuf, value: CompletionItem) {
