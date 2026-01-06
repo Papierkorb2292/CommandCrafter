@@ -10,7 +10,6 @@ import net.minecraft.client.multiplayer.ClientSuggestionProvider
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
-import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.permissions.PermissionSet
@@ -19,6 +18,7 @@ import net.minecraft.world.flag.FeatureFlagSet
 import net.minecraft.world.level.Level
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -29,6 +29,7 @@ import java.util.stream.Stream
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientSuggestionProvider,
     private val hasNetworkHandler: Boolean,
+    private val languageServer: MinecraftLanguageServer,
 ) : SharedSuggestionProvider, PermissionSetSupplier {
 
     companion object {
@@ -37,10 +38,11 @@ class AnalyzingClientCommandSource(
         val allowServersideCompletions = ThreadLocal<Boolean>()
     }
 
-    constructor(minecraftClient: Minecraft): this(
+    constructor(minecraftClient: Minecraft, languageServer: MinecraftLanguageServer): this(
         minecraftClient.connection?.suggestionsProvider
             ?: ClientSuggestionProvider(Util.nullIsFine<ClientPacketListener>(null), minecraftClient, PermissionSet.ALL_PERMISSIONS),
-        minecraftClient.connection != null
+        minecraftClient.connection != null,
+        languageServer
     )
 
     override fun getOnlinePlayerNames(): Collection<String> =
@@ -52,24 +54,24 @@ class AnalyzingClientCommandSource(
     override fun getAvailableSounds(): Stream<Identifier> =
         clientCommandSource.availableSounds
     override fun levels(): MutableSet<ResourceKey<Level>> = clientCommandSource.levels()
-    // TODO: Should probably use CommandCrafter's synced registries instead
-    override fun registryAccess(): RegistryAccess =
-        if(hasNetworkHandler) clientCommandSource.registryAccess() else RegistryAccess.fromRegistryOfRegistries(
-            BuiltInRegistries.REGISTRY
-        )
+    // Note: There are some 'registries' parsed by LoadedClientsideRegistries that are not synced
+    // when connecting to a server. Advancements and recipes will be in registryAccess() only if the player is not connected
+    // to a server with CommandCrafter.
+    override fun registryAccess(): RegistryAccess = languageServer.dynamicRegistryManager
     override fun enabledFeatures(): FeatureFlagSet =
         if(hasNetworkHandler) clientCommandSource.enabledFeatures() else ClientCommandCrafter.defaultFeatureSet
 
+    // Copied from ClientSuggestionProvider to use custom registries
     override fun suggestRegistryElements(
         registryRef: ResourceKey<out Registry<*>>,
         suggestedIdType: SharedSuggestionProvider.ElementSuggestionType,
         builder: SuggestionsBuilder,
         context: CommandContext<*>,
     ): CompletableFuture<Suggestions> =
-        if(registryAccess().lookup(registryRef).isPresent)
-            clientCommandSource.suggestRegistryElements(registryRef, suggestedIdType, builder, context)
-        else
-            customSuggestion(context)
+        registryAccess().lookup(registryRef).map { registry ->
+            suggestRegistryElements(registry, suggestedIdType, builder)
+            builder.buildFuture()
+        }.orElseGet { customSuggestion(context) }
 
     override fun customSuggestion(context: CommandContext<*>): CompletableFuture<Suggestions> {
         if(allowServersideCompletions.getOrNull() != true)

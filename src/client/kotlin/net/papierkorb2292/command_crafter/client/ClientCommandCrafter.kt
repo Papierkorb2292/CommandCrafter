@@ -67,8 +67,8 @@ object ClientCommandCrafter : ClientModInitializer {
         CommandCrafter.registerDynamicRegistries()
         CommandCrafter.registerRegistryTags()
 
-        MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({
-            AnalyzingClientCommandSource(Minecraft.getInstance())
+        MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
+            AnalyzingClientCommandSource(Minecraft.getInstance(), languageServer)
         }, { analyzingResult ->
             val finalResult = analyzingResult.copyExceptCompletions()
             finalResult.addCompletionProvider(

@@ -1,17 +1,20 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.serialization.Lifecycle
+import net.minecraft.advancements.Advancement
 import net.minecraft.core.LayeredRegistryAccess
 import net.minecraft.core.MappedRegistry
 import net.minecraft.core.Registry
 import net.minecraft.core.Registry.PendingTags
 import net.minecraft.core.RegistryAccess
+import net.minecraft.core.registries.Registries
 import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.server.RegistryLayer
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.repository.ServerPacksSource
 import net.minecraft.server.packs.resources.MultiPackResourceManager
 import net.minecraft.tags.TagLoader
+import net.minecraft.world.item.crafting.Recipe
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import java.util.stream.Stream
 
@@ -20,6 +23,11 @@ class LoadedClientsideRegistries(
     private val pendingTagLoads: List<PendingTags<*>>
 ) {
     companion object {
+        val PARSEABLE_REGISTRIES = NetworkServerConnectionHandler.ALL_DYNAMIC_REGISTRIES + listOf(
+            RegistryDataLoader.RegistryData(Registries.ADVANCEMENT, Advancement.CODEC, false),
+            RegistryDataLoader.RegistryData(Registries.RECIPE, Recipe.CODEC, false)
+        )
+
         fun load(): LoadedClientsideRegistries {
             // Static registries are copied so tags don't modify the original registries
             val initialRegistries = getCopiedInitialRegistries(RegistryLayer.createRegistryAccess(), RegistryLayer.STATIC)
@@ -32,7 +40,7 @@ class LoadedClientsideRegistries(
             val dynamicRegistries = RegistryDataLoader.load(
                 resourceManager,
                 tagRegistries,
-                NetworkServerConnectionHandler.ALL_DYNAMIC_REGISTRIES
+                PARSEABLE_REGISTRIES
             )
             val tagAndDynamicRegistries = Stream.concat(tagRegistries.stream(), dynamicRegistries.listRegistries()).toList()
             val dimensionRegistries = RegistryDataLoader.load(resourceManager, tagAndDynamicRegistries, RegistryDataLoader.DIMENSION_REGISTRIES)
