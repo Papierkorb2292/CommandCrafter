@@ -25,7 +25,7 @@ class LoadedClientsideRegistries(
     private val pendingTagLoads: List<PendingTags<*>>
 ) {
     companion object {
-        val PARSEABLE_REGISTRIES = NetworkServerConnectionHandler.ALL_DYNAMIC_REGISTRIES + listOf(
+        fun getParseableRegistries() = NetworkServerConnectionHandler.getAllDynamicRegistries() + listOf(
             RegistryDataLoader.RegistryData(Registries.ADVANCEMENT, Advancement.CODEC, false),
             RegistryDataLoader.RegistryData(Registries.RECIPE, Recipe.CODEC, false)
         )
@@ -44,7 +44,7 @@ class LoadedClientsideRegistries(
                 val dynamicRegistries = RegistryDataLoader.load(
                     resourceManager,
                     tagRegistries,
-                    PARSEABLE_REGISTRIES
+                    getParseableRegistries()
                 )
                 val tagAndDynamicRegistries =
                     Stream.concat(tagRegistries.stream(), dynamicRegistries.listRegistries()).toList()

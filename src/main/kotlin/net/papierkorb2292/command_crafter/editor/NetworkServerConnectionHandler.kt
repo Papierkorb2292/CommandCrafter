@@ -4,32 +4,33 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.ints.IntList
+import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.server.permissions.LevelBasedPermissionSet
-import net.minecraft.world.level.storage.loot.LootDataType
-import net.minecraft.nbt.NbtOps
-import net.minecraft.network.Connection
-import net.minecraft.network.protocol.common.ClientCommonPacketListener
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload
-import net.minecraft.network.protocol.Packet
-import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
-import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket
-import net.minecraft.network.protocol.game.ClientboundCommandsPacket
-import net.minecraft.tags.TagNetworkSerialization
-import net.minecraft.server.MinecraftServer
-import net.minecraft.commands.Commands
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
-import net.minecraft.server.network.ServerGamePacketListenerImpl
-import net.minecraft.server.level.ServerPlayer
+import net.minecraft.nbt.NbtOps
+import net.minecraft.network.Connection
+import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.common.ClientCommonPacketListener
+import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload
+import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket
+import net.minecraft.network.protocol.game.ClientboundCommandsPacket
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.resources.ResourceKey
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.network.ServerGamePacketListenerImpl
+import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.tags.TagNetworkSerialization
+import net.minecraft.world.level.storage.loot.LootDataType
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
@@ -39,8 +40,8 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerS
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.runWithValue
-import net.papierkorb2292.command_crafter.mixin.editor.processing.RegistrySynchronizationAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.processing.RegistrySynchronizationAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.CommandsAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
@@ -58,12 +59,10 @@ import java.util.stream.Collectors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
-    val ALL_DYNAMIC_REGISTRIES = RegistryDataLoader.WORLDGEN_REGISTRIES + LootDataType.values().map {
+    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> = DynamicRegistries.getDynamicRegistries() + LootDataType.values().map {
         createRegistryLoaderEntryForLootDataType(it)
     }.toList()
-    val SYNCED_REGISTRIES = ALL_DYNAMIC_REGISTRIES + RegistryDataLoader.DIMENSION_REGISTRIES
-
-    val SYNCED_REGISTRY_KEYS = SYNCED_REGISTRIES.mapTo(mutableSetOf()) { it.key }
+    fun getSyncedRegistries() = getAllDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
 
     private val currentConnections = mutableMapOf<ServerGamePacketListenerImpl, DirectServerConnection>()
 
@@ -349,8 +348,11 @@ object NetworkServerConnectionHandler {
         if(networkHandler !in currentConnections)
             return
 
+        val syncedRegistries = getSyncedRegistries()
+        val syncedRegistryIds = syncedRegistries.mapTo(mutableSetOf()) { it.key.identifier() }
+
         // Used by the client to clear previous sync, just in case something went wrong
-        networkHandler.send(ClientboundCustomPayloadPacket(StartRegistrySyncS2CPacket))
+        networkHandler.send(ClientboundCustomPayloadPacket(StartRegistrySyncS2CPacket(syncedRegistryIds.toList())))
 
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
         val registryManager = server.reloadableRegistries().lookup() as RegistryAccess
@@ -361,7 +363,7 @@ object NetworkServerConnectionHandler {
         // Sync tags of non-dynamic registries first, because
         // client builds registry manager once all SYNCED_REGISTRIES have been received
         registryManager.listRegistryKeys().forEach {
-            if(it in SYNCED_REGISTRY_KEYS) return@forEach
+            if(it.identifier() in syncedRegistryIds) return@forEach
             val registryTags = serializedRegistriesTags[it] ?: return@forEach
             networkHandler.send(
                 ClientboundCustomPayloadPacket(
@@ -369,7 +371,7 @@ object NetworkServerConnectionHandler {
                 )
             )
         }
-        SYNCED_REGISTRIES.forEach {
+        syncedRegistries.forEach {
             sendDynamicRegistry(registryManager, it, networkHandler, serializedRegistriesTags[it.key])
         }
     }

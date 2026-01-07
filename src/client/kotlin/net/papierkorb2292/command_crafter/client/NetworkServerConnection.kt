@@ -11,9 +11,8 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.RegistryDataCollector
 import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
-import net.minecraft.resources.ResourceKey
+import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.resources.ResourceProvider
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.server.permissions.PermissionLevel
@@ -88,7 +87,7 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
         private val scoreboardStorageFileSystems: MutableMap<UUID, NetworkScoreboardStorageFileSystem> = mutableMapOf()
 
         private var receivedClientRegistries = RegistryDataCollector()
-        private val receivedRegistryKeys = mutableSetOf<ResourceKey<out Registry<*>>>()
+        private var pendingRegistrySyncIds = mutableSetOf<Identifier>()
         private var receivedRegistryManager: RegistryAccess? = null
 
         private val currentConnections = mutableListOf<NetworkServerConnection>()
@@ -123,35 +122,34 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
                 currentConnections += connection
                 currentRequest.second.complete(connection)
             }
-            ClientPlayNetworking.registerGlobalReceiver(StartRegistrySyncS2CPacket.ID) { _, _ ->
-                if(!receivedRegistryKeys.isEmpty())
+            ClientPlayNetworking.registerGlobalReceiver(StartRegistrySyncS2CPacket.ID) { payload, _ ->
+                if(!pendingRegistrySyncIds.isEmpty())
                     CommandCrafter.LOGGER.error("New registry sync started, but previous one wasn't finished. Something went wrong!")
+                pendingRegistrySyncIds = payload.registries.toMutableSet()
                 // Usually these are already reset after building the registry manager, but if something went wrong they could still contain
                 // data, which means after the new sync they would contain duplicate entries, which leads to Minecraft throwing lots of errors
                 // and producing huge logs, so better make sure they're reset
-                receivedRegistryKeys.clear()
                 receivedClientRegistries = RegistryDataCollector()
             }
             ClientPlayNetworking.registerGlobalReceiver(CommandCrafterDynamicRegistryS2CPacket.ID) { payload, _ ->
-                if(payload.dynamicRegistry.registry in NetworkServerConnectionHandler.SYNCED_REGISTRY_KEYS)
+                if(pendingRegistrySyncIds.remove(payload.dynamicRegistry.registry.identifier()))
                     receivedClientRegistries.appendContents(payload.dynamicRegistry.registry, payload.dynamicRegistry.entries)
                 if(payload.tags != null)
                     receivedClientRegistries.appendTags(mapOf(payload.dynamicRegistry.registry to payload.tags!!))
-                receivedRegistryKeys += payload.dynamicRegistry.registry
-                if(NetworkServerConnectionHandler.SYNCED_REGISTRY_KEYS.all { it in receivedRegistryKeys }) {
-                    (receivedClientRegistries as SyncedRegistriesListConsumer).`command_crafter$setSyncedRegistriesList`(NetworkServerConnectionHandler.SYNCED_REGISTRIES)
+
+                if(pendingRegistrySyncIds.isEmpty()) {
+                    (receivedClientRegistries as SyncedRegistriesListConsumer).`command_crafter$setSyncedRegistriesList`(NetworkServerConnectionHandler.getSyncedRegistries())
                     (receivedClientRegistries as ShouldCopyRegistriesContainer).`command_crafter$setShouldCopyRegistries`(true)
                     //All registries have been received
                     ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
                     receivedRegistryManager = receivedClientRegistries.collectGameRegistries(
                         //No resource loading is required, because no common packs were specified
                         ResourceProvider.EMPTY,
-                        // Only matters if there are no registries to load, but there will always be some
+                        // Only matters if there are no registrWQies to load, but there will always be some
                         Util.nullIsFine<RegistryAccess.Frozen>(null),
                         // False to load all tags, including of registries where the entries are not synced
                         false
                     )
-                    receivedRegistryKeys.clear()
                     receivedClientRegistries = RegistryDataCollector()
                 }
             }
