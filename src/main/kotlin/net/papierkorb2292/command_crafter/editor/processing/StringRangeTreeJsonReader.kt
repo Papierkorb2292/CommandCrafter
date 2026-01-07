@@ -314,7 +314,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Property) {
-                    val existingKeys = tree.mapKeyRanges[map]!!.asSequence()
+                    val existingKeys = tree.mapKeyRanges.getOrElse(map, ::emptyList).asSequence()
                         .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
                         .map { it.first }
                         .toSet()

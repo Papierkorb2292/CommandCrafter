@@ -105,7 +105,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         return StringRangeTree.ResolvedSuggestion(
             keyEnd,
             StreamCompletionItemProvider(suggestionRange.end, { keyEnd }, mappingInfo, CompletionItemKind.Property) {
-                val existingKeys = tree.mapKeyRanges[map]!!.asSequence()
+                val existingKeys = tree.mapKeyRanges.getOrElse(map, ::emptyList).asSequence()
                     .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
                     .map { it.first }
                     .toSet()
