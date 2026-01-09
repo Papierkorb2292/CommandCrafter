@@ -17,35 +17,33 @@ import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
-import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.commands.functions.StringTemplate
-import net.minecraft.commands.execution.tasks.BuildContexts
-import net.minecraft.commands.arguments.item.FunctionArgument
-import net.minecraft.server.permissions.LevelBasedPermissionSet
-import net.minecraft.util.parsing.packrat.Rule
-import net.minecraft.util.parsing.packrat.ParseState
-import net.minecraft.nbt.Tag
-import net.minecraft.nbt.EndTag
-import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.TagParser
-import net.minecraft.core.Registry
-import net.minecraft.resources.ResourceKey
-import net.minecraft.core.registries.Registries
-import net.minecraft.core.HolderLookup
-import net.minecraft.core.Holder
-import net.minecraft.core.HolderSet
-import net.minecraft.tags.TagEntry
-import net.minecraft.tags.TagKey
-import net.minecraft.commands.Commands
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.execution.tasks.BuildContexts
 import net.minecraft.commands.functions.FunctionBuilder
 import net.minecraft.commands.functions.MacroFunction
+import net.minecraft.commands.functions.StringTemplate
+import net.minecraft.core.Holder
+import net.minecraft.core.HolderLookup
+import net.minecraft.core.HolderSet
+import net.minecraft.core.Registry
+import net.minecraft.core.registries.Registries
+import net.minecraft.nbt.EndTag
+import net.minecraft.nbt.NbtOps
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.tags.TagEntry
+import net.minecraft.tags.TagKey
+import net.minecraft.util.Mth
 import net.minecraft.util.StringRepresentable
 import net.minecraft.util.Util
-import net.minecraft.util.Mth
+import net.minecraft.util.parsing.packrat.ParseState
+import net.minecraft.util.parsing.packrat.Rule
 import net.minecraft.util.parsing.packrat.SuggestionSupplier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
@@ -277,12 +275,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 relevantLines,
                 OffsetProcessedInputCursorMapper(-absoluteStartOffset)
                     .combineWith(reader.fileMappingInfo.cursorMapper)
-                    .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars))
+                    .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars - startCursor))
             )
             val variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
             // Highlight starting '$' with the same color as macro variables
             // This ensures some kind of consistency, and it makes macro lines stand out to more
-            variablesSemanticTokens.addMultiline(startCursor, 1, TokenType.ENUM, 0)
+            variablesSemanticTokens.addMultiline(0, 1, TokenType.ENUM, 0)
             val diagnostics = mutableListOf<Diagnostic>()
             for((i, variable) in macroInvocation.variables.withIndex()) {
                 val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]

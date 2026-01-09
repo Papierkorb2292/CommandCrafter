@@ -10,7 +10,7 @@ $execute unless data storage the_orb {$(name):{assimilated: true}} if score @s p
 $execute if items entity @s player.cursor *[custom_data=$(data)] run item modify entity @s player.cursor $(modifier)
 $execute if predicate {"condition":"minecraft:random_chance","chance":$(probability_that_the_singularity_awakens)} run return fail
 $execute as @e[type=item_display,tag=scores_$(team),limit=1] run function rgb:init_$(team)_score_display with entity @s item.components.minecraft:custom_data
-$particle dust{color:$(my_color),scale:0.65} ^-0.01 ^0.99 ^0 0 0 0 0 1 force @a
+  $particle dust{color:$(my_color),scale:0.65} ^-0.01 ^0.99 ^0 0 0 0 0 1 force @a
 $$(execute) entity @a run execute run say Assimilate!
 $$(e)$(x)$(e)$(c)$(u)$(t)$(e) run execute if entity @a[distance=..$(radius)] $(run) say Where's social distancing when you need it?
 $execute if score $(condition) $(objective) matches 0 run function $(success_function)
