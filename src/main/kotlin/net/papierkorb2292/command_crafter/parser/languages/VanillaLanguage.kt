@@ -291,20 +291,24 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 if(hasClosingParentheses) {
                     // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
                     // that aren't actually intended to be part of the name
-                    if(!StringTemplate.isValidVariableName(variable)) {
-                        diagnostics += Diagnostic(
-                            Range(
-                                AnalyzingResult.getPositionFromCursor(
-                                    macroSourceFileInfo.cursorMapper.mapToSource(variableNameStart),
-                                    macroSourceFileInfo
+                    for((i, c) in variable.withIndex()) {
+                        if(!StringTemplate.isValidVariableName(c.toString())) {
+                            // Add diagnostic starting at the first invalid char so it's easy to tell where the problem lies
+                            diagnostics += Diagnostic(
+                                Range(
+                                    AnalyzingResult.getPositionFromCursor(
+                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameStart + i),
+                                        macroSourceFileInfo
+                                    ),
+                                    AnalyzingResult.getPositionFromCursor(
+                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
+                                        macroSourceFileInfo
+                                    )
                                 ),
-                                AnalyzingResult.getPositionFromCursor(
-                                    macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
-                                    macroSourceFileInfo
-                                )
-                            ),
-                            "Invalid macro variable name '$variable'"
-                        )
+                                "Invalid macro variable name '$variable'"
+                            )
+                            break
+                        }
                     }
                 } else {
                     val endPosition = AnalyzingResult.getPositionFromCursor(
