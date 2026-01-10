@@ -30,6 +30,7 @@ import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -59,6 +60,7 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
         val currentStepInTargetsRequests: MutableMap<UUID, CompletableFuture<StepInTargetsResponse>> = mutableMapOf()
         val currentSourceReferenceRequests: MutableMap<UUID, CompletableFuture<SourceResponse?>> = mutableMapOf()
         val currentContextCompletionRequests: MutableMap<UUID, CompletableFuture<List<CompletionItem>>> = mutableMapOf()
+        val currentDebugEvaluateRequests: MutableMap<UUID, CompletableFuture<EvaluationProvider.EvaluationResult?>> = mutableMapOf()
 
         val currentScoreboardStorageStatRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<FileStat>>>()
         val currentScoreboardStorageReadDirectoryRequests = mutableMapOf<UUID, CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>>>()
@@ -190,6 +192,9 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
             }
             ClientPlayNetworking.registerGlobalReceiver(StepInTargetsResponseS2CPacket.ID) { payload, _ ->
                 currentStepInTargetsRequests.remove(payload.requestId)?.complete(payload.response)
+            }
+            ClientPlayNetworking.registerGlobalReceiver(DebugEvaluateResponseS2CPacket.ID) { payload, _ ->
+                currentDebugEvaluateRequests.remove(payload.requestId)?.complete(payload.result)
             }
             ClientPlayNetworking.registerGlobalReceiver(DebuggerOutputS2CPacket.ID) { payload, _ ->
                 editorDebugConnections.inverse()[payload.editorDebugConnection]?.output(payload.args)
@@ -386,6 +391,15 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
 
     override var canReloadWorldgen: Boolean = false
         private set
+    override val evaluationProvider: EvaluationProvider = object : EvaluationProvider {
+        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<EvaluationProvider.EvaluationResult?>()
+            currentDebugEvaluateRequests[requestId] = future
+            ClientPlayNetworking.send(DebugEvaluateC2SPacket(requestId, null, args))
+            return future
+        }
+    }
 
     override fun createScoreboardStorageFileSystem(): NetworkScoreboardStorageFileSystem {
         val fileSystem = NetworkScoreboardStorageFileSystem(UUID.randomUUID())

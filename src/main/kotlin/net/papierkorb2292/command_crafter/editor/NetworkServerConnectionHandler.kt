@@ -283,6 +283,19 @@ object NetworkServerConnectionHandler {
                 context.sendPacket(StepInTargetsResponseS2CPacket(payload.requestId, it))
             }
         }
+        registerAsyncServerPacketHandler(DebugEvaluateC2SPacket.ID) { payload, context ->
+            if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
+            val evaluationProvider = if(payload.pauseId == null) {
+                val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
+                serverConnection.evaluationProvider
+            } else {
+                val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
+                debugPause.actions
+            }
+            evaluationProvider.evaluate(payload.args).thenAccept { result ->
+                context.sendPacket(DebugEvaluateResponseS2CPacket(payload.requestId, result))
+            }
+        }
         registerAsyncServerPacketHandler(ContextCompletionRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler

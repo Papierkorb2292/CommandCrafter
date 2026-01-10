@@ -298,7 +298,7 @@ val VALUE_FORMAT_PACKET_CODEC: StreamCodec<ByteBuf, ValueFormat> = ByteBufCodecs
     { ValueFormat().apply { hex = it }},
     ValueFormat::getHex
 )
-val NULLABLE_VALUE_FORMAT_PACKET_CODEC = VALUE_FORMAT_PACKET_CODEC.optional()
+val OPTIONAL_VALUE_FORMAT_PACKET_CODEC = VALUE_FORMAT_PACKET_CODEC.optional()
 
 val VARIABLES_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, VariablesArguments> = StreamCodec.composite(
     ByteBufCodecs.VAR_INT,
@@ -309,7 +309,7 @@ val VARIABLES_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, VariablesArguments> =
     VariablesArguments::getStart.toOptional(),
     OPTIONAL_VAR_INT_PACKET_CODEC,
     VariablesArguments::getCount.toOptional(),
-    NULLABLE_VALUE_FORMAT_PACKET_CODEC,
+    OPTIONAL_VALUE_FORMAT_PACKET_CODEC,
     VariablesArguments::getFormat.toOptional()
 ) { variablesReference, filter, start, count, format ->
     VariablesArguments().apply {
@@ -339,13 +339,14 @@ val VARIABLE_PRESENTATION_HINT_PACKET_CODEC: StreamCodec<ByteBuf, VariablePresen
     }
 }
 
+val OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC = VARIABLE_PRESENTATION_HINT_PACKET_CODEC.optional()
+
 val VARIABLE_PACKET_CODEC = object : StreamCodec<ByteBuf, Variable> {
-    val NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC = VARIABLE_PRESENTATION_HINT_PACKET_CODEC.optional()
     override fun decode(buf: ByteBuf) = Variable().apply {
         name = ByteBufCodecs.STRING_UTF8.decode(buf)
         value = ByteBufCodecs.STRING_UTF8.decode(buf)
         type = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
-        presentationHint = NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC.decode(buf).orElse(null)
+        presentationHint = OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC.decode(buf).orElse(null)
         evaluateName = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
         variablesReference = ByteBufCodecs.VAR_INT.decode(buf)
         namedVariables = OPTIONAL_VAR_INT_PACKET_CODEC.decode(buf).orElse(null)
@@ -357,7 +358,7 @@ val VARIABLE_PACKET_CODEC = object : StreamCodec<ByteBuf, Variable> {
         ByteBufCodecs.STRING_UTF8.encode(buf, value.name)
         ByteBufCodecs.STRING_UTF8.encode(buf, value.value)
         OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.type))
-        NULLABLE_VARIABLE_PRESENTATION_HINT_CODEC.encode(buf, Optional.ofNullable(value.presentationHint))
+        OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC.encode(buf, Optional.ofNullable(value.presentationHint))
         OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.evaluateName))
         ByteBufCodecs.VAR_INT.encode(buf, value.variablesReference)
         OPTIONAL_VAR_INT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.namedVariables))
@@ -373,7 +374,7 @@ val SET_VARIABLE_ARGUMENTS_PACKET_CODEC: StreamCodec<ByteBuf, SetVariableArgumen
     SetVariableArguments::getName,
     ByteBufCodecs.STRING_UTF8,
     SetVariableArguments::getValue,
-    NULLABLE_VALUE_FORMAT_PACKET_CODEC,
+    OPTIONAL_VALUE_FORMAT_PACKET_CODEC,
     SetVariableArguments::getFormat.toOptional()
 ) { variablesReference, name, value, format ->
     SetVariableArguments().apply {
@@ -512,5 +513,63 @@ val COMPLETION_ITEM_PACKET_CODEC = object : StreamCodec<ByteBuf, CompletionItem>
         NULLABLE_TEXT_EDITS_CODEC.encode(buf, Optional.ofNullable(value.additionalTextEdits))
         NULLABLE_COMPLETION_ITEM_COMMIT_CHARACTERS_CODEC.encode(buf, Optional.ofNullable(value.commitCharacters))
         OPTIONAL_OBJECT_PACKET_CODEC.encode(buf, Optional.ofNullable(value.data))
+    }
+}
+
+val EVALUATE_ARGUMENTS_PACKET_CODEC = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
+    EvaluateArguments::getExpression,
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    EvaluateArguments::getFrameId.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    EvaluateArguments::getLine.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    EvaluateArguments::getColumn.toOptional(),
+    OPTIONAL_SOURCE_CODEC,
+    EvaluateArguments::getSource.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    EvaluateArguments::getContext.toOptional(),
+    OPTIONAL_VALUE_FORMAT_PACKET_CODEC,
+    EvaluateArguments::getFormat.toOptional()
+) { expression, frameId, line, column, source, context, format ->
+    EvaluateArguments().apply {
+        this.expression = expression
+        this.frameId = frameId.orElse(null)
+        this.line = line.orElse(null)
+        this.column = column.orElse(null)
+        this.source = source.orElse(null)
+        this.context = context.orElse(null)
+        this.format = format.orElse(null)
+
+    }
+}
+
+val EVALUATE_RESPONSE_PACKET_CODEC = StreamCodec.composite(
+    ByteBufCodecs.STRING_UTF8,
+    EvaluateResponse::getResult,
+    OPTIONAL_STRING_PACKET_CODEC,
+    EvaluateResponse::getType.toOptional(),
+    OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC,
+    EvaluateResponse::getPresentationHint.toOptional(),
+    ByteBufCodecs.VAR_INT,
+    EvaluateResponse::getVariablesReference,
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    EvaluateResponse::getNamedVariables.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    EvaluateResponse::getIndexedVariables.toOptional(),
+    OPTIONAL_STRING_PACKET_CODEC,
+    EvaluateResponse::getMemoryReference.toOptional(),
+    OPTIONAL_VAR_INT_PACKET_CODEC,
+    EvaluateResponse::getValueLocationReference.toOptional()
+) { result, type, presentationHint, variablesReference, namedVariables, indexedVariables, memoryReference, valueLocationReference ->
+    EvaluateResponse().apply {
+        this.result = result
+        this.type = type.orElse(null)
+        this.presentationHint = presentationHint.orElse(null)
+        this.variablesReference = variablesReference
+        this.namedVariables = namedVariables.orElse(null)
+        this.indexedVariables = indexedVariables.orElse(null)
+        this.memoryReference = memoryReference.orElse(null)
+        this.valueLocationReference = valueLocationReference.orElse(null)
     }
 }

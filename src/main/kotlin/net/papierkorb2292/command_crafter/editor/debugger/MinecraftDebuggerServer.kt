@@ -4,6 +4,7 @@ import kotlinx.atomicfu.locks.SynchronizedObject
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
@@ -214,6 +215,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             supportsSteppingGranularity = true
             supportsSetVariable = true
             supportsStepInTargetsRequest = true
+            supportsEvaluateForHovers = true
         })
     }
 
@@ -317,7 +319,17 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluateResponse> {
-        return CompletableFuture.failedFuture(EvaluationFailedThrowable("CommandCrafter does not support evaluate yet :("))
+        val frameEvaluate = debugPauseActions?.evaluate(args) ?: CompletableFuture.completedFuture(null)
+        return frameEvaluate.thenCompose { frameResult ->
+            if(frameResult != null)
+                return@thenCompose frameResult.toFuture()
+            val globalEvaluate = minecraftServer.evaluationProvider?.evaluate(args) ?: CompletableFuture.completedFuture(null)
+            globalEvaluate.thenCompose { globalResult ->
+                if(globalResult != null)
+                    return@thenCompose globalResult.toFuture()
+                EvaluationProvider.createError("No evaluation result").toFuture()
+            }
+        }
     }
 
     override fun next(args: NextArguments): CompletableFuture<Void> {
@@ -472,7 +484,6 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         this.client = client
         this.workspaceFileFinder = WorkspaceFileFinder(client)
     }
-
-    class EvaluationFailedThrowable(message: String, cause: Throwable? = null): Throwable(message, cause)
+    
     private data class ClientBreakpointResource(val packContentFileType: PackContentFileType, val id: PackagedId, val sourceReference: Int?)
 }

@@ -2,12 +2,15 @@ package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
+import org.eclipse.lsp4j.debug.EvaluateArguments
 import org.eclipse.lsp4j.debug.SteppingGranularity
 import java.util.*
+import java.util.concurrent.CompletableFuture
 
 /**
  * This interface is used to attach information to a parsed section
@@ -53,6 +56,8 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
             override fun continue_() {
                 updatePauseHandler().continue_()
             }
+
+            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> = updatePauseHandler().evaluate(args)
 
             override fun findNextPauseLocation() {
                 updatePauseHandler().findNextPauseLocation()

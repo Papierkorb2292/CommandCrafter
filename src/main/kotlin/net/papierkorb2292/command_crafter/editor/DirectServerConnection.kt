@@ -2,31 +2,27 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.minecraft.commands.CommandSource
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.server.packs.repository.PackRepository
-import net.minecraft.network.chat.CommonComponents
-import net.minecraft.server.MinecraftServer
-import net.minecraft.commands.Commands
-import net.minecraft.commands.CommandSource
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.network.ServerGamePacketListenerImpl
+import net.minecraft.server.packs.repository.PackRepository
+import net.minecraft.world.level.storage.WorldData
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
-import net.minecraft.world.level.storage.WorldData
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.console.PreLaunchLogListener
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
-import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
-import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
-import net.papierkorb2292.command_crafter.editor.debugger.helper.setupOneTimeDebugTarget
+import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -44,7 +40,6 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
-import kotlin.collections.set
 
 class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConnection {
     companion object {
@@ -248,6 +243,11 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             }
             return value
         }
+    override val evaluationProvider: EvaluationProvider = object : EvaluationProvider {
+        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+            return CompletableFuture.completedFuture(null) //TODO: Evaluate with global context
+        }
+    }
 
     override fun createScoreboardStorageFileSystem() =
         ServerScoreboardStorageFileSystem(server)

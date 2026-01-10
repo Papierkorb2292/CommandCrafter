@@ -3,8 +3,11 @@ package net.papierkorb2292.command_crafter.client.editor.debugger
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.papierkorb2292.command_crafter.client.NetworkServerConnection
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
+import net.papierkorb2292.command_crafter.networking.packets.DebugEvaluateC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.DebugPauseActionC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.StepInTargetsRequestC2SPacket
+import org.eclipse.lsp4j.debug.EvaluateArguments
 import org.eclipse.lsp4j.debug.StepInTargetsResponse
 import org.eclipse.lsp4j.debug.SteppingGranularity
 import java.util.*
@@ -33,6 +36,14 @@ class NetworkDebugPauseActions(private val packetSender: PacketSender, private v
 
     override fun continue_() {
         sendAction(DebugPauseActionC2SPacket.DebugPauseActionType.CONTINUE, null)
+    }
+
+    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+        val requestId = UUID.randomUUID()
+        val future = CompletableFuture<EvaluationProvider.EvaluationResult?>()
+        NetworkServerConnection.currentDebugEvaluateRequests[requestId] = future
+        packetSender.sendPacket(DebugEvaluateC2SPacket(requestId, pauseId, args))
+        return future
     }
 
     private fun sendAction(action: DebugPauseActionC2SPacket.DebugPauseActionType, granularity: SteppingGranularity?, additionalInfo: Int? = null) {

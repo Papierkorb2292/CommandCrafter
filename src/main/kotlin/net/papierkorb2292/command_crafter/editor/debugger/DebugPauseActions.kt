@@ -1,10 +1,11 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import org.eclipse.lsp4j.debug.StepInTargetsResponse
 import org.eclipse.lsp4j.debug.SteppingGranularity
 import java.util.concurrent.CompletableFuture
 
-interface DebugPauseActions {
+interface DebugPauseActions : EvaluationProvider {
     fun next(granularity: SteppingGranularity)
     fun stepIn(granularity: SteppingGranularity, targetId: Int? = null)
     fun stepOut(granularity: SteppingGranularity)

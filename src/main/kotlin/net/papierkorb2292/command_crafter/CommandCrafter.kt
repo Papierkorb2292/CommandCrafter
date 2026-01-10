@@ -40,6 +40,7 @@ import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler.isPlayerAllowedConnection
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ScoreboardFileAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult
@@ -299,7 +300,7 @@ object CommandCrafter: ModInitializer {
         if(coreException is InvocationTargetException)
             coreException = coreException.targetException
 
-        if(coreException is MinecraftDebuggerServer.EvaluationFailedThrowable)
+        if(coreException is EvaluationProvider.EvaluationFailedThrowable)
             // Errors from evaluations are normal, so don't log them as exceptions
             return ResponseError(ResponseErrorCode.RequestFailed, coreException.message, null)
         LOGGER.error("Error thrown by $serviceName", coreException)

@@ -1,18 +1,18 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
-import net.minecraft.commands.execution.tasks.BuildContexts
-import net.minecraft.commands.arguments.item.FunctionArgument.Result
-import net.minecraft.server.MinecraftServer
 import net.minecraft.commands.CommandSource
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.arguments.item.FunctionArgument.Result
+import net.minecraft.commands.execution.tasks.BuildContexts
 import net.minecraft.commands.functions.MacroFunction
 import net.minecraft.resources.Identifier
-import com.fasterxml.jackson.annotation.JsonIgnore
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
@@ -29,8 +29,8 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.helper.arrayOfNotNull
-import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.BuildContextsAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.VariableLineAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -41,9 +41,6 @@ import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.set
 
 class FunctionElementDebugInformation(
     private val elements: List<FunctionElementProcessor>,
@@ -311,6 +308,10 @@ class FunctionElementDebugInformation(
 
         override fun continue_() {
             debugFrame.pauseContext.removePause()
+        }
+
+        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+            return CompletableFuture.completedFuture(null) //TODO: Evaluate with context
         }
 
         override fun findNextPauseLocation() {

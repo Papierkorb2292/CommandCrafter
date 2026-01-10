@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.tags.TagEntry
-import net.minecraft.server.MinecraftServer
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
+import net.minecraft.tags.TagEntry
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -335,6 +335,10 @@ class RangeFunctionTagDebugInformation(
 
         override fun continue_() {
             debugFrame.pauseContext.removePause()
+        }
+
+        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+            return CompletableFuture.completedFuture(null) //TODO: Evaluate with context
         }
     }
 
