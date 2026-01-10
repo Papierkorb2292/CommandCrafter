@@ -37,13 +37,13 @@ dependencies {
 
     modCompileOnly("com.terraformersmc:modmenu:${project.extra["modmenu_version"]}")
 
-    api("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
-    include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.19.0")
-    include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.19.0")
-    include("org.eclipse.xtext:org.eclipse.xtext.xbase.lib:2.28.0")
-    api("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
-    include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.19.0")
-    include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.19.0")
+    api("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:0.24.0")
+    include("org.eclipse.xtext:org.eclipse.xtext.xbase.lib:2.40.0")
+    api("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.24.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j.debug:0.24.0")
+    include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.24.0")
 
     // Only use within PartialIdGeneratorServiceImpl or other services with the purpose of interacting with PartialIdAutocomplete
     modCompileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:1.2.0") {
