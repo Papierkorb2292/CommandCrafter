@@ -277,8 +277,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
 
                 val cursor = AnalyzingResult.getCursorFromPosition(position.position, file.createFileMappingInfo())
-                return analyzer.thenCompose { analyzingResult ->
-                    val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenCompose emptyCompletionsDefault
+                return analyzer.thenComposeAsync { analyzingResult ->
+                    val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenComposeAsync emptyCompletionsDefault
                     provider.dataProvider(cursor).thenApply {
                         Either.forLeft(
                             if(clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) it
