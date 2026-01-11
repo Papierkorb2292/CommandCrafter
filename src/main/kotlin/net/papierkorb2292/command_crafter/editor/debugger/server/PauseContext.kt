@@ -96,12 +96,8 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             currentDebugPauseHandler?.continue_()
         }
 
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-            debugFrameStack.getEntryForMinecraftStackFrame(args.frameId)?.let { (entry, minecraftStackFrameIndex) ->
-                return entry.frame.getDebugPauseHandler().evaluate(args)
-            }
-            return CompletableFuture.completedFuture(null)
-        }
+        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?>
+            = currentDebugPauseHandler?.evaluate(args) ?: CompletableFuture.completedFuture(null)
 
         override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
             if(targetId == null)

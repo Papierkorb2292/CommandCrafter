@@ -57,7 +57,12 @@ interface DebugInformation<TBreakpointLocation, TDebugFrame : PauseContext.Debug
                 updatePauseHandler().continue_()
             }
 
-            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> = updatePauseHandler().evaluate(args)
+            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                val futures = delegatePauseHandlers.map { it.evaluate(args) }.toTypedArray()
+                return CompletableFuture.allOf(*futures).thenApply {
+                    futures.firstNotNullOfOrNull { it.get() }
+                }
+            }
 
             override fun findNextPauseLocation() {
                 updatePauseHandler().findNextPauseLocation()
