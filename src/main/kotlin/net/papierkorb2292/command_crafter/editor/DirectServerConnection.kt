@@ -152,10 +152,9 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 override fun pauseStarted(
                     actions: DebugPauseActions,
                     args: StoppedEventArguments,
-                    variables: VariablesReferencer,
                 ) {
                     currentPauseActions[editorDebugConnection] = actions
-                    editorDebugConnection.pauseStarted(actions, args, variables)
+                    editorDebugConnection.pauseStarted(actions, args)
                 }
                 override fun pauseEnded() {
                     currentPauseActions.remove(editorDebugConnection)
@@ -175,8 +174,13 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                     editorDebugConnection.output(args)
                 override fun onSourceReferenceAdded() =
                     editorDebugConnection.onSourceReferenceAdded()
+
+                override fun setVariableReferencer(referencer: VariablesReferencer) {
+                    editorDebugConnection.setVariableReferencer(referencer)
+                }
             }
             wrapped.setupOneTimeDebugTarget(server)
+            wrapped.setVariableReferencer(server.getDebugManager().getVariableReferencer(wrapped))
             wrappedEditorDebugConnections[editorDebugConnection] = wrapped
         }
 

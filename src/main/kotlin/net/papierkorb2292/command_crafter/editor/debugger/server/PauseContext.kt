@@ -12,7 +12,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
-import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonPacketListenerImplAccessor
@@ -56,32 +55,8 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
 
     val stepInTargetsManager = StepInTargetsManager()
 
-    val variablesReferenceMapper = object : VariablesReferenceMapper {
-        private val variablesReferences = mutableListOf<VariablesReferencer>()
-
-        override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-            val variablesReferenceIndex = args.variablesReference - 1
-            val variablesReferences = variablesReferences
-            if(variablesReferenceIndex >= variablesReferences.size)
-                return CompletableFuture.completedFuture(emptyArray())
-            return variablesReferences[variablesReferenceIndex].getVariables(args)
-        }
-
-        override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
-            val variablesReferenceIndex = args.variablesReference - 1
-            val variablesReferences = variablesReferences
-            if(variablesReferenceIndex >= variablesReferences.size)
-                return CompletableFuture.completedFuture(null)
-            return variablesReferences[variablesReferenceIndex].setVariable(args)
-        }
-        override fun addVariablesReferencer(referencer: VariablesReferencer): Int {
-            val id = variablesReferences.size + 1
-            variablesReferences.add(referencer)
-            return id
-        }
-    }
-
-
+    val variablesReferenceMapper: VariablesReferenceMapper
+        get() = server.getDebugManager().getVariableReferencer(debugConnection!!)
 
     private val currentDebugPauseHandler: DebugPauseHandler?
         get() = debugFrameStack.peek()?.frame?.getDebugPauseHandler()
@@ -220,7 +195,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         debugConnection.pauseStarted(debugPauseActionsWrapper, StoppedEventArguments().also {
             it.hitBreakpointIds = arrayOf(breakpoint.unparsed.id)
             it.reason = StoppedEventArgumentsReason.BREAKPOINT
-        }, variablesReferenceMapper)
+        })
         return true
     }
 
@@ -233,7 +208,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         updateStackFrames(connection)
         connection.pauseStarted(debugPauseActionsWrapper, StoppedEventArguments().also {
             it.reason = StoppedEventArgumentsReason.PAUSE
-        }, variablesReferenceMapper)
+        })
         return true
     }
 

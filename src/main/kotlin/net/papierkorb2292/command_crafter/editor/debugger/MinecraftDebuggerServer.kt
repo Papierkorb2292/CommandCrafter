@@ -83,9 +83,8 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             }
         }
 
-        override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
+        override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments) {
             debugPauseActions = actions
-            variablesReferencer = variables
             if(args.threadId == null)
                 args.threadId = 0
             client?.stopped(args)
@@ -173,6 +172,10 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         override fun onSourceReferenceAdded() {
             nextSourceReference++
+        }
+
+        override fun setVariableReferencer(referencer: VariablesReferencer) {
+            variablesReferencer = referencer
         }
     }
 

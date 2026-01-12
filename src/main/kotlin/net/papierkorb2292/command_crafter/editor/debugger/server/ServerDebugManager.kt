@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
+import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -52,6 +53,7 @@ class ServerDebugManager(private val server: MinecraftServer) {
     }
 
     private val sourceReferencesMap = mutableMapOf<EditorDebugConnection, PlayerSourceReferences>()
+    private val connectionVariableReferencers = mutableMapOf<EditorDebugConnection, VariablesReferenceMapper>()
 
     fun setBreakpoints(
         breakpoints: Array<UnparsedServerBreakpoint>,
@@ -69,9 +71,13 @@ class ServerDebugManager(private val server: MinecraftServer) {
         return debugHandler.setBreakpoints(breakpoints, id, debuggerConnector, sourceReference)
     }
 
+    fun getVariableReferencer(debugConnection: EditorDebugConnection): VariablesReferenceMapper =
+        connectionVariableReferencers.getOrPut(debugConnection, ::VariablesReferenceMapper)
+
     fun removeDebugConnection(debugConnection: EditorDebugConnection) {
         debugHandlers.values.forEach { it.removeDebugConnection(debugConnection) }
         sourceReferencesMap.remove(debugConnection)
+        connectionVariableReferencers.remove(debugConnection)
     }
 
     fun onReload() {

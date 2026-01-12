@@ -272,15 +272,15 @@ object NetworkServerConnectionHandler {
         }
         registerAsyncServerPacketHandler(GetVariablesRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
-            debugPause.pauseContext.getVariables(payload.args).thenAccept {
+            val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+            debugConnection.variablesReferencer!!.getVariables(payload.args).thenAccept {
                 context.sendPacket(GetVariablesResponseS2CPacket(payload.requestId, it))
             }
         }
         registerAsyncServerPacketHandler(SetVariableRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
-            debugPause.pauseContext.setVariable(payload.args).thenAccept {
+            val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+            debugConnection.variablesReferencer!!.setVariable(payload.args).thenAccept {
                 context.sendPacket(SetVariableResponseS2CPacket(payload.requestId, it))
             }
         }

@@ -1,11 +1,11 @@
 package net.papierkorb2292.command_crafter.editor.debugger.helper
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.StreamCodec
-import net.minecraft.network.codec.ByteBufCodecs
-import net.minecraft.server.MinecraftServer
 import net.minecraft.commands.functions.MacroFunction
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -18,7 +18,7 @@ interface EditorDebugConnection {
     val oneTimeDebugTarget: DebugTarget?
     val nextSourceReference: Int
     val suspendServer: Boolean
-    fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer)
+    fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments)
     fun pauseEnded()
     fun isPaused(): Boolean
     fun updateReloadedBreakpoint(update: BreakpointEventArguments)
@@ -27,6 +27,7 @@ interface EditorDebugConnection {
     fun pushStackFrames(stackFrames: List<MinecraftStackFrame>)
     fun output(args: OutputEventArguments)
     fun onSourceReferenceAdded()
+    fun setVariableReferencer(referencer: VariablesReferencer)
 
     companion object {
         val DEBUG_TARGET_PACKET_CODEC: StreamCodec<ByteBuf, DebugTarget> = StreamCodec.composite(

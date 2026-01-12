@@ -177,8 +177,7 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
                 if(pause == null) editorConnection.pauseEnded()
                 else editorConnection.pauseStarted(
                     NetworkDebugPauseActions(context.responseSender(), pause.first),
-                    pause.second,
-                    NetworkVariablesReferencer(context.responseSender(), pause.first)
+                    pause.second
                 )
             }
             ClientPlayNetworking.registerGlobalReceiver(UpdateReloadedBreakpointS2CPacket.ID) { payload, _ ->
@@ -363,6 +362,7 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
                 ClientPlayNetworking.send(
                     DebugConnectionRegistrationC2SPacket(it.oneTimeDebugTarget, it.nextSourceReference, it.suspendServer, id)
                 )
+                editorDebugConnection.setVariableReferencer(NetworkVariablesReferencer(ClientPlayNetworking.getSender(), id))
                 it.lifecycle.configurationDoneEvent.thenRun {
                     ClientPlayNetworking.send(
                         ConfigurationDoneC2SPacket(id)

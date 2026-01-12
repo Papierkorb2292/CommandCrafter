@@ -11,14 +11,14 @@ import org.eclipse.lsp4j.debug.VariablesArguments
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
-class NetworkVariablesReferencer(val packetSender: PacketSender, val pauseId: UUID) :
+class NetworkVariablesReferencer(val packetSender: PacketSender, val debugConnectionId: UUID) :
     VariablesReferencer {
     override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
         val requestId = UUID.randomUUID()
         val future = CompletableFuture<Array<Variable>>()
         NetworkServerConnection.currentGetVariablesRequests[requestId] = future
         packetSender.sendPacket(
-            GetVariablesRequestC2SPacket(pauseId, requestId, args)
+            GetVariablesRequestC2SPacket(debugConnectionId, requestId, args)
         )
         return future
     }
@@ -28,7 +28,7 @@ class NetworkVariablesReferencer(val packetSender: PacketSender, val pauseId: UU
         val future = CompletableFuture<VariablesReferencer.SetVariableResult?>()
         NetworkServerConnection.currentSetVariableRequests[requestId] = future
         packetSender.sendPacket(
-            SetVariableRequestC2SPacket(pauseId, requestId, args)
+            SetVariableRequestC2SPacket(debugConnectionId, requestId, args)
         )
         return future
     }

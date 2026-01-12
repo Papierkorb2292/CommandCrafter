@@ -1,8 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.server.level.ServerPlayer
+import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
@@ -15,7 +15,6 @@ import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.StoppedEventArguments
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import kotlin.collections.set
 
 class ServerNetworkDebugConnection(
     player: ServerPlayer,
@@ -34,14 +33,17 @@ class ServerNetworkDebugConnection(
     private val packetSender = ServerPlayNetworking.getSender(player)
     private val playerName = player.name.string
 
+    var variablesReferencer: VariablesReferencer? = null
+        private set
+
     init {
         lifecycle.shouldExitEvent.thenAccept {
             packetSender.sendPacket(DebuggerExitS2CPacket(it, clientEditorDebugConnection))
         }
     }
 
-    override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments, variables: VariablesReferencer) {
-        val pauseId = NetworkServerConnectionHandler.addServerDebugPause(DebugPauseInformation(actions, variables, clientEditorDebugConnection))
+    override fun pauseStarted(actions: DebugPauseActions, args: StoppedEventArguments) {
+        val pauseId = NetworkServerConnectionHandler.addServerDebugPause(DebugPauseInformation(actions, clientEditorDebugConnection))
         currentPauseId = pauseId
         packetSender.sendPacket(
             PausedUpdateS2CPacket(clientEditorDebugConnection, pauseId to args)
@@ -89,10 +91,14 @@ class ServerNetworkDebugConnection(
         packetSender.sendPacket(SourceReferenceAddedS2CPacket(clientEditorDebugConnection))
     }
 
+    override fun setVariableReferencer(referencer: VariablesReferencer) {
+        variablesReferencer = referencer
+    }
+
     override fun toString(): String {
         return "ServerNetworkDebugConnection(player=${playerName})"
     }
 
-    class DebugPauseInformation(val actions: DebugPauseActions, val pauseContext: VariablesReferencer, val clientEditorDebugConnection: UUID)
+    class DebugPauseInformation(val actions: DebugPauseActions, val clientEditorDebugConnection: UUID)
 
 }

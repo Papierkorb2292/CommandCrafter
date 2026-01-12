@@ -11,13 +11,13 @@ import net.papierkorb2292.command_crafter.networking.VARIABLES_ARGUMENTS_PACKET_
 import org.eclipse.lsp4j.debug.VariablesArguments
 import java.util.*
 
-class GetVariablesRequestC2SPacket(val pauseId: UUID, val requestId: UUID, val args: VariablesArguments):
+class GetVariablesRequestC2SPacket(val debugConnectionId: UUID, val requestId: UUID, val args: VariablesArguments):
     CustomPacketPayload {
     companion object {
         val ID = CustomPacketPayload.Type<GetVariablesRequestC2SPacket>(Identifier.fromNamespaceAndPath("command_crafter", "get_variables_request"))
         val CODEC: StreamCodec<ByteBuf, GetVariablesRequestC2SPacket> = StreamCodec.composite(
             UUIDUtil.STREAM_CODEC,
-            GetVariablesRequestC2SPacket::pauseId,
+            GetVariablesRequestC2SPacket::debugConnectionId,
             UUIDUtil.STREAM_CODEC,
             GetVariablesRequestC2SPacket::requestId,
             VARIABLES_ARGUMENTS_PACKET_CODEC,
