@@ -144,10 +144,11 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                     var isNesting: Boolean
                     var value: JsonElement?
 
-                    var valueStartPos: Int
+                    var valueStartPos: Int = -1
                     var valueEndPos: Int
                     try {
                         peeked = `in`.peek()
+                        valueStartPos = `in`.absoluteValueStartPos
                         value = tryBeginNesting(`in`, peeked)
                         isNesting = value != null
 
@@ -155,7 +156,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                             value = readTerminal(`in`, peeked)
                         }
 
-                        valueStartPos = `in`.absoluteValueStartPos
                         valueEndPos = `in`.absolutePos
                     } catch(e: Throwable) {
                         if(!allowMalformed || e !is IOException && e !is IllegalStateException) {
@@ -166,11 +166,20 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         builder.addPlaceholderNode(value)
                         isNesting = false
                         `in`.pos = max(`in`.pos - 1, 0) // There probably was a nextNonWhitespace call, which could've skipped ',' or ';' or '}' or ']'
-                        valueStartPos = `in`.absolutePos
-                        `in`.skipEntry()
-                        if(`in`.absolutePos > valueStartPos)
-                            valueStartPos = `in`.absolutePos - 1
-                        valueEndPos = valueStartPos
+
+                        if(valueStartPos == -1) {
+                            // Placeholders for completely missing values should be placed right at the end of the entry
+                            valueStartPos = `in`.absolutePos
+                            `in`.skipEntry()
+                            if(`in`.absolutePos > valueStartPos)
+                                valueStartPos = `in`.absolutePos - 1
+                            valueEndPos = valueStartPos
+                        } else {
+                            valueEndPos = `in`.absolutePos
+                            `in`.skipEntry()
+                            if(`in`.absolutePos > valueEndPos)
+                                valueEndPos = `in`.absolutePos - 1
+                        }
                     }
 
                     if(current is JsonArray) {
