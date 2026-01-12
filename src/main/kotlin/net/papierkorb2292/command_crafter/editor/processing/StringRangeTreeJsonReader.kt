@@ -241,6 +241,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         override fun getAdditionalTokens(node: JsonElement) = emptyList<StringRangeTree.AdditionalToken>()
     }
 
+    //TODO: Check for trigger characters
     class StringRangeTreeSuggestionResolver(private val readerProvider: () -> Reader) : StringRangeTree.SuggestionResolver<JsonElement> {
 
         constructor(directiveReader: DirectiveStringReader<*>): this({ directiveReader.copy().asReader() })

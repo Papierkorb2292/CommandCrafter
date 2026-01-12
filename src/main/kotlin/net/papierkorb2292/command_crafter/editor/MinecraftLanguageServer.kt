@@ -47,6 +47,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         const val SEMANTIC_TOKENS_REGISTRATION_NAME = "textDocument/semanticTokens"
 
         val semanticTokenLanguages = listOf("mcfunction", "json")
+        val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
+        val jsonCompletionTriggerCharacters = setOf(":", "\"")
+        val allCompletionTriggerCharacters = (mcfunctionCompletionTriggerCharacters + jsonCompletionTriggerCharacters).toList()
 
         fun addAnalyzer(analyzer: FileAnalyseHandler) {
             analyzers += analyzer
@@ -152,7 +155,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 definitionProvider = Either.forLeft(true)
                 save = Either.forLeft(true)
                 completionProvider = CompletionOptions().apply {
-                    triggerCharacters = listOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
+                    triggerCharacters = allCompletionTriggerCharacters
                     resolveProvider = true
                 }
             })
