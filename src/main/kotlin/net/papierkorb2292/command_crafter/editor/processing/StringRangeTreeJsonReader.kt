@@ -217,7 +217,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             for(entry in stack)
                 builder.addNode(entry.element, StringRange(entry.startPos, `in`.absolutePos), entry.allowedStartPos)
             builder.addNode(current, StringRange(nestedStartPos, `in`.absolutePos), nestedAllowedStartPos)
-            return builder.build(stack.peekLast()?.element ?: current)
+            return builder.build(stack.peekFirst()?.element ?: current)
         }
     }
 
