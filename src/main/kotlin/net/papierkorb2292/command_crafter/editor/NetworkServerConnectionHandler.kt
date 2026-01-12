@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.ints.IntList
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
@@ -53,7 +54,7 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.stream.Collectors
 
 object NetworkServerConnectionHandler {
@@ -72,17 +73,24 @@ object NetworkServerConnectionHandler {
     private val serverDebugPauses: MutableMap<UUID, ServerNetworkDebugConnection.DebugPauseInformation> = mutableMapOf()
 
     private val asyncServerPacketHandlers = mutableMapOf<CustomPacketPayload.Type<*>, AsyncPacketHandler<*, AsyncC2SPacketContext>>()
-    private val asyncServerPacketHandlerExecutor = Executors.newSingleThreadExecutor()
+    // Use a queue such that packets will still be processed on the main thread but not dependent on the server tick (queue is also processed by the paused debugger)
+    private val asyncServerPacketQueue = LinkedBlockingQueue<() -> Unit>()
     fun <TPayload : CustomPacketPayload> registerAsyncServerPacketHandler(id: CustomPacketPayload.Type<TPayload>, handler: AsyncPacketHandler<TPayload, AsyncC2SPacketContext>) {
         asyncServerPacketHandlers[id] = handler
     }
     fun <TPayload: CustomPacketPayload> callPacketHandler(packet: TPayload, context: AsyncC2SPacketContext): Boolean {
         val handler = asyncServerPacketHandlers[packet.type()] ?: return false
-        asyncServerPacketHandlerExecutor.execute {
+        asyncServerPacketQueue += {
             @Suppress("UNCHECKED_CAST")
             (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
         }
         return true
+    }
+    fun processServerPackets() {
+        while(true) {
+            val next = asyncServerPacketQueue.poll() ?: break
+            next.invoke()
+        }
     }
 
     fun isPlayerAllowedConnection(player: ServerPlayer) =
@@ -322,7 +330,9 @@ object NetworkServerConnectionHandler {
             ServerScoreboardStorageFileSystem.createdFileSystems.remove(networkHandler)
         }
 
-
+        ServerTickEvents.START_SERVER_TICK.register { server ->
+            processServerPackets()
+        }
     }
 
     private fun <T: Any> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =

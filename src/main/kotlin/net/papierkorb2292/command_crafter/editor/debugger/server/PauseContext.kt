@@ -5,6 +5,7 @@ import net.minecraft.network.protocol.game.ClientboundTickingStatePacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.TickTask
 import net.minecraft.util.Util
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
@@ -270,8 +271,9 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getNanos())
             // Tick network handlers to keep connections alive
             // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
-        for(player in server.playerList.players.toList())
+            for(player in server.playerList.players.toList())
                 (player.connection as ServerCommonPacketListenerImplAccessor).callKeepConnectionAlive()
+            NetworkServerConnectionHandler.processServerPackets()
             ServerScoreboardStorageFileSystem.runUpdates()
         }
 
