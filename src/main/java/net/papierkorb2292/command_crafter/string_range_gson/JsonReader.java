@@ -17,7 +17,7 @@
  * This file has been modified by the CommandCrafter contributors
  * (repackaged, removed unnecessary dependencies for this application,
  * added public fields and methods keeping track of reader position for generating StringRangeTrees,
- * added methods to allow being more lenient, made nextNonWhitespace method public, made stack field public)
+ * added methods to allow being more lenient, allow : in unquoted strings, made nextNonWhitespace method public, made stack field public)
  * Changes are licensed under the license used by CommandCrafter (Mit License).
  */
 
@@ -1207,7 +1207,6 @@ public class JsonReader implements Closeable {
           case '}':
           case '[':
           case ']':
-          case ':':
           case ',':
           case ' ':
           case '\t':
@@ -1215,6 +1214,10 @@ public class JsonReader implements Closeable {
           case '\r':
           case '\n':
             break findNonLiteralCharacter;
+          case ':':
+            // Leniently allow : but only in strings, not names
+            if(strictness != Strictness.LENIENT || peeked == PEEKED_UNQUOTED_NAME)
+                break findNonLiteralCharacter;
           default:
             // skip character to be included in string value
         }
