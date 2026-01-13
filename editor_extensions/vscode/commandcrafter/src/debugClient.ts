@@ -28,6 +28,7 @@ export class DebugClient implements ConnectionFeature {
                 const shouldLog: boolean = session.configuration.log;
 
                 return connectionType.connect().then((streamInfo) => {
+                    streamInfo.reader.on('close', () => vscode.debug.stopDebugging(session)); // Mostly necessary for stopping Minecraft from the IDE. Normal shutdowns are already communicated by the Debug Adapter.
                     return debugClient.connectToStream(streamInfo, connectionType, shouldLog);
                 }, (error) => {
                     outputChannel?.appendLine("Error connecting to Minecraft debugger: " + error.stack)
