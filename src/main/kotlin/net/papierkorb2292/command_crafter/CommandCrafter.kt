@@ -126,6 +126,10 @@ object CommandCrafter: ModInitializer {
                     )
                     dedicatedServerEditorConnectionManager = editorConnectionManager
                     editorConnectionManager.startServer()
+
+                    ServerLifecycleEvents.SERVER_STOPPING.register {
+                        editorConnectionManager.leave()
+                    }
                 }
             }
         }
