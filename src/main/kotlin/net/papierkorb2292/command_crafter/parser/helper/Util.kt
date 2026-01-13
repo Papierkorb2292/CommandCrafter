@@ -6,14 +6,10 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.chars.CharSet
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.commands.Commands
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.util.parsing.packrat.Control
-import net.minecraft.util.parsing.packrat.Scope
-import net.minecraft.util.parsing.packrat.ParseState
-import net.minecraft.util.parsing.packrat.Atom
-import net.minecraft.util.parsing.packrat.Term
+import net.minecraft.commands.Commands
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.util.parsing.packrat.*
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -97,4 +93,12 @@ fun <TElement: Any> wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term
         closeErrorListScopeCallback?.invoke(reader.cursor)
         // Since malformed elements are allowed, the term always matches
         true
+    }
+
+fun malformedDispatchingTerm(normalTerm: Term<StringReader>, allowMalformedTerm: Term<StringReader>): Term<StringReader> =
+    Term { state, results, cut ->
+        if(!PackratParserAdditionalArgs.shouldAllowMalformed())
+            normalTerm.parse(state, results, cut)
+        else
+            allowMalformedTerm.parse(state, results, cut)
     }

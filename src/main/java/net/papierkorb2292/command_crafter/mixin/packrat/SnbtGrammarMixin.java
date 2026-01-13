@@ -11,6 +11,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.DynamicOps;
 import it.unimi.dsi.fastutil.chars.CharSet;
 import net.minecraft.nbt.*;
@@ -24,12 +25,8 @@ import net.minecraft.nbt.ShortTag;
 import net.minecraft.nbt.SnbtGrammar;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.util.parsing.packrat.Atom;
-import net.minecraft.util.parsing.packrat.Dictionary;
-import net.minecraft.util.parsing.packrat.NamedRule;
-import net.minecraft.util.parsing.packrat.ParseState;
-import net.minecraft.util.parsing.packrat.Rule;
-import net.minecraft.util.parsing.packrat.Term;
+import net.minecraft.util.parsing.packrat.*;
+import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquotedStringParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
@@ -42,7 +39,9 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.LongTagAccesso
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ShortTagAccessor;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.StringTagAccessor;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
@@ -52,11 +51,14 @@ import java.util.Map;
 import java.util.Objects;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
-import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermAddEntryRanges;
-import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.wrapTermSkipToNextEntryIfMalformed;
+import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.*;
 
 @Mixin(SnbtGrammar.class)
 public class SnbtGrammarMixin {
+
+    @Shadow
+    @Final
+    private static DelayedException<CommandSyntaxException> ERROR_EXPECTED_UNQUOTED_STRING;
 
     @WrapOperation(
             method = "createParser",
@@ -316,6 +318,25 @@ public class SnbtGrammarMixin {
             }
             return keyTerm.parse(state, results, cut);
         };
+    }
+
+    @WrapOperation(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=unquoted_string_or_builtin"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$useLenientUnquotedStringRule(Dictionary<StringReader> instance, Atom<String> atom, Operation<Term<StringReader>> op) {
+        final var lenientAtom = Atom.<String>of("command_crafter:lenient_unquoted_string");
+        instance.put(lenientAtom, new LenientUnquotedStringParseRule(1, ERROR_EXPECTED_UNQUOTED_STRING));
+        return malformedDispatchingTerm(op.call(instance, atom), instance.namedWithAlias(lenientAtom, atom));
     }
 
     private static EndTag command_crafter$createPlaceholder() {
