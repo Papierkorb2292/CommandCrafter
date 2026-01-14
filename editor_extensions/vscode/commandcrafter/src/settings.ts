@@ -35,9 +35,14 @@ export function insertDefaultFeatureConfig(defaultConfig: FeatureConfig) {
         .update(SETTINGS_SECTIONS.featureConfig, merged, vscode.ConfigurationTarget.Global)
 }
 
-export function updateLocalFeatureConfig(newConfig: FeatureConfig) {
-    vscode.workspace.getConfiguration(SETTINGS_SCOPE)
-        .update(SETTINGS_SECTIONS.featureConfig, newConfig, vscode.ConfigurationTarget.Workspace)
+export function updateCurrentFeatureConfig(newConfig: FeatureConfig) {
+    updateSettingWhereDefined(SETTINGS_SCOPE, SETTINGS_SECTIONS.featureConfig, newConfig)
+}
+
+export function updateSettingWhereDefined(scope: string, section: string, value: any) {
+    const configInspect = vscode.workspace.getConfiguration(scope).inspect(section)
+    const configurationTarget = configInspect?.workspaceValue ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global
+    vscode.workspace.getConfiguration(scope).update(section, value, configurationTarget)
 }
 
 export type FeatureConfig = { [key: string]: string }
