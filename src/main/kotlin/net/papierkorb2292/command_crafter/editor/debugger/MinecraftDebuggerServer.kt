@@ -6,6 +6,7 @@ import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
+import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugManager.Companion.INITIAL_SOURCE_REFERENCE
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -261,7 +262,23 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun disconnect(args: DisconnectArguments): CompletableFuture<Void> {
+        removeAllSourceReferenceBreakpoints() // If the debugger is currently paused there might be some temporary breakpoints left
         return CompletableFuture.completedFuture(null)
+    }
+
+    private fun removeAllSourceReferenceBreakpoints() {
+        val client = client ?: return
+        for((resource, content) in breakpoints) {
+            if(resource.sourceReference == INITIAL_SOURCE_REFERENCE) continue
+            for(unparsedBreakpoint in content.first.values) {
+                client.breakpoint(BreakpointEventArguments().apply {
+                    reason = BreakpointEventArgumentsReason.REMOVED
+                    breakpoint = Breakpoint().apply {
+                        id = unparsedBreakpoint.id
+                    }
+                })
+            }
+        }
     }
 
     override fun terminate(args: TerminateArguments): CompletableFuture<Void> {
