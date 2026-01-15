@@ -141,6 +141,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
         override fun pushStackFrames(stackFrames: List<MinecraftStackFrame>) {
             stackTraceLock.acquire()
+            val fileFinder = workspaceFileFinder!!.startBatch()
             CompletableFuture.allOf(*stackFrames.map { frame ->
                 val frameRange = frame.visualContext.range
                 stackTrace += StackFrame().apply {
@@ -153,7 +154,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
                     source = frame.visualContext.source
                     presentationHint = frame.presentationHint
                 } to frame.variableScopes
-                mapSourceToDatapack(frame.visualContext.source)
+                mapSourceToDatapack(frame.visualContext.source, fileFinder)
             }.toTypedArray()).whenCompleteAsync { _, _ ->
                 stackTraceLock.release()
             }
@@ -190,12 +191,12 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
      *
      * The same procedure is recursively applied to child sources.
      */
-    fun mapSourceToDatapack(source: Source): CompletableFuture<Void> {
+    fun mapSourceToDatapack(source: Source, fileFinder: WorkspaceFileFinder.Batched = workspaceFileFinder!!.startBatch()): CompletableFuture<Void> {
         val client = client ?: return CompletableFuture.completedFuture(null)
 
         val mappingChildSourcesFuture = CompletableFuture.allOf(
             *source.sources
-                ?.map { mapSourceToDatapack(it) }
+                ?.map { mapSourceToDatapack(it, fileFinder) }
                 ?.toTypedArray()
                 ?: emptyArray()
         )
@@ -204,7 +205,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         if(path == null || !path.contains("*"))
             return mappingChildSourcesFuture
 
-        val mappingCurrentSourceFuture = workspaceFileFinder!!.findFileWithWorkspace(path).thenAccept {
+        val mappingCurrentSourceFuture = fileFinder.findFileWithWorkspace(path).thenAccept {
             source.path = it ?: source.path
         }
 

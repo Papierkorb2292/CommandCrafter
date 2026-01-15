@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
-import java.util.Collections
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -21,25 +21,32 @@ class WorkspaceFileFinder(private val fileFinder: EditorClientFileFinder) {
      * been removed from the pattern.
      */
     fun findFileWithWorkspace(pattern: String): CompletableFuture<String?> {
-        var trimmedPattern: CharSequence = pattern
-        var future = checkCacheForPattern(pattern)
-
-        while(trimmedPattern.isNotEmpty()) {
-            val finalPattern = trimmedPattern
-            future = future.thenCompose { prev ->
-                if(prev != null) CompletableFuture.completedFuture(prev)
-                else fileFinder.findFiles(finalPattern.toString()).thenApply { it.firstOrNull() }
-            }
-            val segmentEnd = trimmedPattern.indexOf('/')
-            if(segmentEnd == -1)
-                break
-            trimmedPattern = trimmedPattern.subSequence(segmentEnd + 1, trimmedPattern.length)
+        val resultFuture = checkCacheForPattern(pattern).thenCompose { cached ->
+            if(cached != null) CompletableFuture.completedFuture(cached)
+            else requestPatternRecursive(pattern)
         }
 
-        return future.thenApply {
+        return resultFuture.thenApply {
             if(it != null)
                 cache[pattern] = it
             it
+        }
+    }
+
+    fun startBatch() = Batched()
+
+    private fun requestPatternRecursive(pattern: String): CompletableFuture<String?> {
+        if(pattern.isEmpty())
+            return CompletableFuture.completedFuture(null)
+        return fileFinder.findFiles(pattern).thenCompose { response ->
+            if(response.isNotEmpty())
+                CompletableFuture.completedFuture(response.first())
+            else {
+                val segmentEnd = pattern.indexOf('/')
+                if(segmentEnd == -1)
+                    CompletableFuture.completedFuture(null)
+                else requestPatternRecursive(pattern.substring(segmentEnd + 1, pattern.length))
+            }
         }
     }
 
@@ -52,5 +59,13 @@ class WorkspaceFileFinder(private val fileFinder: EditorClientFileFinder) {
                 null
             }
         }
+    }
+
+
+    inner class Batched {
+        val requests: MutableMap<String, CompletableFuture<String?>> = Collections.synchronizedMap(HashMap())
+
+        fun findFileWithWorkspace(pattern: String): CompletableFuture<String?> =
+            requests.computeIfAbsent(pattern, this@WorkspaceFileFinder::findFileWithWorkspace)
     }
 }
