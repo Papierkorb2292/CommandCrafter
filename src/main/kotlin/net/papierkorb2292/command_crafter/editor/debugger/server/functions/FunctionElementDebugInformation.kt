@@ -55,6 +55,14 @@ class FunctionElementDebugInformation(
         private const val STEP_IN_NEXT_SECTION_BEGINNING_LABEL = "Next section: beginning"
         private const val STEP_IN_NEXT_SECTION_CURRENT_SOURCE_LABEL = "Next section: follow context"
         private const val STEP_IN_CURRENT_SECTION_LABEL = "Current section: "
+
+        fun getTargetRangeFromContext(context: CommandContext<CommandSourceStack>): StringRange {
+            val lastContext = context.lastChild
+            return StringRange(
+                context.range.start + (context.nodes.first() as CursorOffsetContainer).getCursorOffset(),
+                lastContext.range.end + (lastContext.nodes.last() as CursorOffsetContainer).getCursorOffset()
+            )
+        }
     }
 
     private var functionStackFrameRange = Range(Position(), Position())
@@ -566,6 +574,7 @@ class FunctionElementDebugInformation(
     class CommandContextElementProcessor(
         val rootContext: CommandContext<CommandSourceStack>,
         val isMacro: Boolean = false,
+        val targetCommandRange: StringRange = getTargetRangeFromContext(rootContext),
         val breakpointRangeGetter: ((ServerBreakpoint<FunctionBreakpointLocation>, Int?) -> StringRange)? = null
     ) : FunctionElementProcessor {
         @JsonIgnore
@@ -604,17 +613,7 @@ class FunctionElementDebugInformation(
             val sourceReference = sourceFile?.sourceReference ?: INITIAL_SOURCE_REFERENCE
             val functionId = debugInformation.functionId ?: return
             val useChildBreakpointParsers = debugConnection != null && (sourceReference == INITIAL_SOURCE_REFERENCE || !debugInformation.sourceReferenceDebugHandlers.containsKey(sourceReference))
-            val lastContext = rootContext.lastChild
-            val originalFunctionFileRange = if(!isMacro) debugInformation.reader.cursorMapper.mapToSource(StringRange(
-                rootContext.range.start + (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset(),
-                lastContext.range.end + (lastContext.nodes.last() as CursorOffsetContainer).getCursorOffset()
-            )) else {
-                val offset = debugInformation.reader.cursorMapper.mapToSource((rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset())
-                StringRange(
-                    offset + rootContext.range.start,
-                    offset + lastContext.range.end
-                )
-            }
+            val originalFunctionFileRange = debugInformation.reader.cursorMapper.mapToSource(targetCommandRange)
             val sourceReferenceCursorMapper = debugConnection?.let {
                 FunctionDebugFrame.sourceReferenceCursorMapper[it to sourceReference]
             }
@@ -765,7 +764,7 @@ class FunctionElementDebugInformation(
             val action = frame.procedure.entries()[elementIndex] as? BuildContexts.Unbound ?: return
             @Suppress("UNCHECKED_CAST")
             val context = (action as BuildContextsAccessor<CommandSourceStack>).command.topContext
-            CommandContextElementProcessor(context, true) { breakpoint, _ ->
+            CommandContextElementProcessor(context, true, macroFileRange) { breakpoint, _ ->
                 getFileBreakpointRange(
                     breakpoint,
                     debugInformation.getFileMappingInfoForSourceReference(server, breakpoint.debugConnection, sourceReference)
