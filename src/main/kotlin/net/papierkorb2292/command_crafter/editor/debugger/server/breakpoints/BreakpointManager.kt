@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints
 
-import net.minecraft.server.MinecraftServer
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser
@@ -300,13 +300,14 @@ class BreakpointManager<TBreakpointLocation>(
         if(sourceReference == INITIAL_SOURCE_REFERENCE) {
             // Removing breakpoints whose originBreakpointId was removed
             val prevBreakpoints = (sourceReferenceBreakpoints[groupKey] ?: return).list.mapTo(HashSet()) { it.unparsed.id }
+            val sourceReferenceGroupKey = groupKey.copy(fileId = groupKey.fileId.forPackPath(""))
             val sourcesIt = sources.iterator()
             while(sourcesIt.hasNext()) {
                 val source = sourcesIt.next()
                 if(source.key == INITIAL_SOURCE_REFERENCE) {
                     source.value.remove(groupKey)
                 } else {
-                    val subSourceReferenceBreakpoints = source.value[groupKey] ?: continue
+                    val subSourceReferenceBreakpoints = source.value[sourceReferenceGroupKey] ?: continue
                     subSourceReferenceBreakpoints.list.removeAll {
                         if(it.unparsed.originBreakpointId in prevBreakpoints) {
                             debugConnection.updateReloadedBreakpoint(BreakpointEventArguments().apply {
