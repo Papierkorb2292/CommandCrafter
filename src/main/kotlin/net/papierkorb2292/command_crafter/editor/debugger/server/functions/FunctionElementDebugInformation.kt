@@ -116,7 +116,7 @@ class FunctionElementDebugInformation(
                     get() = reader.fileMappingInfo
 
                 override fun getCursorMapper(sourceReference: Int): ProcessedInputCursorMapper? =
-                    FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceFile.sourceReference]
+                    FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceReference]
             }
         )
         return result
