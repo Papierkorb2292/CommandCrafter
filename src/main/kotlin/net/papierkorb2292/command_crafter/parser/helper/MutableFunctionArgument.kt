@@ -4,13 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.datafixers.util.Either
 import com.mojang.datafixers.util.Pair
-import net.minecraft.commands.arguments.item.FunctionArgument
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.arguments.item.FunctionArgument
 import net.minecraft.commands.functions.CommandFunction
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved.FunctionArgumentAccessor
 
-class MutableFunctionArgument(val isTag: Boolean): FunctionArgument.Result {
+class MutableFunctionArgument(val isTag: Boolean, val isInline: Boolean): FunctionArgument.Result {
 
     var id: Identifier? = null
     @JsonIgnore

@@ -16,7 +16,7 @@ public class FunctionArgumentMixin implements ArgumentBreakpointParserSupplier {
     @Nullable
     @Override
     public BreakpointParser<FunctionBreakpointLocation> command_crafter$getBreakpointParser(@Nullable Object argument, @NotNull MinecraftServer server) {
-        if (!(argument instanceof MutableFunctionArgument functionArgument)) {
+        if (!(argument instanceof MutableFunctionArgument functionArgument) || !(functionArgument.isInline())) {
             return null;
         }
         if(functionArgument.isTag()) {

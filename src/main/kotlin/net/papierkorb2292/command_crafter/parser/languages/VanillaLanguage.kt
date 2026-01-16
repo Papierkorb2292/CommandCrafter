@@ -1223,12 +1223,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             if(reader.canRead(4) && reader.string.startsWith("this", reader.cursor)) {
                 reader.cursor += 4
-                return MutableFunctionArgument(false).apply {
+                return MutableFunctionArgument(isTag = false, isInline = false).apply {
                     reader.resourceCreator.originResourceIdSetEventStack.element()(idSetter)
                 }
             }
             if(reader.peek() == '{') {
-                val result = MutableFunctionArgument(false)
+                val result = MutableFunctionArgument(isTag = false, isInline = true)
                 parseParsedInlineFunction(reader, source, result.idSetter)
                 return result
             }
@@ -1236,7 +1236,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 return null
             }
             val entries = parseTagTupleEntries(reader, true)
-            val result = MutableFunctionArgument(true)
+            val result = MutableFunctionArgument(isTag = true, isInline = true)
             reader.resourceCreator.functionTags += ParsedResourceCreator.AutomaticResource(result.idSetter, entries)
             return result
         }
