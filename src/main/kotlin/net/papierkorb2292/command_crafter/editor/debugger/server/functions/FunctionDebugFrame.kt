@@ -131,7 +131,8 @@ class FunctionDebugFrame(
             return
         if(pauseContext.isDebugging()) {
             if(nextPauseRootContext === contextChains[commandInfo.commandIndex].topContext && nextPauseSectionIndex <= currentSectionIndex) {
-                onReachedPauseLocation()
+                if(onReachedPauseLocation())
+                    return
             }
             if(commandInfo.commandIndex > 0 && nextPauseRootContext === contextChains[commandInfo.commandIndex - 1].topContext) {
                 nextPauseRootContext = null
@@ -148,7 +149,8 @@ class FunctionDebugFrame(
                     source
                 ))
             ) {
-                onBreakpointHit(breakpoint)
+                if(onBreakpointHit(breakpoint))
+                    return
             }
         }
     }
@@ -265,20 +267,24 @@ class FunctionDebugFrame(
         lastPauseContext = null
     }
 
-    fun onBreakpointHit(breakpoint: ServerBreakpoint<FunctionBreakpointLocation>) {
+    fun onBreakpointHit(breakpoint: ServerBreakpoint<FunctionBreakpointLocation>): Boolean {
         if(breakpoint.unparsed.sourceReference == INITIAL_SOURCE_REFERENCE && breakpoint.debugConnection in createdSourceReferences.keys) {
             //This breakpoint shouldn't be paused at, because it doesn't belong to the debugee's sourceReference
-            return
+            return false
         }
         if(pauseContext.initBreakpointPause(breakpoint)) {
             startPause()
+            return true
         }
+        return false
     }
 
-    fun onReachedPauseLocation() {
+    fun onReachedPauseLocation(): Boolean {
         if(pauseContext.initPauseLocationReached()) {
             startPause()
+            return true
         }
+        return false
     }
 
     class SectionSources(val sources: MutableList<CommandSourceStack>, val parentSourceIndices: MutableList<Int>, var currentSourceIndex: Int) {
