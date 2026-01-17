@@ -399,6 +399,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 )
                 if(reader.canRead(0) && reader.peek(-1) != '\n')
                     break
+                continue
             }
             if(!easyNewLine)
                 reader.convertInputToEscapedMultiline()
@@ -486,6 +487,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.disableTrimmingFromEscapedMultiline()
             val macro = reader.readLine()
             reader.disableEscapedMultiline()
+            reader.readLine() // Skip remaining whitespace and '\n'
             return if(macro.startsWith('$')) macro.substring(1) else macro
         }
         val lineStart = reader.cursor
