@@ -91,7 +91,7 @@ class BreakpointManager<TBreakpointLocation>(
                         val sourceReferenceEntry = server.getDebugManager().getSourceReferenceEntry(debugConnection, subSourceReference)
                             ?: throw IllegalArgumentException("Couldn't retrieve entry for source reference when adding new breakpoints to original file")
                         val initialSourceCursor = AnalyzingResult.getCursorFromPosition(
-                            Position(newSourceBreakpoint.line, newSourceBreakpoint.column ?: 0),
+                            Position(newSourceBreakpoint.line, newSourceBreakpoint.column ?: 1),
                             sourceReferenceMapping.originalFileMappingInfo,
                             false
                         )
