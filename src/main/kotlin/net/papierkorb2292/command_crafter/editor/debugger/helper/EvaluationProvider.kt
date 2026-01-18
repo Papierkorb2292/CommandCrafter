@@ -10,6 +10,12 @@ import java.util.concurrent.CompletableFuture
 
 interface EvaluationProvider {
     companion object {
+        val DUMMY = object : EvaluationProvider {
+            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationResult?> {
+                return CompletableFuture.completedFuture(null)
+            }
+        }
+
         val EVALUATION_FAILED_THROWABLE_PACKET_CODEC = StreamCodec.composite(
             ByteBufCodecs.STRING_UTF8,
             { it.message!! },
@@ -24,6 +30,55 @@ interface EvaluationProvider {
             EvaluationResult::response,
             ::EvaluationResult
         )
+
+        fun combine(providers: List<EvaluationProvider>) = object : EvaluationProvider {
+            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationResult?> {
+                val futures = providers.map { it.evaluate(args) }.toTypedArray()
+                return CompletableFuture.allOf(*futures).thenApply {
+                    futures.firstNotNullOfOrNull { it.get() }
+                }
+            }
+        }
+
+        fun EvaluationProvider?.withAlternativeForNull(other: EvaluationProvider?): EvaluationProvider {
+            if(this == null)
+                return other ?: DUMMY
+            if(other == null)
+                return this
+            return object : EvaluationProvider {
+                override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationResult?>
+                    = this@withAlternativeForNull.evaluate(args).thenCompose { result ->
+                        if(result != null)
+                            CompletableFuture.completedFuture(result)
+                        else
+                            other.evaluate(args)
+                    }
+            }
+        }
+
+        fun delegating(provider: (EvaluateArguments) -> EvaluationProvider?) = object : EvaluationProvider {
+            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationResult?> =
+                (provider(args) ?: DUMMY).evaluate(args)
+        }
+
+        fun EvaluationProvider.needsLocation(): EvaluationProvider {
+            return object : EvaluationProvider {
+                override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationResult?> {
+                    val provider = if(args.line != null && args.column != null) this@needsLocation else DUMMY
+                    return provider.evaluate(args)
+                }
+            }
+        }
+
+        fun EvaluateArguments.copy() = EvaluateArguments().also {
+            it.expression = this.expression
+            it.context = this.context
+            it.frameId = this.frameId
+            it.line = this.line
+            it.column = this.column
+            it.source = this.source
+            it.format = this.format
+        }
 
         fun createError(error: String) = EvaluationResult(EvaluationFailedThrowable(error))
         fun createResponse(response: EvaluateResponse) = EvaluationResult(response)

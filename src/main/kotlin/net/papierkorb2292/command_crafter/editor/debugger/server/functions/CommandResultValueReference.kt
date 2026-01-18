@@ -55,17 +55,8 @@ class CommandResultValueReference(
         } ?: VariableValueReference.NONE_VALUE
     }
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
-        it.value = getValue()
-        it.type = TYPE
-        it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = namedVariableCount
-        it.indexedVariables = indexedVariableCount
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = getValue()
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = getValue()
         it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount

@@ -356,6 +356,18 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
             )
         }
 
+        override fun getEvaluationProvider(editorDebugConnection: EditorDebugConnection): EvaluationProvider =
+            object : EvaluationProvider {
+                override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                    val debugConnectionId = getOrCreateDebugConnectionId(editorDebugConnection)
+                    val requestId = UUID.randomUUID()
+                    val future = CompletableFuture<EvaluationProvider.EvaluationResult?>()
+                    currentDebugEvaluateRequests[requestId] = future
+                    ClientPlayNetworking.send(DebugEvaluateC2SPacket(requestId, null, debugConnectionId, args))
+                    return future
+                }
+            }
+
         private fun getOrCreateDebugConnectionId(editorDebugConnection: EditorDebugConnection): UUID {
             return editorDebugConnections.computeIfAbsent(editorDebugConnection) {
                 val id = UUID.randomUUID()
@@ -391,15 +403,6 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
 
     override var canReloadWorldgen: Boolean = false
         private set
-    override val evaluationProvider: EvaluationProvider = object : EvaluationProvider {
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-            val requestId = UUID.randomUUID()
-            val future = CompletableFuture<EvaluationProvider.EvaluationResult?>()
-            currentDebugEvaluateRequests[requestId] = future
-            ClientPlayNetworking.send(DebugEvaluateC2SPacket(requestId, null, args))
-            return future
-        }
-    }
 
     override fun createScoreboardStorageFileSystem(): NetworkScoreboardStorageFileSystem {
         val fileSystem = NetworkScoreboardStorageFileSystem(UUID.randomUUID())

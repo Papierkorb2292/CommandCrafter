@@ -79,17 +79,8 @@ class ServerCommandSourceValueReference(
         }
     }
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
-        it.value = source.textName
-        it.type = "ServerCommandSource"
-        it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = content.size
-        it.indexedVariables = 0
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = source.textName
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = source.textName
         it.type = "ServerCommandSource"
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = content.size

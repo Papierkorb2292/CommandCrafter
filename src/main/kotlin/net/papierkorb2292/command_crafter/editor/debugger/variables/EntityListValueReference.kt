@@ -1,0 +1,64 @@
+package net.papierkorb2292.command_crafter.editor.debugger.variables
+
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.world.entity.Entity
+import org.eclipse.lsp4j.debug.*
+import java.util.concurrent.CompletableFuture
+
+class EntityListValueReference(
+    private val mapper: VariablesReferenceMapper,
+    private val entities: List<Entity>,
+    private val source: CommandSourceStack,
+): VariableValueReference, CountedVariablesReferencer, IdentifiedVariablesReferencer {
+    companion object {
+        const val TYPE = "EntityList"
+    }
+
+    private val valueReferences = entities.map {
+        entity -> EntityValueReference(mapper, entity, source) { newValue -> entity }
+    }
+
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = if(entities.size == 1) "Entity List [1 entity]" else "Entity List [${entities.size} entities]"
+        it.type = TYPE
+        it.variablesReference = getVariablesReferencerId()
+        it.namedVariables = namedVariableCount
+        it.indexedVariables = indexedVariableCount
+    }
+
+    override fun setValue(value: String) {
+        // Not mutable
+    }
+
+    override val namedVariableCount: Int
+        get() = 0
+    override val indexedVariableCount: Int
+        get() = entities.size
+
+    private var variablesReferencerId: Int? = null
+
+    override fun getVariablesReferencerId() = variablesReferencerId ?: mapper.addVariablesReferencer(this).also {
+        variablesReferencerId = it
+    }
+
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
+        if(args.filter == VariablesArgumentsFilter.NAMED) return CompletableFuture.completedFuture(emptyArray())
+        val start = args.start ?: 0
+        val count = args.count ?: (valueReferences.size - start)
+        return CompletableFuture.completedFuture(valueReferences.drop(start).take(count).mapIndexed { index, value ->
+                value.getVariable((start + index).toString())
+        }.toTypedArray())
+    }
+
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
+        try {
+            val index = args.name.toInt()
+            if(index >= 0 && index < valueReferences.size) {
+                val valueReference = valueReferences[index]
+                valueReference.setValue(args.value)
+                return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(valueReference.getSetVariableResponse(), false))
+            }
+        } catch(_: NumberFormatException) {  }
+        return CompletableFuture.completedFuture(null)
+    }
+}

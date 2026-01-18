@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.copy
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
@@ -72,8 +73,19 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
             currentDebugPauseHandler?.continue_()
         }
 
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?>
-            = currentDebugPauseHandler?.evaluate(args) ?: CompletableFuture.completedFuture(null)
+        override val evaluationProvider: EvaluationProvider = object : EvaluationProvider {
+            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                val frameId = args.frameId
+                    ?: return CompletableFuture.completedFuture(null)
+                val frame = debugFrameStack.getEntryForMinecraftStackFrame(frameId)
+                    ?: return CompletableFuture.completedFuture(null)
+                val provider = frame.first.frame.getDebugPauseHandler().evaluationProvider
+                    ?: return CompletableFuture.completedFuture(null)
+                return provider.evaluate(args.copy().also {
+                    it.frameId = frame.second
+                })
+            }
+        }
 
         override fun stepIn(granularity: SteppingGranularity, targetId: Int?) {
             if(targetId == null)
@@ -272,17 +284,17 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
 
     private fun updateStackFrames(debugConnection: EditorDebugConnection) {
         val lastEntry = debugFrameStack.peek() ?: return
-        lastEntry.minecraftStackFrameCount?.let {
-            debugConnection.popStackFrames(it)
-            debugConnection.pushStackFrames(getSourceReferenceWrappedStackFrames(lastEntry, debugConnection))
-            return
+        val prevTop = debugFrameStack.stack.lastOrNull { lastEntry.minecraftStackFrameCount != null }
+        if(prevTop != null) {
+            debugConnection.popStackFrames(prevTop.minecraftStackFrameCount!!)
+            lastEntry.minecraftStackFrameCount = null
         }
-
-        for(entry in debugFrameStack.stack) {
+        val newFrames = debugFrameStack.stack.flatMap { entry ->
             if(entry.minecraftStackFrameCount == null) {
-                debugConnection.pushStackFrames(getSourceReferenceWrappedStackFrames(entry, debugConnection))
-            }
+                getSourceReferenceWrappedStackFrames(entry, debugConnection)
+            } else emptyList()
         }
+        debugConnection.pushStackFrames(newFrames)
     }
 
     private fun getSourceReferenceWrappedStackFrames(debugStackEntry: DebugFrameStack.Entry, debugConnection: EditorDebugConnection): List<MinecraftStackFrame> {

@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.MinecraftStackFrame
-import org.eclipse.lsp4j.debug.EvaluateArguments
 import org.eclipse.lsp4j.debug.StepInTargetsResponse
 import org.eclipse.lsp4j.debug.SteppingGranularity
 import java.util.concurrent.CompletableFuture
@@ -56,7 +55,8 @@ interface DebugPauseHandler : DebugPauseActions {
         override fun stepInTargets(frameId: Int): CompletableFuture<StepInTargetsResponse>
             = CompletableFuture.completedFuture(StepInTargetsResponse())
         override fun continue_() {}
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> = CompletableFuture.failedFuture(IllegalStateException("Can't evaluate in SkipAllDummy"))
+        override val evaluationProvider: EvaluationProvider?
+            get() = null
 
         override fun findNextPauseLocation() {}
 

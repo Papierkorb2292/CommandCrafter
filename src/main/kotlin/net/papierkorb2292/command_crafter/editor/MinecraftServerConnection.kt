@@ -7,7 +7,6 @@ import net.minecraft.server.permissions.PermissionSet
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 
@@ -21,7 +20,6 @@ interface MinecraftServerConnection {
     val dynamicRegistryManager: RegistryAccess
     val datapackReloader: (() -> Unit)?
     val canReloadWorldgen: Boolean
-    val evaluationProvider: EvaluationProvider?
 
     fun createScoreboardStorageFileSystem(): ScoreboardStorageFileSystem?
 }

@@ -340,16 +340,12 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
     }
 
     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluateResponse> {
-        val frameEvaluate = debugPauseActions?.evaluate(args) ?: CompletableFuture.completedFuture(null)
-        return frameEvaluate.thenCompose { frameResult ->
-            if(frameResult != null)
-                return@thenCompose frameResult.toFuture()
-            val globalEvaluate = minecraftServer.evaluationProvider?.evaluate(args) ?: CompletableFuture.completedFuture(null)
-            globalEvaluate.thenCompose { globalResult ->
-                if(globalResult != null)
-                    return@thenCompose globalResult.toFuture()
-                EvaluationProvider.createError("No evaluation result").toFuture()
-            }
+        // Use the pause context if available, otherwise use a global context (the repl can be used even when not paused)
+        val provider = debugPauseActions?.evaluationProvider
+            ?: minecraftServer.debugService?.getEvaluationProvider(editorDebugConnection)
+            ?: EvaluationProvider.DUMMY
+        return provider.evaluate(args).thenCompose { result ->
+            (result ?: EvaluationProvider.createError("No evaluation result")).toFuture()
         }
     }
 

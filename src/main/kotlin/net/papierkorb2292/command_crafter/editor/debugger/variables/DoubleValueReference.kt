@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import org.eclipse.lsp4j.debug.SetVariableResponse
-import org.eclipse.lsp4j.debug.Variable
+import org.eclipse.lsp4j.debug.EvaluateResponse
 
 class DoubleValueReference(
     private var double: Double?,
@@ -11,13 +10,8 @@ class DoubleValueReference(
         const val TYPE = "Double"
     }
 
-    override fun getVariable(name: String): Variable = Variable().also {
-        it.name = name
-        it.value = double?.toString() ?: VariableValueReference.NONE_VALUE
-        it.type = TYPE
-    }
-    override fun getSetVariableResponse(): SetVariableResponse = SetVariableResponse().also {
-        it.value = double?.toString() ?: VariableValueReference.NONE_VALUE
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = double?.toString() ?: VariableValueReference.NONE_VALUE
         it.type = TYPE
     }
     override fun setValue(value: String) {

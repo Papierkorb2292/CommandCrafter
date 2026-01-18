@@ -16,6 +16,7 @@ import java.util.*
 class DebugEvaluateC2SPacket(
     val requestId: UUID,
     val pauseId: UUID?,
+    val debugConnectionId: UUID?,
     val args: EvaluateArguments,
 ) : CustomPacketPayload {
     companion object {
@@ -25,10 +26,12 @@ class DebugEvaluateC2SPacket(
             DebugEvaluateC2SPacket::requestId,
             UUIDUtil.STREAM_CODEC.optional(),
             DebugEvaluateC2SPacket::pauseId.toOptional(),
+            UUIDUtil.STREAM_CODEC.optional(),
+            DebugEvaluateC2SPacket::debugConnectionId.toOptional(),
             EVALUATE_ARGUMENTS_PACKET_CODEC,
             DebugEvaluateC2SPacket::args,
-        ) { requestId, pauseId, args ->
-            DebugEvaluateC2SPacket(requestId, pauseId.orElse(null), args)
+        ) { requestId, pauseId, debugConnectionId, args ->
+            DebugEvaluateC2SPacket(requestId, pauseId.orElse(null), debugConnectionId.orElse(null), args)
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, DebugEvaluateC2SPacket> =
             PayloadTypeRegistry.playC2S().register(ID, CODEC)

@@ -1,8 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import net.minecraft.resources.Identifier
-import org.eclipse.lsp4j.debug.SetVariableResponse
-import org.eclipse.lsp4j.debug.Variable
+import org.eclipse.lsp4j.debug.EvaluateResponse
 
 class IdValueReference(
     private var id: Identifier?,
@@ -13,14 +12,8 @@ class IdValueReference(
         const val TYPE = "Identifier"
     }
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
-        it.value = id?.toString() ?: VariableValueReference.NONE_VALUE
-        it.type = TYPE
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = id?.toString() ?: VariableValueReference.NONE_VALUE
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = id?.toString() ?: VariableValueReference.NONE_VALUE
         it.type = TYPE
     }
 

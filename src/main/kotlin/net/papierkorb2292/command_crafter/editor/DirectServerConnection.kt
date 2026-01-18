@@ -24,6 +24,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
@@ -192,7 +193,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             editorDebugConnection: EditorDebugConnection,
         ): CompletableFuture<SetBreakpointsResponse> {
             val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
-                ?: return CompletableFuture.failedFuture(IllegalArgumentException("EditorDebugConnection not initialized"))
+                ?: return CompletableFuture.failedFuture(getConnectionNotInitialisedException())
             return CompletableFuture.completedFuture(SetBreakpointsResponse().also {
                 it.breakpoints = server.getDebugManager().setBreakpoints(
                     breakpoints,
@@ -209,7 +210,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             editorDebugConnection: EditorDebugConnection,
         ): CompletableFuture<SourceResponse?> {
             val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
-                ?: return CompletableFuture.failedFuture(IllegalArgumentException("EditorDebugConnection not initialized"))
+                ?: return CompletableFuture.failedFuture(getConnectionNotInitialisedException())
             return CompletableFuture.completedFuture(server.getDebugManager().retrieveSourceReference(wrapped, sourceReference))
         }
 
@@ -218,6 +219,20 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             currentPauseActions.remove(editorDebugConnection)?.continue_()
             server.getDebugManager().removeDebugConnection(wrapped)
         }
+
+        override fun getEvaluationProvider(editorDebugConnection: EditorDebugConnection): EvaluationProvider =
+            object : EvaluationProvider {
+                override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                    val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
+                        ?: return CompletableFuture.failedFuture(getConnectionNotInitialisedException())
+                    return FunctionDebugFrame.getParsingEvaluationProvider(
+                        server.createCommandSourceStack(),
+                        server.getDebugManager().getVariableReferencer(wrapped)
+                    ).evaluate(args)
+                }
+            }
+
+        private fun getConnectionNotInitialisedException() = IllegalArgumentException("EditorDebugConnection not initialized")
     }
 
     override val contextCompletionProvider = object : ContextCompletionProvider {
@@ -247,11 +262,6 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             }
             return value
         }
-    override val evaluationProvider: EvaluationProvider = object : EvaluationProvider {
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-            return CompletableFuture.completedFuture(null) //TODO: Evaluate with global context
-        }
-    }
 
     override fun createScoreboardStorageFileSystem() =
         ServerScoreboardStorageFileSystem(server)

@@ -46,19 +46,9 @@ class Vec2fValueReference(
         }
     }
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
+    override fun getEvaluateResponse() = EvaluateResponse().also {
         val vec3d = vec2f
-        it.value = if(vec3d == null) VariableValueReference.NONE_VALUE else "${vec3d.x}, ${vec3d.y}"
-        it.type = TYPE
-        it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = namedVariableCount
-        it.indexedVariables = indexedVariableCount
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        val vec3d = vec2f
-        it.value = if(vec3d == null) VariableValueReference.NONE_VALUE else "${vec3d.x}, ${vec3d.y}"
+        it.result = if(vec3d == null) VariableValueReference.NONE_VALUE else "${vec3d.x}, ${vec3d.y}"
         it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount

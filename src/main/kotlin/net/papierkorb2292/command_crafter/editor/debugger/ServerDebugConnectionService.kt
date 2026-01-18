@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import org.eclipse.lsp4j.debug.SetBreakpointsResponse
@@ -23,4 +24,6 @@ interface ServerDebugConnectionService {
     fun retrieveSourceReference(sourceReference: Int, editorDebugConnection: EditorDebugConnection): CompletableFuture<SourceResponse?>
 
     fun removeEditorDebugConnection(editorDebugConnection: EditorDebugConnection)
+
+    fun getEvaluationProvider(editorDebugConnection: EditorDebugConnection): EvaluationProvider
 }

@@ -38,12 +38,14 @@ class NetworkDebugPauseActions(private val packetSender: PacketSender, private v
         sendAction(DebugPauseActionC2SPacket.DebugPauseActionType.CONTINUE, null)
     }
 
-    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-        val requestId = UUID.randomUUID()
-        val future = CompletableFuture<EvaluationProvider.EvaluationResult?>()
-        NetworkServerConnection.currentDebugEvaluateRequests[requestId] = future
-        packetSender.sendPacket(DebugEvaluateC2SPacket(requestId, pauseId, args))
-        return future
+    override val evaluationProvider: EvaluationProvider = object : EvaluationProvider {
+        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+            val requestId = UUID.randomUUID()
+            val future = CompletableFuture<EvaluationProvider.EvaluationResult?>()
+            NetworkServerConnection.currentDebugEvaluateRequests[requestId] = future
+            packetSender.sendPacket(DebugEvaluateC2SPacket(requestId, pauseId, null, args))
+            return future
+        }
     }
 
     private fun sendAction(action: DebugPauseActionC2SPacket.DebugPauseActionType, granularity: SteppingGranularity?, additionalInfo: Int? = null) {

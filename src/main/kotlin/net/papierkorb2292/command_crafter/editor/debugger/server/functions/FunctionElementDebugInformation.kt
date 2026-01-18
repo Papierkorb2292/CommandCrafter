@@ -318,8 +318,28 @@ class FunctionElementDebugInformation(
             debugFrame.pauseContext.removePause()
         }
 
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-            return CompletableFuture.completedFuture(null) //TODO: Evaluate with context
+        //TODO: Check path
+        override val evaluationProvider: EvaluationProvider = EvaluationProvider.delegating { args ->
+            val frameId = args.frameId ?: return@delegating null
+            // If the function stack frame is selected, just take the first source for any command
+            // Otherwise, calculate the section index from the stack frame
+            val sectionIndex = if(frameId == 0) 0 else frameId - 1
+            val showsCommandResult = frameId - 1 == debugFrame.currentSectionIndex && debugFrame.pauseContext.commandResult != null
+            if(sectionIndex !in debugFrame.sectionSources.indices)
+                return@delegating null
+            val sectionSources = debugFrame.sectionSources[sectionIndex]
+            // For command results use the previous source since that is the one the stack frame shows
+            val source =
+                if(showsCommandResult) sectionSources.sources[sectionSources.currentSourceIndex - 1]
+                else sectionSources.currentSource
+
+            if(args.context == EvaluateArgumentsContext.HOVER && args.column != null && args.line != null) {
+                EvaluationProvider.combine(elements.mapNotNull { element ->
+                    element.getHoverEvaluationProvider(debugFrame, source, this@FunctionElementDebugInformation)
+                })
+            } else {
+                FunctionDebugFrame.getParsingEvaluationProvider(source, debugFrame.pauseContext.variablesReferenceMapper)
+            }
         }
 
         override fun findNextPauseLocation() {
@@ -506,7 +526,7 @@ class FunctionElementDebugInformation(
                 override fun onCommandFeedback(feedback: String) {
                     debugFrame.pauseContext.debugConnection?.output(OutputEventArguments().apply {
                         category = OutputEventArgumentsCategory.STDOUT
-                        output = feedback + "\n"
+                        output = feedback
                         addSourceToOutputEvent(this)
                     })
                 }
@@ -514,7 +534,7 @@ class FunctionElementDebugInformation(
                 override fun onCommandError(error: String) {
                     debugFrame.pauseContext.debugConnection?.output(OutputEventArguments().apply {
                         category = OutputEventArgumentsCategory.STDERR
-                        output = error + "\n"
+                        output = error
                         addSourceToOutputEvent(this)
                     })
                 }
@@ -569,6 +589,12 @@ class FunctionElementDebugInformation(
             frame: FunctionDebugFrame,
             debugInformation: FunctionElementDebugInformation,
         ): Iterator<FileContentReplacer.Replacement>?
+
+        fun getHoverEvaluationProvider(
+            debugFrame: FunctionDebugFrame,
+            source: CommandSourceStack,
+            debugInformation: FunctionElementDebugInformation
+        ): EvaluationProvider?
     }
 
     class CommandContextElementProcessor(
@@ -637,6 +663,7 @@ class FunctionElementDebugInformation(
                     // The element contains the breakpoint
                     var context: CommandContext<CommandSourceStack>? = this.rootContext
                     var prevCursorOffset = (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset()
+                    // TODO: Fix mapping for macros
                     // Find the context containing the breakpoint
                     contexts@while(context != null) {
                         if((context.redirectModifier == null && context.command == null) ||
@@ -731,6 +758,41 @@ class FunctionElementDebugInformation(
         ) { }
 
         override fun getReplacements(path: String, frame: FunctionDebugFrame, debugInformation: FunctionElementDebugInformation): Nothing? = null
+
+        override fun getHoverEvaluationProvider(
+            debugFrame: FunctionDebugFrame,
+            source: CommandSourceStack,
+            debugInformation: FunctionElementDebugInformation
+        ) = EvaluationProvider.delegating { args ->
+            val line = args.line!!
+            val column = args.column!!
+            val debugConnection = debugFrame.pauseContext.debugConnection
+                ?: return@delegating null
+
+            val sourceReference = args.source!!.sourceReference ?: INITIAL_SOURCE_REFERENCE
+            val sourceReferenceCursorMapper = FunctionDebugFrame.sourceReferenceCursorMapper[debugConnection to sourceReference]
+            val fileInfo = debugInformation.getFileMappingInfoForSourceReference(debugFrame.pauseContext.server, debugConnection, sourceReference)
+            val cursor = AnalyzingResult.getCursorFromPosition(Position(line, column), fileInfo, false)
+            val originalFileCursor = sourceReferenceCursorMapper?.mapToSource(cursor) ?: cursor
+            val mappedCursor = debugInformation.reader.cursorMapper.mapToTarget(originalFileCursor)
+
+            val lastContext = rootContext.lastChild
+            val commandRange = StringRange(
+                rootContext.range.start + (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset(),
+                lastContext.range.end + (lastContext.nodes.last() as CursorOffsetContainer).getCursorOffset()
+            )
+
+            if(mappedCursor.compareTo(commandRange) != 0)
+                return@delegating null
+
+            FunctionDebugFrame.getContextEvaluationProvider(
+                rootContext,
+                source,
+                mappedCursor,
+                debugFrame.pauseContext.variablesReferenceMapper,
+                false
+            )
+        }
     }
 
     class MacroElementProcessor(
@@ -885,6 +947,47 @@ class FunctionElementDebugInformation(
                     .thenMapWith(RemoveFirstCharProcessedInputCursorMapper) //Account for removal of '$'
                     .thenMapWith(cursorMapper)
             )).iterator()
+        }
+
+        override fun getHoverEvaluationProvider(
+            debugFrame: FunctionDebugFrame,
+            source: CommandSourceStack,
+            debugInformation: FunctionElementDebugInformation
+        ) = EvaluationProvider.delegating { args ->
+            val line = args.line!!
+            val column = args.column!!
+            val debugConnection = debugFrame.pauseContext.debugConnection
+                ?: return@delegating null
+
+            val sourceReference = args.source!!.sourceReference ?: INITIAL_SOURCE_REFERENCE
+            if(sourceReference == INITIAL_SOURCE_REFERENCE)
+                return@delegating null
+
+            val fileInfo = debugInformation.getFileMappingInfoForSourceReference(debugFrame.pauseContext.server, debugConnection, sourceReference)
+            val cursor = AnalyzingResult.getCursorFromPosition(Position(line, column), fileInfo, false)
+
+            @Suppress("UNCHECKED_CAST")
+            val action = debugFrame.procedure.entries()[elementIndex] as? BuildContextsAccessor<CommandSourceStack>
+                ?: return@delegating null
+
+            val rootContext = action.command.topContext
+            val lastContext = rootContext.lastChild
+
+            val commandRange = StringRange(
+                rootContext.range.start + (rootContext.nodes.first() as CursorOffsetContainer).getCursorOffset(),
+                lastContext.range.end + (lastContext.nodes.last() as CursorOffsetContainer).getCursorOffset()
+            )
+
+            if(cursor.compareTo(commandRange) != 0)
+                return@delegating null
+
+            FunctionDebugFrame.getContextEvaluationProvider(
+                rootContext,
+                source,
+                cursor,
+                debugFrame.pauseContext.variablesReferenceMapper,
+                false
+            )
         }
     }
 }

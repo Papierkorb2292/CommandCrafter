@@ -337,9 +337,9 @@ class RangeFunctionTagDebugInformation(
             debugFrame.pauseContext.removePause()
         }
 
-        override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-            return CompletableFuture.completedFuture(null) //TODO: Evaluate with context
-        }
+        override val evaluationProvider: EvaluationProvider
+            // There is nothing to hover over in a tag, so just parse the expression
+            get() = FunctionDebugFrame.getParsingEvaluationProvider(debugFrame.commandSource, debugFrame.pauseContext.variablesReferenceMapper)
     }
 
     data class TagEntrySource(

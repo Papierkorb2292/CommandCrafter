@@ -1,9 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import com.mojang.brigadier.StringReader
 import net.minecraft.nbt.*
+import org.eclipse.lsp4j.debug.EvaluateResponse
 import org.eclipse.lsp4j.debug.SetVariableResponse
-import org.eclipse.lsp4j.debug.Variable
 
 class NbtValueReference(
     private val mapper: VariablesReferenceMapper,
@@ -18,19 +17,8 @@ class NbtValueReference(
     private var variablesReferencer: CountedVariablesReferencer? = null
     private var variablesReferencerId: Int? = null
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
-        it.value = nbt.toString()
-        it.type = getTypeName(nbt.type)
-        it.variablesReference = getVariablesReferencerId()
-        variablesReferencer?.run {
-            it.namedVariables = this.namedVariableCount
-            it.indexedVariables = this.indexedVariableCount
-        }
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = nbt.toString()
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = nbt.toString()
         it.type = getTypeName(nbt.type)
         it.variablesReference = getVariablesReferencerId()
         variablesReferencer?.run {

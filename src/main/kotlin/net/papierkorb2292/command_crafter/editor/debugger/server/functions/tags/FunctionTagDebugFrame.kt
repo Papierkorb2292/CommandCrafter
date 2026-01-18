@@ -3,10 +3,10 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Either
-import net.minecraft.commands.execution.EntryAction
-import net.minecraft.commands.arguments.item.FunctionArgument
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.execution.EntryAction
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.CommandExecutionPausedThrowable
@@ -15,7 +15,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.getDebugManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.MacroFunctionAccessor

@@ -50,17 +50,8 @@ class StringMapValueReference(
 
     private fun constructValue() = values.map { (name, value) -> "$name: $value" }.joinToString(", ")
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
-        it.value = constructValue()
-        it.type = TYPE
-        it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = namedVariableCount
-        it.indexedVariables = indexedVariableCount
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = constructValue()
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = constructValue()
         it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount

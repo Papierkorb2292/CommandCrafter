@@ -33,6 +33,8 @@ import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagNetworkSerialization
 import net.minecraft.world.level.storage.loot.LootDataType
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -295,12 +297,13 @@ object NetworkServerConnectionHandler {
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             val evaluationProvider = if(payload.pauseId == null) {
                 val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
-                serverConnection.evaluationProvider
+                val debugConnection = editorDebugConnections[context.player.connection]?.get(payload.debugConnectionId) ?: return@registerAsyncServerPacketHandler
+                serverConnection.debugService.getEvaluationProvider(debugConnection)
             } else {
                 val debugPause = serverDebugPauses[payload.pauseId] ?: return@registerAsyncServerPacketHandler
-                debugPause.actions
+                debugPause.actions.evaluationProvider
             }
-            evaluationProvider.evaluate(payload.args).thenAccept { result ->
+            evaluationProvider.withAlternativeForNull(EvaluationProvider.DUMMY).evaluate(payload.args).thenAccept { result ->
                 context.sendPacket(DebugEvaluateResponseS2CPacket(payload.requestId, result))
             }
         }

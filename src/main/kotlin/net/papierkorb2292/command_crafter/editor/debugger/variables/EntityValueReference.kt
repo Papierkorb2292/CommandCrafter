@@ -2,17 +2,14 @@ package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.commands.arguments.selector.EntitySelectorParser
-import net.minecraft.world.entity.Entity
-import net.minecraft.nbt.CompoundTag
 import net.minecraft.advancements.criterion.NbtPredicate
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.world.level.storage.TagValueInput
+import net.minecraft.commands.arguments.selector.EntitySelectorParser
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.util.ProblemReporter
-import org.eclipse.lsp4j.debug.SetVariableArguments
-import org.eclipse.lsp4j.debug.SetVariableResponse
-import org.eclipse.lsp4j.debug.Variable
-import org.eclipse.lsp4j.debug.VariablesArguments
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.level.storage.TagValueInput
+import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
 
 class EntityValueReference(
@@ -50,17 +47,8 @@ class EntityValueReference(
         return VariableValueReference.NONE_VALUE
     }
 
-    override fun getVariable(name: String) = Variable().also {
-        it.name = name
-        it.value = getValue()
-        it.type = TYPE
-        it.variablesReference = getVariablesReferencerId()
-        it.namedVariables = namedVariableCount
-        it.indexedVariables = indexedVariableCount
-    }
-
-    override fun getSetVariableResponse() = SetVariableResponse().also {
-        it.value = getValue()
+    override fun getEvaluateResponse() = EvaluateResponse().also {
+        it.result = getValue()
         it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount
