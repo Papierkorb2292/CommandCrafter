@@ -164,9 +164,14 @@ class FunctionDebugFrame(
                 override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                     val input = args.expression
                     val parseResults = getEvaluationDispatcher(source.server).parse(input, source)
-                    val exception = Commands.getParseException(parseResults)
-                    if(exception != null)
-                        return CompletableFuture.completedFuture(EvaluationProvider.createError(exception.message!!))
+                    if(parseResults.exceptions.isNotEmpty())
+                        return CompletableFuture.completedFuture(EvaluationProvider.createError(
+                            parseResults.exceptions.values.maxBy { it.cursor }.message!!
+                        ))
+                    if(parseResults.reader.canRead())
+                        return CompletableFuture.completedFuture(EvaluationProvider.createError(
+                            CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parseResults.reader).message!!
+                        ))
                     return getContextEvaluationProvider(
                         parseResults.context.build(input),
                         source,
