@@ -24,7 +24,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.NodeEvaluator
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
@@ -225,7 +225,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                     val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
                         ?: return CompletableFuture.failedFuture(getConnectionNotInitialisedException())
-                    return FunctionDebugFrame.getParsingEvaluationProvider(
+                    return NodeEvaluator.getParsingEvaluationProvider(
                         server.createCommandSourceStack(),
                         server.getDebugManager().getVariableReferencer(wrapped)
                     ).evaluate(args)

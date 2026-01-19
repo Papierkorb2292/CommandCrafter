@@ -338,7 +338,7 @@ class FunctionElementDebugInformation(
                     element.getHoverEvaluationProvider(debugFrame, source, this@FunctionElementDebugInformation)
                 })
             } else {
-                FunctionDebugFrame.getParsingEvaluationProvider(source, debugFrame.pauseContext.variablesReferenceMapper)
+                NodeEvaluator.getParsingEvaluationProvider(source, debugFrame.pauseContext.variablesReferenceMapper)
             }
         }
 
@@ -785,7 +785,7 @@ class FunctionElementDebugInformation(
             if(mappedCursor.compareTo(commandRange) != 0)
                 return@delegating null
 
-            FunctionDebugFrame.getContextEvaluationProvider(
+            NodeEvaluator.getContextEvaluationProvider(
                 rootContext,
                 source,
                 mappedCursor,
@@ -981,7 +981,7 @@ class FunctionElementDebugInformation(
             if(cursor.compareTo(commandRange) != 0)
                 return@delegating null
 
-            FunctionDebugFrame.getContextEvaluationProvider(
+            NodeEvaluator.getContextEvaluationProvider(
                 rootContext,
                 source,
                 cursor,

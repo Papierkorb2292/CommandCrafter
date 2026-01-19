@@ -1,32 +1,15 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
-import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.ContextChain
-import com.mojang.brigadier.exceptions.CommandSyntaxException
-import com.mojang.brigadier.tree.ArgumentCommandNode
-import com.mojang.brigadier.tree.CommandNode
-import com.mojang.brigadier.tree.LiteralCommandNode
-import com.mojang.brigadier.tree.RootCommandNode
 import com.mojang.datafixers.util.Either
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.Commands
-import net.minecraft.commands.arguments.EntityArgument
-import net.minecraft.commands.arguments.ResourceOrIdArgument
 import net.minecraft.commands.functions.InstantiatedFunction
 import net.minecraft.resources.Identifier
-import net.minecraft.server.MinecraftServer
-import net.minecraft.world.level.storage.loot.LootContext
-import net.minecraft.world.level.storage.loot.LootParams
-import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
 import net.papierkorb2292.command_crafter.editor.debugger.helper.*
-import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.server.FileContentReplacer
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext.Companion.currentPauseContext
@@ -34,22 +17,12 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.ServerDebugMana
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.BreakpointManager
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.PositionableBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.ServerBreakpoint
-import net.papierkorb2292.command_crafter.editor.debugger.variables.EntityListValueReference
-import net.papierkorb2292.command_crafter.editor.debugger.variables.EntityValueReference
-import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.BuildContextsAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
-import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
-import net.papierkorb2292.command_crafter.parser.helper.getCursorOffset
-import org.eclipse.lsp4j.debug.EvaluateArguments
-import org.eclipse.lsp4j.debug.EvaluateResponse
 import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.OutputEventArgumentsCategory
-import java.util.*
-import java.util.concurrent.CompletableFuture
 
 class FunctionDebugFrame(
     val pauseContext: PauseContext,
@@ -81,141 +54,6 @@ class FunctionDebugFrame(
             )
             val sectionSources = debugFrame.currentSectionSources
             sectionSources.currentSourceIndex += 1
-        }
-
-        //TODO: Add other arguments
-        private fun getEvaluationDispatcher(server: MinecraftServer) = CommandDispatcher(RootCommandNode<CommandSourceStack>().apply {
-            val registries = (server.recipeManager as RecipeManagerAccessor).registries // These registries contain loot data types
-            val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
-            addChild(Commands.argument("predicate", ResourceOrIdArgument.lootPredicate(buildContext)).build())
-            addChild(Commands.argument("entity", EntityArgument.entities()).build())
-        })
-
-        private val nodeEvaluators = mutableMapOf<Class<out ArgumentType<*>>, NodeEvaluator>(
-            ResourceOrIdArgument.LootPredicateArgument::class.java to NodeEvaluator { argumentName, context, _, includeInterpretation ->
-                object : EvaluationProvider {
-                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        val value = ResourceOrIdArgument.getLootPredicate(context, argumentName).value()
-                        val source = context.source
-                        val serverLevel = source.level
-                        val lootParams = LootParams.Builder(serverLevel)
-                            .withParameter(LootContextParams.ORIGIN, source.position)
-                            .withOptionalParameter(LootContextParams.THIS_ENTITY, source.entity)
-                            .create(LootContextParamSets.COMMAND)
-                        val lootContext = LootContext.Builder(lootParams).create(Optional.empty())
-                        lootContext.pushVisitedElement(LootContext.createVisitedEntry(value))
-                        val result = value.test(lootContext)
-                        return CompletableFuture.completedFuture(EvaluationProvider.createResponse(EvaluateResponse().apply {
-                            this.result = result.toString()
-                            if(includeInterpretation)
-                                this.result = "Predicate: " + this.result
-                        }))
-                    }
-                }
-            },
-            EntityArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
-                object : EvaluationProvider {
-                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        val entities = EntityArgument.getOptionalEntities(context, argumentName).toList()
-                        val valueReference =
-                            if(entities.size == 1) EntityValueReference(mapper, entities[0], context.source) { newEntity -> entities[0] }
-                            else EntityListValueReference(mapper, entities, context.source)
-                        return CompletableFuture.completedFuture(EvaluationProvider.createResponse(valueReference.getEvaluateResponse().apply {
-                            if(includeInterpretation)
-                                this.result = "Selector: " + this.result
-                        }))
-                    }
-                }
-            }
-        )
-
-        private val evaluatableExecuteConditions = setOf("block", "biome", "loaded", "dimension", "score", "blocks", "entity", "predicate", "items", "stopwatch")
-
-        private fun getExecuteConditionEvaluationProvider(subcontext: CommandContext<CommandSourceStack>, mapper: VariablesReferenceMapper) = object : EvaluationProvider {
-            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                val dispatcher = subcontext.source.server.commands.dispatcher
-                val ifNode = dispatcher.findNode(listOf("execute", "if"))
-                val unlessNode = dispatcher.findNode(listOf("execute", "unless"))
-                val conditionIndex = subcontext.nodes.indexOfFirst {
-                    it.node === ifNode || it.node === unlessNode
-                }
-                if(conditionIndex == -1 || conditionIndex + 1 >= subcontext.nodes.size)
-                    return CompletableFuture.completedFuture(null)
-
-                val conditionNode = subcontext.nodes[conditionIndex + 1].node
-                if(conditionNode !is LiteralCommandNode<*> || conditionNode.literal !in evaluatableExecuteConditions)
-                    return CompletableFuture.completedFuture(null)
-
-                val result = try {
-                    CommandResult(true to subcontext.command.run(subcontext))
-                } catch(_: CommandSyntaxException) {
-                    CommandResult(false to 0)
-                }
-
-                val valueReference = CommandResultValueReference(mapper, result) { newResult -> result }
-
-                return CompletableFuture.completedFuture(EvaluationProvider.createResponse(valueReference.getEvaluateResponse()))
-            }
-        }
-
-        //TODO: Execute commands if starts with '/' (only if allowed: check context)
-        fun getParsingEvaluationProvider(source: CommandSourceStack, mapper: VariablesReferenceMapper): EvaluationProvider {
-            return object : EvaluationProvider {
-                override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                    val input = args.expression
-                    val parseResults = getEvaluationDispatcher(source.server).parse(input, source)
-                    if(parseResults.exceptions.isNotEmpty())
-                        return CompletableFuture.completedFuture(EvaluationProvider.createError(
-                            parseResults.exceptions.values.maxBy { it.cursor }.message!!
-                        ))
-                    if(parseResults.reader.canRead())
-                        return CompletableFuture.completedFuture(EvaluationProvider.createError(
-                            CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parseResults.reader).message!!
-                        ))
-                    return getContextEvaluationProvider(
-                        parseResults.context.build(input),
-                        source,
-                        parseResults.reader.cursor,
-                        mapper,
-                        true
-                    ).evaluate(args)
-                }
-            }
-        }
-
-        fun getContextEvaluationProvider(
-            command: CommandContext<CommandSourceStack>,
-            source: CommandSourceStack,
-            cursor: Int,
-            mapper: VariablesReferenceMapper,
-            includeInterpretation: Boolean
-        ) = object : EvaluationProvider {
-            override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                // Get the node at the cursor
-                var context: CommandContext<CommandSourceStack>? = command
-                while(context != null) {
-                    if(context.nodes.isNotEmpty()) {
-                        if(cursor <= context.range.end + (context.nodes.last() as CursorOffsetContainer).getCursorOffset()) {
-                            // Found the right context
-                            break
-                        }
-                    }
-                    context = context.child
-                }
-                val node = context?.nodes?.firstOrNull { node ->
-                    cursor <= node.range.end + (node as CursorOffsetContainer).getCursorOffset()
-                }?.node ?: return CompletableFuture.completedFuture(null)
-                val contextWithSource = context.copyFor(source)
-                val nodeEvaluator = getNodeEvaluator(node, contextWithSource)
-                    .withAlternativeForNull(getExecuteConditionEvaluationProvider(contextWithSource, mapper))
-
-                return nodeEvaluator.evaluate(args)
-            }
-
-            private fun getNodeEvaluator(node: CommandNode<CommandSourceStack>, context: CommandContext<CommandSourceStack>): EvaluationProvider? =
-                if(node is ArgumentCommandNode<*, *>) {
-                    nodeEvaluators[node.type.javaClass]?.getEvaluationProvider(node.name, context, mapper, includeInterpretation)
-                } else null
         }
     }
 
@@ -471,12 +309,4 @@ class FunctionDebugFrame(
         commandFeedbackConsumer?.onCommandError(error)
     }
 
-    fun interface NodeEvaluator {
-        fun getEvaluationProvider(
-            argumentName: String,
-            context: CommandContext<CommandSourceStack>,
-            mapper: VariablesReferenceMapper,
-            includeInterpretation: Boolean
-        ): EvaluationProvider
-    }
 }

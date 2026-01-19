@@ -59,7 +59,7 @@ class Vec3dValueReference(
 
     override fun getEvaluateResponse() = EvaluateResponse().also {
         val vec3d = vec3d
-        it.result = if(vec3d == null) VariableValueReference.NONE_VALUE else "${vec3d.x}, ${vec3d.y}, ${vec3d.z}"
+        it.result = if(vec3d == null) VariableValueReference.NONE_VALUE else "${X_COMPONENT_NAME}=${vec3d.x}, ${Y_COMPONENT_NAME}=${vec3d.y}, ${Z_COMPONENT_NAME}=${vec3d.z}"
         it.type = TYPE
         it.variablesReference = getVariablesReferencerId()
         it.namedVariables = namedVariableCount
@@ -70,14 +70,31 @@ class Vec3dValueReference(
         variablesReferencerId = it
     }
 
+    private fun indexFromComponent(component: String): Int = when(component) {
+        X_COMPONENT_NAME -> 0; Y_COMPONENT_NAME -> 1; Z_COMPONENT_NAME -> 2
+        else -> -1
+    }
+
     override fun setValue(value: String) {
         vec3d = vec3dSetter(
             if(VariableValueReference.isNone(value)) null
-            else value.split(",").let {
-                if(it.size != 3) return@let null
-                Vec3(it[0].toDoubleOrNull() ?: return@let null,
-                    it[1].toDoubleOrNull() ?: return@let null,
-                    it[2].toDoubleOrNull() ?: return@let null)
+            else value.split(",").let { entries ->
+                val newValues = doubleArrayOf(vec3d?.x ?: 0.0, vec3d?.y ?: 0.0, vec3d?.z ?: 0.0)
+                val remainingComponents = mutableSetOf(X_COMPONENT_NAME, Y_COMPONENT_NAME, Z_COMPONENT_NAME)
+                for(entry in entries) {
+                    val keyValue = entry.split("=")
+                    if(keyValue.isEmpty()) continue
+                    var key = keyValue.first().trim()
+                    var index = indexFromComponent(key)
+                    if(index == -1) {
+                        key = remainingComponents.firstOrNull() ?: continue
+                        index = indexFromComponent(key)
+                    }
+                    remainingComponents -= key
+                    val value = keyValue.asReversed().firstNotNullOfOrNull { it.toDoubleOrNull() } ?: continue
+                    newValues[index] = value
+                }
+                Vec3(newValues[0], newValues[1], newValues[2])
             }
         )
         updateValueReferences()

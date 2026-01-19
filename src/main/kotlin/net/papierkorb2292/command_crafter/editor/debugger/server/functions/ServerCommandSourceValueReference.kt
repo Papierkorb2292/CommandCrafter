@@ -58,7 +58,7 @@ class ServerCommandSourceValueReference(
             }
             return@Vec3dValueReference source.position
         }
-        content[ROTATION_VARIABLE_NAME] = Vec2fValueReference(mapper, source.rotation) { newRotation ->
+        content[ROTATION_VARIABLE_NAME] = Vec2fValueReference(mapper, source.rotation, Vec2fValueReference.ComponentFormat.Rotation) { newRotation ->
             this.setter?.let { setter ->
                 if(newRotation != null) {
                     updateSource(
