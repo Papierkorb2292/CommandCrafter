@@ -12,6 +12,7 @@ import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.EntityArgument
+import net.minecraft.commands.arguments.GameProfileArgument
 import net.minecraft.commands.arguments.ResourceOrIdArgument
 import net.minecraft.commands.arguments.coordinates.*
 import net.minecraft.server.MinecraftServer
@@ -79,11 +80,25 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            //TODO: Other selectors
             EntityArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val entities = EntityArgument.getOptionalEntities(context, argumentName).toList()
+                        val valueReference =
+                            if(entities.size == 1) EntityValueReference(mapper, entities[0], context.source) { newEntity -> entities[0] }
+                            else EntityListValueReference(mapper, entities, context.source)
+                        return getValueReferenceEvaluation(valueReference, "Selector", includeInterpretation)
+                    }
+                }
+            },
+            GameProfileArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+                object : EvaluationProvider {
+                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                        val entities = try {
+                            GameProfileArgument.getGameProfiles(context, argumentName).mapNotNull {
+                                context.source.server.playerList.getPlayer(it.id)
+                            }
+                        } catch (_: CommandSyntaxException) { listOf() }
                         val valueReference =
                             if(entities.size == 1) EntityValueReference(mapper, entities[0], context.source) { newEntity -> entities[0] }
                             else EntityListValueReference(mapper, entities, context.source)
