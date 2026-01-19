@@ -16,6 +16,7 @@ import net.minecraft.commands.arguments.GameProfileArgument
 import net.minecraft.commands.arguments.ResourceOrIdArgument
 import net.minecraft.commands.arguments.coordinates.*
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.Mth
 import net.minecraft.world.level.storage.loot.LootContext
 import net.minecraft.world.level.storage.loot.LootParams
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets
@@ -137,7 +138,7 @@ fun interface NodeEvaluator {
             RotationArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        val vec2 = RotationArgument.getRotation(context, argumentName).getRotation(context.source)
+                        val vec2 = wrapDegrees(RotationArgument.getRotation(context, argumentName).getRotation(context.source))
                         val valueReference = Vec2fValueReference(mapper, vec2, Vec2fValueReference.ComponentFormat.Rotation) { newVec2 -> newVec2 }
                         return getValueReferenceEvaluation(valueReference, "Rotation", includeInterpretation)
                     }
@@ -146,13 +147,16 @@ fun interface NodeEvaluator {
             Vec2Argument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        val vec2 = Vec2Argument.getVec2(context, argumentName)
+                        val vec2 = wrapDegrees(Vec2Argument.getVec2(context, argumentName))
                         val valueReference = Vec2fValueReference(mapper, vec2, Vec2fValueReference.ComponentFormat.Normal) { newVec2 -> newVec2 }
                         return getValueReferenceEvaluation(valueReference, "Rotation", includeInterpretation)
                     }
                 }
             },
         )
+
+        private fun wrapDegrees(rot: Vec2): Vec2 =
+            Vec2(Mth.wrapDegrees(rot.x), Mth.wrapDegrees(rot.y))
 
         private val evaluatableExecuteConditions = setOf("block", "biome", "loaded", "dimension", "score", "blocks", "entity", "predicate", "items", "stopwatch")
 
