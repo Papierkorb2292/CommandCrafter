@@ -5,5 +5,6 @@
   "command_crafter.reload.resources": "[CommandCrafter] Reloading resources...",
   "command_crafter.reload.shaders": "[CommandCrafter] Reloading shaders...",
   "command_crafter.debug.inspect.item": "[CommandCrafter] Copied item data to clipboard",
-  "command_crafter.debug.inspect.item.default": "[CommandCrafter] Copied Default item data to clipboard"
+  "command_crafter.debug.inspect.item.default": "[CommandCrafter] Copied Default item data to clipboard",
+  "gamerule.command_crafter.shorten_nbt": "CommandCrafter: Shorten NBT"
 }
