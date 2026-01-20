@@ -83,8 +83,12 @@ object NetworkServerConnectionHandler {
     fun <TPayload: CustomPacketPayload> callPacketHandler(packet: TPayload, context: AsyncC2SPacketContext): Boolean {
         val handler = asyncServerPacketHandlers[packet.type()] ?: return false
         asyncServerPacketQueue += {
-            @Suppress("UNCHECKED_CAST")
-            (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
+            try {
+                @Suppress("UNCHECKED_CAST")
+                (handler as AsyncPacketHandler<TPayload, AsyncC2SPacketContext>).receive(packet, context)
+            } catch(e: Exception) {
+                CommandCrafter.LOGGER.error("Error handling CommandCrafter packet", e)
+            }
         }
         return true
     }
