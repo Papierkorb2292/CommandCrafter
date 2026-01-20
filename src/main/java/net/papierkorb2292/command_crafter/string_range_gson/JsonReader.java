@@ -17,7 +17,8 @@
  * This file has been modified by the CommandCrafter contributors
  * (repackaged, removed unnecessary dependencies for this application,
  * added public fields and methods keeping track of reader position for generating StringRangeTrees,
- * added methods to allow being more lenient, allow : in unquoted strings, made nextNonWhitespace method public, made stack field public)
+ * added methods to allow being more lenient, allow : and # in unquoted strings (which means # no longer makes comments),
+ * made nextNonWhitespace method public, made stack field public)
  * Changes are licensed under the license used by CommandCrafter (Mit License).
  */
 
@@ -859,14 +860,12 @@ public class JsonReader implements Closeable {
       case '/':
       case '\\':
       case ';':
-      case '#':
       case '=':
         checkLenient(); // fall-through
       case '{':
       case '}':
       case '[':
       case ']':
-      case ':':
       case ',':
       case ' ':
       case '\t':
@@ -874,6 +873,9 @@ public class JsonReader implements Closeable {
       case '\r':
       case '\n':
         return false;
+      case ':':
+      case '#':
+          checkLenient(); // fall-through
       default:
         return true;
     }
@@ -1200,7 +1202,6 @@ public class JsonReader implements Closeable {
           case '/':
           case '\\':
           case ';':
-          case '#':
           case '=':
             checkLenient(); // fall-through
           case '{':
@@ -1218,6 +1219,7 @@ public class JsonReader implements Closeable {
             // Leniently allow : but only in strings, not names
             if(strictness != Strictness.LENIENT || peeked == PEEKED_UNQUOTED_NAME)
                 break findNonLiteralCharacter;
+          case '#': // Leniently allow #
           default:
             // skip character to be included in string value
         }
@@ -1592,17 +1594,6 @@ public class JsonReader implements Closeable {
           default:
             return c;
         }
-      } else if (c == '#') {
-        pos = p;
-        /*
-         * Skip a # hash end-of-line comment. The JSON RFC doesn't
-         * specify this behaviour, but it's required to parse
-         * existing documents. See http://b/2571423.
-         */
-        checkLenient();
-        skipToEndOfLine();
-        p = pos;
-        l = limit;
       } else {
         pos = p;
         return c;

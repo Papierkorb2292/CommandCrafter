@@ -8,7 +8,7 @@ import net.minecraft.util.parsing.packrat.Rule
 
 /**
  * Reads unquoted strings like [net.minecraft.util.parsing.packrat.commands.UnquotedStringParseRule],
- * but also allows colons in the string (for ids)
+ * but also allows : and # in the string (for ids)
  */
 class LenientUnquotedStringParseRule(val minSize: Int, val error: DelayedException<CommandSyntaxException>) : Rule<StringReader, String> {
     override fun parse(parseState: ParseState<StringReader>): String? {
@@ -36,5 +36,6 @@ class LenientUnquotedStringParseRule(val minSize: Int, val error: DelayedExcepti
                 || c == '.'
                 || c == '+'
                 || c == ':'
+                || c == '#'
     }
 }
