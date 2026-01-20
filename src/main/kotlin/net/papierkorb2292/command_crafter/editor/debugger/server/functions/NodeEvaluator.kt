@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.CommandSyntaxException
@@ -11,9 +12,7 @@ import com.mojang.brigadier.tree.RootCommandNode
 import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
-import net.minecraft.commands.arguments.EntityArgument
-import net.minecraft.commands.arguments.GameProfileArgument
-import net.minecraft.commands.arguments.ResourceOrIdArgument
+import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.coordinates.*
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Mth
@@ -23,6 +22,7 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
+import net.minecraft.world.scores.ScoreHolder
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
@@ -43,7 +43,7 @@ fun interface NodeEvaluator {
     ): EvaluationProvider
 
     companion object {
-        //TODO: Add other arguments (nbt paths, scores, slots)
+        //TODO: Add other arguments (nbt paths, slots)
         private fun getEvaluationDispatcher(server: MinecraftServer) = CommandDispatcher(RootCommandNode<CommandSourceStack>().apply {
             val registries = (server.recipeManager as RecipeManagerAccessor).registries // These registries contain loot data types
             val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
@@ -51,6 +51,9 @@ fun interface NodeEvaluator {
             addChild(Commands.argument("entity", EntityArgument.entities()).build())
             addChild(Commands.argument("position", Vec3Argument.vec3(true)).build())
             addChild(Commands.argument("rotation", RotationArgument.rotation()).build())
+            addChild(Commands.argument("scoreHolder", ScoreHolderArgument.scoreHolders())
+                .then(Commands.argument("objective", ObjectiveArgument.objective()))
+                .build())
         })
 
         private fun getValueReferenceEvaluation(valueReference: VariableValueReference, name: String, includeInterpretation: Boolean): CompletableFuture<EvaluationProvider.EvaluationResult?> =
@@ -89,6 +92,26 @@ fun interface NodeEvaluator {
                             if(entities.size == 1) EntityValueReference(mapper, entities[0], context.source) { newEntity -> entities[0] }
                             else EntityListValueReference(mapper, entities, context.source)
                         return getValueReferenceEvaluation(valueReference, "Selector", includeInterpretation)
+                    }
+                }
+            },
+            ScoreHolderArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+                object : EvaluationProvider {
+                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                        val objectiveArgument = context.nodes.find { (it.node as? ArgumentCommandNode<*, *>)?.type is ObjectiveArgument }
+                            ?: return CompletableFuture.completedFuture(null)
+                        val objective = try {
+                            ObjectiveArgument.getObjective(context, objectiveArgument.node.name)
+                        } catch (e: CommandSyntaxException) {
+                            return CompletableFuture.completedFuture(EvaluationProvider.createError(e.message!!))
+                        }
+                        val scoreHolders = ScoreHolderArgument.getNames(context, argumentName) {
+                            context.source.server.scoreboard.listPlayerScores(objective).mapNotNull { scoreHolderFromName(it.owner, context.source) }
+                        }.toList()
+                        val valueReference =
+                            if(scoreHolders.size == 1) ScoreHolderValueReference(mapper, scoreHolders[0], objective, context.source, includeName = true, allowEntityChild = true) { }
+                            else ScoreHolderMapValueReference(mapper, scoreHolders, objective, context.source, compactEmptyScores = true) { }
+                        return getValueReferenceEvaluation(valueReference, "Scores", includeInterpretation)
                     }
                 }
             },
@@ -158,6 +181,16 @@ fun interface NodeEvaluator {
         private fun wrapDegrees(rot: Vec2): Vec2 =
             Vec2(Mth.wrapDegrees(rot.x), Mth.wrapDegrees(rot.y))
 
+        private fun scoreHolderFromName(name: String, source: CommandSourceStack): ScoreHolder? {
+            return try {
+                ScoreHolderArgument.scoreHolder().parse(StringReader(name))
+                    .getNames(source, Collections::emptyList)
+                    .firstOrNull()
+            } catch (_: CommandSyntaxException) {
+                null
+            }
+        }
+
         private val evaluatableExecuteConditions = setOf("block", "biome", "loaded", "dimension", "score", "blocks", "entity", "predicate", "items", "stopwatch")
 
         private fun getExecuteConditionEvaluationProvider(subcontext: CommandContext<CommandSourceStack>, mapper: VariablesReferenceMapper) = object : EvaluationProvider {
@@ -201,10 +234,13 @@ fun interface NodeEvaluator {
                         return CompletableFuture.completedFuture(EvaluationProvider.createError(
                             CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parseResults.reader).message!!
                         ))
+                    val cursor =
+                        if(parseResults.context.nodes.firstOrNull()?.node?.name == "scoreHolder") 0 // Placed at beginning because the score holder is evaluated to compute the scores
+                        else parseResults.reader.cursor
                     return getContextEvaluationProvider(
                         parseResults.context.build(input),
                         source,
-                        parseResults.reader.cursor,
+                        cursor,
                         mapper,
                         true
                     ).evaluate(args)

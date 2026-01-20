@@ -5,7 +5,6 @@ import net.minecraft.nbt.Tag
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.Variable
 import org.eclipse.lsp4j.debug.VariablesArguments
-import org.eclipse.lsp4j.debug.VariablesArgumentsFilter
 import java.util.concurrent.CompletableFuture
 
 class NbtCompoundVariablesReferencer(
@@ -26,39 +25,11 @@ class NbtCompoundVariablesReferencer(
     override val indexedVariableCount: Int
         get() = 0
 
-    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-        if(args.filter == VariablesArgumentsFilter.INDEXED) {
-            return CompletableFuture.completedFuture(arrayOf())
-        }
-        val keys = nbtCompound.keySet()
-        val keysIterator = keys.iterator()
-        val start = args.start
-        if(start != null) {
-            for (i in 0 until start) {
-                if (!keysIterator.hasNext()) {
-                    return CompletableFuture.completedFuture(arrayOf())
-                }
-                keysIterator.next()
-            }
-        }
-        val variables = mutableListOf<Variable>()
-        val count = args.count
-        var i = 0
-        while(keysIterator.hasNext() && (count == null || i++ < count)) {
-            val key = keysIterator.next()
-            variables += (valueReferences[key] ?: continue).getVariable(key)
-        }
-        return CompletableFuture.completedFuture(variables.toTypedArray())
-    }
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> =
+        VariablesReferencer.getVariablesFromCollection(args, null, valueReferences)
 
-    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
-        val valueReference = valueReferences[args.name]
-        if(valueReference != null) {
-            valueReference.setValue(args.value)
-            return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(valueReference.getSetVariableResponse(), true))
-        }
-        return CompletableFuture.completedFuture(null)
-    }
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?>  =
+        VariablesReferencer.setVariablesFromCollection(args, null, valueReferences)
 
     private fun createValueReference(key: String, element: Tag): VariableValueReference {
         return NbtValueReference(mapper, element) {

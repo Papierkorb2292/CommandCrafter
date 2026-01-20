@@ -1,6 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
-import org.eclipse.lsp4j.debug.*
+import org.eclipse.lsp4j.debug.EvaluateResponse
+import org.eclipse.lsp4j.debug.SetVariableArguments
+import org.eclipse.lsp4j.debug.Variable
+import org.eclipse.lsp4j.debug.VariablesArguments
 import java.util.concurrent.CompletableFuture
 
 class StringMapValueReference(
@@ -32,21 +35,11 @@ class StringMapValueReference(
         variablesReferencerId = it
     }
 
-    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-        if(args.filter == VariablesArgumentsFilter.INDEXED) return CompletableFuture.completedFuture(emptyArray())
-        val start = args.start ?: 0
-        val count = args.count ?: (content.size - start)
-        return CompletableFuture.completedFuture(content.entries.drop(start).take(count).map {
-                (name, value) -> value.getVariable(name)
-        }.toTypedArray())
-    }
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> =
+        VariablesReferencer.getVariablesFromCollection(args, null, content)
 
-    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
-        val valueReference = content[args.name]
-            ?: return CompletableFuture.completedFuture(null)
-        valueReference.setValue(args.value)
-        return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(valueReference.getSetVariableResponse(), true))
-    }
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?>  =
+        VariablesReferencer.setVariablesFromCollection(args, null, content)
 
     private fun constructValue() = values.map { (name, value) -> "$name: $value" }.joinToString(", ")
 

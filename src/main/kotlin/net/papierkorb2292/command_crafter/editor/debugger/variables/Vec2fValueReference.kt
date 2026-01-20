@@ -1,7 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import net.minecraft.world.phys.Vec2
-import org.eclipse.lsp4j.debug.*
+import org.eclipse.lsp4j.debug.EvaluateResponse
+import org.eclipse.lsp4j.debug.SetVariableArguments
+import org.eclipse.lsp4j.debug.Variable
+import org.eclipse.lsp4j.debug.VariablesArguments
 import java.util.concurrent.CompletableFuture
 
 class Vec2fValueReference(
@@ -97,22 +100,11 @@ class Vec2fValueReference(
     override val indexedVariableCount: Int
     get() = 0
 
-    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-        if(args.filter == VariablesArgumentsFilter.INDEXED) return CompletableFuture.completedFuture(emptyArray())
-        val start = args.start ?: 0
-        val count = args.count ?: (valueReferences.size - start)
-        val entries = if(componentFormat.swapOrder) valueReferences.entries.reversed() else valueReferences.entries
-        return CompletableFuture.completedFuture(entries.drop(start).take(count).map {
-                (name, value) -> value.getVariable(name)
-        }.toTypedArray())
-    }
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> =
+        VariablesReferencer.getVariablesFromCollection(args, null, valueReferences)
 
-    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
-        val valueReference = valueReferences[args.name]
-            ?: return CompletableFuture.completedFuture(null)
-        valueReference.setValue(args.value)
-        return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(valueReference.getSetVariableResponse(), true))
-    }
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> =
+        VariablesReferencer.setVariablesFromCollection(args, null, valueReferences)
 
     enum class ComponentFormat(val first: String, val second: String, val swapOrder: Boolean) {
         Normal("x", "y", false),

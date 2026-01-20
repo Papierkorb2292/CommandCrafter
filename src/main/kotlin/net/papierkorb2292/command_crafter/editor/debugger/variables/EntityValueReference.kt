@@ -22,17 +22,25 @@ class EntityValueReference(
     companion object {
         const val TYPE = "Entity"
         const val NBT_VARIABLE_NAME = "NBT"
+        const val SCORES_VARIABLE_NAME = "Scores"
     }
 
-    private var entityNbtValueReference = createEntityNbtValueReference()
+    private val valueReferences = mutableMapOf<String, VariableValueReference>()
 
-    private fun createEntityNbtValueReference() = entity?.let { entity ->
-        NbtValueReference(mapper, NbtPredicate.getEntityTagToCompare(entity)) {
+    init { updateValueReferences() }
+    private fun updateValueReferences() {
+        valueReferences.clear()
+        val entity = entity ?: return
+        valueReferences[NBT_VARIABLE_NAME] = createEntityNbtValueReference(entity)
+        valueReferences[SCORES_VARIABLE_NAME] = createEntityScoresValueReference(entity)
+    }
+
+    private fun createEntityNbtValueReference(entity: Entity) = NbtValueReference(mapper, NbtPredicate.getEntityTagToCompare(entity)) {
             if (it is CompoundTag)
                 entity.load(TagValueInput.create(ProblemReporter.DISCARDING, entity.registryAccess(), it));
             NbtPredicate.getEntityTagToCompare(entity)
         }
-    }
+    private fun createEntityScoresValueReference(entity: Entity) = EntityScoresValueReference(mapper, entity, source, false) { }
 
     private var variablesReferencerId: Int? = null
 
@@ -62,13 +70,13 @@ class EntityValueReference(
     override fun setValue(value: String) = entitySetter.let {
         if (VariableValueReference.isNone(value)) {
             entity = it(null)
-            entityNbtValueReference = createEntityNbtValueReference()
+            updateValueReferences()
             return
         }
         try {
             val newEntity = EntitySelectorParser(StringReader(value), true).parse().findEntities(source).firstOrNull()
             entity = it(newEntity)
-            entityNbtValueReference = createEntityNbtValueReference()
+            updateValueReferences()
         } catch(_: CommandSyntaxException) { }
     }
 
@@ -77,20 +85,9 @@ class EntityValueReference(
     override val indexedVariableCount: Int
         get() = 0
 
-    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-        val entityNbtValueReferencer = entityNbtValueReference
-        if(args.start.run { this == null || this == 0 } && args.count.run { this == null || this > 0 } && entityNbtValueReferencer != null) {
-            return CompletableFuture.completedFuture(arrayOf(entityNbtValueReferencer.getVariable(NBT_VARIABLE_NAME)))
-        }
-        return CompletableFuture.completedFuture(arrayOf())
-    }
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> =
+        VariablesReferencer.getVariablesFromCollection(args, null, valueReferences)
 
-    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
-        val entityNbtValueReferencer = entityNbtValueReference
-        if (args.name != NBT_VARIABLE_NAME || entityNbtValueReferencer == null) {
-            return CompletableFuture.completedFuture(null)
-        }
-        entityNbtValueReferencer.setValue(args.value)
-        return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(entityNbtValueReferencer.getSetVariableResponse()))
-    }
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> =
+        VariablesReferencer.setVariablesFromCollection(args, null, valueReferences)
 }

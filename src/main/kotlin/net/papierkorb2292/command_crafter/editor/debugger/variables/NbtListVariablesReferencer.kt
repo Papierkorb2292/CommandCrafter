@@ -5,7 +5,6 @@ import net.minecraft.nbt.Tag
 import org.eclipse.lsp4j.debug.SetVariableArguments
 import org.eclipse.lsp4j.debug.Variable
 import org.eclipse.lsp4j.debug.VariablesArguments
-import org.eclipse.lsp4j.debug.VariablesArgumentsFilter
 import java.util.concurrent.CompletableFuture
 
 class NbtListVariablesReferencer(
@@ -25,33 +24,11 @@ class NbtListVariablesReferencer(
         })
     }
 
-    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> {
-        if(args.filter == VariablesArgumentsFilter.NAMED) {
-            return CompletableFuture.completedFuture(arrayOf())
-        }
-        val count = args.count
-        val variables = mutableListOf<Variable>()
-        val valueReferencesSize = valueReferences.size
-        var i = args.start ?: 0
-        val end = if(count == null) valueReferencesSize else i + count
-        while(i < end) {
-            variables += valueReferences[i].getVariable(i.toString())
-            i++
-        }
-        return CompletableFuture.completedFuture(variables.toTypedArray())
-    }
+    override fun getVariables(args: VariablesArguments): CompletableFuture<Array<Variable>> =
+        VariablesReferencer.getVariablesFromCollection(args, valueReferences, null)
 
-    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> {
-        try {
-            val index = args.name.toInt()
-            if(index >= 0 && index < valueReferences.size) {
-                val valueReference = valueReferences[index]
-                valueReference.setValue(args.value)
-                return CompletableFuture.completedFuture(VariablesReferencer.SetVariableResult(valueReference.getSetVariableResponse(), true))
-            }
-        } catch(_: NumberFormatException) {  }
-        return CompletableFuture.completedFuture(null)
-    }
+    override fun setVariable(args: SetVariableArguments): CompletableFuture<VariablesReferencer.SetVariableResult?> =
+        VariablesReferencer.setVariablesFromCollection(args, valueReferences, null)
 
     private fun createValueReference(index: Int, element: Tag): VariableValueReference {
         return NbtValueReference(mapper, element) {
