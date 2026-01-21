@@ -33,6 +33,7 @@ import org.eclipse.lsp4j.debug.EvaluateArguments
 import org.eclipse.lsp4j.debug.EvaluateResponse
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.math.absoluteValue
 
 fun interface NodeEvaluator {
     fun getEvaluationProvider(
@@ -98,7 +99,12 @@ fun interface NodeEvaluator {
             ScoreHolderArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        val objectiveArgument = context.nodes.find { (it.node as? ArgumentCommandNode<*, *>)?.type is ObjectiveArgument }
+                        // Find the closest objective argument to get the objective from
+                        val scoreHolderIndex = context.nodes.indexOfFirst { it.node.name == argumentName }
+                        val objectiveArgument = context.nodes.withIndex()
+                            .filter { (it.value.node as? ArgumentCommandNode<*, *>)?.type is ObjectiveArgument }
+                            .minByOrNull { (it.index - scoreHolderIndex).absoluteValue }
+                            ?.value
                             ?: return CompletableFuture.completedFuture(null)
                         val objective = try {
                             ObjectiveArgument.getObjective(context, objectiveArgument.node.name)
