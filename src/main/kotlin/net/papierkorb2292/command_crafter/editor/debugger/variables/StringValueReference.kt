@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import org.apache.commons.lang3.StringEscapeUtils
 import org.eclipse.lsp4j.debug.EvaluateResponse
-import org.eclipse.lsp4j.debug.SetVariableResponse
 
 class StringValueReference(
     private var string: String?,
@@ -27,7 +26,7 @@ class StringValueReference(
         string = stringSetter(
             if(VariableValueReference.isNone(value)) null
             else if(value.startsWith("\"") && value.endsWith("\"")) StringEscapeUtils.unescapeJava(value.substring(1, value.length - 1))
-            else return
+            else value // Allow unquoted strings
         )
     }
 }
