@@ -47,6 +47,7 @@
     "editor.debugger.ReturnValueAdderMixin",
     "editor.debugger.ReturnValueFailCommandMixin",
     "editor.debugger.ServerArgumentTypesMixin",
+    "editor.debugger.ServerChunkCacheAccessor",
     "editor.debugger.ServerCommonPacketListenerImplAccessor",
     "editor.debugger.ServerFunctionLibraryMixin",
     "editor.debugger.StringTemplateMixin",

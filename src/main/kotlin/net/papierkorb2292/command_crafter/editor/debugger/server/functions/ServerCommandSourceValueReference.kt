@@ -47,7 +47,7 @@ class ServerCommandSourceValueReference(
             }
             return@IdValueReference source.level.dimension().identifier()
         }
-        content[POS_VARIABLE_NAME] = Vec3dValueReference(mapper, source.position) { newPosition ->
+        content[POS_VARIABLE_NAME] = LevelCoordinateValueReference(mapper, source.position, source.level) { newPosition ->
             this.setter?.let { setter ->
                 if(newPosition != null) {
                     updateSource(
@@ -56,7 +56,7 @@ class ServerCommandSourceValueReference(
                     )
                 }
             }
-            return@Vec3dValueReference source.position
+            return@LevelCoordinateValueReference source.position
         }
         content[ROTATION_VARIABLE_NAME] = Vec2fValueReference(mapper, source.rotation, Vec2fValueReference.ComponentFormat.Rotation) { newRotation ->
             this.setter?.let { setter ->

@@ -5,6 +5,7 @@ import net.minecraft.network.protocol.game.ClientboundTickingStatePacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.TickTask
 import net.minecraft.util.Util
+import net.minecraft.util.profiling.Profiler
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -15,6 +16,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Comma
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerChunkCacheAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonPacketListenerImplAccessor
 import org.eclipse.lsp4j.debug.*
 import java.lang.Thread
@@ -249,10 +251,12 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         if(!serverAlreadyFrozen)
             server.playerList.broadcastAll(ClientboundTickingStatePacket(server.tickRateManager().tickrate(), true))
 
+        val profiler = Profiler.get()
         while(isPaused) {
             val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMillis()
             if(sleepDurationMs > 0)
                 Thread.sleep(sleepDurationMs)
+            profiler.push("debuggerSuspendedTick")
             lastTickMs = Util.getMillis()
             // Prevent watchdog from killing the server due to a too long tick
             (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getNanos())
@@ -262,6 +266,9 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
                 (player.connection as ServerCommonPacketListenerImplAccessor).callKeepConnectionAlive()
             NetworkServerConnectionHandler.processServerPackets()
             ServerScoreboardStorageFileSystem.runUpdates()
+            for(level in server.allLevels)
+                (level.chunkSource as ServerChunkCacheAccessor).callBroadcastChangedChunks(profiler)
+            profiler.pop()
         }
 
         for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)

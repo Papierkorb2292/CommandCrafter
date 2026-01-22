@@ -1,12 +1,18 @@
 package net.papierkorb2292.command_crafter.editor.debugger.variables
 
+import net.minecraft.core.BlockPos
+import net.minecraft.core.registries.Registries
+import net.minecraft.server.commands.data.BlockDataAccessor
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.Block
 import net.minecraft.world.phys.Vec3
 import org.eclipse.lsp4j.debug.*
 import java.util.concurrent.CompletableFuture
 
-class Vec3dValueReference(
+class LevelCoordinateValueReference(
     private val mapper: VariablesReferenceMapper,
     private var vec3d: Vec3?,
+    private val level: Level?,
     private val vec3dSetter: (Vec3?) -> Vec3?
 ): VariableValueReference, CountedVariablesReferencer {
 
@@ -15,10 +21,11 @@ class Vec3dValueReference(
         const val X_COMPONENT_NAME = "x"
         const val Y_COMPONENT_NAME = "y"
         const val Z_COMPONENT_NAME = "z"
+        const val BLOCK_NAME = "block"
     }
 
     private var variablesReferencerId: Int? = null
-    private val valueReferences = mutableMapOf<String, DoubleValueReference>()
+    private val valueReferences = mutableMapOf<String, VariableValueReference>()
 
     init { updateValueReferences() }
     private fun updateValueReferences() {
@@ -54,11 +61,37 @@ class Vec3dValueReference(
                 }
                 else newVec.z
             }
+            val level = level ?: return
+            val pos = BlockPos.containing(this)
+            var state = level.getBlockState(pos)
+            var nbt = getBlockDataAccessor(level, pos)?.data
+            valueReferences[BLOCK_NAME] = BlockValueReference(
+                mapper,
+                state,
+                nbt,
+                level.holderLookup(Registries.BLOCK),
+            ) { newState, newNbt ->
+                if(newState != null && newState != state) {
+                    level.setBlock(pos, newState, Block.UPDATE_ALL)
+                    state = level.getBlockState(pos)
+                }
+                val accessor = getBlockDataAccessor(level, pos)
+                if(newNbt != null && newNbt != nbt)
+                    accessor?.data = newNbt
+                nbt = accessor?.data
+                state to nbt
+            }
         }
     }
 
+    private fun getBlockDataAccessor(level: Level, pos: BlockPos): BlockDataAccessor? {
+        val blockEntity = level.getBlockEntity(pos) ?: return null
+        return BlockDataAccessor(blockEntity, pos)
+    }
+    
     override fun getEvaluateResponse() = EvaluateResponse().also {
         val vec3d = vec3d
+        // Don't include the block state here, because that would make it confusing to edit the position
         it.result = if(vec3d == null) VariableValueReference.NONE_VALUE else "${X_COMPONENT_NAME}=${vec3d.x}, ${Y_COMPONENT_NAME}=${vec3d.y}, ${Z_COMPONENT_NAME}=${vec3d.z}"
         it.type = TYPE
         it.variablesReference = getVariablesReferencerId()

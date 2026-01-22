@@ -140,7 +140,7 @@ fun interface NodeEvaluator {
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val vec3 = Vec3Argument.getVec3(context, argumentName)
-                        val valueReference = Vec3dValueReference(mapper, vec3) { newVec3 -> newVec3 }
+                        val valueReference = LevelCoordinateValueReference(mapper, vec3, context.source.level) { newVec3 -> newVec3 }
                         return getValueReferenceEvaluation(valueReference, "Position", includeInterpretation)
                     }
                 }
@@ -149,7 +149,7 @@ fun interface NodeEvaluator {
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val pos = BlockPosArgument.getBlockPos(context, argumentName)
-                        val valueReference = Vec3dValueReference(mapper, Vec3.atLowerCornerOf(pos)) { newVec3 -> newVec3 }
+                        val valueReference = LevelCoordinateValueReference(mapper, Vec3.atLowerCornerOf(pos), context.source.level) { newVec3 -> newVec3 }
                         return getValueReferenceEvaluation(valueReference, "Position", includeInterpretation)
                     }
                 }
