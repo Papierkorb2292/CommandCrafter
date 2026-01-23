@@ -16,6 +16,12 @@ const SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS = {
 const SPYGLASS_EXT_ID = "spgoding.datapack-language-server"
 
 export class ExtensionCompatibility implements ConnectionFeature {
+    constructor(context: vscode.ExtensionContext) {
+        vscode.commands.registerCommand("commandcrafter.openSyntaxHighlightingSettings", () => {
+            this.openSyntaxHighlightingSettings()
+        })
+    }
+
     onLanguageClientStart(languageClient: LanguageClient): void { }
     onLanguageClientReady(languageClient: LanguageClient): void {
         //Disabled until Spyglass PR is merged
@@ -70,7 +76,7 @@ export class ExtensionCompatibility implements ConnectionFeature {
     onSpyglassHighlightingPromptAnswer(spyglassHighlightingConfig: boolean | undefined, spyglassHighlightingSettings: boolean, answer?: { title: string }) {
         switch(answer?.title) {
             case SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS.openSettings:
-                vscode.commands.executeCommand('workbench.action.openSettings', `@id:${COMPATIBILITY_CHECK_SETTING_NAME} @id:${SPYGLASS_SETTINGS_SCOPE}.${SPYGLASS_SEMANTIC_COLORING_SETTING_SECTION} @id:${SETTINGS_SCOPE}.${SETTINGS_SECTIONS.featureConfig}`)
+                this.openSyntaxHighlightingSettings()
                 break
             case SPYGLASS_HIGHLIGHTING_SETUP_BUTTONS.disableForCommandCrafter:
                 outputChannel?.appendLine("disableCommandCrafterHighlighting...")
@@ -84,6 +90,10 @@ export class ExtensionCompatibility implements ConnectionFeature {
                     disableSypglassHighlighting()
                 break
         }
+    }
+
+    openSyntaxHighlightingSettings() {
+        vscode.commands.executeCommand('workbench.action.openSettings', `@id:${COMPATIBILITY_CHECK_SETTING_NAME} @id:${SPYGLASS_SETTINGS_SCOPE}.${SPYGLASS_SEMANTIC_COLORING_SETTING_SECTION} @id:${SETTINGS_SCOPE}.${SETTINGS_SECTIONS.featureConfig}`)
     }
 }
 

@@ -64,6 +64,10 @@
       {
         "command": "commandcrafter.loadStorageNamespace",
         "title": "CommandCrafter: Load Storage Namespace"
+      },
+      {
+        "command": "commandcrafter.openSyntaxHighlightingSettings",
+        "title": "CommandCrafter: Open Syntax Highlighting Settings"
       }
     ],
     "languages": [
