@@ -1,7 +1,11 @@
 package net.papierkorb2292.command_crafter.mixin.editor.debugger;
 
+import com.mojang.brigadier.Message;
+import com.mojang.brigadier.exceptions.CommandExceptionType;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.execution.TraceCallbacks;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentUtils;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame;
 import org.eclipse.lsp4j.debug.OutputEventArguments;
@@ -36,5 +40,14 @@ public class CommandSourceStackMixin {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
         if(pauseContext == null || !(pauseContext.peekDebugFrame() instanceof FunctionDebugFrame debugFrame)) return;
         debugFrame.onCommandError(message.getString());
+    }
+
+    @Inject(
+            method = "handleError",
+            at = @At("TAIL")
+    )
+    private void command_crafter$logForkedErrorWhenDebugging(CommandExceptionType commandExceptionType, Message message, boolean bl, TraceCallbacks traceCallbacks, CallbackInfo ci) {
+        if(bl)
+            command_crafter$logErrorWhenDebugging(ComponentUtils.fromMessage(message), null);
     }
 }
