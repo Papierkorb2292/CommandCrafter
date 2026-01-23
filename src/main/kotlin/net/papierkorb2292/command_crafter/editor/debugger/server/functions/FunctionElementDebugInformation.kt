@@ -169,9 +169,10 @@ class FunctionElementDebugInformation(
                 ) {
                 if(!(currentContext.command as PotentialDebugFrameInitiator).`command_crafter$isInitializedDebugFrameEmpty`(addServerToContext(currentContext))) {
                     debugFrame.pauseContext.stepIntoFrame()
-                    return
+                } else {
+                    notifyClientOfEmptyDebugFrame()
                 }
-                notifyClientOfEmptyDebugFrame()
+                // Also set a pause in the current frame in case the new frame can't be created (for example because macros have errors)
             }
             if(debugFrame.hasNextSection()) {
                 debugFrame.pauseAtSection(debugFrame.currentContextChain.topContext, getNextCommandSection())
