@@ -56,6 +56,20 @@ fun EditorDebugConnection.onPauseLocationSkipped() {
     })
 }
 
+fun EditorDebugConnection.onPauseLocationSkippedWithinPause() {
+    output(OutputEventArguments().apply {
+        category = OutputEventArgumentsCategory.IMPORTANT
+        output = "Skipped pause location because server is already paused"
+    })
+}
+
+fun EditorDebugConnection.onBreakpointSkippedWithinPause() {
+    output(OutputEventArguments().apply {
+        category = OutputEventArgumentsCategory.IMPORTANT
+        output = "Skipped breakpoint because server is already paused"
+    })
+}
+
 fun EditorDebugConnection.setupOneTimeDebugTarget(server: MinecraftServer) {
     val oneTimeDebugTarget = oneTimeDebugTarget ?: return
     val pauseContext = PauseContext(server, this, oneTimeDebugTarget.stopOnEntry)

@@ -15,7 +15,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Ser
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.CommandResult
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferenceMapper
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.CommandsAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerChunkCacheAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ServerCommonPacketListenerImplAccessor
 import org.eclipse.lsp4j.debug.*
@@ -27,6 +29,7 @@ import java.util.function.Supplier
 class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: EditorDebugConnection?, val pauseOnEntry: Boolean = false) : CommandResultContainer{
     companion object {
         val currentPauseContext = ThreadLocal<PauseContext>()
+        val isServerPaused = ThreadLocal<Boolean>()
 
         fun trySetUpPauseContext(supplier: () -> PauseContext): Boolean {
             if(currentPauseContext.get() != null) {
@@ -186,6 +189,11 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     }
 
     fun initBreakpointPause(breakpoint: ServerBreakpoint<*>): Boolean {
+        if(isServerPaused.getOrNull() == true) {
+            // The server is already paused
+            breakpoint.debugConnection.onBreakpointSkippedWithinPause()
+            return false
+        }
         var debugConnection = debugConnection ?: oneTimeDebugConnection
         if(breakpoint.debugConnection.isPaused()) {
             //The debuggee already paused somewhere
@@ -214,6 +222,11 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     }
 
     fun initPauseLocationReached(): Boolean {
+        if(isServerPaused.getOrNull() == true) {
+            // The server is already paused
+            debugConnection?.onPauseLocationSkippedWithinPause()
+            return false
+        }
         if(currentDebugPauseHandler?.shouldStopOnCurrentContext() == false)
             return false
         val connection = debugConnection ?: return false
@@ -229,55 +242,72 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
     fun suspend(executionPausedThrowable: Supplier<Throwable>) {
         if(!debugConnection!!.suspendServer)
             throw executionPausedThrowable.get()
-        suspendedServer = true
-        val tickDelayMs = 50
-        var lastTickMs = Util.getMillis()
+        val executionContext = CommandsAccessor.getCURRENT_EXECUTION_CONTEXT().get()
+        try {
+            // Clear contexts so other commands can run (for example through chat)
+            CommandsAccessor.getCURRENT_EXECUTION_CONTEXT().remove()
+            resetPauseContext()
+            isServerPaused.set(true)
+            suspendedServer = true
+            val tickDelayMs = 50
+            var lastTickMs = Util.getMillis()
 
-        // Flushing might be disabled, which would cause timeouts
-        // (for example when the world is being ticked at the moment, which is
-        // the case if for example the commands are run by a command block)
+            // Flushing might be disabled, which would cause timeouts
+            // (for example when the world is being ticked at the moment, which is
+            // the case if for example the commands are run by a command block)
 
-        val flushDisabledNetworkHandlers = server.playerList.players.map {
-            it.connection
-        }.filter {
-            (it as ServerCommonPacketListenerImplAccessor).suspendFlushingOnServerThread
+            val flushDisabledNetworkHandlers = server.playerList.players.map {
+                it.connection
+            }.filter {
+                (it as ServerCommonPacketListenerImplAccessor).suspendFlushingOnServerThread
+            }
+
+            for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
+                flushDisabledNetworkHandler.resumeFlushing()
+
+            // Tell clients that the server is frozen so they don't really continue ticking
+            val serverAlreadyFrozen = server.tickRateManager().isFrozen
+            if(!serverAlreadyFrozen)
+                server.playerList.broadcastAll(ClientboundTickingStatePacket(server.tickRateManager().tickrate(), true))
+
+            val profiler = Profiler.get()
+            while(isPaused) {
+                val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMillis()
+                if(sleepDurationMs > 0)
+                    Thread.sleep(sleepDurationMs)
+                profiler.push("debuggerSuspendedTick")
+                lastTickMs = Util.getMillis()
+                // Prevent watchdog from killing the server due to a too long tick
+                (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getNanos())
+                // Tick network handlers to keep connections alive
+                // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
+                for(player in server.playerList.players.toList())
+                    (player.connection as ServerCommonPacketListenerImplAccessor).callKeepConnectionAlive()
+                server.packetProcessor().processQueuedPackets()
+                NetworkServerConnectionHandler.processServerPackets()
+                ServerScoreboardStorageFileSystem.runUpdates()
+                for(level in server.allLevels)
+                    (level.chunkSource as ServerChunkCacheAccessor).callBroadcastChangedChunks(profiler)
+                profiler.pop()
+            }
+
+            for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
+                flushDisabledNetworkHandler.suspendFlushing()
+
+            if(!serverAlreadyFrozen)
+                server.playerList.broadcastAll(
+                    ClientboundTickingStatePacket(
+                        server.tickRateManager().tickrate(),
+                        false
+                    )
+                )
+
+            suspendedServer = false
+        } finally {
+            CommandsAccessor.getCURRENT_EXECUTION_CONTEXT().set(executionContext)
+            currentPauseContext.set(this)
+            isServerPaused.remove()
         }
-
-        for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
-            flushDisabledNetworkHandler.resumeFlushing()
-
-        // Tell clients that the server is frozen so they don't really continue ticking
-        val serverAlreadyFrozen = server.tickRateManager().isFrozen
-        if(!serverAlreadyFrozen)
-            server.playerList.broadcastAll(ClientboundTickingStatePacket(server.tickRateManager().tickrate(), true))
-
-        val profiler = Profiler.get()
-        while(isPaused) {
-            val sleepDurationMs = lastTickMs + tickDelayMs - Util.getMillis()
-            if(sleepDurationMs > 0)
-                Thread.sleep(sleepDurationMs)
-            profiler.push("debuggerSuspendedTick")
-            lastTickMs = Util.getMillis()
-            // Prevent watchdog from killing the server due to a too long tick
-            (server as MinecraftServerAccessor).setTickStartTimeNanos(Util.getNanos())
-            // Tick network handlers to keep connections alive
-            // Copy list in case 'callBaseTick' disconnects a player, which would modify the player list
-            for(player in server.playerList.players.toList())
-                (player.connection as ServerCommonPacketListenerImplAccessor).callKeepConnectionAlive()
-            NetworkServerConnectionHandler.processServerPackets()
-            ServerScoreboardStorageFileSystem.runUpdates()
-            for(level in server.allLevels)
-                (level.chunkSource as ServerChunkCacheAccessor).callBroadcastChangedChunks(profiler)
-            profiler.pop()
-        }
-
-        for(flushDisabledNetworkHandler in flushDisabledNetworkHandlers)
-            flushDisabledNetworkHandler.suspendFlushing()
-
-        if(!serverAlreadyFrozen)
-            server.playerList.broadcastAll(ClientboundTickingStatePacket(server.tickRateManager().tickrate(), false))
-
-        suspendedServer = false
     }
 
     private val onContinueListeners = mutableListOf<() -> Unit>()

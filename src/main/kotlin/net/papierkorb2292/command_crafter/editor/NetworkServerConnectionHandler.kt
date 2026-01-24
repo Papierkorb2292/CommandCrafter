@@ -92,6 +92,9 @@ object NetworkServerConnectionHandler {
         }
         return true
     }
+    fun queuePacketHandler(callback: () -> Unit) {
+        asyncServerPacketQueue += callback
+    }
     fun processServerPackets() {
         while(true) {
             val next = asyncServerPacketQueue.poll() ?: break
