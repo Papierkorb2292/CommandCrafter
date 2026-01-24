@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 import net.minecraft.world.phys.HitResult;
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter;
+import net.papierkorb2292.command_crafter.editor.debugger.variables.SlotAccessValueReference;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -65,38 +66,14 @@ public abstract class KeyboardHandlerMixin {
             return original;
         }
 
-        final var id = item.getItemHolder().getRegisteredName();
-        final var componentBuilder = new StringBuilder();
         // Copy component changes by default, or copy the item's default components when shift is held
         final var addedRemovedPair = notPressingShift
                 ? item.getComponentsPatch().split()
                 : new DataComponentPatch.SplitResult(command_crafter$copyItemComponentsWithoutDefaults(item.getItem()), Collections.emptySet());
 
-        for(final var added : addedRemovedPair.added()) {
-            final var encoded = command_crafter$encodeComponent(added);
-            if(encoded == null)
-                continue;
-            if(!componentBuilder.isEmpty())
-                componentBuilder.append(',');
-            componentBuilder.append(Objects.requireNonNull(BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(added.type())).toShortString());
-            componentBuilder.append('=');
-            componentBuilder.append(encoded);
-        }
-        for(final var removed : addedRemovedPair.removed()) {
-            if(!componentBuilder.isEmpty())
-                componentBuilder.append(',');
-            componentBuilder.append('!');
-            componentBuilder.append(Objects.requireNonNull(BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(removed)).toShortString());
-        }
+        final var formatted = SlotAccessValueReference.Companion.formatItem(item.getItemHolder(), addedRemovedPair, item.getCount(), Objects.requireNonNull(Minecraft.getInstance().player).registryAccess());
 
-        if(!componentBuilder.isEmpty()) {
-            componentBuilder.insert(0, '[');
-            componentBuilder.append(']');
-        }
-
-        final var count = item.getCount() > 1 ? " " + item.getCount() : "";
-
-        String giveCommand = String.format(Locale.ROOT, "/give @s %s%s%s", id, componentBuilder, count);
+        String giveCommand = "/give @s " + formatted;
         setClipboard(giveCommand);
         if(notPressingShift)
             showDebugChat(Component.translatable("command_crafter.debug.inspect.item").withStyle(ChatFormatting.GREEN));

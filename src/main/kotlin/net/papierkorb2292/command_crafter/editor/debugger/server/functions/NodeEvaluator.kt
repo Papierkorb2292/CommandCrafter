@@ -14,8 +14,11 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.coordinates.*
+import net.minecraft.core.BlockPos
 import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Mth
+import net.minecraft.world.Container
+import net.minecraft.world.entity.SlotProvider
 import net.minecraft.world.level.storage.loot.LootContext
 import net.minecraft.world.level.storage.loot.LootParams
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets
@@ -44,18 +47,69 @@ fun interface NodeEvaluator {
     ): EvaluationProvider
 
     companion object {
-        //TODO: Add other arguments (nbt paths, slots)
+        //TODO: Add other arguments (nbt paths)
         private fun getEvaluationDispatcher(server: MinecraftServer) = CommandDispatcher(RootCommandNode<CommandSourceStack>().apply {
             val registries = (server.recipeManager as RecipeManagerAccessor).registries // These registries contain loot data types
             val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
             addChild(Commands.argument("predicate", ResourceOrIdArgument.lootPredicate(buildContext)).build())
-            addChild(Commands.argument("entity", EntityArgument.entities()).build())
-            addChild(Commands.argument("position", Vec3Argument.vec3(true)).build())
+            addChild(Commands.argument("entity", EntityArgument.entities())
+                .then(Commands.argument("slots", SlotsArgument.slots()))
+                .build())
+            addChild(Commands.argument("position", Vec3Argument.vec3(true))
+                .then(Commands.argument("slots", SlotsArgument.slots()))
+                .build())
             addChild(Commands.argument("rotation", RotationArgument.rotation()).build())
             addChild(Commands.argument("scoreHolder", ScoreHolderArgument.scoreHolders())
                 .then(Commands.argument("objective", ObjectiveArgument.objective()))
                 .build())
         })
+
+        private fun findClosestArgumentName(
+            startName: String,
+            context: CommandContext<CommandSourceStack>,
+            types: Set<Class<out ArgumentType<*>>>
+        ): ArgumentCommandNode<CommandSourceStack, *>? {
+            val startIndex = context.nodes.indexOfFirst { it.node.name == startName }
+            val entry = context.nodes.withIndex()
+                .filter {
+                    val argumentClass = (it.value.node as? ArgumentCommandNode<*, *>)?.type?.javaClass
+                    (argumentClass as Class<out ArgumentType<*>>?) in types
+                }
+                .minByOrNull { (it.index - startIndex).absoluteValue }
+                ?: return null
+            return entry.value.node as ArgumentCommandNode<CommandSourceStack, *>
+        }
+
+        private fun getSlotProvidersFromContext(
+            startName: String,
+            context: CommandContext<CommandSourceStack>,
+        ): List<SlotProvider> {
+            val argument = findClosestArgumentName(
+                startName,
+                context,
+                mutableSetOf(
+                    EntityArgument::class.java,
+                    BlockPosArgument::class.java,
+                    Vec3Argument::class.java
+                )
+            ) ?: return emptyList()
+            return when(argument.type) {
+                is EntityArgument -> {
+                    EntityArgument.getOptionalEntities(context, argument.name).toList()
+                }
+                is BlockPosArgument -> {
+                    val pos = BlockPosArgument.getBlockPos(context, argument.name)
+                    val blockEntity = context.source.level.getBlockEntity(pos)
+                    if(blockEntity is Container) listOf(blockEntity) else emptyList()
+                }
+                is Vec3Argument -> {
+                    val vec3 = Vec3Argument.getVec3(context, argument.name)
+                    val blockEntity = context.source.level.getBlockEntity(BlockPos.containing(vec3))
+                    if(blockEntity is Container) listOf(blockEntity) else emptyList()
+                }
+                else -> throw AssertionError("Unhandled argument type for SlotProvider evaluation: ${argument.type.javaClass}")
+            }
+        }
 
         private fun getValueReferenceEvaluation(valueReference: VariableValueReference, name: String, includeInterpretation: Boolean): CompletableFuture<EvaluationProvider.EvaluationResult?> =
             CompletableFuture.completedFuture(EvaluationProvider.createResponse(valueReference.getEvaluateResponse().apply {
@@ -99,15 +153,10 @@ fun interface NodeEvaluator {
             ScoreHolderArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        // Find the closest objective argument to get the objective from
-                        val scoreHolderIndex = context.nodes.indexOfFirst { it.node.name == argumentName }
-                        val objectiveArgument = context.nodes.withIndex()
-                            .filter { (it.value.node as? ArgumentCommandNode<*, *>)?.type is ObjectiveArgument }
-                            .minByOrNull { (it.index - scoreHolderIndex).absoluteValue }
-                            ?.value
+                        val objectiveArgument = findClosestArgumentName(argumentName, context, setOf(ObjectiveArgument::class.java))
                             ?: return CompletableFuture.completedFuture(null)
                         val objective = try {
-                            ObjectiveArgument.getObjective(context, objectiveArgument.node.name)
+                            ObjectiveArgument.getObjective(context, objectiveArgument.name)
                         } catch (e: CommandSyntaxException) {
                             return CompletableFuture.completedFuture(EvaluationProvider.createError(e.message!!))
                         }
@@ -182,6 +231,34 @@ fun interface NodeEvaluator {
                     }
                 }
             },
+            SlotArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+                object : EvaluationProvider {
+                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                        val range = context.nodes.first { it.node.name == argumentName }.range
+                        val slotRange = SlotsArgument.slots().parse(StringReader(range.get(context.input)))
+                        val providers = getSlotProvidersFromContext(argumentName, context)
+                        val registries = context.source.server.registries().compositeAccess()
+                        val valueReference =
+                            if(providers.size == 1) SlotAccessValueReference(mapper, providers[0], slotRange.slots().getInt(0), true, registries)
+                            else SlotProviderMapValueReference(mapper, providers, slotRange, registries)
+                        return getValueReferenceEvaluation(valueReference, "Slots", includeInterpretation)
+                    }
+                }
+            },
+            SlotsArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+                object : EvaluationProvider {
+                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                        val slotRange = SlotsArgument.getSlots(context, argumentName)
+                        val providers = getSlotProvidersFromContext(argumentName, context)
+                        val registries = context.source.server.registries().compositeAccess()
+                        val valueReference =
+                            if(providers.size == 1 && slotRange.size() == 1) SlotAccessValueReference(mapper, providers[0], slotRange.slots().getInt(0), true, registries)
+                            else if(providers.size == 1) SlotRangeMapValueReference(mapper, providers[0], slotRange, true, registries)
+                            else SlotProviderMapValueReference(mapper, providers, slotRange, registries)
+                        return getValueReferenceEvaluation(valueReference, "Slots", includeInterpretation)
+                    }
+                }
+            }
         )
 
         private fun wrapDegrees(rot: Vec2): Vec2 =
