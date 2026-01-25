@@ -2,8 +2,6 @@ package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
-import net.minecraft.commands.CommandSource
-import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
@@ -14,8 +12,6 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.server.packs.repository.PackRepository
 import net.minecraft.world.level.storage.WorldData
-import net.minecraft.world.phys.Vec2
-import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
@@ -45,7 +41,6 @@ import java.util.concurrent.CompletableFuture
 class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConnection {
     companion object {
         const val SERVER_LOG_CHANNEL = "server"
-        private const val COMMAND_EXECUTOR_NAME = "{DirectServerConnection}"
 
         val WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID = Identifier.parse("reload_registries")
 
@@ -121,19 +116,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         else null
     override val commandExecutor = object : CommandExecutor {
         override fun executeCommand(command: String) {
-            server.createCommandSourceStack()
-            server.commands.performPrefixedCommand(
-                CommandSourceStack(
-                CommandSource.NULL,
-                Vec3.ZERO,
-                Vec2.ZERO,
-                server.overworld(),
-                functionPermissions,
-                COMMAND_EXECUTOR_NAME,
-                Component.literal(COMMAND_EXECUTOR_NAME),
-                server,
-                null
-            ), command)
+            server.commands.performPrefixedCommand(server.createCommandSourceStack(), command)
         }
     }
     override val debugService = object : ServerDebugConnectionService {
