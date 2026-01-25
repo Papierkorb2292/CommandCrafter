@@ -119,7 +119,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 override fun shouldRemoveCallback() = !running
             })
         }
-        client.updateChannel(Channel(CLIENT_LOG_CHANNEL, serverCommandExecutor != null))
+        if(minecraftClient != null)
+            client.updateChannel(Channel(CLIENT_LOG_CHANNEL, serverCommandExecutor != null))
     }
 
     private fun buildSemanticTokensRegistrationOptions(): SemanticTokensWithRegistrationOptions? {
@@ -173,14 +174,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     override fun initialized(params: InitializedParams) {
         val client = client ?: return
 
-        client.createChannel(Channel(CLIENT_LOG_CHANNEL, false))
-        PreLaunchLogListener.addLogListener(object : SizeLimitedCallbackLinkedBlockingQueue.Callback<String> {
-            override fun onElementAdded(e: String) {
-                client.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, e))
-            }
+        if(minecraftClient != null) {
+            client.createChannel(Channel(CLIENT_LOG_CHANNEL, false))
+            PreLaunchLogListener.addLogListener(object : SizeLimitedCallbackLinkedBlockingQueue.Callback<String> {
+                override fun onElementAdded(e: String) {
+                    client.logMinecraftMessage(ConsoleMessage(CLIENT_LOG_CHANNEL, e))
+                }
 
-            override fun shouldRemoveCallback() = !running
-        })
+                override fun shouldRemoveCallback() = !running
+            })
+        }
 
         connectServerConsole()
 
@@ -259,7 +262,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 if(minecraftClient?.isConnectedToServer != false)
                                     client!!.logMinecraftMessage(
                                         ConsoleMessage(
-                                            CLIENT_LOG_CHANNEL,
+                                            if(minecraftClient != null) CLIENT_LOG_CHANNEL else minecraftServer.serverLog?.name ?: return,
                                             "${AnsiEscape.createSequence("green")}[AutoReload] World has to be restarted to reload saved file"
                                         )
                                     )
