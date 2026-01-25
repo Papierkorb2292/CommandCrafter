@@ -113,6 +113,7 @@ class EditorConnectionManager(
         for(editorServer in runningServices.keys) {
             editorServer.leave()
         }
+        connectionAcceptor.stop()
     }
 
     fun copyForNewConnectionAcceptor(newConnectionAcceptor: EditorConnectionAcceptor): EditorConnectionManager {
