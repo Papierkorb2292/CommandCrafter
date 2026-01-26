@@ -35,7 +35,7 @@ class ScoreHolderMapValueReference(
                 onUpdate(scoreHolder)
             }
         }
-        if(compactEmptyScores) {
+        if(compactEmptyScores && emptyScores.isNotEmpty()) {
             valueReferences[EMPTY_SCORES_FIELD] = ScoreHolderMapValueReference(
                 mapper,
                 emptyScores,

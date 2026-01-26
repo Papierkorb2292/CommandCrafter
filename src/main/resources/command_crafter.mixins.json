@@ -39,6 +39,7 @@
     "editor.debugger.MacroFunctionAccessor",
     "editor.debugger.MacroFunctionMixin",
     "editor.debugger.MinecraftServerMixin",
+    "editor.debugger.NbtPathArgumentMixin",
     "editor.debugger.PlainTextFunctionMixin",
     "editor.debugger.ReloadCommandAccessor",
     "editor.debugger.ResourceManagerHolderAccessor",

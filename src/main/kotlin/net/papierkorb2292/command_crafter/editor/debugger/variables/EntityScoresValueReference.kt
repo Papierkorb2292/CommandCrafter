@@ -26,11 +26,13 @@ class EntityScoresValueReference(
         valueReferences.clear()
         objectiveCount = 0
         val scoreboard = source.server.scoreboard
+        var hasEmptyObjective = false
         for(objective in scoreboard.objectives) {
             if(filterEmptyObjectives && scoreboard.getPlayerScoreInfo(entity, objective) != null)
                 continue
             objectiveCount++
             if(!filterEmptyObjectives && scoreboard.getPlayerScoreInfo(entity, objective) == null) {
+                hasEmptyObjective = true
                 continue
             }
             valueReferences[objective.name] = ScoreHolderValueReference(mapper, entity, objective, source, includeName = false, allowEntityChild = false) {
@@ -38,7 +40,7 @@ class EntityScoresValueReference(
                 onUpdate(objective)
             }
         }
-        if(!filterEmptyObjectives) {
+        if(hasEmptyObjective) {
             valueReferences[EMPTY_OBJECTIVES_FIELD] = EntityScoresValueReference(
                 mapper,
                 entity,

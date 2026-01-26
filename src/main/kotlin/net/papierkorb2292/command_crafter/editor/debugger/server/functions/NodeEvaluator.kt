@@ -4,18 +4,27 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.brigadier.tree.RootCommandNode
+import com.mojang.datafixers.util.Either
 import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.coordinates.*
 import net.minecraft.core.BlockPos
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.commands.data.BlockDataAccessor
+import net.minecraft.server.commands.data.DataAccessor
+import net.minecraft.server.commands.data.EntityDataAccessor
+import net.minecraft.server.commands.data.StorageDataAccessor
 import net.minecraft.util.Mth
 import net.minecraft.world.Container
 import net.minecraft.world.entity.SlotProvider
@@ -28,6 +37,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraft.world.scores.ScoreHolder
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
+import net.papierkorb2292.command_crafter.editor.debugger.helper.HoverCursorContainer
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
@@ -43,31 +53,90 @@ fun interface NodeEvaluator {
         argumentName: String,
         context: CommandContext<CommandSourceStack>,
         mapper: VariablesReferenceMapper,
-        includeInterpretation: Boolean
+        cursor: Int,
+        includeInterpretation: Boolean,
     ): EvaluationProvider
 
     companion object {
-        //TODO: Add other arguments (nbt paths)
-        private fun getEvaluationDispatcher(server: MinecraftServer) = CommandDispatcher(RootCommandNode<CommandSourceStack>().apply {
-            val registries = (server.recipeManager as RecipeManagerAccessor).registries // These registries contain loot data types
-            val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
-            addChild(Commands.argument("predicate", ResourceOrIdArgument.lootPredicate(buildContext)).build())
-            addChild(Commands.argument("entity", EntityArgument.entities())
-                .then(Commands.argument("slots", SlotsArgument.slots()))
-                .build())
-            addChild(Commands.argument("position", Vec3Argument.vec3(true))
-                .then(Commands.argument("slots", SlotsArgument.slots()))
-                .build())
-            addChild(Commands.argument("rotation", RotationArgument.rotation()).build())
-            addChild(Commands.argument("scoreHolder", ScoreHolderArgument.scoreHolders())
-                .then(Commands.argument("objective", ObjectiveArgument.objective()))
-                .build())
-        })
+        // Specified separately instead of in one dispatcher to better handle ambiguity
+        private val evaluationParsers = listOf<EvaluationParser>(
+            EvaluationParser({ server ->
+                val registries = (server.recipeManager as RecipeManagerAccessor).registries // These registries contain loot data types
+                val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
+                Commands.argument("predicate", ResourceOrIdArgument.lootPredicate(buildContext)).build()
+            }),
+            EvaluationParser({
+                Commands.argument("position", Vec3Argument.vec3(true))
+                    .then(Commands.argument("slots", SlotsArgument.slots()))
+                    .then(Commands.argument("path", NbtPathArgument.nbtPath()))
+                    .build()
+            }),
+            EvaluationParser({
+                Commands.argument("rotation", RotationArgument.rotation()).build()
+            }),
+            EvaluationParser({
+                Commands.argument("scoreHolder", ScoreHolderArgument.scoreHolders())
+                    .then(Commands.argument("objective", ObjectiveArgument.objective()))
+                    .build()
+            }, { context, input ->
+                // If objective arg doesn't exist and score holder could be an entity, it should be interpreted as an NBT path instead
+                try {
+                    EntityArgument.entities().parse(StringReader(input))
+                    // Must be entity, since no exception was thrown
+                    val name = context.arguments["objective"]?.result as? String ?: return@EvaluationParser false
+                    context.source.server.scoreboard.getObjective(name) != null
+                } catch(_: CommandSyntaxException) {
+                    true
+                }
+            }),
+            EvaluationParser({
+                Commands.argument("storage", IdentifierArgument.id())
+                    .then(Commands.argument("path", NbtPathArgument.nbtPath()))
+                    .build()
+            }, { context, input ->
+                // Only valid if path was supplied and storage exists
+                if(context.arguments["path"] == null)
+                    return@EvaluationParser false
+                val storageId = context.arguments["storage"]?.result as? Identifier ?: return@EvaluationParser false
+                context.source.server.commandStorage.get(storageId).size() != 0
+            }),
+            EvaluationParser({
+                Commands.argument("entity", EntityArgument.entities())
+                    .then(Commands.argument("slots", SlotsArgument.slots()))
+                    .then(Commands.argument("path", NbtPathArgument.nbtPath()))
+                    .build()
+            })
+        )
+
+        private fun tryParseExpression(input: String, source: CommandSourceStack): Either<CommandContextBuilder<CommandSourceStack>, CommandSyntaxException> {
+            val errors = mutableListOf<CommandSyntaxException>()
+            // Use the first valid result, which is validated by the parser to handle ambiguity
+            val parsed = evaluationParsers.firstNotNullOfOrNull { parser ->
+                val node = parser.parseTreeProvider(source.server)
+                val dispatcher = CommandDispatcher(RootCommandNode<CommandSourceStack>().apply {
+                    addChild(node)
+                })
+                val parseResults = dispatcher.parse(input, source)
+
+                if(parseResults.exceptions.isNotEmpty()) {
+                    errors += parseResults.exceptions.values.maxBy { it.cursor }
+                    null
+                } else if(parseResults.reader.canRead()) {
+                    errors += CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parseResults.reader)
+                    null
+                } else if(parser.validator(parseResults.context, input)) {
+                    parseResults
+                } else {
+                    null
+                }
+            } ?: return Either.right(errors.maxBy { it.cursor })
+            return Either.left(parsed.context)
+        }
 
         private fun findClosestArgumentName(
             startName: String,
             context: CommandContext<CommandSourceStack>,
-            types: Set<Class<out ArgumentType<*>>>
+            types: Set<Class<out ArgumentType<*>>>,
         ): ArgumentCommandNode<CommandSourceStack, *>? {
             val startIndex = context.nodes.indexOfFirst { it.node.name == startName }
             val entry = context.nodes.withIndex()
@@ -111,6 +180,51 @@ fun interface NodeEvaluator {
             }
         }
 
+        private val ERROR_NOT_A_BLOCK_ENTITY = SimpleCommandExceptionType(Component.translatable("commands.data.block.invalid"))
+
+        @Throws(CommandSyntaxException::class)
+        private fun getDataAccessorFromContext(
+            startName: String,
+            context: CommandContext<CommandSourceStack>,
+        ): DataAccessor? {
+            val argument = findClosestArgumentName(
+                startName,
+                context,
+                setOf(
+                    EntityArgument::class.java,
+                    BlockPosArgument::class.java,
+                    Vec3Argument::class.java,
+                    IdentifierArgument::class.java
+                )
+            ) ?: return null
+            return when(argument.type) {
+                is EntityArgument -> {
+                    EntityDataAccessor.PROVIDER.apply(argument.name).access(context)
+                }
+
+                is BlockPosArgument -> {
+                    val pos = BlockPosArgument.getBlockPos(context, argument.name)
+                    val blockEntity = context.source.level.getBlockEntity(pos)
+                        ?: throw ERROR_NOT_A_BLOCK_ENTITY.create()
+                    BlockDataAccessor(blockEntity, pos)
+                }
+
+                is Vec3Argument -> {
+                    val vec3 = Vec3Argument.getVec3(context, argument.name)
+                    val pos = BlockPos.containing(vec3)
+                    val blockEntity = context.source.level.getBlockEntity(pos)
+                        ?: throw ERROR_NOT_A_BLOCK_ENTITY.create()
+                    BlockDataAccessor(blockEntity, pos)
+                }
+
+                is IdentifierArgument -> {
+                    StorageDataAccessor.PROVIDER.apply(argument.name).access(context)
+                }
+
+                else -> throw AssertionError("Unhandled argument type for NBT path evaluation: ${argument.type.javaClass}")
+            }
+        }
+
         private fun getValueReferenceEvaluation(valueReference: VariableValueReference, name: String, includeInterpretation: Boolean): CompletableFuture<EvaluationProvider.EvaluationResult?> =
             CompletableFuture.completedFuture(EvaluationProvider.createResponse(valueReference.getEvaluateResponse().apply {
                 if(includeInterpretation)
@@ -118,7 +232,7 @@ fun interface NodeEvaluator {
             }))
 
         private val nodeEvaluators = mutableMapOf<Class<out ArgumentType<*>>, NodeEvaluator>(
-            ResourceOrIdArgument.LootPredicateArgument::class.java to NodeEvaluator { argumentName, context, _, includeInterpretation ->
+            ResourceOrIdArgument.LootPredicateArgument::class.java to NodeEvaluator { argumentName, context, _, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val value = ResourceOrIdArgument.getLootPredicate(context, argumentName).value()
@@ -139,7 +253,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            EntityArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            EntityArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val entities = EntityArgument.getOptionalEntities(context, argumentName).toList()
@@ -150,7 +264,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            ScoreHolderArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            ScoreHolderArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val objectiveArgument = findClosestArgumentName(argumentName, context, setOf(ObjectiveArgument::class.java))
@@ -170,7 +284,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            GameProfileArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            GameProfileArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val entities = try {
@@ -185,7 +299,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            Vec3Argument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            Vec3Argument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val vec3 = Vec3Argument.getVec3(context, argumentName)
@@ -194,7 +308,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            BlockPosArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            BlockPosArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val pos = BlockPosArgument.getBlockPos(context, argumentName)
@@ -203,7 +317,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            ColumnPosArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            ColumnPosArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val pos = ColumnPosArgument.getColumnPos(context, argumentName)
@@ -213,7 +327,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            RotationArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            RotationArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val vec2 = wrapDegrees(RotationArgument.getRotation(context, argumentName).getRotation(context.source))
@@ -222,7 +336,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            Vec2Argument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            Vec2Argument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val vec2 = wrapDegrees(Vec2Argument.getVec2(context, argumentName))
@@ -231,7 +345,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            SlotArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            SlotArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val range = context.nodes.first { it.node.name == argumentName }.range
@@ -245,7 +359,7 @@ fun interface NodeEvaluator {
                     }
                 }
             },
-            SlotsArgument::class.java to NodeEvaluator { argumentName, context, mapper, includeInterpretation ->
+            SlotsArgument::class.java to NodeEvaluator { argumentName, context, mapper, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                         val slotRange = SlotsArgument.getSlots(context, argumentName)
@@ -256,6 +370,40 @@ fun interface NodeEvaluator {
                             else if(providers.size == 1) SlotRangeMapValueReference(mapper, providers[0], slotRange, true, registries)
                             else SlotProviderMapValueReference(mapper, providers, slotRange, registries)
                         return getValueReferenceEvaluation(valueReference, "Slots", includeInterpretation)
+                    }
+                }
+            },
+            NbtPathArgument::class.java to NodeEvaluator { argumentName, context, mapper, cursor, includeInterpretation ->
+                object : EvaluationProvider {
+                    override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
+                        val parsedNode = context.nodes.first { it.node.name == argumentName }
+                        val range = parsedNode.range
+                        try {
+                            val argumentParser = NbtPathArgument()
+                            // Only parse up until the cursor
+                            var mappedCursor = cursor - (parsedNode as CursorOffsetContainer).getCursorOffset()
+                            // VSCode includes leading '.' when determining the range for hover, so skip it here
+                            if(mappedCursor in context.input.indices && context.input[mappedCursor] == '.')
+                                mappedCursor++
+                            @Suppress("KotlinConstantConditions")
+                            (argumentParser as HoverCursorContainer).`command_crafter$setHoverCursor`(mappedCursor - range.start)
+                            val nbtPath = argumentParser.parse(StringReader(range.get(context.input)))
+                            val dataAccessor = getDataAccessorFromContext(argumentName, context)
+                                ?: return CompletableFuture.completedFuture(null)
+                            val data = dataAccessor.data
+                            val result = try {
+                                nbtPath.get(data)
+                            } catch(_: CommandSyntaxException) {
+                                listOf() // Use empty list if no data was found
+                            }
+                            val valueReference = if(result.size == 1)
+                                NbtValueReference(mapper, result[0]) { newNbt -> newNbt }
+                            else
+                                NbtPathResultValueReference(mapper, result) { newData -> newData }
+                            return getValueReferenceEvaluation(valueReference, "NBT", includeInterpretation)
+                        } catch(e: CommandSyntaxException) {
+                            return CompletableFuture.completedFuture(EvaluationProvider.createError(e.message!!))
+                        }
                     }
                 }
             }
@@ -308,25 +456,21 @@ fun interface NodeEvaluator {
             return object : EvaluationProvider {
                 override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                     val input = args.expression
-                    val parseResults = getEvaluationDispatcher(source.server).parse(input, source)
-                    if(parseResults.exceptions.isNotEmpty())
-                        return CompletableFuture.completedFuture(EvaluationProvider.createError(
-                            parseResults.exceptions.values.maxBy { it.cursor }.message!!
-                        ))
-                    if(parseResults.reader.canRead())
-                        return CompletableFuture.completedFuture(EvaluationProvider.createError(
-                            CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parseResults.reader).message!!
-                        ))
-                    val cursor =
-                        if(parseResults.context.nodes.firstOrNull()?.node?.name == "scoreHolder") 0 // Placed at beginning because the score holder is evaluated to compute the scores
-                        else parseResults.reader.cursor
-                    return getContextEvaluationProvider(
-                        parseResults.context.build(input),
-                        source,
-                        cursor,
-                        mapper,
-                        true
-                    ).evaluate(args)
+                    val parsed = tryParseExpression(input, source)
+                    return parsed.map({ context ->
+                        val cursor =
+                            if(context.nodes.firstOrNull()?.node?.name == "scoreHolder") 0 // Placed at beginning because the score holder is evaluated to compute the scores
+                            else context.range.end
+                        getContextEvaluationProvider(
+                            context.build(input),
+                            source,
+                            cursor,
+                            mapper,
+                            true
+                        ).evaluate(args)
+                    }, { error ->
+                        CompletableFuture.completedFuture(EvaluationProvider.createError(error.message!!))
+                    })
                 }
             }
         }
@@ -336,7 +480,7 @@ fun interface NodeEvaluator {
             source: CommandSourceStack,
             cursor: Int,
             mapper: VariablesReferenceMapper,
-            includeInterpretation: Boolean
+            includeInterpretation: Boolean,
         ) = object : EvaluationProvider {
             override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                 // Get the node at the cursor
@@ -362,8 +506,16 @@ fun interface NodeEvaluator {
 
             private fun getNodeEvaluator(node: CommandNode<CommandSourceStack>, context: CommandContext<CommandSourceStack>): EvaluationProvider? =
                 if(node is ArgumentCommandNode<*, *>) {
-                    nodeEvaluators[node.type.javaClass]?.getEvaluationProvider(node.name, context, mapper, includeInterpretation)
+                    nodeEvaluators[node.type.javaClass]?.getEvaluationProvider(
+                        node.name,
+                        context,
+                        mapper,
+                        cursor,
+                        includeInterpretation
+                    )
                 } else null
         }
     }
+
+    data class EvaluationParser(val parseTreeProvider: (MinecraftServer) -> CommandNode<CommandSourceStack>, val validator: (CommandContextBuilder<CommandSourceStack>, String) -> Boolean = { _, _ -> true })
 }
