@@ -12,13 +12,13 @@ import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
 import com.mojang.brigadier.tree.RootCommandNode
 import com.mojang.datafixers.util.Either
-import net.minecraft.commands.CommandBuildContext
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.Commands
+import net.minecraft.ChatFormatting
+import net.minecraft.commands.*
 import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.coordinates.*
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.commands.data.BlockDataAccessor
@@ -35,15 +35,16 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.minecraft.world.scores.ScoreHolder
+import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.helper.HoverCursorContainer
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
 import net.papierkorb2292.command_crafter.parser.helper.getCursorOffset
-import org.eclipse.lsp4j.debug.EvaluateArguments
-import org.eclipse.lsp4j.debug.EvaluateResponse
+import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import kotlin.math.absoluteValue
@@ -451,11 +452,34 @@ fun interface NodeEvaluator {
             }
         }
 
-        //TODO: Execute commands if starts with '/' (only if allowed: check context)
-        fun getParsingEvaluationProvider(source: CommandSourceStack, mapper: VariablesReferenceMapper): EvaluationProvider {
+        fun getParsingEvaluationProvider(source: CommandSourceStack, mapper: VariablesReferenceMapper, editorDebugConnection: EditorDebugConnection): EvaluationProvider {
             return object : EvaluationProvider {
                 override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                     val input = args.expression
+                    if(input.startsWith('/')) {
+                        // Don't run commands for hover, because they can have side effects
+                        if(args.context == EvaluateArgumentsContext.HOVER)
+                            return CompletableFuture.completedFuture(null)
+                        var commandResult = CommandResult(null)
+                        source.server.commands.performPrefixedCommand(
+                            source.withCallback { success, returnValue ->
+                                commandResult = CommandResult(success to returnValue)
+                            },
+                            input
+                        )
+                        val valueReference = CommandResultValueReference(mapper, commandResult) { _ -> commandResult }
+                        return CompletableFuture.completedFuture(EvaluationProvider.createResponse(valueReference.getEvaluateResponse()))
+                    }
+
+                    // Check if user might have tried to execute a command but forgot '/'
+                    val firstArg = StringReader(input).readUnquotedString()
+                    if(firstArg in (source.server.commands.dispatcher.root as CommandNodeAccessor).literals) {
+                        editorDebugConnection.output(OutputEventArguments().apply {
+                            category = OutputEventArgumentsCategory.CONSOLE
+                            output = "If you want to run a command, prefix it with '/'"
+                        })
+                    }
+
                     val parsed = tryParseExpression(input, source)
                     return parsed.map({ context ->
                         val cursor =
@@ -514,6 +538,23 @@ fun interface NodeEvaluator {
                         includeInterpretation
                     )
                 } else null
+        }
+
+        fun getEvaluationCommandSourceForConnection(editorDebugConnection: EditorDebugConnection): CommandSource {
+            return object : CommandSource {
+                override fun sendSystemMessage(component: Component) {
+                    val isError = component.style.color == TextColor.fromLegacyFormat(ChatFormatting.RED)
+                    editorDebugConnection.output(OutputEventArguments().apply {
+                        category = if(isError) OutputEventArgumentsCategory.STDERR else OutputEventArgumentsCategory.STDOUT
+                        output = component.string
+                    })
+                }
+
+                override fun acceptsSuccess() = true
+                override fun acceptsFailure() = true
+                override fun shouldInformAdmins() = true
+
+            }
         }
     }
 

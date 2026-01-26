@@ -339,7 +339,11 @@ class RangeFunctionTagDebugInformation(
 
         override val evaluationProvider: EvaluationProvider
             // There is nothing to hover over in a tag, so just parse the expression
-            get() = NodeEvaluator.getParsingEvaluationProvider(debugFrame.commandSource, debugFrame.pauseContext.variablesReferenceMapper)
+            get() = NodeEvaluator.getParsingEvaluationProvider(
+                debugFrame.commandSource.withSource(NodeEvaluator.getEvaluationCommandSourceForConnection(debugFrame.pauseContext.debugConnection!!)),
+                debugFrame.pauseContext.variablesReferenceMapper,
+                debugFrame.pauseContext.debugConnection!!
+            )
     }
 
     data class TagEntrySource(

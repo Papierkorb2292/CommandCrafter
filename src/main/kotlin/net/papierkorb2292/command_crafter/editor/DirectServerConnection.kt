@@ -209,8 +209,11 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                     val wrapped = wrappedEditorDebugConnections[editorDebugConnection]
                         ?: return CompletableFuture.failedFuture(getConnectionNotInitialisedException())
                     return NodeEvaluator.getParsingEvaluationProvider(
-                        server.createCommandSourceStack().withPermission(server.functionCompilationPermissions),
-                        server.getDebugManager().getVariableReferencer(wrapped)
+                        server.createCommandSourceStack()
+                            .withPermission(server.functionCompilationPermissions)
+                            .withSource(NodeEvaluator.getEvaluationCommandSourceForConnection(editorDebugConnection)),
+                        server.getDebugManager().getVariableReferencer(wrapped),
+                        wrapped
                     ).evaluate(args)
                 }
             }

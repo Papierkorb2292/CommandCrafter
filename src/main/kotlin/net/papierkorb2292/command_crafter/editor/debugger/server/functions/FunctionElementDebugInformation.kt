@@ -333,13 +333,18 @@ class FunctionElementDebugInformation(
             val source =
                 if(showsCommandResult) sectionSources.sources[sectionSources.currentSourceIndex - 1]
                 else sectionSources.currentSource
+            val feedbackSource = source.withSource(NodeEvaluator.getEvaluationCommandSourceForConnection(debugFrame.pauseContext.debugConnection!!))
 
             if(args.context == EvaluateArgumentsContext.HOVER && args.column != null && args.line != null) {
                 EvaluationProvider.combine(elements.mapNotNull { element ->
-                    element.getHoverEvaluationProvider(debugFrame, source, this@FunctionElementDebugInformation)
+                    element.getHoverEvaluationProvider(debugFrame, feedbackSource, this@FunctionElementDebugInformation)
                 })
             } else {
-                NodeEvaluator.getParsingEvaluationProvider(source, debugFrame.pauseContext.variablesReferenceMapper)
+                NodeEvaluator.getParsingEvaluationProvider(
+                    feedbackSource,
+                    debugFrame.pauseContext.variablesReferenceMapper,
+                    debugFrame.pauseContext.debugConnection!!
+                )
             }
         }
 
