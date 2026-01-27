@@ -319,7 +319,6 @@ class FunctionElementDebugInformation(
             debugFrame.pauseContext.removePause()
         }
 
-        //TODO: Check path
         override val evaluationProvider: EvaluationProvider = EvaluationProvider.delegating { args ->
             val frameId = args.frameId ?: return@delegating null
             // If the function stack frame is selected, just take the first source for any command
