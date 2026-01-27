@@ -7,14 +7,11 @@ import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.llamalad7.mixinextras.sugar.Share;
-import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.DynamicOps;
 import it.unimi.dsi.fastutil.chars.CharSet;
-import net.minecraft.nbt.*;
 import net.minecraft.nbt.ByteTag;
 import net.minecraft.nbt.DoubleTag;
 import net.minecraft.nbt.EndTag;
@@ -28,8 +25,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.util.parsing.packrat.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquotedStringParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
+import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ByteTagAccessor;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.DoubleTagAccessor;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EndTagAccessor;
@@ -46,9 +43,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.*;
@@ -59,6 +59,14 @@ public class SnbtGrammarMixin {
     @Shadow
     @Final
     private static DelayedException<CommandSyntaxException> ERROR_EXPECTED_UNQUOTED_STRING;
+
+    @Shadow
+    @Final
+    private static Pattern UNICODE_NAME;
+
+    @Shadow
+    @Final
+    private static DelayedException<CommandSyntaxException> ERROR_INVALID_CHARACTER_NAME;
 
     @WrapOperation(
             method = "createParser",
@@ -346,6 +354,38 @@ public class SnbtGrammarMixin {
             stringRangeTreeBuilderArg.getStringRangeTreeBuilder().peekNode().setPlaceholder(true);
         }
         return result;
+    }
+
+    @WrapOperation(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "intValue=78" // 'N'
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$suggestUnicodeNames(Dictionary<StringReader> instance, Atom<String> atom, Operation<Term<StringReader>> op) {
+        // Add the error directly after the term was parsed instead of where Minecraft usually validates the character name,
+        // because otherwise the error from the missing '}' would suppress the character name error
+        final var original = op.call(instance, atom);
+        return (parseState, scope, control) -> {
+            final var startCursor = parseState.mark();
+            final var matches = original.parse(parseState, scope, control);
+            final var name = parseState.scope().get(atom);
+            if(name != null) {
+                try {
+                    Character.codePointOf(name);
+                    return matches;
+                } catch (IllegalArgumentException ignored) { }
+            }
+            parseState.errorCollector().store(startCursor, UnicodeNameSuggestionSupplier.INSTANCE, ERROR_INVALID_CHARACTER_NAME);
+            return false;
+        };
     }
 
     private static Tag command_crafter$copyPrimitiveNbtToNewInstance(Tag element) {
