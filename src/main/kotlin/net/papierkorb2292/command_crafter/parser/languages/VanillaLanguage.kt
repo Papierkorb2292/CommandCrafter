@@ -988,6 +988,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         //TODO: Error on trailing data
         fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
+            // Don't let parsers enable escaped multiline, since there already are mappings
+            reader.onlyReadEscapedMultiline = true
+            reader.cursorMapper.prevTargetEnd = Int.MAX_VALUE
 
             val crawlerRunner = MacroAnalyzingCrawlerRunner(
                 CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor),

@@ -44,7 +44,6 @@ class DirectiveStringReader<out ResourceCreator>(
     override val currentLine
         get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo, zeroBased = false).line
     var onlyReadEscapedMultiline = false
-        private set
     var furthestAccessedCursor = 0
     private var escapedMultilineTrimmed: String? = null
 
