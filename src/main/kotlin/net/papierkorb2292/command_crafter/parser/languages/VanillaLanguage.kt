@@ -355,7 +355,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 source,
                 macroAnalyzingResult,
                 macroVariableLocations
-            )
+            ) { sourceCursor ->
+                // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
+                val unresolvedMacroCursor = macroSourceFileInfo.cursorMapper.mapToTarget(sourceCursor)
+                resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
+            }
 
             macroAnalyzingResult.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
             macroAnalyzingResult.diagnostics += diagnostics
@@ -986,7 +990,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Component.nullToEmpty("Command doesn't end with a new line"))
 
         //TODO: Error on trailing data
-        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList) {
+        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList, completionPredicate: (Int) -> Boolean) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
             // Don't let parsers enable escaped multiline, since there already are mappings
             reader.onlyReadEscapedMultiline = true
@@ -1017,6 +1021,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             baseAnalyzingResult.addCompletionProviderWithContinuosMapping(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                 RangedDataProvider(StringRange(0, reader.string.length)) { sourceCursor: Int ->
+                    if(!completionPredicate(sourceCursor))
+                        return@RangedDataProvider CompletableFuture.completedFuture(mutableListOf())
+
                     val completionProvider = analyzingResult.getCompletionProviderForCursor(sourceCursor)
                     if(completionProvider == null) return@RangedDataProvider CompletableFuture.completedFuture(mutableListOf())
                     val completionFuture = completionProvider.dataProvider.invoke(sourceCursor)
