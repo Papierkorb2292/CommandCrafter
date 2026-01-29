@@ -7,38 +7,27 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
 import net.fabricmc.fabric.api.gametest.v1.GameTest
-import net.minecraft.commands.functions.StringTemplate
-import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
-import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.functions.StringTemplate
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.Vec3
-import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import net.papierkorb2292.command_crafter.parser.Language
-import net.papierkorb2292.command_crafter.parser.LanguageManager
-import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator
-import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator
+import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
+import net.papierkorb2292.command_crafter.parser.*
+import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
-import org.eclipse.lsp4j.CompletionItem
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.Range
-import org.eclipse.lsp4j.TextEdit
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
 import java.nio.file.Files
@@ -467,7 +456,7 @@ object TestCommandCrafter {
     @GameTest
     fun testMalformedPackratSuggestions(context: GameTestHelper) {
         val markedLines = """
-            clear @a §nothing§[d§oesnt_exist,minecraft:custom_name=§"Blue Stone"§] 
+            clear @a §nothing[d§oesnt_exist,minecraft:custom_name=§"Blue Stone"§] 
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
@@ -482,6 +471,13 @@ object TestCommandCrafter {
                 Component.literal("Item predicate suggestions for marker at $i")
             )
         }
+
+        context.assertFalse(
+            analyzingResult.getCompletionProviderForCursor(markedLocations[2].absoluteCursor)!!
+                .dataProvider(markedLocations[2].absoluteCursor).get()
+                .any { it.label == "~" },
+            Component.literal("Item predicate '~' suggestion after '='")
+        )
 
         context.succeed()
     }

@@ -9,6 +9,7 @@ import net.minecraft.util.parsing.packrat.Control;
 import net.minecraft.util.parsing.packrat.Scope;
 import net.minecraft.util.parsing.packrat.ParseState;
 import net.minecraft.util.parsing.packrat.Term;
+import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -52,11 +53,20 @@ public class AnyOfTermMixin<S> {
         var originalCursor = state.mark();
         for(int i = elementIndex.get(); i < elements.length; i++) {
             state.restore(startCursor);
+            int prevLastMalformedEndCursor = -1;
+            if(state.errorCollector() instanceof MalformedParseErrorList<S> malformedParseErrorList && malformedParseErrorList.getLastMalformedEndCursor() > startCursor) {
+                // Save lastMalformedEndCursor such that it isn't reset, since later terms might be parsed after this
+                prevLastMalformedEndCursor = malformedParseErrorList.swapLastMalformedEndCursor(-1);
+            }
             var missedBranchCallback = PackratParserAdditionalArgs.INSTANCE.branchAllArgs();
             try {
                 elements[i].parse(state, new Scope(), Control.UNBOUND);
             } finally {
                 missedBranchCallback.invoke(false);
+
+                if(prevLastMalformedEndCursor != -1)
+                    ((MalformedParseErrorList<S>)state.errorCollector())
+                            .setLastMalformedEndCursor(prevLastMalformedEndCursor);
             }
         }
         state.restore(originalCursor);

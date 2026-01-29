@@ -65,7 +65,7 @@ public class ComponentPredicateParserMixin {
     )
     private static <T> Atom<T>[] command_crafter$retrieveInlineTagResult(Atom<T>[] original) {
         //noinspection unchecked
-        return ArrayUtils.addAll(original, (Atom<T>)COMMAND_CRAFTER$INLINE_TAG_SYMBOL, (Atom<T>)COMMAND_CRAFTER$MALFORMED_FALLBACK);
+        return ArrayUtils.addAll(original, (Atom<T>)COMMAND_CRAFTER$INLINE_TAG_SYMBOL);
     }
 
     @ModifyArg(
@@ -92,6 +92,18 @@ public class ComponentPredicateParserMixin {
         );
     }
 
+    @ModifyArg(
+            method = "method_58492",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/parsing/packrat/Scope;getAnyOrThrow([Lnet/minecraft/util/parsing/packrat/Atom;)Ljava/lang/Object;"
+            )
+    )
+    private static <T> Atom<T>[] command_crafter$retrieveMalformedFallback(Atom<T>[] original) {
+        //noinspection unchecked
+        return ArrayUtils.addAll(original, (Atom<T>)COMMAND_CRAFTER$MALFORMED_FALLBACK);
+    }
+
     private static final ItemPredicateArgument.ComponentWrapper command_crafter$fallbackComponentCheck = new ItemPredicateArgument.ComponentWrapper(Identifier.fromNamespaceAndPath("command_crafter", "fallback"), stack -> true, Codec.PASSTHROUGH.map(dynamic -> stack -> true));
 
     @WrapOperation(
@@ -116,7 +128,7 @@ public class ComponentPredicateParserMixin {
                 componentTypeSymbolRef.set(symbol);
                 return wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(
                         originalTerm,
-                        CharSet.of(',', '=', '|', ']', ' '),
+                        CharSet.of(',', '=', '~', '|', ']', ' '),
                         CharSet.of('!'),
                         componentTypeSymbolRef.get(),
                         () -> command_crafter$fallbackComponentCheck
@@ -126,7 +138,7 @@ public class ComponentPredicateParserMixin {
                 // When malformed, save a value for component_type and not predicate_type, because I already have an instance for that one
                 return wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(
                         originalTerm,
-                        CharSet.of(',', '~', '|', ']', ' '),
+                        CharSet.of(',', '=', '~', '|', ']', ' '),
                         CharSet.of('!'),
                         componentTypeSymbolRef.get(),
                         () -> command_crafter$fallbackComponentCheck

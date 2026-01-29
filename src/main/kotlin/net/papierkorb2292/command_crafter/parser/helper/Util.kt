@@ -85,12 +85,12 @@ fun <TElement: Any> wrapTermSkipToNextEntryIfMalformedWithIllegalCharacters(term
             results.put(elementName, errorDefaultProvider())
         while(reader.canRead() && !entryDelimiters.contains(reader.peek())) {
             if(illegalCharacters.contains(reader.peek())) {
-                closeErrorListScopeCallback?.invoke(reader.cursor)
+                closeErrorListScopeCallback?.invoke(reader.cursor, true)
                 return@Term false
             }
             reader.skip()
         }
-        closeErrorListScopeCallback?.invoke(reader.cursor)
+        closeErrorListScopeCallback?.invoke(reader.cursor, originalMatches)
         // Since malformed elements are allowed, the term always matches
         true
     }
