@@ -178,6 +178,11 @@ object TestCommandCrafter {
         baseTokens.add(4, 0, 20, TokenType.NUMBER, 0)
         overlayTokens.add(4, 0, 5, TokenType.STRING, 0)
         overlayTokens.add(4, 15, 5, TokenType.STRING, 0)
+        baseTokens.add(5, 0, 8, TokenType.NUMBER, 0)
+        baseTokens.add(5, 8, 4, TokenType.NUMBER, 0)
+        baseTokens.add(5, 12, 8, TokenType.NUMBER, 0)
+        overlayTokens.add(5, 5, 10, TokenType.STRING, 0)
+        baseTokens.add(5, 20, 10, TokenType.NUMBER, 0)
 
         expectedTokens.add(0, 5, 10, TokenType.NUMBER, 0)
         expectedTokens.add(1, 5, 10, TokenType.STRING, 0)
@@ -188,6 +193,10 @@ object TestCommandCrafter {
         expectedTokens.add(4, 0, 5, TokenType.STRING, 0)
         expectedTokens.add(4, 5, 10, TokenType.NUMBER, 0)
         expectedTokens.add(4, 15, 5, TokenType.STRING, 0)
+        expectedTokens.add(5, 0, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(5, 5, 10, TokenType.STRING, 0)
+        expectedTokens.add(5, 15, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(5, 20, 10, TokenType.NUMBER, 0)
 
         baseTokens.overlay(listOf(overlayTokens).iterator())
 

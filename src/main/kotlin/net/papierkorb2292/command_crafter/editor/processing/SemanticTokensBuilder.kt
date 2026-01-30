@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import net.papierkorb2292.command_crafter.editor.processing.helper.advanceLines
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.helper.binarySearch
@@ -274,7 +273,32 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
                             // Because the next token position is also relative to the current dest token, not the previous one.
                             val originalCursorDiff = srcCursor - newDestCursor
 
-                            data[currentTokenIndex + 6] -= if(hasRemainingDest) originalCursorDiff + srcLength else originalCursorDiff
+                            if(hasRemainingDest) {
+                                data[currentTokenIndex + 6] -= originalCursorDiff + srcLength
+                            } else {
+                                // Also remove tokens that are completely covered and adjust the length of the last token if it overlaps
+                                var accumulatedCursorDiff = -originalCursorDiff
+                                do {
+                                    accumulatedCursorDiff += data[currentTokenIndex + 6]
+                                    if(accumulatedCursorDiff >= srcLength) {
+                                        // Next token starts after the src token
+                                        data[currentTokenIndex + 6] = accumulatedCursorDiff
+                                        break
+                                    }
+                                    // Next token overlaps
+                                    val removedLength = srcLength - accumulatedCursorDiff
+                                    val remainingTokenLength = data[currentTokenIndex + 7] - removedLength
+                                    if(remainingTokenLength > 0) {
+                                        data[currentTokenIndex + 6] = srcLength
+                                        data[currentTokenIndex + 7] = remainingTokenLength
+                                        if(currentTokenIndex + 10 < data.size && data[currentTokenIndex + 10] == 0)
+                                            data[currentTokenIndex + 11] = data[currentTokenIndex + 11] - removedLength
+                                        break
+                                    }
+                                    // Token is completely covered, can be removed
+                                    data.subList(currentTokenIndex + 5, currentTokenIndex + 10).clear()
+                                } while(currentTokenIndex + 5 < data.size && data[currentTokenIndex + 5] == 0)
+                            }
                         }
                         continue@srcTokens
                     }
