@@ -803,7 +803,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     parsedNodeRange.end
                 )
             ) { sourceCursor ->
-                val rootCompletionProvider = rootCompletions?.getCompletionProviderForCursor(sourceCursor)
+                    val rootCompletionProvider = rootCompletions?.getCompletionProviderForCursor(sourceCursor)
                 if(rootCompletionProvider != null)
                     return@RangedDataProvider rootCompletionProvider.dataProvider(sourceCursor)
 

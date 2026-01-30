@@ -60,7 +60,10 @@ class DirectiveStringReader<out ResourceCreator>(
             val old = string
             setString(old.trimEnd())
             escapedMultilineTrimmed = old.substring(string.length)
-            extendToLengthFromCursor(0) // Load line and mappings
+            if(remainingLength == 0) {
+                // A mapping will not be added by extendToLengthFromCursor, because there's nothing to read, so add one now
+                cursorMapper.addMapping(absoluteCursor, skippingCursor, 0)
+            }
         }
     }
 
@@ -91,7 +94,7 @@ class DirectiveStringReader<out ResourceCreator>(
         if(onlyReadEscapedMultiline) {
             val firstLineMappingMissing = cursorMapper.prevTargetEnd <= skippingCursor
             if(!string.endsWith('\\')) {
-                if(firstLineMappingMissing)
+                if(super.canRead(1) && firstLineMappingMissing)
                     cursorMapper.addMapping(absoluteCursor, skippingCursor, remainingLength)
                 return super.canRead(length)
             }
