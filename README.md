@@ -15,7 +15,7 @@ Additionally, the mod includes an extension of the vanilla function syntax, whic
 
 For more info, visit the [wiki](https://github.com/Papierkorb2292/CommandCrafter/wiki).
 
-The following VSCode screenshot shows of the highlighting, the debugger, the Scoreboard/Storage Viewer, the Minecraft log and the function syntax:
+The following VSCode screenshot shows off the highlighting, the debugger, the Scoreboard/Storage Viewer, the Minecraft log and the function syntax:
 ![A screenshot of vscode showing a debugger stepping through a function file while the Minecraft log is displayed on the bottom panel, the Scoreboard/Storage Viewer is shown on the left below the file tree and the function includes an inline function and multiline execute command](editor_extensions/vscode/ExampleImage.png)
 
 ## Installation and Usage
