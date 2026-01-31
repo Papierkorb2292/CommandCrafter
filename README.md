@@ -26,5 +26,8 @@ This mod distributes with the [LSP4J library](https://github.com/eclipse-lsp4j/l
 I want to thank all the following awesome people for testing and giving feedback for this project:
 - [Kesuaheli](https://www.github.com/Kesuaheli)
 - [Percy](https://www.youtube.com/@percyarin.studios)
+- [Mideks](https://www.github.com/Mideks)
+- [Mantis Whale](https://github.com/JabraelNoael)
+- Energy
 - [Yondonator](https://www.github.com/yondonator)
 - [Mqxx](https://www.github.com/Mqxx)
