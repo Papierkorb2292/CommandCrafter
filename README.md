@@ -1,16 +1,22 @@
 # CommandCrafter
 
-The CommandCrafter Minecraft mod aims to provide useful tools for command development.
+![A video typing a macro command into a function file making use of CommandCrafter's auto-completion](editor_extensions/vscode/MacroExample.gif)
 
-With this mod and the corresponding [CommandCrafter vscode extension](https://marketplace.visualstudio.com/items?itemName=Papierkorb2292.commandcrafter), it is possible to connect vscode to the running Minecraft instance and get datapack language support for whatever Minecraft you're running. Besides syntax highlighting, error checking, definition providers and hover providers, this includes debugging functionality that allows you to set breakpoints and step through functions while keeping track of the current command context. Additionally, vscode can show you the log output of the server you're on and lets you directly execute commands from the vscode window. Furthermore, this project lets you view scoreboards and storages in VSCode as well as reload datapacks or resourcepacks using the corresponding VSCode commands (which can also be bound to keyboard shortcuts).
+This [Fabric mod](https://modrinth.com/mod/commandcrafter) and [VSCode extension](https://marketplace.visualstudio.com/items?itemName=Papierkorb2292.commandcrafter) connects your editor to Minecraft, giving you lots of useful features for datapacks, such as:
+- Syntax Highlighting (including macros)
+- Auto-completion
+- Error checking
+- A debugger that lets you set breakpoints and step through functions and evaluate arguments while paused
+- Viewing and editing scoreboards/storages in your editor
+- Viewing the client's and the server's log in your editor
+- Reload datapacks or resourcepacks with VSCode commands (can be bound to keyboard shortcuts or configured to happen [automatically](https://github.com/Papierkorb2292/CommandCrafter/wiki/Config#automatic-reload) upon saving a file)
 
-Additionally, the mod includes a flexible extension of the vanilla datapack parser, which makes new function syntax possible. This mod provides an improved version of the vanilla function language, currently offering multiline commands without backslashes and inline functions/tags. This new function syntax can be transpiled to a vanilla datapack by the mod using the `/datapack build` command.
+Additionally, the mod includes an extension of the vanilla function syntax, which optionally makes it possible to write multiline commands without backslashes and write inline functions/tags. This new function syntax can be transpiled to a vanilla datapack by the mod using the `/datapack build` command.
 
 For more info, visit the [wiki](https://github.com/Papierkorb2292/CommandCrafter/wiki).
 
-The following is an example of the changes this extension can
-make in vscode:
-![A screenshot of vscode](editor_extensions/vscode/ExampleImage.png)
+The following VSCode screenshot shows of the highlighting, the debugger, the Scoreboard/Storage Viewer, the Minecraft log and the function syntax:
+![A screenshot of vscode showing a debugger stepping through a function file while the Minecraft log is displayed on the bottom panel, the Scoreboard/Storage Viewer is shown on the left below the file tree and the function includes an inline function and multiline execute command](editor_extensions/vscode/ExampleImage.png)
 
 ## Installation and Usage
 
