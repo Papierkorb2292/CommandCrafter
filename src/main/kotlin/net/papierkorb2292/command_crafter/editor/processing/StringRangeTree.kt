@@ -275,8 +275,11 @@ class StringRangeTree<TNode: Any>(
 
             var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseAnalyzingResult.mappingInfo.readSkippingChars)
                 .combineWith(cursorMapper)
-            if(baseAnalyzingResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0] + baseAnalyzingResult.mappingInfo.readSkippingChars)) {
+            if(baseAnalyzingResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
                 absoluteContentMapper = baseAnalyzingResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
+            } else {
+                absoluteContentMapper = OffsetProcessedInputCursorMapper(baseAnalyzingResult.mappingInfo.skippedChars)
+                    .combineWith(absoluteContentMapper)
             }
             val stringMappingInfo = FileMappingInfo(
                 baseAnalyzingResult.mappingInfo.lines,
