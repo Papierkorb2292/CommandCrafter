@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.block.model.BlockModelDefinition
 import net.minecraft.client.renderer.item.ClientItem
 import net.minecraft.client.renderer.texture.atlas.SpriteSources
 import net.minecraft.client.resources.WaypointStyle
+import net.minecraft.client.resources.metadata.language.LanguageMetadataSection
 import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.Commands
 import net.minecraft.server.permissions.LevelBasedPermissionSet
@@ -26,6 +27,7 @@ import net.papierkorb2292.command_crafter.editor.McFunctionAnalyzer
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.SocketEditorConnectionType
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
@@ -81,6 +83,7 @@ object ClientCommandCrafter : ClientModInitializer {
             )
             finalResult
         }))
+        MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(LanguageMetadataSection.TYPE))
 
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
 

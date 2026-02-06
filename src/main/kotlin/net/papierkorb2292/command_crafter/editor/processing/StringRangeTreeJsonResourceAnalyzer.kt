@@ -2,9 +2,11 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
+import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.minecraft.core.HolderLookup
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
+import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -70,5 +72,10 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             treeOperations.analyzeFull(result, true, fileDecoder)
             return result
         }
+
+        private val NULL_PROVIDER = { _: Any? -> null }
+        fun codecFromMetaSection(section: MetadataSectionType<*>, optional: Boolean): RecordCodecBuilder<Unit, *> =
+            if(optional) section.codec.optionalFieldOf(section.name).forGetter(NULL_PROVIDER)
+            else section.codec.fieldOf(section.name).forGetter(NULL_PROVIDER)
     }
 }

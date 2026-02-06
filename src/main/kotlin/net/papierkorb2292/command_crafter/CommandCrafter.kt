@@ -92,7 +92,6 @@ object CommandCrafter: ModInitializer {
     private fun initializeEditor() {
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(serversideStaticJsonResourceCodecs)
         MinecraftLanguageServer.addAnalyzer(FileTypeDispatchingAnalyzer)
-        MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
@@ -106,6 +105,7 @@ object CommandCrafter: ModInitializer {
                     ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
                 CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, "", CommonComponents.EMPTY, directServerConnection.server, null)
             }))
+            MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
 
             ServerLifecycleEvents.SERVER_STARTED.register {
                 // Delayed to every mod had time to add its own registries
