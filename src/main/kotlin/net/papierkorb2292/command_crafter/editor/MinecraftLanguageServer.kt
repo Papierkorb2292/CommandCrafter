@@ -282,7 +282,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
                 // Temporary fix for requesting too many completions in JSON files. Should actually be done in completion providers after rewriting AnalyzingResult.
                 if(position.context?.triggerKind == CompletionTriggerKind.TriggerCharacter
-                    && position.textDocument.uri.endsWith(".json")
+                    && (position.textDocument.uri.endsWith(".json") || position.textDocument.uri.endsWith(".mcmeta"))
                     && position.context.triggerCharacter !in jsonCompletionTriggerCharacters) {
                     return emptyCompletionsDefault
                 }
