@@ -983,7 +983,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
-        val shouldDisplayWarningOnMacroTimeout = true //TODO: Turn off before release
+        val shouldDisplayWarningOnMacroTimeout = false
         val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")
 
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Component.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
