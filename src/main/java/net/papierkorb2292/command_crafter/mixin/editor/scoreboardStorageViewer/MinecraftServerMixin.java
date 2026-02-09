@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer;
 
 import net.minecraft.server.MinecraftServer;
+import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler;
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,8 +18,9 @@ public class MinecraftServerMixin {
                     target = "Lnet/minecraft/server/MinecraftServer;tickServer(Ljava/util/function/BooleanSupplier;)V"
             )
     )
-    private void command_crafter$tickScoreboardStorageFileSystem(boolean bl, CallbackInfo ci) {
+    private void command_crafter$tickPacketsAndScoreboardStorageFileSystem(boolean bl, CallbackInfo ci) {
         // Invoked with custom mixin so it is still ticked when the server is paused
+        NetworkServerConnectionHandler.INSTANCE.processServerPackets();
         ServerScoreboardStorageFileSystem.Companion.runUpdates();
     }
 }

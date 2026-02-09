@@ -46,19 +46,12 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
 
         private var datapackReloadWaitFuture: CompletableFuture<Unit>? = CompletableFuture.completedFuture(Unit)
         private var datapackReloadReconfigureFuture: CompletableFuture<Unit>? = null
+        private var hasPendingReload = false
 
         fun registerReconfigureCompletedCheck() {
-            ServerTickEvents.END_SERVER_TICK.register {
-                checkCompletedReconfigureAfterReload(it)
-            }
-        }
-
-        @Synchronized
-        private fun reloadDatapacks(server: MinecraftServer) {
-            val datapackReloadWaitFuture = datapackReloadWaitFuture
-            if(datapackReloadWaitFuture != null) {
-                this.datapackReloadWaitFuture = null // No other reloads should be scheduled until this one starts
-                datapackReloadWaitFuture.whenCompleteAsync({ _, _ ->
+            ServerTickEvents.END_SERVER_TICK.register { server ->
+                if(hasPendingReload) {
+                    hasPendingReload = false
                     val completableFuture = CompletableFuture<Unit>()
                     this.datapackReloadWaitFuture = completableFuture
                     val resourcePackManager: PackRepository = server.packRepository
@@ -72,6 +65,18 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                         datapackReloadReconfigureFuture = completableFuture
                         checkCompletedReconfigureAfterReload(server)
                     }
+                }
+                checkCompletedReconfigureAfterReload(server)
+            }
+        }
+
+        @Synchronized
+        private fun reloadDatapacks(server: MinecraftServer) {
+            val datapackReloadWaitFuture = datapackReloadWaitFuture
+            if(datapackReloadWaitFuture != null) {
+                this.datapackReloadWaitFuture = null // No other reloads should be scheduled until this one starts
+                datapackReloadWaitFuture.whenCompleteAsync({ _, _ ->
+                    hasPendingReload = true // Delay until next tick to not reload while the server is paused
                 }, server)
             }
         }

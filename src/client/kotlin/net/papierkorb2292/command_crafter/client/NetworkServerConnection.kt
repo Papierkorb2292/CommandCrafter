@@ -51,7 +51,6 @@ import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.TimeUnit
 
 class NetworkServerConnection private constructor(private val client: Minecraft, private val initializePacket: InitializeNetworkServerConnectionS2CPacket) : MinecraftServerConnection {
     companion object {
@@ -93,9 +92,6 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
         private var receivedRegistryManager: RegistryAccess? = null
 
         private val currentConnections = mutableListOf<NetworkServerConnection>()
-
-        private var hasPendingReload = false
-        private val reloadTimeoutExecutor = CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS)
 
         fun requestAndCreate(): CompletableFuture<NetworkServerConnection> {
             if(!ClientPlayNetworking.canSend(RequestNetworkServerConnectionC2SPacket.ID)) {
@@ -259,9 +255,6 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
                     it.canReloadWorldgen = payload.canReloadWorldgen
                 }
             }
-            ClientPlayNetworking.registerGlobalReceiver(ReloadDatapacksAcknowledgementS2CPacket.ID) { _, _ ->
-                hasPendingReload = false
-            }
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 editorDebugConnections.clear()
                 scoreboardStorageFileSystems.clear()
@@ -278,14 +271,8 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
             }
         }
 
-        private fun trySendDatapackReload() {
-            if(!hasPendingReload) return
-            // Server might not be able to receive the packet right now
-            // (for example when Worldgen Devtools is used and the reload
-            // is triggered while syncing data to the client), so retry until an
-            // acknowledgement is received
+        private fun sendDatapackReload() {
             ClientPlayNetworking.send(ReloadDatapacksC2SPacket)
-            reloadTimeoutExecutor.execute(::trySendDatapackReload)
         }
     }
 
@@ -397,8 +384,7 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
     }
 
     override val datapackReloader = {
-        hasPendingReload = true
-        trySendDatapackReload()
+        sendDatapackReload()
     }
 
     override var canReloadWorldgen: Boolean = false

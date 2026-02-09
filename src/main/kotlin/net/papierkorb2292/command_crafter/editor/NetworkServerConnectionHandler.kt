@@ -4,7 +4,6 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.ints.IntList
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
@@ -327,7 +326,6 @@ object NetworkServerConnectionHandler {
         }
         registerAsyncServerPacketHandler(ReloadDatapacksC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
-            context.sendPacket(ReloadDatapacksAcknowledgementS2CPacket)
             val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
             serverConnection.datapackReloader()
         }
@@ -338,10 +336,6 @@ object NetworkServerConnectionHandler {
                 serverConnection.debugService.removeEditorDebugConnection(it)
             }
             ServerScoreboardStorageFileSystem.createdFileSystems.remove(networkHandler)
-        }
-
-        ServerTickEvents.START_SERVER_TICK.register { server ->
-            processServerPackets()
         }
     }
 
