@@ -81,7 +81,7 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
         this.connectionFeatures.push(minecraftConsole);
         this.connectionFeatures.push(new ScoreboardStorageViewer(context, "commandcrafter.scoreboard_storage_viewer", "scoreboardStorage"))
         this.connectionFeatures.push(new DebugClient(context, "commandcrafter", minecraftConsole, this))
-        this.connectionFeatures.push(new ExtensionCompatibility());
+        this.connectionFeatures.push(new ExtensionCompatibility(context));
         context.subscriptions.push(this);
         context.subscriptions.push(
             vscode.commands.registerCommand('commandcrafter.toggleLanguageClient', () => {

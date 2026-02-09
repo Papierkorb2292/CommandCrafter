@@ -17,9 +17,9 @@ const SPYGLASS_EXT_ID = "spgoding.datapack-language-server"
 
 export class ExtensionCompatibility implements ConnectionFeature {
     constructor(context: vscode.ExtensionContext) {
-        vscode.commands.registerCommand("commandcrafter.openSyntaxHighlightingSettings", () => {
+        context.subscriptions.push(vscode.commands.registerCommand("commandcrafter.openSyntaxHighlightingSettings", () => {
             this.openSyntaxHighlightingSettings()
-        })
+        }))
     }
 
     onLanguageClientStart(languageClient: LanguageClient): void { }
