@@ -342,9 +342,11 @@ val VARIABLE_PRESENTATION_HINT_PACKET_CODEC: StreamCodec<ByteBuf, VariablePresen
 val OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC = VARIABLE_PRESENTATION_HINT_PACKET_CODEC.optional()
 
 val VARIABLE_PACKET_CODEC = object : StreamCodec<ByteBuf, Variable> {
+    private val VALUE_CODEC = ByteBufCodecs.stringUtf8(1048575) // A higher limit than Minecraft's normal codec, because NBT can get big
+
     override fun decode(buf: ByteBuf) = Variable().apply {
         name = ByteBufCodecs.STRING_UTF8.decode(buf)
-        value = ByteBufCodecs.STRING_UTF8.decode(buf)
+        value = VALUE_CODEC.decode(buf)
         type = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
         presentationHint = OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC.decode(buf).orElse(null)
         evaluateName = OPTIONAL_STRING_PACKET_CODEC.decode(buf).orElse(null)
@@ -356,7 +358,7 @@ val VARIABLE_PACKET_CODEC = object : StreamCodec<ByteBuf, Variable> {
 
     override fun encode(buf: ByteBuf, value: Variable) {
         ByteBufCodecs.STRING_UTF8.encode(buf, value.name)
-        ByteBufCodecs.STRING_UTF8.encode(buf, value.value)
+        VALUE_CODEC.encode(buf, value.value)
         OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.type))
         OPTIONAL_VARIABLE_PRESENTATION_HINT_CODEC.encode(buf, Optional.ofNullable(value.presentationHint))
         OPTIONAL_STRING_PACKET_CODEC.encode(buf, Optional.ofNullable(value.evaluateName))
