@@ -24,8 +24,7 @@ export class ExtensionCompatibility implements ConnectionFeature {
 
     onLanguageClientStart(languageClient: LanguageClient): void { }
     onLanguageClientReady(languageClient: LanguageClient): void {
-        //Disabled until Spyglass PR is merged
-        //this.checkSpyglassHighlighting();
+        this.checkSpyglassHighlighting();
     }
     onLanguageClientStop(): void { }
     onConnectionTypeChange(connectionType: MinecraftConnectionType | null): void { }
