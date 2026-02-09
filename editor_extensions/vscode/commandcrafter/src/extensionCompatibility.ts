@@ -53,6 +53,10 @@ export class ExtensionCompatibility implements ConnectionFeature {
         }
         const spyglassHighlightingConfig = await isSpyglassHighlightingOnInConfig()
         const spyglassHighlightingSettings = isSpyglassHighlightingOnInSettings()
+        if(spyglassHighlightingSettings === undefined) {
+            outputChannel?.appendLine("Check failed due to outdated Spyglass: no semantic coloring setting")
+            return;
+        }
         if(spyglassHighlightingConfig === false || (spyglassHighlightingConfig === undefined && !spyglassHighlightingSettings)) {
             outputChannel?.appendLine("No conflict detected (Spyglass off)")
             return;
@@ -60,7 +64,7 @@ export class ExtensionCompatibility implements ConnectionFeature {
 
         const promptAnswer = await vscode.window.showInformationMessage(
             "CommandCrafter Setup",
-            { modal: true, detail: `It looks like you have highlighting for both Spyglass and CommandCrafter enabled for this project, which can lead to conflicts. Would you like to disable one? (This will edit your settings)
+            { modal: true, detail: `It looks like you have highlighting for both Spyglass and CommandCrafter enabled, which can lead to conflicts. Would you like to disable one? (This will edit your settings)
 
                 (You can suppress this message in the settings under ${COMPATIBILITY_CHECK_SETTING_NAME})
             `},
@@ -159,7 +163,9 @@ async function isSpyglassHighlightingOnInConfig(): Promise<boolean | undefined> 
     return undefined
 }
 
-function isSpyglassHighlightingOnInSettings(): boolean {
+function isSpyglassHighlightingOnInSettings(): boolean | undefined {
+    if(!vscode.workspace.getConfiguration(SPYGLASS_SETTINGS_SCOPE).has(SPYGLASS_SEMANTIC_COLORING_SETTING_SECTION))
+        return undefined
     const disabledLanguages = vscode.workspace.getConfiguration(SPYGLASS_SETTINGS_SCOPE).get(SPYGLASS_SEMANTIC_COLORING_SETTING_SECTION)
     return !Array.isArray(disabledLanguages) || !disabledLanguages.includes("mcfunction")
 }
