@@ -9,7 +9,7 @@ This [Fabric mod](https://modrinth.com/mod/commandcrafter) and [VSCode extension
 - A debugger that lets you set breakpoints and step through functions and evaluate arguments while paused
 - Viewing and editing scoreboards/storages in your editor
 - Viewing the client's and the server's log in your editor
-- Reload datapacks or resourcepacks with VSCode commands (can be bound to keyboard shortcuts or configured to happen [automatically](https://github.com/Papierkorb2292/CommandCrafter/wiki/Config#automatic-reload) upon saving a file)
+- Reload datapacks, resourcepacks or shaders with VSCode commands (can be bound to keyboard shortcuts or configured to happen [automatically](https://github.com/Papierkorb2292/CommandCrafter/wiki/Config#automatic-reload) upon saving a file)
 
 CommandCrafter differs from traditional datapack extensions in that everything it does is provided by the mod, which means it can use all the data available inside Minecraft. For example the auto-completion for commands can for the most part use the vanilla suggestions, which means you see all scoreboards that exist in a world or all functions known to Minecraft. CommandCrafter can detect any commands or dynamic registries added by other mods as well. This connection to Minecraft is also what makes the debugger and other features, which require deep integration with Minecraft, possible.
 
