@@ -166,9 +166,13 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                         languageClient.onRequest("fileExists", (filePattern: string) => fileExists(filePattern))
                         languageClient.onRequest("getFileContent", (path: string) =>
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
-                        languageClient.sendRequest<FeatureConfig>("defaultFeatureConfig").then(defaultConfig =>
-                            insertDefaultFeatureConfig(defaultConfig))
-                        languageClient.onNotification("modVersion", (version: string) => this.connectedModVersion = version)
+                        languageClient.onNotification("modVersion", (version: string) => {
+                            // 'defaultFeatureConfig' was added in the same version that added 'modVersion', so receiving
+                            // this notification means the mod supports 'defaultFeatureConfig'
+                            languageClient.sendRequest<FeatureConfig>("defaultFeatureConfig").then(defaultConfig =>
+                                insertDefaultFeatureConfig(defaultConfig))
+                            this.connectedModVersion = version
+                        })
                         break;
                     case State.Stopped:
                         outputChannel?.appendLine("LanguageClient is stopping")
