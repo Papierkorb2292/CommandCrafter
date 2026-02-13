@@ -3,7 +3,7 @@
   "id": "command_crafter",
   "version": "${version}",
   "name": "CommandCrafter",
-  "description": "The CommandCrafter Minecraft mod aims to provide useful tools for command development",
+  "description": "Useful Minecraft command tools in a Fabric mod and VSCode Extension (syntax highlighting, completion, debugging, etc.) ",
   "authors": [
     "Papierkorb2292"
   ],
