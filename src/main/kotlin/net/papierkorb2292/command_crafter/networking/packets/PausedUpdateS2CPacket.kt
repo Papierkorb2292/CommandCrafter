@@ -36,7 +36,7 @@ class PausedUpdateS2CPacket(val editorDebugConnection: UUID, val pause: Pair<UUI
             )
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, PausedUpdateS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

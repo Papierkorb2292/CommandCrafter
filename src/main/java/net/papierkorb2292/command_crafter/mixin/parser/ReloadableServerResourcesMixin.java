@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
+import net.minecraft.core.component.DataComponentInitializers;
 import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.core.LayeredRegistryAccess;
 import net.minecraft.core.Registry;
@@ -37,12 +38,12 @@ public class ReloadableServerResourcesMixin implements ParsedResourceCreator.Dat
             method = "<init>",
             at = @At("TAIL")
     )
-    private void command_crafter$addResourceCreatorContextToFunctionLoader(LayeredRegistryAccess<RegistryLayer> dynamicRegistries, HolderLookup.Provider registries, FeatureFlagSet enabledFeatures, Commands.CommandSelection environment, List<Registry.PendingTags<?>> pendingTagLoads, PermissionSet permissions, CallbackInfo ci){
+    private void command_crafter$addResourceCreatorContextToFunctionLoader(LayeredRegistryAccess<RegistryLayer> dynamicRegistries, HolderLookup.Provider registries, FeatureFlagSet enabledFeatures, Commands.CommandSelection environment, List<Registry.PendingTags<?>> pendingTagLoads, PermissionSet permissions, List<DataComponentInitializers.PendingComponents<?>> newComponents, CallbackInfo ci){
         ((ParsedResourceCreator.ParseResourceContextContainer) functionLibrary).command_crafter$setResourceCreatorContext((ReloadableServerResources)(Object)this);
     }
 
     @Inject(
-            method = "updateStaticRegistryTags",
+            method = "updateComponentsAndStaticRegistryTags",
             at = @At("TAIL")
     )
     private void command_crafter$loadTagsAndCallRefreshCallbacks(CallbackInfo ci) {

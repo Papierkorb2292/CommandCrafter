@@ -22,6 +22,6 @@ public class ItemPredicateArgumentTypeCallbacksMixin implements InlineTagPackrat
     @NotNull
     @Override
     public Rule<StringReader, Predicate<ItemStack>> command_crafter$getInlineTagRule() {
-        return new VanillaLanguage.InlineTagRule<>(items, ItemStack::getItemHolder);
+        return new VanillaLanguage.InlineTagRule<>(items, ItemStack::typeHolder);
     }
 }

@@ -30,7 +30,7 @@ public class ServerFunctionLibraryMixin implements IdentifiedDebugInformationPro
     private Map<Identifier, RangeFunctionTagDebugInformation> command_crafter$tagDebugInformations = new HashMap<>();
 
     @Inject(
-            method = "method_29453",
+            method = "lambda$reload$5",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/tags/TagLoader;build(Ljava/util/Map;)Ljava/util/Map;",

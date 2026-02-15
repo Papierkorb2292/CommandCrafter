@@ -35,7 +35,7 @@ class ScoreboardStorageFileNotificationS2CPacket<TParams>(private val packetId: 
                     params
                 )
             }
-            PayloadTypeRegistry.playS2C().register(payloadId, codec)
+            PayloadTypeRegistry.clientboundPlay().register(payloadId, codec)
             return Type(payloadId) { fileSystemId, params -> ScoreboardStorageFileNotificationS2CPacket(payloadId, fileSystemId, params) }
         }
     }

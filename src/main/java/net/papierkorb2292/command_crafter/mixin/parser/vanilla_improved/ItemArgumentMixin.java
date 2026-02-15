@@ -7,6 +7,7 @@ import net.minecraft.commands.arguments.item.ItemInput;
 import net.minecraft.commands.arguments.item.ItemArgument;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.commands.CommandSourceStack;
+import net.papierkorb2292.command_crafter.editor.debugger.variables.SlotAccessValueReference;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
@@ -38,6 +39,7 @@ public class ItemArgumentMixin implements StringifiableArgumentType {
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<CommandSourceStack> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) {
-        return Collections.singletonList(Either.left(context.getArgument(name, ItemInput.class).serialize(command_crafter$registries)));
+        final var itemInput = context.getArgument(name, ItemInput.class);
+        return Collections.singletonList(Either.left(SlotAccessValueReference.Companion.formatItem(itemInput.item(), itemInput.components().split(), 1, command_crafter$registries)));
     }
 }

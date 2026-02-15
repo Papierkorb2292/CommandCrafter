@@ -13,7 +13,7 @@ import javax.net.ssl.HttpsURLConnection
 val mixinJavaagentArgFile = file(".gradle/mixin-javaagent-arg.txt")
 
 plugins {
-    id("fabric-loom") version System.getProperty("loom_version")
+    id("net.fabricmc.fabric-loom") version System.getProperty("loom_version")
     id("java")
     kotlin("jvm").version(System.getProperty("kotlin_version"))
 }
@@ -30,12 +30,11 @@ repositories {
 }
 dependencies {
     minecraft("com.mojang", "minecraft", project.extra["minecraft_version"] as String)
-    mappings(loom.officialMojangMappings())
-    modImplementation("net.fabricmc", "fabric-loader", project.extra["loader_version"] as String)
-    modImplementation("net.fabricmc.fabric-api", "fabric-api", project.extra["fabric_version"] as String)
-    modImplementation("net.fabricmc", "fabric-language-kotlin", project.extra["fabric_language_kotlin_version"] as String)
+    implementation("net.fabricmc", "fabric-loader", project.extra["loader_version"] as String)
+    implementation("net.fabricmc.fabric-api", "fabric-api", project.extra["fabric_version"] as String)
+    implementation("net.fabricmc", "fabric-language-kotlin", project.extra["fabric_language_kotlin_version"] as String)
 
-    modCompileOnly("com.terraformersmc:modmenu:${project.extra["modmenu_version"]}")
+    compileOnly("com.terraformersmc:modmenu:${project.extra["modmenu_version"]}")
 
     api("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
     include("org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0")
@@ -46,7 +45,7 @@ dependencies {
     include("org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc.debug:0.24.0")
 
     // Only use within PartialIdGeneratorServiceImpl or other services with the purpose of interacting with PartialIdAutocomplete
-    modCompileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:1.2.0") {
+    compileOnly("com.github.Papierkorb2292:PartialIdAutocomplete:1.2.0") {
         exclude("com.terraformersmc", "modmenu")
     }
 

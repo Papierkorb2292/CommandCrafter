@@ -23,7 +23,7 @@ class SetBreakpointsResponseS2CPacket(val breakpoints: Array<Breakpoint>, val re
             ::SetBreakpointsResponseS2CPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SetBreakpointsResponseS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

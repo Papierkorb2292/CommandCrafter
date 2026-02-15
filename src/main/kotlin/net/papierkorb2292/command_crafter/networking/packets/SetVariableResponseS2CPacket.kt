@@ -28,7 +28,7 @@ class SetVariableResponseS2CPacket(val requestId: UUID, val response: VariablesR
             )
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SetVariableResponseS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

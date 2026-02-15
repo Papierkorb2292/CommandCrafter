@@ -22,7 +22,7 @@ class StepInTargetsResponseS2CPacket(val requestId: UUID, val response: StepInTa
             ::StepInTargetsResponseS2CPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, StepInTargetsResponseS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

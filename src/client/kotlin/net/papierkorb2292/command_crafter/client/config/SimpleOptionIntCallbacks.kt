@@ -5,10 +5,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.OptionInstance
 import net.minecraft.client.Options
 import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.gui.components.AbstractContainerWidget
-import net.minecraft.client.gui.components.AbstractWidget
-import net.minecraft.client.gui.components.EditBox
-import net.minecraft.client.gui.components.StringWidget
+import net.minecraft.client.gui.components.*
 import net.minecraft.client.gui.components.events.GuiEventListener
 import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.network.chat.Component
@@ -46,7 +43,7 @@ object SimpleOptionIntCallbacks : OptionInstance.ValueSet<Int> {
                     (option as OptionInstanceAccessor).caption,
                     Minecraft.getInstance().font
             )
-            val container = object : AbstractContainerWidget(x, y, width, 20, Component.literal("")) {
+            val container = object : AbstractContainerWidget(x, y, width, 20, Component.literal(""), AbstractScrollArea.defaultSettings(Minecraft.getInstance().font.lineHeight)) {
                 override fun children(): MutableList<out GuiEventListener> {
                     return mutableListOf(label, textInput);
                 }
@@ -75,16 +72,27 @@ object SimpleOptionIntCallbacks : OptionInstance.ValueSet<Int> {
                     textInput.y += deltaY;
                     super.setY(y);
                 }
+
+                // As of 26.1, focusing nexted container widgets doesn't work, because the child container is unfocused and quickly refocused,
+                // which doesn't refocus any grand-children. This fixes that
+                override fun setFocused(focused: Boolean) {
+                    super.setFocused(focused)
+                    if(focused) {
+                        this.focused = textInput
+                        textInput.isFocused = true;
+                    }
+                }
             };
             container.setTooltip(tooltipFactory.apply(option.get()))
             textInput.setResponder {
-                val int = it.toInt()
+                val int = it.toIntOrNull()
+                if(int == null) {
+                    textInput.value = option.get().toString()
+                    return@setResponder
+                }
                 option.set(int)
                 changeCallback.accept(int)
                 container.setTooltip(tooltipFactory.apply(int))
-            }
-            textInput.setFilter {
-                it.toIntOrNull() != null
             }
             container
         };

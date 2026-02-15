@@ -98,7 +98,7 @@ public class SnbtGrammarMixin {
     }
 
     @ModifyReturnValue(
-            method = "method_68615",
+            method = "lambda$createParser$22",
             at = @At("RETURN")
     )
     private static Object command_crafter$addFinishedNodeToStringRangeTree(Object original, @Local(argsOnly = true) ParseState<?> state, @Local(argsOnly = true) DynamicOps<?> ops) {
@@ -207,7 +207,7 @@ public class SnbtGrammarMixin {
     }
 
     @WrapWithCondition(
-            method = "method_68616",
+            method = "lambda$createParser$17",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/google/common/collect/ImmutableMap$Builder;put(Ljava/lang/Object;Ljava/lang/Object;)Lcom/google/common/collect/ImmutableMap$Builder;",

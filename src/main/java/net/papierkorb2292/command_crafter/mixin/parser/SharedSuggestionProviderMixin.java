@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public interface SharedSuggestionProviderMixin {
 
     @Inject(
-            method = "method_9266",
+            method = "lambda$suggestResource$1",
             at = @At("HEAD"),
             cancellable = true,
             remap = false
@@ -24,7 +24,7 @@ public interface SharedSuggestionProviderMixin {
     }
 
     @Inject(
-            method = "method_9275",
+            method = "lambda$suggestResource$3",
             at = @At("HEAD"),
             cancellable = true,
             remap = false

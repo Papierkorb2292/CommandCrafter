@@ -53,7 +53,7 @@ public class ServerFunctionLibraryMixin implements ParsedResourceCreator.ParseRe
 
     @SuppressWarnings("DefaultAnnotationParam")
     @WrapOperation(
-            method = "method_29451",
+            method = "lambda$reload$3",
             remap = false,
             at = @At(
                     value = "INVOKE",
@@ -104,7 +104,7 @@ public class ServerFunctionLibraryMixin implements ParsedResourceCreator.ParseRe
     }
 
     @ModifyReceiver(
-            method = "method_29453",
+            method = "lambda$reload$5",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/google/common/collect/ImmutableMap$Builder;build()Lcom/google/common/collect/ImmutableMap;"

@@ -14,7 +14,7 @@ import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.Int2ByteLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs
+import net.fabricmc.fabric.api.networking.v1.FriendlyByteBufs
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.coordinates.SwizzleArgument
@@ -1105,7 +1105,7 @@ class MacroAnalyzingCrawlerRunner(
                 serializer.serializeToNetwork(serializer.unpack(type) as TProperties, buf)
             }
 
-            val buf = PacketByteBufs.create()
+            val buf = FriendlyByteBufs.create()
             val typeId: Int
             val suggestionProvider: SuggestionProvider<SharedSuggestionProvider>?
             when(node) {

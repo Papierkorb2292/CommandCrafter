@@ -37,7 +37,7 @@ class DebugPauseActionC2SPacket(val action: DebugPauseActionType, val granularit
             )
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, DebugPauseActionC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

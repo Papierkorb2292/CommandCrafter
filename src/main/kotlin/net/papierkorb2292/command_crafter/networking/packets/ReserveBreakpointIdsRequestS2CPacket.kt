@@ -24,7 +24,7 @@ class ReserveBreakpointIdsRequestS2CPacket(val count: Int, val editorDebugConnec
             ::ReserveBreakpointIdsRequestS2CPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, ReserveBreakpointIdsRequestS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

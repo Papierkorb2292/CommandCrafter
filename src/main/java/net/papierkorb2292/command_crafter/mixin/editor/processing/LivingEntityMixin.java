@@ -17,7 +17,7 @@ public abstract class LivingEntityMixin extends Entity {
     }
 
     @WrapWithCondition(
-            method = "method_68264",
+            method = "lambda$readAdditionalSaveData$0",
             at = @At(
                     value = "INVOKE",
                     target = "Lorg/slf4j/Logger;warn(Ljava/lang/String;Ljava/lang/Object;)V"

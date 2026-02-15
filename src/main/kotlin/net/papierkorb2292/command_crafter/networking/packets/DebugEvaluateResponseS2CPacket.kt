@@ -27,7 +27,7 @@ class DebugEvaluateResponseS2CPacket(
             DebugEvaluateResponseS2CPacket(requestId, result.orElse(null))
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, DebugEvaluateResponseS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

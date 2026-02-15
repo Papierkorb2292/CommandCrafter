@@ -1,16 +1,16 @@
 package net.papierkorb2292.command_crafter.networking.packets
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
+import net.minecraft.core.RegistrySynchronization.PackedRegistryEntry
 import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.network.RegistryFriendlyByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket
-import net.minecraft.resources.ResourceKey
-import net.minecraft.core.RegistrySynchronization.PackedRegistryEntry
-import net.minecraft.tags.TagNetworkSerialization
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.tags.TagNetworkSerialization
 import net.papierkorb2292.command_crafter.networking.optional
 import net.papierkorb2292.command_crafter.networking.toOptional
 
@@ -54,7 +54,7 @@ class CommandCrafterDynamicRegistryS2CPacket(
             CommandCrafterDynamicRegistryS2CPacket(dynamicRegistry, tags.orElse(null))
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, CommandCrafterDynamicRegistryS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

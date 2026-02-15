@@ -106,7 +106,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     }
 
     @ModifyExpressionValue(
-            method = "method_53502",
+            method = "lambda$static$0",
             at = @At(
                     value = "INVOKE:LAST",
                     target = "Lcom/mojang/serialization/DataResult;error(Ljava/util/function/Supplier;)Lcom/mojang/serialization/DataResult;"

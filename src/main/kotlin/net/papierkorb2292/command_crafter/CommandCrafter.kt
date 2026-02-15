@@ -192,7 +192,7 @@ object CommandCrafter: ModInitializer {
             )
         )
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
-            shortenNbt = server.worldData.gameRules.get(shortenNbtGameRule)
+            shortenNbt = server.gameRules.get(shortenNbtGameRule)
             server.notificationManager().registerService(object : EmptyNotificationService() {
                 override fun <T : Any> onGameRuleChanged(arg: GameRule<T>, `object`: T) {
                     if(arg == shortenNbtGameRule)

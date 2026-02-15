@@ -6,17 +6,17 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.serialization.Decoder
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.nbt.Tag
-import net.minecraft.nbt.NbtOps
-import net.minecraft.nbt.TagParser
-import net.minecraft.core.Registry
-import net.minecraft.resources.ResourceKey
-import net.minecraft.server.MinecraftServer
 import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.functions.FunctionBuilder
+import net.minecraft.core.Registry
+import net.minecraft.nbt.NbtOps
+import net.minecraft.nbt.Tag
+import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseHandler
@@ -31,7 +31,10 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.TreeOperations.Companion.forNbt
-import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -44,7 +47,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.jvm.optionals.getOrNull
 
 object LanguageManager {
-    val LANGUAGES = FabricRegistryBuilder.createSimple<LanguageType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "languages"))).buildAndRegister()!!
+    val LANGUAGES = FabricRegistryBuilder.create<LanguageType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "languages"))).buildAndRegister()
     val DEFAULT_CLOSURE = Language.TopLevelClosure(VanillaLanguage())
 
     private val SKIP_DEBUG_INFORMATION = object : FunctionDebugInformation {

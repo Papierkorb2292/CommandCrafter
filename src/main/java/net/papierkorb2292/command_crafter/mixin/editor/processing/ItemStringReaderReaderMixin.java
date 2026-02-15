@@ -51,10 +51,10 @@ public class ItemStringReaderReaderMixin {
     @Shadow @Final private StringReader reader;
     @Shadow
     @Final
-    ItemParser field_48970;
+    ItemParser this$0;
 
-    private final AnalyzingResult command_crafter$analyzingResult = ((AnalyzingResultDataContainer) field_48970).command_crafter$getAnalyzingResult();
-    private boolean command_crafter$allowMalformed = ((AllowMalformedContainer) field_48970).command_crafter$getAllowMalformed();
+    private final AnalyzingResult command_crafter$analyzingResult = ((AnalyzingResultDataContainer) this$0).command_crafter$getAnalyzingResult();
+    private boolean command_crafter$allowMalformed = ((AllowMalformedContainer) this$0).command_crafter$getAllowMalformed();
     private int command_crafter$suggestionStartCursor = -1;
 
     @Inject(
@@ -126,7 +126,7 @@ public class ItemStringReaderReaderMixin {
         var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).withOps(((ItemParserAccessor) field_48970).getRegistryOps());
+        ).withOps(((ItemParserAccessor) this$0).getRegistryOps());
         treeOps.analyzeFull(command_crafter$analyzingResult, true, type.codec());
         return (O)nbt;
     }

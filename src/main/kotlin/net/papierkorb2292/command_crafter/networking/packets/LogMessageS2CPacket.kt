@@ -16,7 +16,7 @@ class LogMessageS2CPacket(val logMessage: String): CustomPacketPayload {
             LogMessageS2CPacket::logMessage
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, LogMessageS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
     override fun type() = ID
 }

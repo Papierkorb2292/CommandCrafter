@@ -60,7 +60,7 @@ public class RegistryDataCollectorMixin implements SyncedRegistriesListConsumer,
     }
 
     @ModifyExpressionValue(
-            method = "method_62159",
+            method = "lambda$loadNewElementsAndTags$1",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/core/RegistrySynchronization;isNetworkable(Lnet/minecraft/resources/ResourceKey;)Z",

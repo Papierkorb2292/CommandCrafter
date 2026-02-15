@@ -57,7 +57,7 @@ public class ComponentPredicateParserMixin {
     }
 
     @ModifyArg(
-            method = "method_58501",
+            method = "lambda$createGrammar$1",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/util/parsing/packrat/Scope;getAny([Lnet/minecraft/util/parsing/packrat/Atom;)Ljava/lang/Object;"
@@ -93,7 +93,7 @@ public class ComponentPredicateParserMixin {
     }
 
     @ModifyArg(
-            method = "method_58492",
+            method = "lambda$createGrammar$7",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/util/parsing/packrat/Scope;getAnyOrThrow([Lnet/minecraft/util/parsing/packrat/Atom;)Ljava/lang/Object;"

@@ -23,7 +23,7 @@ class StepInTargetsRequestC2SPacket(val frameId: Int, val pauseId: UUID, val req
             ::StepInTargetsRequestC2SPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, StepInTargetsRequestC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

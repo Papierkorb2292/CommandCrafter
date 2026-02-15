@@ -102,7 +102,7 @@ class SlotAccessValueReference(
         val stack = slotAccess!!.get()
         val value = valueDelegate.getEvaluateResponse()
         value.type = TYPE
-        value.result = formatItem(stack.itemHolder, stack.componentsPatch.split(), stack.count, registries)
+        value.result = formatItem(stack.typeHolder(), stack.componentsPatch.split(), stack.count, registries)
         if(includeName) {
             value.result = "${SlotProviderMapValueReference.getNameForProvider(slotProvider)}: ${value.result}"
         }
@@ -116,7 +116,7 @@ class SlotAccessValueReference(
             val parsed = ItemParser(registries).parse(reader)
             val count = reader.readInt()
             val stack = ItemInput(parsed.item, parsed.components)
-                .createItemStack(count, true)
+                .createItemStack(count)
             slotAccess.set(stack)
             updateValueReferences()
         } catch(_: CommandSyntaxException) { }

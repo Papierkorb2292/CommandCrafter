@@ -3,20 +3,19 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
-import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.Identifier
-import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.minecraft.resources.ResourceKey
 import net.papierkorb2292.command_crafter.editor.processing.CombinedCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.SimpleCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
-import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.Range
 
 class DirectiveManager {
     companion object {
-        val DIRECTIVES = FabricRegistryBuilder.createSimple<DirectiveType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "directives"))).buildAndRegister()!!
+        val DIRECTIVES = FabricRegistryBuilder.create<DirectiveType>(ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath("command_crafter", "directives"))).buildAndRegister()
     }
 
     fun readDirective(reader: DirectiveStringReader<*>) {

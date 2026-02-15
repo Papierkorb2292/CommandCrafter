@@ -10,7 +10,7 @@ import net.minecraft.resources.Identifier
 object ReloadDatapacksC2SPacket : CustomPacketPayload {
     val ID = CustomPacketPayload.Type<ReloadDatapacksC2SPacket>(Identifier.fromNamespaceAndPath("command_crafter", "reload_datapacks"))
     val CODEC: StreamCodec<ByteBuf, ReloadDatapacksC2SPacket> = StreamCodec.unit(ReloadDatapacksC2SPacket)
-    val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, ReloadDatapacksC2SPacket> = PayloadTypeRegistry.playC2S().register(ID, CODEC)
+    val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, ReloadDatapacksC2SPacket> = PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
 
     override fun type() = ID
 }

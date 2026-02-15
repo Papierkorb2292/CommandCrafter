@@ -37,7 +37,7 @@ public class ScoreHolderArgumentMixin implements AnalyzingCommandNode {
     }
 
     @ModifyExpressionValue(
-            method = "method_9455",
+            method = "lambda$static$0",
             at = @At(
                     value = "NEW",
                     target = "(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;"

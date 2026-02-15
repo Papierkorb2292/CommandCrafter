@@ -16,7 +16,7 @@ public class EntitySelectorOptionsMixin {
 
     @SuppressWarnings({"deprecation", "DefaultAnnotationParam"})
     @Inject(
-            method = "method_9973",
+            method = "lambda$bootStrap$35",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;isTag()Z",

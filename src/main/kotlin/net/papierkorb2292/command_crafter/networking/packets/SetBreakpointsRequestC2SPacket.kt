@@ -36,7 +36,7 @@ class SetBreakpointsRequestC2SPacket(val breakpoints: Array<UnparsedServerBreakp
             ::SetBreakpointsRequestC2SPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SetBreakpointsRequestC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

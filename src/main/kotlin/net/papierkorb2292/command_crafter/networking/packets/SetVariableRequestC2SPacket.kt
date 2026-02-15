@@ -25,7 +25,7 @@ class SetVariableRequestC2SPacket(val debugConnectionId: UUID, val requestId: UU
             ::SetVariableRequestC2SPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SetVariableRequestC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

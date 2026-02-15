@@ -19,7 +19,7 @@ class NotifyCanReloadWorldgenS2CPacket(
             ::NotifyCanReloadWorldgenS2CPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, NotifyCanReloadWorldgenS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type(): CustomPacketPayload.Type<out CustomPacketPayload> = ID

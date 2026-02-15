@@ -20,7 +20,7 @@ public class ScoreboardScoreAccessMixin {
 
     @Shadow
     @Final
-    Scoreboard field_47548;
+    Scoreboard this$0;
 
     @Inject(
             method = "set",
@@ -30,7 +30,7 @@ public class ScoreboardScoreAccessMixin {
             )
     )
     private void command_crafter$notifyFileSystemOfObjectiveChangeOnSetScore(int score, CallbackInfo ci) {
-        if(!(field_47548 instanceof ServerScoreboard)) return;
+        if(!(this$0 instanceof ServerScoreboard)) return;
         ServerScoreboardStorageFileSystem.Companion.onFileUpdate(
                 ServerScoreboardStorageFileSystem.Directory.SCOREBOARDS,
                 val$objective.getName(),

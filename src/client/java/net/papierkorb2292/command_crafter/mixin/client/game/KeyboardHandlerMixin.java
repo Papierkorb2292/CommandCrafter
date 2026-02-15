@@ -71,7 +71,7 @@ public abstract class KeyboardHandlerMixin {
                 ? item.getComponentsPatch().split()
                 : new DataComponentPatch.SplitResult(command_crafter$copyItemComponentsWithoutDefaults(item.getItem()), Collections.emptySet());
 
-        final var formatted = SlotAccessValueReference.Companion.formatItem(item.getItemHolder(), addedRemovedPair, item.getCount(), Objects.requireNonNull(Minecraft.getInstance().player).registryAccess());
+        final var formatted = SlotAccessValueReference.Companion.formatItem(item.typeHolder(), addedRemovedPair, item.getCount(), Objects.requireNonNull(Minecraft.getInstance().player).registryAccess());
 
         String giveCommand = "/give @s " + formatted;
         setClipboard(giveCommand);

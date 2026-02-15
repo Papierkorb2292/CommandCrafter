@@ -16,7 +16,7 @@ class EditorDebugConnectionRemovedC2SPacket(val debugConnectionId: UUID): Custom
             ::EditorDebugConnectionRemovedC2SPacket,
             EditorDebugConnectionRemovedC2SPacket::debugConnectionId
         )
-        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, EditorDebugConnectionRemovedC2SPacket> = PayloadTypeRegistry.playC2S().register(ID, CODEC)
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, EditorDebugConnectionRemovedC2SPacket> = PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

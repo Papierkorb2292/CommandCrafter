@@ -22,7 +22,7 @@ class PushStackFramesS2CPacket(val stackFrames: List<MinecraftStackFrame>, val e
             PushStackFramesS2CPacket::editorDebugConnection,
             ::PushStackFramesS2CPacket
         )
-        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, PushStackFramesS2CPacket> = PayloadTypeRegistry.playS2C().register(ID, CODEC)
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, PushStackFramesS2CPacket> = PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

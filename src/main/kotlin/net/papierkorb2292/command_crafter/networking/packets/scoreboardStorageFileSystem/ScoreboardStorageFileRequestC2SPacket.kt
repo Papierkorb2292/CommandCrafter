@@ -42,7 +42,7 @@ class ScoreboardStorageFileRequestC2SPacket<TParams>(private val packetId: Custo
                     params
                 )
             }
-            PayloadTypeRegistry.playC2S().register(payloadId, codec)
+            PayloadTypeRegistry.serverboundPlay().register(payloadId, codec)
             return Type(payloadId) { fileSystemId, requestId, params -> ScoreboardStorageFileRequestC2SPacket(payloadId, fileSystemId, requestId, params) }
         }
     }

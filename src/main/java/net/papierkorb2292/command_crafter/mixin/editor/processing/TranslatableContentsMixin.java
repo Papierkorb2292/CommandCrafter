@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 @Mixin(TranslatableContents.class)
 public class TranslatableContentsMixin {
     @ModifyReceiver(
-            method = "method_54237",
+            method = "lambda$static$4",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/codecs/PrimitiveCodec;fieldOf(Ljava/lang/String;)Lcom/mojang/serialization/MapCodec;",

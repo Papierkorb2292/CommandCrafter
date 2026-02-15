@@ -22,7 +22,7 @@ class DebuggerExitS2CPacket(val args: ExitedEventArguments, val editorDebugConne
             ::DebuggerExitS2CPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, DebuggerExitS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

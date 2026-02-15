@@ -24,7 +24,7 @@ class ContextCompletionRequestC2SPacket(val requestId: UUID, val inputLines: Lis
             ::ContextCompletionRequestC2SPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, ContextCompletionRequestC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

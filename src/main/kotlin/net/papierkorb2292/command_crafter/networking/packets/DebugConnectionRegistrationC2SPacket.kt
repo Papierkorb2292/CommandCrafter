@@ -36,7 +36,7 @@ class DebugConnectionRegistrationC2SPacket(val oneTimeDebugTarget: EditorDebugCo
             )
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, DebugConnectionRegistrationC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

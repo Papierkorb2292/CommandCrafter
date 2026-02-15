@@ -113,7 +113,7 @@ public class TagLoaderMixin<T> implements FinalTagContentProvider {
     }
 
     @Inject(
-            method = "method_51476",
+            method = "lambda$build$1",
             at = @At("HEAD")
     )
     private void command_crafter$createFinalEntriesForTagDebugging(TagEntry.Lookup<T> valueGetter, Map<Identifier, Collection<T>> map, Identifier id, @Coerce Object dependencies, CallbackInfo ci) {

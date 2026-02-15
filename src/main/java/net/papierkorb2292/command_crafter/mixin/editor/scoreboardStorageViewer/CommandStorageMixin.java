@@ -21,7 +21,7 @@ public abstract class CommandStorageMixin {
             method = "getOrCreateContainer",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/storage/DimensionDataStorage;computeIfAbsent(Lnet/minecraft/world/level/saveddata/SavedDataType;)Lnet/minecraft/world/level/saveddata/SavedData;"
+                    target = "Lnet/minecraft/world/level/storage/SavedDataStorage;computeIfAbsent(Lnet/minecraft/world/level/saveddata/SavedDataType;)Lnet/minecraft/world/level/saveddata/SavedData;"
             )
     )
     private SavedData command_crafter$notifyFileSystemOfStorageCreationOrLoad(SavedData original, String namespace) {
@@ -41,7 +41,7 @@ public abstract class CommandStorageMixin {
             method = "getContainer",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/storage/DimensionDataStorage;get(Lnet/minecraft/world/level/saveddata/SavedDataType;)Lnet/minecraft/world/level/saveddata/SavedData;"
+                    target = "Lnet/minecraft/world/level/storage/SavedDataStorage;get(Lnet/minecraft/world/level/saveddata/SavedDataType;)Lnet/minecraft/world/level/saveddata/SavedData;"
             )
     )
     private SavedData command_crafter$notifyFileSystemOfStorageLoad(SavedData original, String namespace) {

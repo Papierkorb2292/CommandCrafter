@@ -34,7 +34,7 @@ class DebugEvaluateC2SPacket(
             DebugEvaluateC2SPacket(requestId, pauseId.orElse(null), debugConnectionId.orElse(null), args)
         }
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, DebugEvaluateC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

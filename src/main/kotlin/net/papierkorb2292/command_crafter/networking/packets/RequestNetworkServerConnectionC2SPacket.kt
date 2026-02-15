@@ -2,12 +2,12 @@ package net.papierkorb2292.command_crafter.networking.packets
 
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
+import net.minecraft.core.UUIDUtil
 import net.minecraft.network.RegistryFriendlyByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.Identifier
-import net.minecraft.core.UUIDUtil
 import java.util.*
 
 class RequestNetworkServerConnectionC2SPacket(val requestId: UUID, val clientModVersion: String): CustomPacketPayload {
@@ -21,7 +21,7 @@ class RequestNetworkServerConnectionC2SPacket(val requestId: UUID, val clientMod
             ::RequestNetworkServerConnectionC2SPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, RequestNetworkServerConnectionC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
     override fun type() = ID
 }

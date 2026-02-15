@@ -23,7 +23,7 @@ class SourceReferenceRequestC2SPacket(val sourceReference: Int, val requestId: U
             SourceReferenceRequestC2SPacket::debugConnectionId,
             ::SourceReferenceRequestC2SPacket
         )
-        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SourceReferenceRequestC2SPacket> = PayloadTypeRegistry.playC2S().register(ID, CODEC)
+        val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SourceReferenceRequestC2SPacket> = PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

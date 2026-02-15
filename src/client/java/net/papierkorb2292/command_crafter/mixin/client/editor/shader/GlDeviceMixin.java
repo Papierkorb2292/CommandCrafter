@@ -6,7 +6,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.shaders.ShaderType;
 import com.mojang.blaze3d.opengl.GlRenderPipeline;
-import com.mojang.blaze3d.opengl.GlDevice;
 import net.minecraft.client.renderer.ShaderManager;
 import com.mojang.blaze3d.shaders.ShaderSource;
 import net.minecraft.resources.Identifier;
@@ -18,7 +17,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-@Mixin(GlDevice.class)
+@Mixin(targets = "com/mojang/blaze3d/opengl/GlDevice")
 public class GlDeviceMixin {
     @WrapMethod(method = "compilePipeline")
     private GlRenderPipeline shader_reload$retryFailedShadersWithDefault(RenderPipeline pipeline, ShaderSource sourceRetriever, Operation<GlRenderPipeline> op) {

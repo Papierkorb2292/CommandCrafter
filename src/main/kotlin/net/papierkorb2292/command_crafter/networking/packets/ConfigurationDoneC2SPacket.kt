@@ -17,7 +17,7 @@ class ConfigurationDoneC2SPacket(val debugConnectionId: UUID): CustomPacketPaylo
             ConfigurationDoneC2SPacket::debugConnectionId
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, ConfigurationDoneC2SPacket> =
-            PayloadTypeRegistry.playC2S().register(ID, CODEC)
+            PayloadTypeRegistry.serverboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

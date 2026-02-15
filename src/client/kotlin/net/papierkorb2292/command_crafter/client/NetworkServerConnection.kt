@@ -139,7 +139,6 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
                     (receivedClientRegistries as SyncedRegistriesListConsumer).`command_crafter$setSyncedRegistriesList`(NetworkServerConnectionHandler.getSyncedRegistries())
                     (receivedClientRegistries as ShouldCopyRegistriesContainer).`command_crafter$setShouldCopyRegistries`(true)
                     //All registries have been received
-                    ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
                     receivedRegistryManager = receivedClientRegistries.collectGameRegistries(
                         //No resource loading is required, because no common packs were specified
                         ResourceProvider.EMPTY,

@@ -1,11 +1,11 @@
 package net.papierkorb2292.command_crafter.client.editor
 
-import net.minecraft.client.Minecraft
-import net.minecraft.server.packs.resources.MultiPackResourceManager
-import net.minecraft.server.packs.PackType
-import net.minecraft.server.packs.resources.SimpleReloadInstance
-import net.minecraft.network.chat.Component
 import net.minecraft.ChatFormatting
+import net.minecraft.client.Minecraft
+import net.minecraft.network.chat.Component
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.resources.MultiPackResourceManager
+import net.minecraft.server.packs.resources.SimpleReloadInstance
 import net.minecraft.util.Util
 import net.minecraft.util.profiling.InactiveProfiler
 import net.papierkorb2292.command_crafter.editor.MinecraftClientConnection
@@ -28,7 +28,7 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
 
     override fun reloadResources(params: ReloadResourcesParams) {
         if(params.onlyShaders != true) {
-            client.gui.chat.addMessage(
+            client.gui.chat.addClientSystemMessage(
                 Component.translatable("command_crafter.reload.resources").withStyle(ChatFormatting.GREEN))
             client.reloadResourcePacks()
             return
@@ -41,7 +41,7 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
             shaderReloadWaitFuture.whenComplete{ _, _ ->
                 client.execute {
                     // Has to run on render thread
-                    client.gui.chat.addMessage(
+                    client.gui.chat.addClientSystemMessage(
                         Component.translatable("command_crafter.reload.shaders").withStyle(ChatFormatting.GREEN))
                 }
                 DirectMinecraftClientConnection.shaderReloadWaitFuture = SimpleReloadInstance.create(

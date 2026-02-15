@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 @Mixin(KeybindContents.class)
 public class KeybindContentsMixin {
     @ModifyReceiver(
-            method = "method_54228",
+            method = "lambda$static$0",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/codecs/PrimitiveCodec;fieldOf(Ljava/lang/String;)Lcom/mojang/serialization/MapCodec;"

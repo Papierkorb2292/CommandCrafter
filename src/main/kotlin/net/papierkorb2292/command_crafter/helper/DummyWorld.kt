@@ -1,49 +1,46 @@
 package net.papierkorb2292.command_crafter.helper
 
-import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.state.BlockState
-import net.minecraft.world.level.saveddata.maps.MapId
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart
-import net.minecraft.world.damagesource.DamageSource
-import net.minecraft.world.entity.player.Player
-import net.minecraft.world.level.material.Fluid
-import net.minecraft.world.level.block.entity.FuelValues
-import net.minecraft.world.level.saveddata.maps.MapItemSavedData
+import net.minecraft.core.*
 import net.minecraft.core.particles.ExplosionParticleInfo
 import net.minecraft.core.particles.ParticleOptions
+import net.minecraft.sounds.SoundEvent
+import net.minecraft.sounds.SoundSource
+import net.minecraft.util.random.WeightedList
+import net.minecraft.world.Difficulty
+import net.minecraft.world.TickRateManager
+import net.minecraft.world.attribute.EnvironmentAttributeSystem
+import net.minecraft.world.clock.ClockManager
+import net.minecraft.world.damagesource.DamageSource
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.flag.FeatureFlagSet
 import net.minecraft.world.item.alchemy.PotionBrewing
 import net.minecraft.world.item.crafting.RecipeAccess
-import net.minecraft.core.RegistryAccess
-import net.minecraft.core.Holder
-import net.minecraft.world.flag.FeatureFlagSet
-import net.minecraft.world.scores.Scoreboard
-import net.minecraft.sounds.SoundSource
-import net.minecraft.sounds.SoundEvent
-import net.minecraft.util.random.WeightedList
-import net.minecraft.core.BlockPos
-import net.minecraft.core.Direction
-import net.minecraft.core.GlobalPos
-import net.minecraft.world.phys.Vec3
 import net.minecraft.world.level.BlockGetter
-import net.minecraft.world.Difficulty
-import net.minecraft.world.level.storage.WritableLevelData
+import net.minecraft.world.level.ExplosionDamageCalculator
 import net.minecraft.world.level.Level
-import net.minecraft.world.level.storage.LevelData
-import net.minecraft.world.attribute.EnvironmentAttributeSystem
 import net.minecraft.world.level.biome.Biome
 import net.minecraft.world.level.biome.Biomes
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.entity.FuelValues
+import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.border.WorldBorder
 import net.minecraft.world.level.chunk.ChunkAccess
 import net.minecraft.world.level.chunk.ChunkSource
 import net.minecraft.world.level.chunk.status.ChunkStatus
-import net.minecraft.world.level.lighting.LevelLightEngine
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes
 import net.minecraft.world.level.entity.LevelEntityGetter
 import net.minecraft.world.level.gameevent.GameEvent
-import net.minecraft.world.level.ExplosionDamageCalculator
+import net.minecraft.world.level.lighting.LevelLightEngine
+import net.minecraft.world.level.material.Fluid
+import net.minecraft.world.level.saveddata.maps.MapId
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData
+import net.minecraft.world.level.storage.LevelData
+import net.minecraft.world.level.storage.WritableLevelData
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.scores.Scoreboard
 import net.minecraft.world.ticks.LevelTickAccess
-import net.minecraft.world.TickRateManager
 import java.util.function.BooleanSupplier
 
 class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet) : Level(DummyProperties(), OVERWORLD, registryManager, registryManager.getOrThrow(
@@ -155,6 +152,8 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
         throw NotImplementedError("Not supported by dummy")
     }
 
+    override fun clockManager() = ClockManager { 0 }
+
     private val dummyEnvironmentAttributes = EnvironmentAttributeSystem.builder().build()
 
     override fun environmentAttributes(): EnvironmentAttributeSystem = dummyEnvironmentAttributes
@@ -175,10 +174,6 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
         private var spawnPoint = LevelData.RespawnData(GlobalPos(OVERWORLD, BlockPos.ZERO), 0f, 0f)
         override fun getRespawnData(): LevelData.RespawnData = spawnPoint
         override fun getGameTime() = 0L
-        override fun getDayTime() = 0L
-        override fun isThundering() = false
-        override fun isRaining() = false
-        override fun setRaining(raining: Boolean) { }
         override fun isHardcore() = false
         override fun getDifficulty() = Difficulty.NORMAL
         override fun isDifficultyLocked() = false

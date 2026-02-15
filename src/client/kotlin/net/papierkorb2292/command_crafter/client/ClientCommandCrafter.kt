@@ -56,14 +56,8 @@ object ClientCommandCrafter : ClientModInitializer {
     )
 
     private var loadedClientsideRegistries: LoadedClientsideRegistries? = null
-    fun getLoadedClientsideRegistries(): LoadedClientsideRegistries {
-        var loadedClientsideRegistries = loadedClientsideRegistries
-        if(loadedClientsideRegistries == null) {
-            loadedClientsideRegistries = LoadedClientsideRegistries.load()
-            ClientCommandCrafter.loadedClientsideRegistries = loadedClientsideRegistries
-        }
-        return loadedClientsideRegistries
-    }
+    fun getLoadedClientsideRegistries() = loadedClientsideRegistries ?:
+        throw IllegalStateException("getLoadedClientsideRegistries called before registries were loaded")
 
     private fun initializeEditor() {
         CommandCrafter.registerDynamicRegistries()
@@ -87,23 +81,32 @@ object ClientCommandCrafter : ClientModInitializer {
 
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
 
-        val registryWrapperLookup = getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
-        fun setDefaultServerConnection() {
-            val rootNode = limitCommandTreeForSource(
-                Commands(
-                    Commands.CommandSelection.ALL,
-                    CommandBuildContext.simple(registryWrapperLookup, defaultFeatureSet)
-                ), Commands.createCompilationContext(LevelBasedPermissionSet.GAMEMASTER)
-            )
-            CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
-            editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
-                CommandDispatcher(rootNode),
-                LevelBasedPermissionSet.GAMEMASTER
-            )
+        LoadedClientsideRegistries.load(Minecraft.getInstance()).thenApply { loadedClientsideRegistries ->
+            ClientCommandCrafter.loadedClientsideRegistries = loadedClientsideRegistries
+
+            val registryWrapperLookup = loadedClientsideRegistries.combinedRegistries.compositeAccess()
+            fun setDefaultServerConnection() {
+                val rootNode = limitCommandTreeForSource(
+                    Commands(
+                        Commands.CommandSelection.ALL,
+                        CommandBuildContext.simple(registryWrapperLookup, defaultFeatureSet)
+                    ), Commands.createCompilationContext(LevelBasedPermissionSet.GAMEMASTER)
+                )
+                CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
+                editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
+                    CommandDispatcher(rootNode),
+                    LevelBasedPermissionSet.GAMEMASTER
+                )
+            }
+            setDefaultServerConnection()
+            ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+                setDefaultServerConnection()
+                // Remove tags that were received from the server and apply the tags known to the client
+                loadedClientsideRegistries?.applyTags()
+            }
         }
 
         NetworkServerConnection.registerPacketHandlers()
-        setDefaultServerConnection()
 
         ClientPlayConnectionEvents.JOIN.register { _, _, _ ->
             NetworkServerConnection.requestAndCreate().thenAccept {
@@ -116,11 +119,6 @@ object ClientCommandCrafter : ClientModInitializer {
                 editorConnectionManager.showMessage(MessageParams(MessageType.Warning, message))
                 null
             }
-        }
-        ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
-            setDefaultServerConnection()
-            // Remove tags that were received from the server and apply the tags known to the client
-            loadedClientsideRegistries?.applyTags()
         }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             editorConnectionManager.leave()

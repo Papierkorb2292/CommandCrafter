@@ -246,7 +246,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     override val canReloadWorldgen: Boolean
         get() {
             val rule = BuiltInRegistries.GAME_RULE.getValue(WORLDGEN_DEVTOOLS_RELOAD_REGISTRIES_ID) ?: return false
-            val value = server.worldData.gameRules.get(rule)
+            val value = server.gameRules.get(rule)
             if(value !is Boolean) {
                 CommandCrafter.LOGGER.debug("Unexpected type of value for reload_registries game rule: {}", value)
                 return false

@@ -17,7 +17,7 @@ class SourceReferenceAddedS2CPacket(val editorDebugConnection: UUID): CustomPack
             SourceReferenceAddedS2CPacket::editorDebugConnection
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, SourceReferenceAddedS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

@@ -21,7 +21,7 @@ class PopStackFramesS2CPacket(val amount: Int, val editorDebugConnection: UUID):
             ::PopStackFramesS2CPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, PopStackFramesS2CPacket> =
-            PayloadTypeRegistry.playS2C().register(ID, CODEC)
+            PayloadTypeRegistry.clientboundPlay().register(ID, CODEC)
     }
 
     override fun type() = ID

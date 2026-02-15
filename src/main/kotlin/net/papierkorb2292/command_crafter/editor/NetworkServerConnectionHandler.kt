@@ -24,6 +24,7 @@ import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacke
 import net.minecraft.network.protocol.game.ClientboundCommandsPacket
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryDataLoader
+import net.minecraft.resources.RegistryValidator
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
@@ -31,6 +32,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagNetworkSerialization
 import net.minecraft.world.level.storage.loot.LootDataType
+import net.minecraft.world.level.storage.loot.Validatable
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
@@ -339,8 +341,8 @@ object NetworkServerConnectionHandler {
         }
     }
 
-    private fun <T: Any> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
-        RegistryDataLoader.RegistryData(dataType.registryKey, dataType.codec, false)
+    private fun <T: Validatable> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
+        RegistryDataLoader.RegistryData(dataType.registryKey, dataType.codec, RegistryValidator.none())
 
     private fun sendConnectionRequestResponse(
         server: MinecraftServer,

@@ -434,7 +434,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @WrapOperation(
-            method = "method_9966",
+            method = "lambda$bootStrap$46",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/nbt/TagParser;parseCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/CompoundTag;"
@@ -461,7 +461,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "method_9975",
+            method = "lambda$bootStrap$49",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
@@ -482,7 +482,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @Inject(
-            method = "method_9975",
+            method = "lambda$bootStrap$49",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;fromReader(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;"
@@ -493,7 +493,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @Inject(
-            method = "method_9975",
+            method = "lambda$bootStrap$49",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;fromReader(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/advancements/criterion/MinMaxBounds$Ints;",
@@ -513,7 +513,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @Inject(
-            method = "method_9974",
+            method = "lambda$bootStrap$52",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;"
@@ -524,7 +524,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "method_9974",
+            method = "lambda$bootStrap$52",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;"
@@ -544,7 +544,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "method_9974",
+            method = "lambda$bootStrap$52",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
@@ -565,7 +565,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "method_9974",
+            method = "lambda$bootStrap$52",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readBoolean()Z"
