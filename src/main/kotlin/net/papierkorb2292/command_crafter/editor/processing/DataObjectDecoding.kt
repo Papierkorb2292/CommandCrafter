@@ -5,22 +5,21 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.ResourceArgument
+import net.minecraft.core.BlockPos
+import net.minecraft.core.RegistryAccess
+import net.minecraft.core.registries.Registries
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
+import net.minecraft.resources.Identifier
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.flag.FeatureFlags
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.entity.BlockEntityType
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.commands.arguments.blocks.BlockStateArgument
-import net.minecraft.commands.arguments.ResourceArgument
-import net.minecraft.world.entity.Entity
-import net.minecraft.world.entity.EntityType
-import net.minecraft.network.codec.StreamCodec
-import net.minecraft.network.codec.ByteBufCodecs
-import net.minecraft.core.RegistryAccess
-import net.minecraft.core.registries.Registries
-import net.minecraft.world.flag.FeatureFlags
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.resources.Identifier
-import net.minecraft.core.BlockPos
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.helper.DummyWorld
@@ -33,6 +32,9 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 class DataObjectDecoding(private val registries: RegistryAccess) {
     companion object {
         val GET_FOR_REGISTRIES = ::DataObjectDecoding.memoizeLast()
+        // Used to replace components in Holder.Reference.components so default components can be accessed outside a world,
+        // even when the code accesses the builtin registries directly (for example ItemStack constructors)
+        val BUILTIN_REGISTRY_OVERRIDE = ThreadLocal<RegistryAccess>()
 
         private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
             enumConstantCodec(DataObjectSourceKind::class.java),
@@ -73,14 +75,23 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
 
-    val dummyEntityDecoder = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
-        .mapNotNull { createDummyEntityDecoder(it.key.identifier(), it.value) }
-        .toMap()
+    val dummyEntityDecoder: Map<EntityType<*>, Decoder<Unit>>
+    val dummyBlockEntityDecoders: Map<Block, Decoder<Unit>>
 
-    val dummyBlockEntityDecoders = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
-        .mapNotNull { createDummyBlockEntityDecoder(it.key.identifier(), it.value) }
-        .flatten()
-        .toMap()
+    init {
+        try {
+            BUILTIN_REGISTRY_OVERRIDE.set(registries)
+            dummyEntityDecoder = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
+                .mapNotNull { createDummyEntityDecoder(it.key.identifier(), it.value) }
+                .toMap()
+            dummyBlockEntityDecoders = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
+                .mapNotNull { createDummyBlockEntityDecoder(it.key.identifier(), it.value) }
+                .flatten()
+                .toMap()
+        } finally {
+            BUILTIN_REGISTRY_OVERRIDE.remove()
+        }
+    }
 
     fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SharedSuggestionProvider>): Decoder<Unit>? {
         return try {

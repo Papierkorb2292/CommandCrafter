@@ -8,6 +8,8 @@ import net.minecraft.core.MappedRegistry
 import net.minecraft.core.Registry
 import net.minecraft.core.Registry.PendingTags
 import net.minecraft.core.RegistryAccess
+import net.minecraft.core.component.DataComponentInitializers
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.resources.RegistryValidator
@@ -25,7 +27,8 @@ import java.util.stream.Stream
 
 class LoadedClientsideRegistries(
     val combinedRegistries: LayeredRegistryAccess<RegistryLayer>,
-    private val pendingTagLoads: List<PendingTags<*>>
+    private val pendingTagLoads: List<PendingTags<*>>,
+    private val pendingComponents: List<DataComponentInitializers.PendingComponents<*>>
 ) {
     companion object {
         fun getParseableRegistries() = NetworkServerConnectionHandler.getAllDynamicRegistries() + listOf(
@@ -65,11 +68,13 @@ class LoadedClientsideRegistries(
                             RegistryLayer.RELOADABLE,
                             dynamicRegistries
                         )
+                        val pendingComponents = BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(finalRegistries.compositeAccess())
                         val registryLoader = LoadedClientsideRegistries(
                             finalRegistries,
-                            pendingTagLoads
+                            pendingTagLoads,
+                            pendingComponents,
                         )
-                        registryLoader.applyTags()
+                        registryLoader.applyTagsAndComponents()
                         registryLoader
                     }
                 }
@@ -97,8 +102,10 @@ class LoadedClientsideRegistries(
         }
     }
 
-    fun applyTags() {
+    fun applyTagsAndComponents() {
         for(it in pendingTagLoads)
+            it.apply()
+        for(it in pendingComponents)
             it.apply()
     }
 }

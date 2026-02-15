@@ -102,7 +102,7 @@ object ClientCommandCrafter : ClientModInitializer {
             ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
                 setDefaultServerConnection()
                 // Remove tags that were received from the server and apply the tags known to the client
-                loadedClientsideRegistries?.applyTags()
+                loadedClientsideRegistries?.applyTagsAndComponents()
             }
         }
 
