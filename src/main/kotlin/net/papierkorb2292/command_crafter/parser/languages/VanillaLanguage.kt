@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ImmutableStringReader
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.*
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
@@ -17,6 +18,7 @@ import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
+import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
@@ -54,10 +56,12 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult.RangedDataProvider
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.*
+import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
@@ -728,60 +732,88 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader,
             context.source
         )
-        if (node is AnalyzingCommandNode) {
-            // Modify the mapping info of the original reader, not just the analyzeReader, because the original mapping info is still used in the AnalyzingResult
-            reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
-            reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
-            val analyzeReader = reader.copy()
-            analyzeReader.cursor = parsedNode.range.start
-            try {
-                val nodeAnalyzingResult = analyzingResult.copyInput()
-                // Skip analyzing when generating serverside suggestions, because everything but the vanilla
-                // suggestions has already been done by the client and shouldn't be done twice
-                if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true) {
-                    try {
-                        node.`command_crafter$analyze`(
-                            context,
-                            StringRange(
-                                parsedNode.range.start,
-                                Mth.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-                            ),
-                            analyzeReader,
-                            nodeAnalyzingResult,
-                            node.name
-                        )
-                    } catch(e: Exception) {
-                        CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
-                    }
-                }
-                if(skipAnalyzedChars) {
-                    // Choose maximum because the analyzer might not have an implementation that reads anything
-                    reader.cursor = max(reader.cursor, analyzeReader.cursor)
-                    reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
-                }
-                analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
-                val hasCustomCompletions = node is CustomCompletionsCommandNode && node.`command_crafter$hasCustomCompletions`(context, node.name)
-                if(hasCustomCompletions)
-                    analyzingResult.combineWithCompletionProviders(nodeAnalyzingResult, "_customSuggestions")
-
-                addNodeSuggestions(
-                    parentNode,
-                    analyzingResult,
-                    parsedNode.range,
-                    analyzeReader,
-                    contextBuilder,
-                    !easyNewLine,
-                    if(!hasCustomCompletions) nodeAnalyzingResult else null,
-                    rootSuggestionsResult
+        // Modify the mapping info of the original reader, not just the analyzeReader, because the original mapping info is still used in the AnalyzingResult
+        reader.readCharacters = (parsedNode as CursorOffsetContainer).`command_crafter$getReadCharacters`()
+        reader.skippedChars = (parsedNode as CursorOffsetContainer).`command_crafter$getSkippedChars`()
+        val analyzeReader = reader.copy()
+        analyzeReader.cursor = parsedNode.range.start
+        try {
+            val nodeAnalyzingResult = analyzingResult.copyInput()
+            var hasCustomCompletions = false
+            // Skip analyzing when generating serverside suggestions, because everything but the vanilla
+            // suggestions has already been done by the client and shouldn't be done twice
+            if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true) {
+                val range = StringRange(
+                    parsedNode.range.start,
+                    Mth.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
                 )
-            } finally {
-                reader.readCharacters = initialReadCharacters
-                reader.skippedChars = initialSkippedChars
+                try {
+                    if(node is LiteralCommandNode<*>) {
+                        nodeAnalyzingResult.semanticTokens.addMultiline(
+                            range,
+                            if((node as RedirectTargetChildAware).`command_crafter$isRedirectTargetChild`()) TokenType.MACRO else TokenType.KEYWORD,
+                            0
+                        )
+                    } else if(node is ArgumentCommandNode<*, *>) {
+                        val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(node.type::class.java)!!
+                        val source = contextBuilder.source
+                        // Make sure to get the registry access that includes reloadable files
+                        val registryAccess = if(source is CommandSourceStack) (source.server.recipeManager as RecipeManagerAccessor).registries else source.registryAccess()
+                        hasCustomCompletions = analyzer.hasCustomCompletions(context, node.name)
+                        callArgumentAnalyzerUnchecked(
+                            analyzer,
+                            context,
+                             node.type,
+                            range,
+                            node.name,
+                            analyzeReader,
+                            CommandBuildContext.simple(registryAccess, contextBuilder.source.enabledFeatures()),
+                            nodeAnalyzingResult
+                        )
+                    }
+                } catch(e: Exception) {
+                    CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                }
             }
-        } else {
-            analyzingResult.combineWithCompletionProviders(rootSuggestionsResult)
+            if(skipAnalyzedChars) {
+                // Choose maximum because the analyzer might not have an implementation that reads anything
+                reader.cursor = max(reader.cursor, analyzeReader.cursor)
+                reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
+            }
+            analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
+            if(hasCustomCompletions)
+                analyzingResult.combineWithCompletionProviders(nodeAnalyzingResult, "_customSuggestions")
+
+            addNodeSuggestions(
+                parentNode,
+                analyzingResult,
+                parsedNode.range,
+                analyzeReader,
+                contextBuilder,
+                !easyNewLine,
+                if(!hasCustomCompletions) nodeAnalyzingResult else null,
+                rootSuggestionsResult
+            )
+        } finally {
+            reader.readCharacters = initialReadCharacters
+            reader.skippedChars = initialSkippedChars
         }
     }
+
+    fun <TArgumentType: ArgumentType<*>> callArgumentAnalyzerUnchecked(
+        analyzer: CommandArgumentAnalyzerService<TArgumentType>,
+        context: CommandContext<SharedSuggestionProvider>,
+        type: ArgumentType<*>,
+        range: StringRange,
+        name: String,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        buildContext: CommandBuildContext,
+        result: AnalyzingResult,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        analyzer.analyze(context, type as TArgumentType, range, name, reader, buildContext, result)
+    }
+
 
     private fun addNodeSuggestions(
         parentNode: ParsedCommandNode<SharedSuggestionProvider>,

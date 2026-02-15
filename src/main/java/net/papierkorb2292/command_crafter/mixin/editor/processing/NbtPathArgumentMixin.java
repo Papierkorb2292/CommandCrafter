@@ -6,45 +6,30 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.*;
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
-import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
+
 @Mixin(NbtPathArgument.class)
-public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
-    @Shadow public abstract NbtPathArgument.NbtPath parse(StringReader stringReader) throws CommandSyntaxException;
-
-    private static final ThreadLocal<AnalyzingResult> command_crafter$analyzingResult = new ThreadLocal<>();
-    @Override
-    public void command_crafter$analyze(@NotNull CommandContext<SharedSuggestionProvider> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        command_crafter$analyzingResult.set(result);
-        try {
-            parse(reader);
-        } finally {
-            command_crafter$analyzingResult.remove();
-        }
-    }
-
+public abstract class NbtPathArgumentMixin {
     @ModifyArg(
             method = "parseNode",
             at = @At(
@@ -60,7 +45,7 @@ public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
             )
     )
     private static String command_crafter$highlightUnquotedTag(StringReader reader, String tag) {
-        var analyzingResult = command_crafter$analyzingResult.get();
+        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
         if(analyzingResult == null) return tag;
 
         analyzingResult.getSemanticTokens().addMultiline(reader.getCursor() - tag.length(), tag.length(), TokenType.Companion.getPROPERTY(), 0);
@@ -77,7 +62,7 @@ public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
             allow = 1
     )
     private static String command_crafter$highlightQuotedTag(StringReader reader, Operation<String> op) {
-        var analyzingResult = command_crafter$analyzingResult.get();
+        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
         if(analyzingResult == null) return op.call(reader);
         final var startCursor = reader.getCursor();
         final var tag = op.call(reader);
@@ -93,7 +78,7 @@ public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
             )
     )
     private static boolean command_crafter$allowEmptyTagWhenAnalyzing(boolean isEmpty) {
-        return isEmpty && command_crafter$analyzingResult.get() == null;
+        return isEmpty && getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult()) == null;
     }
 
     @ModifyExpressionValue(
@@ -106,7 +91,8 @@ public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
             )
     )
     private static int command_crafter$allowEmptyUnquotedTagWhenAnalyzing(int endCursor) {
-        return command_crafter$analyzingResult.get() == null ? endCursor : -1;
+        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
+        return analyzingResult == null ? endCursor : -1;
     }
 
     @SuppressWarnings("unused")
@@ -118,7 +104,7 @@ public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
             )
     )
     private static CompoundTag command_crafter$highlightNbtOption(StringReader reader, Operation<CompoundTag> op) throws CommandSyntaxException {
-        var analyzingResult = command_crafter$analyzingResult.get();
+        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
         if(analyzingResult == null)
             return op.call(reader);
         //noinspection unchecked
@@ -159,7 +145,7 @@ public abstract class NbtPathArgumentMixin implements AnalyzingCommandNode {
             )
     )
     private static void command_crafter$highlightIndex(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursorRef) {
-        var analyzingResult = command_crafter$analyzingResult.get();
+        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
         if(analyzingResult == null) return;
 
         analyzingResult.getSemanticTokens().addMultiline(startCursorRef.get(), reader.getCursor() - startCursorRef.get(), TokenType.Companion.getNUMBER(), 0);
