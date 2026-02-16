@@ -5,7 +5,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
-import net.papierkorb2292.command_crafter.editor.processing.CombinedCompletionItemProvider
+import net.papierkorb2292.command_crafter.editor.processing.CombinedPotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.SimpleCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -96,9 +96,10 @@ class DirectiveManager {
      * and don't replace any text.
      */
     fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult, replaceRange: Boolean = false) {
-        analyzingResult.addCompletionProviderWithContinuosMapping(
+        analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
             AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
-            AnalyzingResult.RangedDataProvider(range, CombinedCompletionItemProvider(
+            range,
+            CombinedPotentialSyntaxNode(
                 DIRECTIVES.keySet().map {
                     SimpleCompletionItemProvider(
                         "@" + it.toShortString(),
@@ -107,7 +108,7 @@ class DirectiveManager {
                         analyzingResult.mappingInfo.copy(),
                     )
                 }
-            ))
+            )
         )
     }
 

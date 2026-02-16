@@ -2,15 +2,17 @@ package net.papierkorb2292.command_crafter.networking.packets
 
 import io.netty.buffer.ByteBuf
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
+import net.minecraft.core.UUIDUtil
 import net.minecraft.network.RegistryFriendlyByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.Identifier
-import net.minecraft.core.UUIDUtil
+import net.papierkorb2292.command_crafter.networking.COMPLETION_CONTEXT_PACKET_CODEC
+import org.eclipse.lsp4j.CompletionContext
 import java.util.*
 
-class ContextCompletionRequestC2SPacket(val requestId: UUID, val inputLines: List<String>, val cursor: Int):
+class ContextCompletionRequestC2SPacket(val requestId: UUID, val inputLines: List<String>, val cursor: Int, val context: CompletionContext):
     CustomPacketPayload {
     companion object {
         val ID = CustomPacketPayload.Type<ContextCompletionRequestC2SPacket>(Identifier.fromNamespaceAndPath("command_crafter", "context_completion_request"))
@@ -21,6 +23,8 @@ class ContextCompletionRequestC2SPacket(val requestId: UUID, val inputLines: Lis
             ContextCompletionRequestC2SPacket::inputLines,
             ByteBufCodecs.VAR_INT,
             ContextCompletionRequestC2SPacket::cursor,
+            COMPLETION_CONTEXT_PACKET_CODEC,
+            ContextCompletionRequestC2SPacket::context,
             ::ContextCompletionRequestC2SPacket
         )
         val TYPE: CustomPacketPayload.TypeAndCodec<in RegistryFriendlyByteBuf, ContextCompletionRequestC2SPacket> =

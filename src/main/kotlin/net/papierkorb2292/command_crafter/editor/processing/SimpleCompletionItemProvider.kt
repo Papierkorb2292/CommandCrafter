@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.*
@@ -16,9 +16,9 @@ class SimpleCompletionItemProvider(
     private val mappingInfo: FileMappingInfo,
     private val label: String = text,
     private val kind: CompletionItemKind? = null,
-) : AnalyzingCompletionProvider {
-    override fun invoke(offset: Int): CompletableFuture<List<CompletionItem>>
-        = CompletableFuture.completedFuture(listOf(createCompletionItem(offset)))
+) : PotentialSyntaxNode {
+    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>> =
+        CompletableFuture.completedFuture(listOf(createCompletionItem(cursor)))
 
     fun createCompletionItem(sourceCursor: Int): CompletionItem {
         // Adjusting the insert start if the cursor is before the insert start

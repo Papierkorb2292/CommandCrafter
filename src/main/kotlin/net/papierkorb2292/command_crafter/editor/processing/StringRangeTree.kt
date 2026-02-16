@@ -209,15 +209,13 @@ class StringRangeTree<TNode: Any>(
             while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= newEndCursor) {
                 if(suggestionStart <= nextSuggestionInsertRange.start) {
                     val preInsertEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
-                    result.addCompletionProviderWithContinuosMapping(
+                    result.addContinuouslyMappedPotentialSyntaxNode(
                         AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                        AnalyzingResult.RangedDataProvider(
-                            StringRange(suggestionStart, preInsertEndCursor),
-                            suggestion.completionItemProvider
-                        )
+                        StringRange(suggestionStart, preInsertEndCursor),
+                        suggestion.completionItemProvider
                     )
                 }
-                result.combineWithCompletionProviders(nextSuggestionInsert)
+                result.combineWithPotential(nextSuggestionInsert)
                 suggestionStart = nextSuggestionInsertRange.end
                 if(suggestionInserts!!.hasNext()) {
                     val insert = suggestionInserts.next()
@@ -228,17 +226,15 @@ class StringRangeTree<TNode: Any>(
                     nextSuggestionInsert = null
                 }
             }
-            result.addCompletionProviderWithContinuosMapping(
+            result.addContinuouslyMappedPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                AnalyzingResult.RangedDataProvider(
-                    StringRange(suggestionStart, newEndCursor),
-                    suggestion.completionItemProvider
-                )
+                StringRange(suggestionStart, newEndCursor),
+                suggestion.completionItemProvider
             )
         }
 
         while(nextSuggestionInsert != null) {
-            result.combineWithCompletionProviders(nextSuggestionInsert)
+            result.combineWithPotential(nextSuggestionInsert)
             nextSuggestionInsert =
                 if(suggestionInserts!!.hasNext()) suggestionInserts.next().second
                 else null
@@ -640,7 +636,7 @@ class StringRangeTree<TNode: Any>(
     data class Suggestion<TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {
         constructor(element: TNode): this(element, false, null)
     }
-    class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: AnalyzingCompletionProvider)
+    class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
     data class TokenInfo(val type: TokenType, val modifiers: Int)
     data class AdditionalToken(val range: StringRange, val tokenInfo: TokenInfo)
 

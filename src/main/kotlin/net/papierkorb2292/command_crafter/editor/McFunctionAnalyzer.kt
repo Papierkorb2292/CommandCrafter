@@ -38,11 +38,11 @@ class McFunctionAnalyzer(
         reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         LanguageManager.analyse(reader, sourceProvider(languageServer), result, Language.TopLevelClosure(VanillaLanguage()))
         reader.resourceCreator.resourceStack.pop()
-        result.clearDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
+        val filtered = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
         if(!Thread.currentThread().isInterrupted)
             file.persistentAnalyzerData = reader.resourceCreator.newCache
         if(resultWrapper != null)
-            return resultWrapper(result)
-        return result
+            return resultWrapper(filtered)
+        return filtered
     }
 }

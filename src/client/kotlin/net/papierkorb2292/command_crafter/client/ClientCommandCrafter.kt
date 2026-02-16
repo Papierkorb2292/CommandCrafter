@@ -30,7 +30,10 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
+import org.eclipse.lsp4j.CompletionContext
+import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import java.util.concurrent.CompletableFuture
@@ -66,20 +69,24 @@ object ClientCommandCrafter : ClientModInitializer {
         MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
             AnalyzingClientCommandSource(Minecraft.getInstance(), languageServer)
         }, { analyzingResult ->
-            val finalResult = analyzingResult.copyExceptCompletions()
-            finalResult.addCompletionProvider(
+            val finalResult = analyzingResult.copyActual()
+            finalResult.addPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                AnalyzingResult.RangedDataProvider(StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last())) { cursor ->
-                    AnalyzingClientCommandSource.allowServersideCompletions.set(true)
-                    analyzingResult.getCompletionProviderForCursor(cursor)?.dataProvider(cursor) ?: CompletableFuture.completedFuture(listOf())
-                },
-                false
+                StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last()),
+                object : PotentialSyntaxNode {
+                    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>>? {
+                        AnalyzingClientCommandSource.allowServersideCompletions.set(true)
+                        return analyzingResult.getCompletions(cursor, context)
+                    }
+                }
             )
             finalResult
         }))
         MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(LanguageMetadataSection.TYPE))
 
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
+
+        AnalyzingClientCommandSource.setupCompletionContextSetter()
 
         LoadedClientsideRegistries.load(Minecraft.getInstance()).thenApply { loadedClientsideRegistries ->
             ClientCommandCrafter.loadedClientsideRegistries = loadedClientsideRegistries

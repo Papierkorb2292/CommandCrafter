@@ -1,11 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCompletionProvider
+import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import org.eclipse.lsp4j.CompletionItem
-import org.eclipse.lsp4j.CompletionItemKind
-import org.eclipse.lsp4j.InsertReplaceEdit
-import org.eclipse.lsp4j.TextEdit
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
@@ -16,10 +13,10 @@ class StreamCompletionItemProvider(
     private val mappingInfo: FileMappingInfo,
     private val kind: CompletionItemKind?,
     private val completionsCallback: () -> Stream<Completion>,
-) : AnalyzingCompletionProvider {
-    override fun invoke(sourceCursor: Int): CompletableFuture<List<CompletionItem>> {
+) : PotentialSyntaxNode {
+    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
         // Uses SimpleCompletionItemProvider to calculate the positions and such and then adjusts the text and label for each completion
-        val base = SimpleCompletionItemProvider("", insertStart, replaceEndProvider, mappingInfo, kind = kind).createCompletionItem(sourceCursor)
+        val base = SimpleCompletionItemProvider("", insertStart, replaceEndProvider, mappingInfo, kind = kind).createCompletionItem(cursor)
         return CompletableFuture.completedFuture(completionsCallback().map { completion ->
             CompletionItem().also {
                 it.label = completion.label

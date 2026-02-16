@@ -111,8 +111,6 @@ class MacroAnalyzingCrawlerRunner(
 
     private val weightedSpawners = mutableListOf(mutableListOf(createRootSpawner()))
 
-    private var mergedCompletionsCount = 0
-
     private var timeoutStartNs = -1L
     var hasHitTimeout: Boolean = false
         private set
@@ -568,12 +566,12 @@ class MacroAnalyzingCrawlerRunner(
             val nextSpawner = if(isLastChild) this else parent!!
             val parentAnalyzingResult = nextSpawner.buildCombinedAnalyzingResult(isTrailing, false)
             val crawlerAnalyzingResult = baseAnalyzingResult.copyInput()
-            crawlerAnalyzingResult.combineWithExceptCompletions(result.analyzingResult)
+            crawlerAnalyzingResult.combineWithActual(result.analyzingResult)
             // Don't add completion providers for trailing nodes, because those should be added by `addAllCompletionsProviders` (called in `run`) and they shouldn't be added twice
             if(!isTrailing) {
                 val attemptCount = result.baseAttemptIndex - nextSpawner.startAttemptIndex
-                nextSpawner.addCompletionProvidersWithMatchingLiteralCount(crawlerAnalyzingResult, attemptCount, result.newLiteralNodeCount())
-                nextSpawner.addCompletionProvidersUpToAttemptPosition(crawlerAnalyzingResult, attemptCount, result.baseSkippedNodeCount)
+                nextSpawner.addPotentialNodesWithMatchingLiteralCount(crawlerAnalyzingResult, attemptCount, result.newLiteralNodeCount())
+                nextSpawner.addPotentialNodesUpToAttemptPosition(crawlerAnalyzingResult, attemptCount, result.baseSkippedNodeCount)
             }
             crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
@@ -587,14 +585,14 @@ class MacroAnalyzingCrawlerRunner(
          * the chosen result and a skippedNodeCount less than or equal to the chosen result.
          * Other completions are deemed not necessary and maybe confusing.
          */
-        fun addCompletionProvidersUpToAttemptPosition(analyzingResult: AnalyzingResult, chosenAttemptCount: Int, chosenSkippedNodeCount: Int) {
+        fun addPotentialNodesUpToAttemptPosition(analyzingResult: AnalyzingResult, chosenAttemptCount: Int, chosenSkippedNodeCount: Int) {
             attemptResults.asSequence()
                 .take(chosenAttemptCount)
                 .flatMap { it.asSequence().take(chosenSkippedNodeCount + 1) }
                 .filterNotNull()
                 .flatten()
                 .forEach { result ->
-                    analyzingResult.combineWithCompletionProviders(result.analyzingResult, "_${mergedCompletionsCount++}")
+                    analyzingResult.combineWithPotentialFinished(result.analyzingResult)
                 }
         }
 
@@ -604,14 +602,14 @@ class MacroAnalyzingCrawlerRunner(
          * completions with the same attempt count but a lower literal count would probably
          * be confusing.
          */
-        fun addCompletionProvidersWithMatchingLiteralCount(analyzingResult: AnalyzingResult, chosenAttemptCount: Int, literalCount: Int) {
+        fun addPotentialNodesWithMatchingLiteralCount(analyzingResult: AnalyzingResult, chosenAttemptCount: Int, literalCount: Int) {
             attemptResults[chosenAttemptCount]
                 .filterNotNull()
                 .flatten()
                 .forEach { result ->
                     if(result.newLiteralNodeCount() != literalCount)
                         return@forEach
-                    analyzingResult.combineWithCompletionProviders(result.analyzingResult, "_${mergedCompletionsCount++}")
+                    analyzingResult.combineWithPotentialFinished(result.analyzingResult)
                 }
         }
 
@@ -621,7 +619,7 @@ class MacroAnalyzingCrawlerRunner(
                 .filterNotNull()
                 .flatten()
                 .forEach { result ->
-                    analyzingResult.combineWithCompletionProviders(result.analyzingResult, "_${mergedCompletionsCount++}")
+                    analyzingResult.combineWithPotentialFinished(result.analyzingResult)
                 }
         }
 

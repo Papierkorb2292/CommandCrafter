@@ -35,12 +35,11 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                 Companion.analyze(file, languageServer, fileDecoder)
             }
         } else Companion.analyze(file, languageServer, fileDecoder)
-        analyzingResult.clearDisabledFeatures(languageServer.featureConfig, listOf(
+        return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(
             JSON_ANALYZER_CONFIG_PATH_PREFIX + analyzerConfigPath,
             JSON_ANALYZER_CONFIG_PATH_PREFIX,
             ""
         ))
-        return analyzingResult
     }
 
     companion object {

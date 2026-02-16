@@ -279,21 +279,22 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 }
             }
 
-            override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
+            override fun completion(params: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
                 // Temporary fix for requesting too many completions in JSON files. Should actually be done in completion providers after rewriting AnalyzingResult.
-                if(position.context?.triggerKind == CompletionTriggerKind.TriggerCharacter
-                    && (position.textDocument.uri.endsWith(".json") || position.textDocument.uri.endsWith(".mcmeta"))
-                    && position.context.triggerCharacter !in jsonCompletionTriggerCharacters) {
+                if(params.context?.triggerKind == CompletionTriggerKind.TriggerCharacter
+                    && (params.textDocument.uri.endsWith(".json") || params.textDocument.uri.endsWith(".mcmeta"))
+                    && params.context.triggerCharacter !in jsonCompletionTriggerCharacters) {
                     return emptyCompletionsDefault
                 }
 
-                val file = openFiles[position.textDocument.uri] ?: return emptyCompletionsDefault
+                val file = openFiles[params.textDocument.uri] ?: return emptyCompletionsDefault
                 val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
 
-                val cursor = AnalyzingResult.getCursorFromPosition(position.position, file.createFileMappingInfo())
+                val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenComposeAsync { analyzingResult ->
-                    val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenComposeAsync emptyCompletionsDefault
-                    provider.dataProvider(cursor).thenApply {
+                    val completions = analyzingResult.getCompletions(cursor, params.context)
+                        ?: return@thenComposeAsync emptyCompletionsDefault
+                    completions.thenApply {
                         sortCommonTagCompletionsAtEnd(it)
                         Either.forLeft(
                             if(clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) it
@@ -373,8 +374,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenCompose {
-                    val provider = it.getHoverProviderForCursor(cursor) ?: return@thenCompose emptyHoverDefault
-                    provider.dataProvider(cursor)
+                    it.getHover(cursor)
                 }
             }
 
@@ -384,8 +384,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenCompose {
-                    val provider = it.getDefinitionProviderForCursor(cursor) ?: return@thenCompose emptyDefinitionDefault
-                    provider.dataProvider(cursor)
+                    it.getDefinition(cursor)
                 }
             }
         }

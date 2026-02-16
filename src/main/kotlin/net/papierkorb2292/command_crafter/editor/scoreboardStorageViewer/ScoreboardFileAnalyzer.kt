@@ -19,11 +19,10 @@ object ScoreboardFileAnalyzer : FileAnalyseHandler {
             languageServer,
             ServerScoreboardStorageFileSystem.OBJECTIVE_CODEC
         )
-        analyzingResult.clearDisabledFeatures(languageServer.featureConfig, listOf(
+        return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(
             StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX + ANALYZER_CONFIG_PATH,
             StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX,
             ""
         ))
-        return analyzingResult
     }
 }

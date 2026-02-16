@@ -6,12 +6,9 @@ import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.nbt.Tag
-import net.minecraft.util.parsing.packrat.CachedParseState
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
-import java.util.HashMap
-import java.util.WeakHashMap
 
 object PackratParserAdditionalArgs {
     val analyzingResult = ThreadLocal<AnalyzingResultBranchingArgument>()
@@ -108,18 +105,15 @@ object PackratParserAdditionalArgs {
     }
 
     data class AnalyzingResultBranchingArgument(var analyzingResult: AnalyzingResult) : BranchingArgument<AnalyzingResult> {
-        private var mergedBranchCount = 0
         override fun get() = analyzingResult
-        override fun createBranch() = analyzingResult.copyExceptCompletions()
+        override fun createBranch() = analyzingResult.copyActual()
         override fun mergeBranch(argument: AnalyzingResult, success: Boolean) {
             if(success) {
                 val prev = analyzingResult
-                analyzingResult = argument.copyExceptCompletions()
-                analyzingResult.combineWithCompletionProviders(prev)
+                analyzingResult = argument.copyActual()
+                analyzingResult.combineWithPotential(prev)
             }
-            // Completions are copied separately even if the branch was successful because the mergedBranchCount is not copied from the branch,
-            // which could otherwise lead to duplicate completion names if the branch had a higher count
-            analyzingResult.combineWithCompletionProviders(argument, '_' + (mergedBranchCount++).toString())
+            analyzingResult.combineWithPotentialFinished(argument)
         }
     }
 

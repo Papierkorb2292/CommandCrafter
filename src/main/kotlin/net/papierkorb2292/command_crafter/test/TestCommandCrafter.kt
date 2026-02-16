@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.parser.*
@@ -38,6 +39,8 @@ object TestCommandCrafter {
     val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
     val snapshotDirectory = projectDirectory.resolve("tests/__snapshots__")
     val inputDirectory = projectDirectory.resolve("tests/inputs")
+
+    val dummyCompletionContext = CompletionContext(CompletionTriggerKind.Invoked)
 
     @GameTest
     fun exampleTest(context: GameTestHelper) {
@@ -232,10 +235,14 @@ object TestCommandCrafter {
             val fileRange = StringRange(0, fileInfo.accumulatedLineLengths.last())
 
             // An example completion that just inserts "Example" at the cursor position everywhere in the file
-            result.addCompletionProvider(
+            result.addPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                AnalyzingResult.RangedDataProvider(fileRange) { cursor ->
-                    CompletableFuture.completedFuture(listOf(CompletionItem().apply {
+                fileRange,
+                object : PotentialSyntaxNode {
+                    override fun getCompletions(
+                        cursor: Int,
+                        context: CompletionContext
+                    ) = CompletableFuture.completedFuture(listOf(CompletionItem().apply {
                         label = "Example"
                         textEdit = Either.forLeft(TextEdit().apply {
                             newText = "Example"
@@ -244,7 +251,6 @@ object TestCommandCrafter {
                         })
                     }))
                 },
-                false
             )
             val lastPos = AnalyzingResult.getPositionFromCursor(fileRange.end, fileInfo)
             // An example error at the end of the file
@@ -264,8 +270,8 @@ object TestCommandCrafter {
             val completionExamplePosition = firstFilePart.length + secondFilePart.length/2
 
             context.assertValueEqual(
-                fullResult.getCompletionProviderForCursor(completionExamplePosition)!!.dataProvider(completionExamplePosition).get(),
-                offsetResult.getCompletionProviderForCursor(completionExamplePosition)!!.dataProvider(completionExamplePosition).get(),
+            fullResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
+                offsetResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
                 Component.literal("completions from $description")
             )
             context.assertValueEqual(
@@ -429,8 +435,7 @@ object TestCommandCrafter {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
                 analyzingResult
-                    .getCompletionProviderForCursor(absoluteCursor)!!
-                    .dataProvider(absoluteCursor)
+                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
                     .any { it.label == "execute" },
                 Component.literal("Root suggestions for marker at index $rootIndex")
@@ -440,8 +445,7 @@ object TestCommandCrafter {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
                 analyzingResult
-                    .getCompletionProviderForCursor(absoluteCursor)!!
-                    .dataProvider(absoluteCursor)
+                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
                     .any { it.label == "if" },
                 Component.literal("Subcommand suggestions for marker at index $rootIndex")
@@ -451,8 +455,7 @@ object TestCommandCrafter {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
                 analyzingResult
-                    .getCompletionProviderForCursor(absoluteCursor)!!
-                    .dataProvider(absoluteCursor)
+                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
                     .any { it.label == "condition" },
                 Component.literal("Predicate suggestions for marker at index $rootIndex")
@@ -473,8 +476,7 @@ object TestCommandCrafter {
 
         for((i, location) in markedLocations.withIndex()) {
             context.assertFalse(
-                analyzingResult.getCompletionProviderForCursor(location.absoluteCursor)
-                    ?.dataProvider(location.absoluteCursor)
+                analyzingResult.getCompletions(location.absoluteCursor, dummyCompletionContext)
                     ?.get()
                     .isNullOrEmpty(),
                 Component.literal("Item predicate suggestions for marker at $i")
@@ -482,8 +484,8 @@ object TestCommandCrafter {
         }
 
         context.assertFalse(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[2].absoluteCursor)!!
-                .dataProvider(markedLocations[2].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[2].absoluteCursor, dummyCompletionContext)!!
+                .get()
                 .any { it.label == "~" },
             Component.literal("Item predicate '~' suggestion after '='")
         )
@@ -623,8 +625,7 @@ object TestCommandCrafter {
         val result = analyseCommand(context, processedLines)
 
         val suggestions = markedLocations.map { location ->
-            result.getCompletionProviderForCursor(location.absoluteCursor)
-                ?.dataProvider?.invoke(location.absoluteCursor)?.get()
+            result.getCompletions(location.absoluteCursor, dummyCompletionContext)?.get()
         }
 
         val line1Suggestions = suggestions[0]?.map { it.label }?.toSet()

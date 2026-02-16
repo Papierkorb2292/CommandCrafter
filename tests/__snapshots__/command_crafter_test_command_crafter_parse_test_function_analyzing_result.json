@@ -39,7 +39,9 @@
     "character" : 0
   },
   "documentation" : " This is a doc comment\n",
-  "completionProviders" : {
+  "actualSyntaxNodes" : [ ],
+  "finishedPotentialSyntaxNodes" : [ ],
+  "buildingPotentialSyntaxNodes" : {
     "directive" : [ {
       "cursorRange" : {
         "start" : 34,
@@ -254,7 +256,5 @@
         "end" : 226
       }
     } ]
-  },
-  "hoverProviders" : [ ],
-  "definitionProviders" : [ ]
+  }
 }

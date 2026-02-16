@@ -322,7 +322,7 @@ object NetworkServerConnectionHandler {
             @Suppress("UNCHECKED_CAST")
             val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, ""))
             reader.cursor = payload.cursor
-            serverConnection.contextCompletionProvider.getCompletions(reader).thenAccept {
+            serverConnection.contextCompletionProvider.getCompletions(reader, payload.context).thenAccept {
                 context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
             }
         }

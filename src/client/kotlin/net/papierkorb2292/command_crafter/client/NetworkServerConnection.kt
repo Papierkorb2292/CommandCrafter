@@ -47,6 +47,7 @@ import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFi
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileRequestC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileResponseS2CPacket
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import org.eclipse.lsp4j.CompletionContext
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.debug.*
 import java.util.*
@@ -371,12 +372,12 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
         }
     }
     override val contextCompletionProvider = object : ContextCompletionProvider {
-        override fun getCompletions(fullInput: DirectiveStringReader<AnalyzingResourceCreator>): CompletableFuture<List<CompletionItem>> {
+        override fun getCompletions(fullInput: DirectiveStringReader<AnalyzingResourceCreator>, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
             val future = CompletableFuture<List<CompletionItem>>()
             val requestId = UUID.randomUUID()
             currentContextCompletionRequests[requestId] = future
             ClientPlayNetworking.send(
-                ContextCompletionRequestC2SPacket(requestId, fullInput.lines, fullInput.cursorMapper.mapToSource(fullInput.skippingCursor))
+                ContextCompletionRequestC2SPacket(requestId, fullInput.lines, fullInput.cursorMapper.mapToSource(fullInput.skippingCursor), context)
             )
             return future
         }

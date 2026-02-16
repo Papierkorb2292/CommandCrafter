@@ -575,3 +575,15 @@ val EVALUATE_RESPONSE_PACKET_CODEC = StreamCodec.composite(
         this.valueLocationReference = valueLocationReference.orElse(null)
     }
 }
+
+val COMPLETION_CONTEXT_PACKET_CODEC = StreamCodec.composite(
+    ByteBufCodecs.VAR_INT,
+    { it.triggerKind.value },
+    OPTIONAL_STRING_PACKET_CODEC,
+    CompletionContext::getTriggerCharacter.toOptional()
+) { triggerKind, triggerCharacter ->
+    CompletionContext().apply {
+        this.triggerKind = CompletionTriggerKind.forValue(triggerKind)
+        this.triggerCharacter = triggerCharacter.orElse(null)
+    }
+}

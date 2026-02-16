@@ -33,6 +33,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAcc
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
+import org.eclipse.lsp4j.CompletionContext
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
@@ -227,7 +228,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     }
 
     override val contextCompletionProvider = object : ContextCompletionProvider {
-        override fun getCompletions(fullInput: DirectiveStringReader<AnalyzingResourceCreator>): CompletableFuture<List<CompletionItem>> {
+        override fun getCompletions(fullInput: DirectiveStringReader<AnalyzingResourceCreator>, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
             val resetMappingInfo = fullInput.fileMappingInfo.copy()
             resetMappingInfo.readCharacters = 0
             resetMappingInfo.skippedChars = 0
@@ -235,9 +236,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             val resetReader = DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator)
             resetReader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(fullInput.cursor, true)
             LanguageManager.analyse(resetReader, server.createCommandSourceStack(), analyzingResult, LanguageManager.DEFAULT_CLOSURE)
-            return analyzingResult.getCompletionProviderForCursor(fullInput.cursor)
-                ?.dataProvider?.invoke(fullInput.cursor)
-                ?: CompletableFuture.completedFuture(listOf())
+            return analyzingResult.getCompletions(fullInput.cursor, context) ?: CompletableFuture.completedFuture(listOf())
         }
     }
 

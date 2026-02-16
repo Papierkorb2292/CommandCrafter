@@ -63,14 +63,13 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
                     languageServer,
                     decoder
                 )
-                analyzingResult.clearDisabledFeatures(
+                completableFuture.complete(analyzingResult.filterDisabledFeatures(
                     languageServer.featureConfig, listOf(
                         StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX + ANALYZER_CONFIG_PATH,
                         StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX,
                         ""
                     )
-                )
-                completableFuture.complete(analyzingResult)
+                ))
             }, executor)
     }
 }

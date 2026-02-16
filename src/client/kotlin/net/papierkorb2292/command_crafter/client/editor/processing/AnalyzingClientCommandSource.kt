@@ -19,9 +19,12 @@ import net.minecraft.world.level.Level
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import org.eclipse.lsp4j.CompletionContext
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
@@ -32,10 +35,24 @@ class AnalyzingClientCommandSource(
     private val languageServer: MinecraftLanguageServer,
 ) : SharedSuggestionProvider, PermissionSetSupplier {
 
+    var fullInput: DirectiveStringReader<AnalyzingResourceCreator>? = null
+    var completionContext: CompletionContext? = null
+
     companion object {
         // This is saved globally instead of per instance, because ClientCommandCrafter can only
         // access the latest instance, but macros might be using a previous instance
         val allowServersideCompletions = ThreadLocal<Boolean>()
+
+        fun setupCompletionContextSetter() {
+            VanillaLanguage.completionCommandSourceProvider = { source, fullInput, context ->
+                if(source is AnalyzingClientCommandSource) {
+                    AnalyzingClientCommandSource(source.clientCommandSource, source.hasNetworkHandler, source.languageServer).apply {
+                        this.fullInput = fullInput
+                        this.completionContext = context
+                    }
+                } else source
+            }
+        }
     }
 
     constructor(minecraftClient: Minecraft, languageServer: MinecraftLanguageServer): this(
@@ -77,13 +94,13 @@ class AnalyzingClientCommandSource(
         if(allowServersideCompletions.getOrNull() != true)
             return Suggestions.empty()
         allowServersideCompletions.remove() // Only allow once per completion invocation to reduce unnecessary processing
-        val fullInput = VanillaLanguage.SUGGESTIONS_FULL_INPUT.getOrNull()
+        val fullInput = fullInput
         if(!hasNetworkHandler || fullInput == null)
             return Suggestions.empty()
 
         val contextCompletionProvider = fullInput.resourceCreator.languageServer?.minecraftServer?.contextCompletionProvider
         if(contextCompletionProvider != null)
-            return contextCompletionProvider.getCompletions(fullInput).thenApply {
+            return contextCompletionProvider.getCompletions(fullInput, completionContext!!).thenApply {
                 Suggestions(StringRange.at(0), emptyList()).apply {
                     @Suppress("KotlinConstantConditions")
                     (this as CompletionItemsContainer).`command_crafter$setCompletionItem`(it)

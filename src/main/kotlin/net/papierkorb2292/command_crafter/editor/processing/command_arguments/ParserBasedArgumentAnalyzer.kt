@@ -9,8 +9,8 @@ import net.minecraft.util.parsing.packrat.commands.ParserBasedArgument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
+import net.papierkorb2292.command_crafter.editor.processing.helper.withUniqueCompletions
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import java.util.concurrent.CompletableFuture
 
 class ParserBasedArgumentAnalyzer : CommandArgumentAnalyzerService<ParserBasedArgument<*>>{
     override val argumentTypes: List<Class<out ParserBasedArgument<*>>>
@@ -36,15 +36,11 @@ class ParserBasedArgumentAnalyzer : CommandArgumentAnalyzerService<ParserBasedAr
 
             val parsedAnalyzingResult = PackratParserAdditionalArgs.analyzingResult.get().analyzingResult
             val furthestAnalyzingResult = PackratParserAdditionalArgs.getAndRemoveFurthestAnalyzingResult() ?: parsedAnalyzingResult
-            result.combineWithExceptCompletions(furthestAnalyzingResult)
+            result.combineWithActual(furthestAnalyzingResult)
 
-            result.addCompletionProviderWithContinuosMapping(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, AnalyzingResult.RangedDataProvider(range) { sourceCursor ->
-                val completionProvider = parsedAnalyzingResult.getCompletionProviderForCursor(sourceCursor)
-                    ?: return@RangedDataProvider CompletableFuture.completedFuture(emptyList());
-                val completionFuture = completionProvider.dataProvider(sourceCursor);
-                // Make completions unique, because packrat parsing can result in duplicated completions
-                completionFuture.thenApply { completions -> ArrayList(LinkedHashSet(completions)) }
-            })
+            // Use parsedAnalyzingResult, because all potential syntax nodes have been merged into that one.
+            // Make completions unique, because packrat parsing can result in duplicated completions.
+            result.addContinuouslyMappedPotentialSyntaxNode(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, range, parsedAnalyzingResult.withUniqueCompletions())
         } finally {
             PackratParserAdditionalArgs.allowMalformed.remove()
             PackratParserAdditionalArgs.analyzingResult.remove()

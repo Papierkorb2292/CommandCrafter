@@ -58,7 +58,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult.RangedDataProvider
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
@@ -780,9 +779,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.cursor = max(reader.cursor, analyzeReader.cursor)
                 reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
             }
-            analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
+            analyzingResult.combineWithActual(nodeAnalyzingResult)
             if(hasCustomCompletions)
-                analyzingResult.combineWithCompletionProviders(nodeAnalyzingResult, "_customSuggestions")
+                analyzingResult.combineWithPotential(nodeAnalyzingResult, "_customSuggestions")
 
             addNodeSuggestions(
                 parentNode,
@@ -827,76 +826,83 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         completionsChannel: String = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
     ) {
         val completionParentNode = parentNode.node.resolveRedirects()
-        analyzingResult.addCompletionProviderWithContinuosMapping(
+        analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
             completionsChannel,
-            AnalyzingResult.RangedDataProvider(
-                StringRange(
-                    parentNode.range.end + 1,
-                    parsedNodeRange.end
-                )
-            ) { sourceCursor ->
-                    val rootCompletionProvider = rootCompletions?.getCompletionProviderForCursor(sourceCursor)
-                if(rootCompletionProvider != null)
-                    return@RangedDataProvider rootCompletionProvider.dataProvider(sourceCursor)
+            StringRange(
+                parentNode.range.end + 1,
+                parsedNodeRange.end
+            ),
+            object : PotentialSyntaxNode {
+                override fun getCompletions(
+                    cursor: Int,
+                    context: CompletionContext
+                ): CompletableFuture<List<CompletionItem>> {
+                    val rootCompletions = rootCompletions?.getCompletions(cursor, context)
+                    if(rootCompletions != null)
+                        return rootCompletions
 
-                val lineNumber = AnalyzingResult.getPositionFromCursor(sourceCursor, completionReader.fileMappingInfo).line
-                val targetCursor = completionReader.cursorMapper.mapToTarget(sourceCursor, clampInCursorMapperGaps)
-                val endCursor = targetCursor - completionReader.readSkippingChars
-                val truncatedInput = completionReader.string
-                    .substring(0, min(endCursor, completionReader.string.length))
-                // The string is extended to a length that covers the cursor (only happens for root suggestions, otherwise the cursor is already contained),
-                // so the suggestions are at the correct location
-                val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
-                val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
-                SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
-                    this.cursor = endCursor
-                })
-                val suggestionFutures = completionParentNode.children.map { child ->
-                    try {
-                        child.listSuggestions(
-                            contextBuilder.build(extendedTruncatedInput),
-                            SuggestionsBuilder(
-                                extendedTruncatedInput, truncatedInputLowerCase,
-                                min(parsedNodeRange.start, extendedTruncatedInput.length)
-                            )
-                        )
-                    } catch(e: Exception) {
-                        CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
-                        Suggestions.empty()
-                    }
-                }.toTypedArray()
-                val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
-                    SUGGESTIONS_FULL_INPUT.remove()
-                    CompletableFuture.failedFuture(it)
-                }.thenApply {
-                    SUGGESTIONS_FULL_INPUT.remove()
-                    val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
-                        it.toCompletionItem(completionReader, lineNumber, sourceCursor)
-                    } + suggestionFutures.flatMap {
-                        (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
-                            ?: emptyList()
-                    }
-                    if(completionReader.resourceCreator.languageServer != null) {
-                        // Partial Completions are added only on the side with the language server, so they aren't added twice
-                        CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
-                            completionItems,
-                            completionReader.string.substring(
-                                min(
-                                    parsedNodeRange.start,
-                                    completionReader.string.length
+                    val lineNumber = AnalyzingResult.getPositionFromCursor(cursor, completionReader.fileMappingInfo).line
+                    val targetCursor = completionReader.cursorMapper.mapToTarget(cursor, clampInCursorMapperGaps)
+                    val endCursor = targetCursor - completionReader.readSkippingChars
+                    val truncatedInput = completionReader.string
+                        .substring(0, min(endCursor, completionReader.string.length))
+                    // The string is extended to a length that covers the cursor (only happens for root suggestions, otherwise the cursor is already contained),
+                    // so the suggestions are at the correct location
+                    val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
+                    val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
+                    SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
+                        this.cursor = endCursor
+                    })
+                    val suggestionFutures = completionParentNode.children.map { child ->
+                        try {
+                            child.listSuggestions(
+                                contextBuilder.withSource(
+                                    completionCommandSourceProvider(
+                                        contextBuilder.source,
+                                        SUGGESTIONS_FULL_INPUT.get(),
+                                        context)
+                                ).build(extendedTruncatedInput),
+                                SuggestionsBuilder(
+                                    extendedTruncatedInput, truncatedInputLowerCase,
+                                    min(parsedNodeRange.start, extendedTruncatedInput.length)
                                 )
                             )
-                        )
-                    } else completionItems
-                }
-                if(additionalCompletions == null)
-                    return@RangedDataProvider commandCompletionsFuture
-                val additionalCompletionsProvider = additionalCompletions.getCompletionProviderForCursor(sourceCursor)
-                    ?: return@RangedDataProvider commandCompletionsFuture
-                commandCompletionsFuture.thenCombine(
-                    additionalCompletionsProvider.dataProvider(sourceCursor)
-                ) { commandCompletions, additionalCompletions ->
-                    commandCompletions + additionalCompletions
+                        } catch(e: Exception) {
+                            CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
+                            Suggestions.empty()
+                        }
+                    }.toTypedArray()
+                    val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
+                        SUGGESTIONS_FULL_INPUT.remove()
+                        CompletableFuture.failedFuture(it)
+                    }.thenApply {
+                        SUGGESTIONS_FULL_INPUT.remove()
+                        val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
+                            it.toCompletionItem(completionReader, lineNumber, cursor)
+                        } + suggestionFutures.flatMap {
+                            (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
+                                ?: emptyList()
+                        }
+                        if(completionReader.resourceCreator.languageServer != null) {
+                            // Partial Completions are added only on the side with the language server, so they aren't added twice
+                            CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
+                                completionItems,
+                                completionReader.string.substring(
+                                    min(
+                                        parsedNodeRange.start,
+                                        completionReader.string.length
+                                    )
+                                )
+                            )
+                        } else completionItems
+                    }
+                    if(additionalCompletions == null)
+                        return commandCompletionsFuture
+                    val additionalCompletionsProvider = additionalCompletions.getCompletions(cursor, context)
+                        ?: return commandCompletionsFuture
+                    return commandCompletionsFuture.thenCombine(additionalCompletionsProvider) { commandCompletions, additionalCompletions ->
+                        commandCompletions + additionalCompletions
+                    }
                 }
             }
         )
@@ -1050,22 +1056,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     severity = DiagnosticSeverity.Hint
                 }
 
-            baseAnalyzingResult.addCompletionProviderWithContinuosMapping(
+            baseAnalyzingResult.addContinuouslyMappedPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                RangedDataProvider(StringRange(0, reader.string.length)) { sourceCursor: Int ->
-                    if(!completionPredicate(sourceCursor))
-                        return@RangedDataProvider CompletableFuture.completedFuture(mutableListOf())
-
-                    val completionProvider = analyzingResult.getCompletionProviderForCursor(sourceCursor)
-                    if(completionProvider == null) return@RangedDataProvider CompletableFuture.completedFuture(mutableListOf())
-                    val completionFuture = completionProvider.dataProvider.invoke(sourceCursor)
-                    completionFuture.thenApply {
-                        it.distinct()
-                    }
-                }
+                StringRange(0, reader.string.length),
+                analyzingResult.withUniqueCompletions().filterPotentialCursor(completionPredicate)
             )
-            baseAnalyzingResult.combineWithExceptCompletions(analyzingResult)
+            baseAnalyzingResult.combineWithActual(analyzingResult)
         }
+
+        var completionCommandSourceProvider: (SharedSuggestionProvider, DirectiveStringReader<AnalyzingResourceCreator>?, CompletionContext?) -> SharedSuggestionProvider = { source, _, _ -> source }
 
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
             var foundAny = false
@@ -1319,18 +1318,20 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val languageServer = resourceCreator.languageServer
                 val functionAnalyzingResult = resourceCreator.resourceStack.element().analyzingResult
                 val argRange = StringRange(reader.cursor, reader.cursor + 4)
-                analyzingResult.addDefinitionProvider(AnalyzingResult.RangedDataProvider(argRange) {
-                    return@RangedDataProvider CompletableFuture.completedFuture(
-                        JsonRPCEither.forLeft(
-                            listOf(Location(resourceCreator.sourceFunctionUri, Range(functionAnalyzingResult.filePosition, functionAnalyzingResult.filePosition)))
-                        )
-                    )
-                }, true)
                 if(languageServer != null) {
-                    val fileRange = functionAnalyzingResult.toFileRange(argRange)
-                    analyzingResult.addHoverProvider(AnalyzingResult.RangedDataProvider(argRange) {
-                        return@RangedDataProvider languageServer.hoverDocumentation(functionAnalyzingResult, fileRange)
-                    }, true)
+                    analyzingResult.addMappedActualSyntaxNode(argRange, object : ActualSyntaxNode {
+                        override fun getDefinition(cursor: Int): CompletableFuture<JsonRPCEither<List<Location>, List<LocationLink>>> =
+                            CompletableFuture.completedFuture(
+                                JsonRPCEither.forLeft(
+                                    listOf(Location(resourceCreator.sourceFunctionUri, Range(functionAnalyzingResult.filePosition, functionAnalyzingResult.filePosition)))
+                                )
+                            )
+
+                        override fun getHover(cursor: Int): CompletableFuture<Hover> {
+                            val fileRange = functionAnalyzingResult.toFileRange(argRange)
+                            return languageServer.hoverDocumentation(functionAnalyzingResult, fileRange)
+                        }
+                    })
                 }
                 reader.cursor += 4
             } else if(reader.canRead() && reader.peek() == '{') {

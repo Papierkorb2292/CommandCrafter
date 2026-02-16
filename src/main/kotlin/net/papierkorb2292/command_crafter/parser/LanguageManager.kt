@@ -31,10 +31,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.TreeOperations.Companion.forNbt
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -228,40 +225,43 @@ object LanguageManager {
                         result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
                         val languageServer = reader.resourceCreator.languageServer
                         if(languageServer != null) {
-                            result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                                val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                                languageServer.findFileAndAnalyze(
-                                    Identifier.parse(string.substring(idStart, idEnd)),
-                                    keywords
-                                ).thenCompose { analyzingResult ->
-                                    if(analyzingResult == null) {
-                                        CompletableFuture.completedFuture(Hover(emptyList()))
-                                    } else {
-                                        languageServer.hoverDocumentation(
-                                            analyzingResult,
-                                            analyzingResult.toFileRange(idRange)
+                            result.addMappedActualSyntaxNode(idRange, object : ActualSyntaxNode {
+                                override fun getHover(cursor: Int): CompletableFuture<Hover> {
+                                    val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                                    return languageServer.findFileAndAnalyze(
+                                        Identifier.parse(string.substring(idStart, idEnd)),
+                                        keywords
+                                    ).thenCompose { analyzingResult ->
+                                        if(analyzingResult == null) {
+                                            CompletableFuture.completedFuture(Hover(emptyList()))
+                                        } else {
+                                            languageServer.hoverDocumentation(
+                                                analyzingResult,
+                                                analyzingResult.toFileRange(idRange)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
+                                    val client = languageServer.client
+                                        ?: return MinecraftLanguageServer.emptyDefinitionDefault
+                                    val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                                    return PackContentFileType.findWorkspaceResourceFromId(
+                                        Identifier.parse(string.substring(idStart, idEnd)),
+                                        client,
+                                        keywords
+                                    ).thenApply {
+                                        Either.forLeft(
+                                            if(it == null) {
+                                                emptyList()
+                                            } else {
+                                                listOf(Location(it.second, Range(Position(), Position())))
+                                            }
                                         )
                                     }
                                 }
-                            }, true)
-                            result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                                val client = languageServer.client
-                                    ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
-                                val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                                PackContentFileType.findWorkspaceResourceFromId(
-                                    Identifier.parse(string.substring(idStart, idEnd)),
-                                    client,
-                                    keywords
-                                ).thenApply {
-                                    Either.forLeft(
-                                        if(it == null) {
-                                            emptyList()
-                                        } else {
-                                            listOf(Location(it.second, Range(Position(), Position())))
-                                        }
-                                    )
-                                }
-                            }, true)
+                            })
                         }
                         highlightStart = idEnd
                     }
@@ -354,20 +354,19 @@ object LanguageManager {
                 }
                 val languageIdEndCursor = reader.cursor
 
-                analyzingResult.addCompletionProviderWithContinuosMapping(
+                analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
                     AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
-                    AnalyzingResult.RangedDataProvider(
-                        StringRange(startCursor, languageIdEndCursor),
-                        CombinedCompletionItemProvider(
-                            LANGUAGES.keySet().map {
-                                SimpleCompletionItemProvider(
-                                    it.toShortString(),
-                                    startCursor,
-                                    { languageIdEndCursor },
-                                    analyzingResult.mappingInfo.copy(),
-                                )
-                            }
-                        ))
+                    StringRange(startCursor, languageIdEndCursor),
+                    CombinedPotentialSyntaxNode(
+                        LANGUAGES.keySet().map {
+                            SimpleCompletionItemProvider(
+                                it.toShortString(),
+                                startCursor,
+                                { languageIdEndCursor },
+                                analyzingResult.mappingInfo.copy(),
+                            )
+                        }
+                    )
                 )
 
                 val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
