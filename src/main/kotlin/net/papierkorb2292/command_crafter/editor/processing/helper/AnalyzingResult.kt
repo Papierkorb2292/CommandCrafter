@@ -291,11 +291,11 @@ class AnalyzingResult(
         } else null
     }
 
-    override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>> =
-        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor) ?: MinecraftLanguageServer.emptyDefinitionDefault
+    override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
+        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor)
 
-    override fun getHover(cursor: Int): CompletableFuture<Hover> =
-        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getHover(cursor) ?: MinecraftLanguageServer.emptyHoverDefault
+    override fun getHover(cursor: Int): CompletableFuture<Hover>? =
+        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getHover(cursor)
 
     override fun getCompletions(
         cursor: Int,

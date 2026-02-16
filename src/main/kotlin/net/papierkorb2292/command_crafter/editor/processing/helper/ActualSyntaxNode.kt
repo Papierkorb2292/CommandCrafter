@@ -18,8 +18,8 @@ import java.util.concurrent.CompletableFuture
  * (but empty lists are allowed to be cached)
  */
 interface ActualSyntaxNode {
-    fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>
-    fun getHover(cursor: Int): CompletableFuture<Hover>
+    fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>?
+    fun getHover(cursor: Int): CompletableFuture<Hover>?
 }
 
 fun ActualSyntaxNode.offsetActualInput(offset: Int) = object : ActualSyntaxNode {
@@ -28,7 +28,7 @@ fun ActualSyntaxNode.offsetActualInput(offset: Int) = object : ActualSyntaxNode 
 }
 
 fun ActualSyntaxNode.offsetActualOutput(offset: Position) = object : ActualSyntaxNode {
-    override fun getDefinition(cursor: Int) = this@offsetActualOutput.getDefinition(cursor).thenApply { definition ->
+    override fun getDefinition(cursor: Int) = this@offsetActualOutput.getDefinition(cursor)?.thenApply { definition ->
         if(definition.isRight)
             Either.forRight(definition.right.map { link ->
                 if(link.originSelectionRange != null)
@@ -38,7 +38,7 @@ fun ActualSyntaxNode.offsetActualOutput(offset: Position) = object : ActualSynta
         else definition
     }
 
-    override fun getHover(cursor: Int) = this@offsetActualOutput.getHover(cursor).thenApply { hover ->
+    override fun getHover(cursor: Int) = this@offsetActualOutput.getHover(cursor)?.thenApply { hover ->
         if(hover.range != null)
             hover.range = offset.offsetRange(hover.range)
         hover

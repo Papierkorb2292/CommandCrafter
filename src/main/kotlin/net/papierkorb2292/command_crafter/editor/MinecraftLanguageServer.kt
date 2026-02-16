@@ -374,7 +374,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenCompose {
-                    it.getHover(cursor)
+                    it.getHover(cursor) ?: emptyHoverDefault
                 }
             }
 
@@ -384,7 +384,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenCompose {
-                    it.getDefinition(cursor)
+                    it.getDefinition(cursor) ?: emptyDefinitionDefault
                 }
             }
         }
