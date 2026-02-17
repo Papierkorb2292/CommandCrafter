@@ -23,6 +23,7 @@ import net.minecraft.nbt.SnbtGrammar;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.util.parsing.packrat.*;
+import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
 import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquotedStringParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
@@ -93,6 +94,9 @@ public class SnbtGrammarMixin {
             results.put(symbol, command_crafter$createPlaceholder());
             // Skip whitespace so end cursor is set correctly
             state.input().skipWhitespace();
+            if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
+                malformedParseErrorList.setLastMalformedEndCursor(state.mark());
+            }
             return true;
         }, action);
     }
@@ -411,7 +415,12 @@ public class SnbtGrammarMixin {
         return (state, results, cut) -> {
             if(PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
                 var reader = state.input();
-                if (!reader.canRead()) return true;
+                if (!reader.canRead()) {
+                    if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
+                        malformedParseErrorList.setLastMalformedEndCursor(state.mark());
+                    }
+                    return true;
+                }
             }
             return term.parse(state, results, cut);
         };
