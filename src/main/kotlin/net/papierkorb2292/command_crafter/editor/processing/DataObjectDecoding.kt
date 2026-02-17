@@ -79,6 +79,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     val dummyBlockEntityDecoders: Map<Block, Decoder<Unit>>
 
     init {
+        val prevOverride = BUILTIN_REGISTRY_OVERRIDE.get()
         try {
             BUILTIN_REGISTRY_OVERRIDE.set(registries)
             dummyEntityDecoder = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
@@ -89,7 +90,10 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 .flatten()
                 .toMap()
         } finally {
-            BUILTIN_REGISTRY_OVERRIDE.remove()
+            if(prevOverride != null)
+                BUILTIN_REGISTRY_OVERRIDE.set(prevOverride)
+            else
+                BUILTIN_REGISTRY_OVERRIDE.remove()
         }
     }
 
