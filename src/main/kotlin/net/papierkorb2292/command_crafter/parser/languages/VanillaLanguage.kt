@@ -739,19 +739,21 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 // Skip analyzing when generating serverside suggestions, because everything but the vanilla
                 // suggestions has already been done by the client and shouldn't be done twice
                 if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true) {
-                    try {
-                        node.`command_crafter$analyze`(
-                            context,
-                            StringRange(
-                                parsedNode.range.start,
-                                Mth.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-                            ),
-                            analyzeReader,
-                            nodeAnalyzingResult,
-                            node.name
-                        )
-                    } catch(e: Exception) {
-                        CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                    DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValue(reader.resourceCreator.languageServer!!.dynamicRegistryManager) {
+                        try {
+                            node.`command_crafter$analyze`(
+                                context,
+                                StringRange(
+                                    parsedNode.range.start,
+                                    Mth.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
+                                ),
+                                analyzeReader,
+                                nodeAnalyzingResult,
+                                node.name
+                            )
+                        } catch(e: Exception) {
+                            CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
+                        }
                     }
                 }
                 if(skipAnalyzedChars) {
