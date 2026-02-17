@@ -99,7 +99,7 @@ public class ParserWithDecodingMixin<T> {
         // Skip results with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyzeStringRangeTree
         // This also makes the analyzer more forgiving
         if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
-            cir.setReturnValue(null);
+            cir.setReturnValue(Holder.direct(null)); // Don't use return value "null", because Kotlin might expect a non-null value
         }
         return original;
     }
