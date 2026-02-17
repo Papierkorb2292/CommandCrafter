@@ -819,20 +819,27 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
                     this.cursor = endCursor
                 })
-                val suggestionFutures = completionParentNode.children.map { child ->
-                    try {
-                        child.listSuggestions(
-                            contextBuilder.build(extendedTruncatedInput),
-                            SuggestionsBuilder(
-                                extendedTruncatedInput, truncatedInputLowerCase,
-                                min(parsedNodeRange.start, extendedTruncatedInput.length)
-                            )
-                        )
-                    } catch(e: Exception) {
-                        CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
-                        Suggestions.empty()
+                val suggestionFutures = try {
+                    if(completionReader.resourceCreator.languageServer != null) {
+                        DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.set(completionReader.resourceCreator.languageServer.dynamicRegistryManager) // Some items require components for some completions
                     }
-                }.toTypedArray()
+                    completionParentNode.children.map { child ->
+                        try {
+                            child.listSuggestions(
+                                contextBuilder.build(extendedTruncatedInput),
+                                SuggestionsBuilder(
+                                    extendedTruncatedInput, truncatedInputLowerCase,
+                                    min(parsedNodeRange.start, extendedTruncatedInput.length)
+                                )
+                            )
+                        } catch(e: Exception) {
+                            CommandCrafter.LOGGER.debug("Error while getting suggestions for command node ${child.name}", e)
+                            Suggestions.empty()
+                        }
+                    }.toTypedArray()
+                } finally {
+                    DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.remove()
+                }
                 val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                     SUGGESTIONS_FULL_INPUT.remove()
                     CompletableFuture.failedFuture(it)
