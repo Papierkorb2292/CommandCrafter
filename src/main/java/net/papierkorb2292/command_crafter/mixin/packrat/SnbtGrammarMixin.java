@@ -24,6 +24,9 @@ import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.util.parsing.packrat.*;
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
+import net.minecraft.util.parsing.packrat.commands.StringReaderTerms;
+import net.papierkorb2292.command_crafter.editor.processing.TokenInfo;
+import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquotedStringParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
@@ -37,6 +40,8 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.LongTagAccesso
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ShortTagAccessor;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.StringTagAccessor;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.objectweb.asm.Opcodes;
+import org.spongepowered.asm.mixin.Debug;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -54,6 +59,7 @@ import java.util.stream.IntStream;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.*;
 
+@Debug(export = true)
 @Mixin(SnbtGrammar.class)
 public class SnbtGrammarMixin {
 
@@ -424,5 +430,103 @@ public class SnbtGrammarMixin {
             }
             return term.parse(state, results, cut);
         };
+    }
+
+    @WrapOperation(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=unquoted_string_or_builtin"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightUnquotedStringOrBuiltin(Dictionary<StringReader> rules, Atom<String> unquotedString, Operation<Term<StringReader>> op) {
+        final var builtinLookahead = Term.positiveLookahead(StringReaderTerms.character('('));
+        return wrapTermWithSemanticToken(op.call(rules, unquotedString), (state, scope, range) -> {
+            final var mark = state.mark();
+            state.restore(range.getEnd());
+            final var isBuiltin = builtinLookahead.parse(state, new Scope(), Control.UNBOUND);
+            state.restore(mark);
+            if(isBuiltin)
+                return new TokenInfo(TokenType.Companion.getFUNCTION(), 0);
+            final var string = scope.getOrThrow(unquotedString);
+            if(string.equalsIgnoreCase("true") || string.equalsIgnoreCase("false"))
+                return new TokenInfo(TokenType.Companion.getENUM_MEMBER(), 0);
+            return new TokenInfo(TokenType.Companion.getSTRING(), 0);
+        });
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT:LAST",
+                            args = "intValue=34" // '"'
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightQuotedString(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getSTRING(), 0));
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;alternative([Lnet/minecraft/util/parsing/packrat/Term;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "FIELD",
+                            target = "Lnet/minecraft/nbt/SnbtGrammar;NUMBER_LOOKEAHEAD:Lnet/minecraft/util/parsing/packrat/commands/StringReaderTerms$TerminalCharacters;",
+                            opcode = Opcodes.GETSTATIC
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightNumber(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getNUMBER(), 0));
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;alternative([Lnet/minecraft/util/parsing/packrat/Term;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=map_key"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightMapKey(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getPROPERTY(), 0));
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;alternative([Lnet/minecraft/util/parsing/packrat/Term;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=array_prefix"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightArrayPrefix(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getTYPE(), 0));
     }
 }

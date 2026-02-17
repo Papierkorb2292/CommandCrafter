@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
@@ -80,6 +81,22 @@ object PackratParserAdditionalArgs {
         val result = furthestAnalyzingResult.get()
         furthestAnalyzingResult.remove()
         return result?.second
+    }
+
+    fun popAnalyzingResult(target: AnalyzingResult, potentialNodeRange: StringRange?) {
+        val parsedAnalyzingResult = analyzingResult.get().analyzingResult
+        val furthestAnalyzingResult = getAndRemoveFurthestAnalyzingResult() ?: parsedAnalyzingResult
+        target.combineWithActual(furthestAnalyzingResult)
+
+        if(potentialNodeRange != null) {
+            // Use parsedAnalyzingResult, because all potential syntax nodes have been merged into that one.
+            // Make completions unique, because packrat parsing can result in duplicated completions.
+            target.addContinuouslyMappedPotentialSyntaxNode(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                potentialNodeRange,
+                parsedAnalyzingResult.withUniqueCompletions()
+            )
+        }
     }
 
     interface BranchingArgument<TArg> {

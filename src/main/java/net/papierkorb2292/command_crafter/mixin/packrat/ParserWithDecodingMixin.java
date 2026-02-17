@@ -60,20 +60,23 @@ public class ParserWithDecodingMixin<T> {
 
         var start = reader.getCursor();
         var analyzingResult = analyzingResultArg.getAnalyzingResult();
-        analyzingResultThreadLocal.remove();
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         Tag nbt;
         try {
+            analyzingResultThreadLocal.set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(analyzingResult.copyInput()));
             try {
                 var partialBuilder = new StringRangeTree.PartialBuilder<Tag>();
                 PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialBuilder));
                 nbt = (Tag) MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
                 partialBuilder.addToBasicBuilder(treeBuilder);
+                PackratParserAdditionalArgs.INSTANCE.popAnalyzingResult(analyzingResult, null);
             } catch (CommandSyntaxException e) {
                 nbt = EndTag.INSTANCE;
                 treeBuilder.addNode(nbt, new StringRange(start, reader.getCursor()), reader.getCursor());
             } finally {
                 PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
+                analyzingResultThreadLocal.remove();
+                PackratParserAdditionalArgs.INSTANCE.getFurthestAnalyzingResult().remove();
             }
 
             var tree = treeBuilder.build(nbt);

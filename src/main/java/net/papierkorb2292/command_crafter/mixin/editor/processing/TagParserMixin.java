@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
@@ -17,9 +18,7 @@ import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
 import net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -30,9 +29,10 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(TagParser.class)
-public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, AllowMalformedContainer {
+public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, AllowMalformedContainer, AnalyzingResultCreator {
     private @Nullable StringRangeTree.Builder<Tag> command_crafter$stringRangeTreeBuilder;
     private boolean command_crafter$allowMalformed = false;
+    private @Nullable AnalyzingResult command_crafter$analyzingResult;
 
     @Override
     public void command_crafter$setAllowMalformed(boolean allowMalformed) {
@@ -47,6 +47,11 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     @Override
     public void command_crafter$setStringRangeTreeBuilder(@NotNull StringRangeTree.Builder<Tag> builder) {
         command_crafter$stringRangeTreeBuilder = builder;
+    }
+
+    @Override
+    public void command_crafter$setAnalyzingResult(AnalyzingResult analyzingResult) {
+        this.command_crafter$analyzingResult = analyzingResult;
     }
 
     @WrapOperation(
@@ -65,15 +70,23 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             partialStringRangeTreeBuilder = new StringRangeTree.PartialBuilder<>();
             PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialStringRangeTreeBuilder));
         }
-
+        if(command_crafter$analyzingResult != null) {
+            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(command_crafter$analyzingResult.copyInput()));
+        }
         try {
-            return op.call(instance, reader);
+            final var tag = op.call(instance, reader);
+            if(command_crafter$analyzingResult != null) {
+                PackratParserAdditionalArgs.INSTANCE.popAnalyzingResult(command_crafter$analyzingResult, null);
+            }
+            return tag;
         } finally {
             PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
             PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
             if(partialStringRangeTreeBuilder != null) {
                 partialStringRangeTreeBuilder.addToBasicBuilder(command_crafter$stringRangeTreeBuilder);
             }
+            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
+            PackratParserAdditionalArgs.INSTANCE.getFurthestAnalyzingResult().remove();
             restoreArgsCallback.invoke();
         }
     }

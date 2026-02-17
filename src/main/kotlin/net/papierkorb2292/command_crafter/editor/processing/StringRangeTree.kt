@@ -48,7 +48,6 @@ import kotlin.collections.forEach
 import kotlin.collections.isNotEmpty
 import kotlin.collections.last
 import kotlin.collections.lastIndex
-import kotlin.collections.listOf
 import kotlin.collections.map
 import kotlin.collections.mapIndexed
 import kotlin.collections.mutableListOf
@@ -57,7 +56,6 @@ import kotlin.collections.mutableSetOf
 import kotlin.collections.plus
 import kotlin.collections.plusAssign
 import kotlin.collections.set
-import kotlin.collections.toList
 import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
@@ -139,27 +137,6 @@ class StringRangeTree<TNode: Any>(
 
     private fun getNodeRangeOrThrow(node: TNode) =
         ranges[node] ?: throw IllegalStateException("Node $node not found in ranges")
-
-    fun generateSemanticTokens(tokenProvider: SemanticTokenProvider<TNode>, builder: SemanticTokensBuilder) {
-        val collectedTokens = mutableListOf<List<AdditionalToken>>()
-        for(node in orderedNodes) {
-            val range = getNodeRangeOrThrow(node)
-            val nodeTokens = tokenProvider.getNodeTokenInfo(node)?.let { listOf(AdditionalToken(range, it)) }
-                ?: tokenProvider.getMapNameTokenInfo(node)?.let { tokenInfo ->
-                    mapKeyRanges[node]?.map { AdditionalToken(it.second, tokenInfo) }
-                }
-            if(nodeTokens != null)
-                collectedTokens += nodeTokens
-            collectedTokens += tokenProvider.getAdditionalTokens(node).toList()
-        }
-
-        for(token in flattenSorted(
-            collectedTokens,
-            Comparator.comparing(AdditionalToken::range, StringRange::compareTo)
-        )) {
-            builder.addMultiline(token.range, token.tokenInfo.type, token.tokenInfo.modifiers)
-        }
-    }
 
     fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
         val copiedMappingInfo = result.mappingInfo.copy()
@@ -256,18 +233,6 @@ class StringRangeTree<TNode: Any>(
             if(!content.startsWith('{') && !content.startsWith('[')) continue
             val nbtReader = TagParser.create(NbtOps.INSTANCE)
             val nbtTreeBuilder = Builder<Tag>()
-            @Suppress("UNCHECKED_CAST")
-            (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
-            (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
-            // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
-            val nbtRoot = nbtReader.parseAsArgument(StringReader(content))
-            val nbtTree = nbtTreeBuilder.build(nbtRoot)
-
-            var treeOperations = TreeOperations.forNbt(nbtTree, content)
-            if(parentOps != null)
-                treeOperations = treeOperations
-                    .withRegistry(parentOps.registryWrapper)
-                    .withCompletionEscaper(parentOps.completionEscaper.andThen(stringEscaper))
 
             var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseAnalyzingResult.mappingInfo.readSkippingChars)
                 .combineWith(cursorMapper)
@@ -281,8 +246,22 @@ class StringRangeTree<TNode: Any>(
                 baseAnalyzingResult.mappingInfo.lines,
                 absoluteContentMapper
             )
-
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
+
+            @Suppress("UNCHECKED_CAST")
+            (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
+            (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
+            (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(stringAnalyzingResult)
+            // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
+            val nbtRoot = nbtReader.parseAsArgument(StringReader(content))
+            val nbtTree = nbtTreeBuilder.build(nbtRoot)
+
+            var treeOperations = TreeOperations.forNbt(nbtTree, content)
+            if(parentOps != null)
+                treeOperations = treeOperations
+                    .withRegistry(parentOps.registryWrapper)
+                    .withCompletionEscaper(parentOps.completionEscaper.andThen(stringEscaper))
+
             treeOperations.withDiagnosticSeverity(null).analyzeFull(
                 stringAnalyzingResult,
                 true,
@@ -296,7 +275,6 @@ class StringRangeTree<TNode: Any>(
     data class TreeOperations<TNode: Any>(
         val stringRangeTree: StringRangeTree<TNode>,
         val ops: DynamicOps<TNode>,
-        val semanticTokenProvider: SemanticTokenProvider<TNode>,
         val suggestionResolver: SuggestionResolver<TNode>,
         val stringGetter: (TNode) -> Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
         val nodeClass: KClass<out TNode>,
@@ -314,7 +292,6 @@ class StringRangeTree<TNode: Any>(
                 TreeOperations(
                     jsonTree,
                     JsonOps.INSTANCE,
-                    StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider,
                     StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(content),
                     StringRangeTreeJsonReader.StringContentGetter(jsonTree, content),
                     JsonElement::class
@@ -324,7 +301,6 @@ class StringRangeTree<TNode: Any>(
                 TreeOperations(
                     jsonTree,
                     JsonOps.INSTANCE,
-                    StringRangeTreeJsonReader.StringRangeTreeSemanticTokenProvider,
                     StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(reader),
                     StringRangeTreeJsonReader.StringContentGetter(jsonTree, reader.string),
                     JsonElement::class
@@ -334,7 +310,6 @@ class StringRangeTree<TNode: Any>(
                 TreeOperations(
                     nbtTree,
                     NbtOps.INSTANCE,
-                    NbtSemanticTokenProvider(nbtTree, content),
                     NbtSuggestionResolver(content),
                     NbtStringContentGetter(nbtTree, content),
                     Tag::class
@@ -344,7 +319,6 @@ class StringRangeTree<TNode: Any>(
                 TreeOperations(
                     nbtTree,
                     NbtOps.INSTANCE,
-                    NbtSemanticTokenProvider(nbtTree, reader.string),
                     NbtSuggestionResolver(reader),
                     NbtStringContentGetter(nbtTree, reader.string),
                     Tag::class
@@ -365,7 +339,6 @@ class StringRangeTree<TNode: Any>(
         fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult)
             if(shouldGenerateSemanticTokens) {
-                generateSemanticTokens(analyzingResult.semanticTokens)
                 analyzingResult.semanticTokens.overlay(
                     analyzedStrings.values
                         .asSequence()
@@ -386,10 +359,6 @@ class StringRangeTree<TNode: Any>(
             }
             analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
             return shouldGenerateSemanticTokens || contentDecoder != null
-        }
-
-        fun generateSemanticTokens(builder: SemanticTokensBuilder) {
-            stringRangeTree.generateSemanticTokens(semanticTokenProvider, builder)
         }
 
         fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
@@ -637,14 +606,6 @@ class StringRangeTree<TNode: Any>(
         constructor(element: TNode): this(element, false, null)
     }
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
-    data class TokenInfo(val type: TokenType, val modifiers: Int)
-    data class AdditionalToken(val range: StringRange, val tokenInfo: TokenInfo)
-
-    interface SemanticTokenProvider<in TNode> {
-        fun getMapNameTokenInfo(map: TNode): TokenInfo?
-        fun getNodeTokenInfo(node: TNode): TokenInfo?
-        fun getAdditionalTokens(node: TNode): Collection<AdditionalToken>
-    }
 
     interface SuggestionResolver<TNode : Any> {
         fun resolveNodeSuggestion(

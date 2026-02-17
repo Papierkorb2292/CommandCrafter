@@ -18,6 +18,7 @@ import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -64,6 +65,7 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
 
         @Suppress("UNCHECKED_CAST")
         (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+        (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
         val nbt: Tag = nbtReader.parseAsArgument(reader)!!
         val tree = treeBuilder.build(nbt)
 

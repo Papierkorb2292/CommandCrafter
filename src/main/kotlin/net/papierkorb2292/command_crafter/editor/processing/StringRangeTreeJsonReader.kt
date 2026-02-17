@@ -232,24 +232,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
 
     private data class ReaderStackEntry(val element: JsonElement, val startPos: Int, val allowedStartPos: Int)
 
-    object StringRangeTreeSemanticTokenProvider : StringRangeTree.SemanticTokenProvider<JsonElement> {
-        override fun getMapNameTokenInfo(map: JsonElement) =
-            StringRangeTree.TokenInfo(TokenType.PARAMETER, 1)
-
-        override fun getNodeTokenInfo(node: JsonElement) = when(node) {
-            is JsonPrimitive -> {
-                if(node.isBoolean) StringRangeTree.TokenInfo(TokenType.ENUM_MEMBER, 0)
-                else if(node.isNumber) StringRangeTree.TokenInfo(TokenType.NUMBER, 0)
-                else if(node.isString) StringRangeTree.TokenInfo(TokenType.STRING, 0)
-                else throw IllegalArgumentException("Unexpected JsonPrimitive type: $node")
-            }
-            is JsonNull -> StringRangeTree.TokenInfo(TokenType.KEYWORD, 0)
-            else -> null
-        }
-
-        override fun getAdditionalTokens(node: JsonElement) = emptyList<StringRangeTree.AdditionalToken>()
-    }
-
     //TODO: Check for trigger characters
     class StringRangeTreeSuggestionResolver(private val readerProvider: () -> Reader) : StringRangeTree.SuggestionResolver<JsonElement> {
 

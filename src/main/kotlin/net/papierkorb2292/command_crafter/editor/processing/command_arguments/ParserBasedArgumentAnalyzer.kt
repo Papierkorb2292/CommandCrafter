@@ -9,7 +9,6 @@ import net.minecraft.util.parsing.packrat.commands.ParserBasedArgument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
-import net.papierkorb2292.command_crafter.editor.processing.helper.withUniqueCompletions
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
 class ParserBasedArgumentAnalyzer : CommandArgumentAnalyzerService<ParserBasedArgument<*>>{
@@ -33,14 +32,7 @@ class ParserBasedArgumentAnalyzer : CommandArgumentAnalyzerService<ParserBasedAr
             try {
                 type.parse(reader)
             } catch(_: CommandSyntaxException) {}
-
-            val parsedAnalyzingResult = PackratParserAdditionalArgs.analyzingResult.get().analyzingResult
-            val furthestAnalyzingResult = PackratParserAdditionalArgs.getAndRemoveFurthestAnalyzingResult() ?: parsedAnalyzingResult
-            result.combineWithActual(furthestAnalyzingResult)
-
-            // Use parsedAnalyzingResult, because all potential syntax nodes have been merged into that one.
-            // Make completions unique, because packrat parsing can result in duplicated completions.
-            result.addContinuouslyMappedPotentialSyntaxNode(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL, range, parsedAnalyzingResult.withUniqueCompletions())
+            PackratParserAdditionalArgs.popAnalyzingResult(result, range)
         } finally {
             PackratParserAdditionalArgs.allowMalformed.remove()
             PackratParserAdditionalArgs.analyzingResult.remove()

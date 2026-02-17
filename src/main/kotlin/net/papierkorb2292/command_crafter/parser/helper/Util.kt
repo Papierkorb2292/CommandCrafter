@@ -11,6 +11,7 @@ import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.util.parsing.packrat.*
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList
+import net.papierkorb2292.command_crafter.editor.processing.TokenInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -102,3 +103,15 @@ fun malformedDispatchingTerm(normalTerm: Term<StringReader>, allowMalformedTerm:
         else
             allowMalformedTerm.parse(state, results, cut)
     }
+
+fun wrapTermWithSemanticToken(term: Term<StringReader>, tokenProvider: (ParseState<StringReader>, Scope, StringRange) -> TokenInfo?) = Term { state, results, cut ->
+    val start = state.mark()
+    val matches = term.parse(state, results, cut)
+    if(matches) {
+        val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull() ?: return@Term matches
+        val range = StringRange(start, state.mark())
+        val token = tokenProvider(state, results, range) ?: return@Term matches
+        analyzingResultArg.analyzingResult.semanticTokens.addMultiline(range, token.type, token.modifiers)
+    }
+    matches
+}

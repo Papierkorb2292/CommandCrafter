@@ -16,13 +16,12 @@ import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-
-import java.util.Objects;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
@@ -37,9 +36,8 @@ public class TagParseRuleMixin<T> {
             )
     )
     private T command_crafter$analyzeNbt(TagParser<T> instance, StringReader reader, Operation<T> op, ParseState<StringReader> state) {
-        // Only get analyzing result to check whether analyzing should happen. The actual analyzing result to use is only retrieved later in the callback,
-        // at which point it might be a different instance.
-        if (getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult()) == null)
+        final var analyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
+        if (analyzingResultArg == null)
             return op.call(instance, reader);
         final var nbtReader = TagParser.create(NbtOps.INSTANCE);
         //noinspection unchecked
@@ -48,6 +46,7 @@ public class TagParseRuleMixin<T> {
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResultArg.getAnalyzingResult());
         final var startCursor = state.input().getCursor();
         T parsed = null;
         Tag nbt;
@@ -66,10 +65,11 @@ public class TagParseRuleMixin<T> {
                 directiveReader
         );
         PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {
-            var analyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
-            if(analyzingResultArg != null) {
+            // Instance might have changed in this time
+            var newAnalyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
+            if(newAnalyzingResultArg != null) {
                 var registryTreeOps = treeOps.withOps(ops);
-                registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), true, decoder);
+                registryTreeOps.analyzeFull(newAnalyzingResultArg.getAnalyzingResult(), true, decoder);
             }
             return Unit.INSTANCE;
         });

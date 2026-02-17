@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
@@ -33,6 +34,7 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
         val treeBuilder = StringRangeTree.Builder<Tag>()
         @Suppress("UNCHECKED_CAST")
         (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+        (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
         val nbt = nbtReader.parseAsArgument(reader)
         val tree: StringRangeTree<Tag> = treeBuilder.build(nbt)
         StringRangeTree.TreeOperations.forNbt(

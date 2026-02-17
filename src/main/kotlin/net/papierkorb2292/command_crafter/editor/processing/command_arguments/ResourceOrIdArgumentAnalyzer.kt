@@ -19,8 +19,11 @@ import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.PartialBuilder
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.TreeOperations
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.StringRangeTreeBranchingArgument
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.allowMalformed
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.analyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.furthestAnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.nbtStringRangeTreeBuilder
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ResourceOrIdArgumentAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -48,7 +51,10 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         val parsed = try {
             nbtStringRangeTreeBuilder.set(StringRangeTreeBranchingArgument<Tag>(partialBuilder))
             allowMalformed.set(true)
-            grammar.parseForCommands(reader)
+            analyzingResult.set(PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()))
+            val parsed = grammar.parseForCommands(reader)
+            PackratParserAdditionalArgs.popAnalyzingResult(result, null)
+            parsed
         } catch(_: CommandSyntaxException) {
             val node = partialBuilder.pushNode()
             node.node = EndTag.INSTANCE
@@ -59,6 +65,8 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         } finally {
             nbtStringRangeTreeBuilder.remove()
             allowMalformed.remove()
+            analyzingResult.remove()
+            furthestAnalyzingResult.remove()
         }
 
         val treeRoot: Tag
@@ -106,6 +114,6 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
             .withRegistry(buildContext)
         if(!isInline)
             treeOperations = treeOperations.withDiagnosticSeverity(null)
-        treeOperations.analyzeFull(result, isInline, inlineOrReferenceCodec)
+        treeOperations.analyzeFull(result, true, inlineOrReferenceCodec)
     }
 }

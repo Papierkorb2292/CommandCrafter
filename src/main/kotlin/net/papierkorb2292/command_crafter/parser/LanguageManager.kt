@@ -410,6 +410,7 @@ object LanguageManager {
                 val treeBuilder = StringRangeTree.Builder<Tag>()
                 @Suppress("UNCHECKED_CAST")
                 (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+                (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(analyzingResult)
                 val nbt = if(reader.canRead() && reader.peek() == '\n') {
                     val empty = NbtOps.INSTANCE.empty()
                     treeBuilder.addNode(empty, StringRange(languageEnd + 1, reader.cursor), languageEnd + 1)

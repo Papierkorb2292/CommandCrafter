@@ -1423,6 +1423,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             @Suppress("UNCHECKED_CAST", "KotlinConstantConditions")
             (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
+            (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(analyzingResult)
             val nbt = try {
                 nbtReader.parseAsArgument(malformedReader)
             } catch(e: Exception) {
