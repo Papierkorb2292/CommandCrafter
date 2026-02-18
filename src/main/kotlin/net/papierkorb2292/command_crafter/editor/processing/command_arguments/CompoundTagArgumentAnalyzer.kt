@@ -48,6 +48,6 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
             tree,
             reader
         ).withDiagnosticSeverity(DiagnosticSeverity.Warning)
-            .analyzeFull(result, true, decoder)
+            .analyzeFull(result, decoder)
     }
 }

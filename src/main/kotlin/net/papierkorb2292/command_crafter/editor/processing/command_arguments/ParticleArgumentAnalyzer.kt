@@ -71,6 +71,6 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
 
         StringRangeTree.TreeOperations.forNbt(tree, reader)
             .withDiagnosticSeverity(DiagnosticSeverity.Error)
-            .analyzeFull(result, hasNbt, parameterDecoder)
+            .analyzeFull(result, parameterDecoder)
     }
 }

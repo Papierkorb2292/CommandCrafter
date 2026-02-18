@@ -114,6 +114,6 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
             .withRegistry(buildContext)
         if(!isInline)
             treeOperations = treeOperations.withDiagnosticSeverity(null)
-        treeOperations.analyzeFull(result, true, inlineOrReferenceCodec)
+        treeOperations.analyzeFull(result, inlineOrReferenceCodec)
     }
 }

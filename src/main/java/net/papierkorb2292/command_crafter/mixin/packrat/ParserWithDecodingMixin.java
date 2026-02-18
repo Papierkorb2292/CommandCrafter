@@ -83,7 +83,7 @@ public class ParserWithDecodingMixin<T> {
             StringRangeTree.TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
-            ).analyzeFull(analyzingResult, true, val$codec);
+            ).analyzeFull(analyzingResult, val$codec);
         } finally {
             analyzingResultThreadLocal.set(analyzingResultArg);
         }

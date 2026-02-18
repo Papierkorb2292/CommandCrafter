@@ -227,7 +227,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
                 directiveReader
         )
                 .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                .analyzeFull(command_crafter$analyzingResult, true, decoder);
+                .analyzeFull(command_crafter$analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 

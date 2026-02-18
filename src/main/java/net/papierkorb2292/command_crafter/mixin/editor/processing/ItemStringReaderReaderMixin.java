@@ -125,7 +125,7 @@ public class ItemStringReaderReaderMixin {
                 tree,
                 directiveReader
         ).withOps(((ItemParserAccessor) this$0).getRegistryOps());
-        treeOps.analyzeFull(command_crafter$analyzingResult, true, type.codec());
+        treeOps.analyzeFull(command_crafter$analyzingResult, type.codec());
         return (O)nbt;
     }
 

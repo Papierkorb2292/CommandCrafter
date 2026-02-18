@@ -40,6 +40,6 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
         StringRangeTree.TreeOperations.forNbt(
             tree,
             reader
-        ).analyzeFull(result, true, null)
+        ).analyzeFull(result)
     }
 }

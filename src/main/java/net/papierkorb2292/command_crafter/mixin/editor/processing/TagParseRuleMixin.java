@@ -69,7 +69,7 @@ public class TagParseRuleMixin<T> {
             var newAnalyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
             if(newAnalyzingResultArg != null) {
                 var registryTreeOps = treeOps.withOps(ops);
-                registryTreeOps.analyzeFull(newAnalyzingResultArg.getAnalyzingResult(), true, decoder);
+                registryTreeOps.analyzeFull(newAnalyzingResultArg.getAnalyzingResult(), decoder);
             }
             return Unit.INSTANCE;
         });

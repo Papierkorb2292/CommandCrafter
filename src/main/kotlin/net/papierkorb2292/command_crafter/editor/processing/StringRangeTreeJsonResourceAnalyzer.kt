@@ -66,7 +66,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                 parsedStringRangeTree,
                 concatenatedLines
             ).withRegistry(languageServer.dynamicRegistryManager)
-                .analyzeFull(result, true, fileDecoder)
+                .analyzeFull(result, fileDecoder)
             return result
         }
 

@@ -263,9 +263,7 @@ class StringRangeTree<TNode: Any>(
                     .withCompletionEscaper(parentOps.completionEscaper.andThen(stringEscaper))
 
             treeOperations.withDiagnosticSeverity(null).analyzeFull(
-                stringAnalyzingResult,
-                true,
-                null
+                stringAnalyzingResult
             )
             results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
         }
@@ -336,17 +334,15 @@ class StringRangeTree<TNode: Any>(
 
         fun withDiagnosticSeverity(severity: DiagnosticSeverity?) = copy(diagnosticSeverity = severity)
 
-        fun analyzeFull(analyzingResult: AnalyzingResult, shouldGenerateSemanticTokens: Boolean = true, contentDecoder: Decoder<*>? = null): Boolean {
+        fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
             val analyzedStrings = tryAnalyzeStrings(analyzingResult)
-            if(shouldGenerateSemanticTokens) {
-                analyzingResult.semanticTokens.overlay(
-                    analyzedStrings.values
-                        .asSequence()
-                        .map { it.second.semanticTokens }
-                        .filter { !it.isEmpty() }
-                        .iterator()
-                )
-            }
+            analyzingResult.semanticTokens.overlay(
+                analyzedStrings.values
+                    .asSequence()
+                    .map { it.second.semanticTokens }
+                    .filter { !it.isEmpty() }
+                    .iterator()
+            )
             val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.createSerializationContext(ops) ?: ops)
             if(contentDecoder != null) {
                 AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
@@ -358,7 +354,6 @@ class StringRangeTree<TNode: Any>(
                     generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
             }
             analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
-            return shouldGenerateSemanticTokens || contentDecoder != null
         }
 
         fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =

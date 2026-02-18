@@ -458,7 +458,7 @@ public class EntitySelectorOptionsMixin {
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(analyzingResult, true, null);
+        ).analyzeFull(analyzingResult, null);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 

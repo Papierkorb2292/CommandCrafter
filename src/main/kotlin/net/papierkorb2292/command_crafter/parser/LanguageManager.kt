@@ -429,7 +429,7 @@ object LanguageManager {
                     allowMalformedReader
                 )
                     .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.value.any { c -> !StringReader.isAllowedInUnquotedString(c) } })
-                    .analyzeFull(analyzingResult, true, languageType.argumentDecoder)
+                    .analyzeFull(analyzingResult, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
                 }
