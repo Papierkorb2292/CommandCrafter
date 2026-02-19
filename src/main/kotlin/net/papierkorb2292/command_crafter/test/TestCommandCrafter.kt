@@ -608,7 +608,7 @@ object TestCommandCrafter {
         val lines = Files.readAllLines(inputDirectory.resolve("macros.mcfunction"))
 
         val result = analyseCommand(context, lines)
-        context.assertEqualsSnapshot(result.semanticTokens.build().data, "semantic_tokens")
+        context.assertEqualsSnapshot(result.semanticTokens, "semantic_tokens")
         context.succeed()
     }
 

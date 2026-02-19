@@ -1,5 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.util.DefaultIndenter
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.SerializerProvider
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
@@ -366,4 +371,56 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     fun isEmpty() = data.isEmpty()
 
     fun build() = SemanticTokens(data)
+
+    object PrettyJacksonSerializer : JsonSerializer<SemanticTokensBuilder>() {
+        override fun serialize(
+            value: SemanticTokensBuilder,
+            gen: JsonGenerator,
+            serializers: SerializerProvider,
+        ) {
+            val prevPrettyPrinter = gen.prettyPrinter
+            if(prevPrettyPrinter is DefaultPrettyPrinter) {
+                gen.setPrettyPrinter(
+                    DefaultPrettyPrinter(prevPrettyPrinter).apply {
+                        indentArraysWith(object : DefaultPrettyPrinter.Indenter {
+                            var index = 0
+
+                            override fun writeIndentation(
+                                g: JsonGenerator,
+                                level: Int,
+                            ) {
+                                val i = index++
+                                if(i == 0 || i == value.data.size) {
+                                    // Newline at start and end
+                                    DefaultIndenter.SYSTEM_LINEFEED_INSTANCE.writeIndentation(g, level)
+                                    return
+                                }
+                                if(i % 5 != 0) {
+                                    // No whitespace inside a token
+                                    return
+                                }
+                                if(value.data[i] == 0) {
+                                    // Separate tokens
+                                    DefaultPrettyPrinter.FixedSpaceIndenter.instance.writeIndentation(g, level)
+                                    return
+                                }
+                                for(i in 0 until value.data[i]) {
+                                    // Newline for every line the token advanced
+                                    DefaultIndenter.SYSTEM_LINEFEED_INSTANCE.writeIndentation(g, level)
+                                }
+                            }
+
+                            override fun isInline() = false
+                        })
+                    }
+                )
+            }
+            gen.writeStartArray()
+            for(i in 0 until value.data.size) {
+                gen.writeNumber(value.data[i])
+            }
+            gen.writeEndArray()
+            gen.setPrettyPrinter(prevPrettyPrinter)
+        }
+    }
 }
