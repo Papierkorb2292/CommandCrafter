@@ -2,20 +2,17 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.google.common.collect.Streams
 import com.google.gson.JsonElement
-import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
-import net.minecraft.nbt.TagParser
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringEscaper.Companion.andThen
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.appendNullable
 import net.papierkorb2292.command_crafter.helper.concatNullable
-import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
@@ -31,13 +28,12 @@ import java.util.stream.Stream
 import kotlin.collections.ArrayDeque
 import kotlin.collections.ArrayList
 import kotlin.collections.Collection
-import kotlin.collections.Iterator
-import kotlin.collections.LinkedHashMap
 import kotlin.collections.List
 import kotlin.collections.Map
 import kotlin.collections.MutableCollection
+import kotlin.collections.MutableMap
 import kotlin.collections.Set
-import kotlin.collections.asSequence
+import kotlin.collections.associateTo
 import kotlin.collections.binarySearch
 import kotlin.collections.contains
 import kotlin.collections.emptyList
@@ -45,16 +41,20 @@ import kotlin.collections.firstNotNullOfOrNull
 import kotlin.collections.firstOrNull
 import kotlin.collections.flatMap
 import kotlin.collections.forEach
+import kotlin.collections.getOrPut
 import kotlin.collections.isNotEmpty
 import kotlin.collections.last
 import kotlin.collections.lastIndex
+import kotlin.collections.listOf
 import kotlin.collections.map
 import kotlin.collections.mapIndexed
+import kotlin.collections.mapNotNull
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
 import kotlin.collections.mutableSetOf
 import kotlin.collections.plus
 import kotlin.collections.plusAssign
+import kotlin.collections.reversed
 import kotlin.collections.set
 import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
@@ -138,7 +138,7 @@ class StringRangeTree<TNode: Any>(
     private fun getNodeRangeOrThrow(node: TNode) =
         ranges[node] ?: throw IllegalStateException("Node $node not found in ranges")
 
-    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper, suggestionInserts: Iterator<kotlin.Pair<StringRange, AnalyzingResult>>? = null) {
+    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, ResolvedSuggestion>>()
@@ -158,14 +158,6 @@ class StringRangeTree<TNode: Any>(
             nodeSuggestions
         }
 
-        var nextSuggestionInsertRange: StringRange? = null
-        var nextSuggestionInsert: AnalyzingResult? = null
-        if(suggestionInserts != null && suggestionInserts.hasNext()) {
-            val insert = suggestionInserts.next()
-            nextSuggestionInsertRange = insert.first
-            nextSuggestionInsert = insert.second
-        }
-
         val sorted = flattenSorted(
             resolvedSuggestions,
             Comparator.comparing(kotlin.Pair<StringRange, *>::first, StringRange::compareToExclusive)
@@ -181,100 +173,58 @@ class StringRangeTree<TNode: Any>(
                 min(extendedEndCursor, nextRange.start - 1)
             } else extendedEndCursor
 
-            var suggestionStart = range.start
-
-            while(nextSuggestionInsert != null && nextSuggestionInsertRange!!.end <= newEndCursor) {
-                if(suggestionStart <= nextSuggestionInsertRange.start) {
-                    val preInsertEndCursor = min(newEndCursor, nextSuggestionInsertRange.start)
-                    result.addContinuouslyMappedPotentialSyntaxNode(
-                        AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                        StringRange(suggestionStart, preInsertEndCursor),
-                        suggestion.completionItemProvider
-                    )
-                }
-                result.combineWithPotential(nextSuggestionInsert)
-                suggestionStart = nextSuggestionInsertRange.end
-                if(suggestionInserts!!.hasNext()) {
-                    val insert = suggestionInserts.next()
-                    nextSuggestionInsertRange = insert.first
-                    nextSuggestionInsert = insert.second
-                } else {
-                    nextSuggestionInsertRange = null
-                    nextSuggestionInsert = null
-                }
-            }
             result.addContinuouslyMappedPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                StringRange(suggestionStart, newEndCursor),
+                StringRange(range.start, newEndCursor),
                 suggestion.completionItemProvider
             )
         }
-
-        while(nextSuggestionInsert != null) {
-            result.combineWithPotential(nextSuggestionInsert)
-            nextSuggestionInsert =
-                if(suggestionInserts!!.hasNext()) suggestionInserts.next().second
-                else null
-        }
     }
 
-    /**
-     * Analyzes string nodes in the tree by trying to parse them as SNBT.
-     * For every string node that can be parsed to SNBT, a StringRangeTree is generated which is used to fill a new AnalyzingResult.
-     *
-     * @param stringGetter A function that returns the string content and a cursor mapper between the original input (source) and the string value for a node (target), or null if the node is not a string
-     * @param baseAnalyzingResult The base analyzing result whose base data is copied for each string node and filled with the analyzed data for each node.
-     * @return A map of the nodes that were analyzed as strings to the analyzing results for each node as well as the range of the string content in the original input. The oder of this list is the same as the order of the nodes in the tree.
-     */
-    fun tryAnalyzeStrings(stringGetter: (TNode) -> kotlin.Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?, baseAnalyzingResult: AnalyzingResult, parentOps: TreeOperations<TNode>?): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> {
-        val results = LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>>()
+    fun getNodesAndKeysSorted(analyzingDynamicOps: AnalyzingDynamicOps<TNode>): List<kotlin.Pair<TNode, StringRange>> {
+        val result = mutableListOf<kotlin.Pair<TNode, StringRange>>()
+        val pendingKeys = mutableListOf<kotlin.Pair<TNode, StringRange>>()
         for(node in orderedNodes) {
-            val (content, cursorMapper, stringEscaper) = stringGetter(node) ?: continue
-            if(!content.startsWith('{') && !content.startsWith('[')) continue
-            val nbtReader = TagParser.create(NbtOps.INSTANCE)
-            val nbtTreeBuilder = Builder<Tag>()
-
-            var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseAnalyzingResult.mappingInfo.readSkippingChars)
-                .combineWith(cursorMapper)
-            if(baseAnalyzingResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
-                absoluteContentMapper = baseAnalyzingResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
-            } else {
-                absoluteContentMapper = OffsetProcessedInputCursorMapper(baseAnalyzingResult.mappingInfo.skippedChars)
-                    .combineWith(absoluteContentMapper)
+            val range = getNodeRangeOrThrow(node)
+            if(pendingKeys.isNotEmpty() && pendingKeys.last().second < range) // Only check the next key, because there is assumed to be at least one node between two keys
+                result += pendingKeys.removeLast()
+            result += node to range
+            val keys = mapKeyRanges[node] ?: continue
+            // Make sure to use the key instances from the dynamic ops
+            val mappedKeys: MutableMap<TNode, TNode?> = keys.associateTo(mutableMapOf()) { it.first to null }
+            for(key in analyzingDynamicOps.mapKeyNodes[node] ?: continue) {
+                if(key in mappedKeys)
+                    mappedKeys[key] = key
             }
-            val stringMappingInfo = FileMappingInfo(
-                baseAnalyzingResult.mappingInfo.lines,
-                absoluteContentMapper
-            )
-            val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
-
-            @Suppress("UNCHECKED_CAST")
-            (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(nbtTreeBuilder)
-            (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
-            (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(stringAnalyzingResult)
-            // Content starts with '{' or '[', for which CommandSyntaxExceptions are always caught when allowing malformed
-            val nbtRoot = nbtReader.parseAsArgument(StringReader(content))
-            val nbtTree = nbtTreeBuilder.build(nbtRoot)
-
-            var treeOperations = TreeOperations.forNbt(nbtTree, content)
-            if(parentOps != null)
-                treeOperations = treeOperations
-                    .withRegistry(parentOps.registryWrapper)
-                    .withCompletionEscaper(parentOps.completionEscaper.andThen(stringEscaper))
-
-            treeOperations.withDiagnosticSeverity(null).analyzeFull(
-                stringAnalyzingResult
-            )
-            results[node] = cursorMapper.mapToSource(StringRange(0, content.length)) to stringAnalyzingResult
+            for((key, range) in keys.reversed()) {
+                val mappedKey = mappedKeys[key]
+                if(mappedKey != null)
+                    pendingKeys.add(mappedKey to range)
+            }
         }
-        return results
+
+        return result
+    }
+
+    fun combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps: AnalyzingDynamicOps<TNode>) {
+        for((node, _) in getNodesAndKeysSorted(analyzingDynamicOps)) {
+            val actualAnalyzingResult = analyzingDynamicOps.nodeActualAnalyzingResult[node]?.second
+            if(actualAnalyzingResult != null) {
+                analyzingDynamicOps.baseResult.semanticTokens.overlay(listOf(actualAnalyzingResult.semanticTokens).iterator())
+                actualAnalyzingResult.semanticTokens.clear()
+                analyzingDynamicOps.baseResult.combineWithActual(actualAnalyzingResult)
+            }
+            for(potentialAnalyzingResult in analyzingDynamicOps.nodePotentialAnalyzingResult[node] ?: continue) {
+                analyzingDynamicOps.baseResult.combineWithPotentialFinished(potentialAnalyzingResult)
+            }
+        }
     }
 
     data class TreeOperations<TNode: Any>(
         val stringRangeTree: StringRangeTree<TNode>,
         val ops: DynamicOps<TNode>,
         val suggestionResolver: SuggestionResolver<TNode>,
-        val stringGetter: (TNode) -> Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
+        val stringGetter: StringContentGetter<TNode>,
         val nodeClass: KClass<out TNode>,
         var completionEscaper: StringEscaper = StringEscaper.Identity,
         val registryWrapper: HolderLookup.Provider? = null,
@@ -335,47 +285,47 @@ class StringRangeTree<TNode: Any>(
         fun withDiagnosticSeverity(severity: DiagnosticSeverity?) = copy(diagnosticSeverity = severity)
 
         fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
-            val analyzedStrings = tryAnalyzeStrings(analyzingResult)
-            analyzingResult.semanticTokens.overlay(
-                analyzedStrings.values
-                    .asSequence()
-                    .map { it.second.semanticTokens }
-                    .filter { !it.isEmpty() }
-                    .iterator()
-            )
-            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.createSerializationContext(ops) ?: ops)
             if(contentDecoder != null) {
-                AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
-                    IS_ANALYZING_DECODER.runWithValue(true) {
-                        contentDecoder.decode(wrappedOps, stringRangeTree.root)
+                val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.createSerializationContext(ops) ?: ops, analyzingResult, stringGetter)
+                AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValueSwap(analyzingDynamicOps) {
+                    IS_ANALYZING_DECODER.runWithValueSwap(true) {
+                        PreLaunchDecoderOutputTracker.decodeWithCallback(
+                            contentDecoder,
+                            wrappedOps,
+                            stringRangeTree.root,
+                            FirstDecoderResultCallback(analyzingDynamicOps)
+                        )
                     }
                 }
                 if(diagnosticSeverity != null)
                     generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
+                analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper)
+                analyzingDynamicOps.tree.combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps)
             }
-            analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper, analyzedStrings.values.iterator())
         }
-
-        fun tryAnalyzeStrings(baseAnalyzingResult: AnalyzingResult): LinkedHashMap<TNode, kotlin.Pair<StringRange, AnalyzingResult>> =
-            stringRangeTree.tryAnalyzeStrings(stringGetter, baseAnalyzingResult, this)
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher, stringGetter)
-            IS_ANALYZING_DECODER.runWithValue(true) {
+            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher)
+            IS_ANALYZING_DECODER.runWithValueSwap(true) {
                 PreLaunchDecoderOutputTracker.decodeWithCallback(
                     decoder,
                     filteredOps,
                     stringRangeTree.root,
-                    errorCallback
+                    FirstDecoderResultCallback(errorCallback)
                 )
             }
             analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
         }
     }
 
-    class AnalyzingDynamicOps<TNode: Any> private constructor(override val delegate: DynamicOps<TNode>, tree: StringRangeTree<TNode>) : DelegatingDynamicOps<TNode> {
+    class AnalyzingDynamicOps<TNode: Any> private constructor(
+        override val delegate: DynamicOps<TNode>,
+        tree: StringRangeTree<TNode>,
+        internal val baseResult: AnalyzingResult,
+        val stringContentGetter: StringContentGetter<TNode>
+    ) : DelegatingDynamicOps<TNode>, PreLaunchDecoderOutputTracker.ResultCallback {
         var tree = tree
             private set
 
@@ -389,24 +339,14 @@ class StringRangeTree<TNode: Any>(
              */
             fun <TNode : Any> createAnalyzingOps(
                 tree: StringRangeTree<TNode>,
-                delegate: DynamicOps<TNode>
+                delegate: DynamicOps<TNode>,
+                analyzingResult: AnalyzingResult,
+                stringContentGetter: StringContentGetter<TNode>
             ): kotlin.Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> =
                 wrapDynamicOps(delegate) {
                     if(it is AnalyzingDynamicOps && it.tree === tree) it
-                    else AnalyzingDynamicOps(it, tree)
+                    else AnalyzingDynamicOps(it, tree, analyzingResult, stringContentGetter)
                 }
-
-            fun <TNode : Any, TEncoded> decodeWithAnalyzingOps(
-                delegate: DynamicOps<TNode>,
-                input: StringRangeTree<TNode>,
-                decoder: Decoder<TEncoded>
-            ): kotlin.Pair<StringRangeTree<TNode>, AnalyzingDynamicOps<TNode>> {
-                val (analyzingDynamicOps, wrappedOps) = createAnalyzingOps(input, delegate)
-                CURRENT_ANALYZING_OPS.runWithValue(analyzingDynamicOps) {
-                    decoder.decode(wrappedOps, input.root)
-                }
-                return analyzingDynamicOps.tree to analyzingDynamicOps
-            }
         }
 
         internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<SuggestionProvider<TNode>>>()
@@ -420,6 +360,9 @@ class StringRangeTree<TNode: Any>(
          */
         internal val mapKeyNodes = IdentityHashMap<TNode, MutableCollection<TNode>>()
 
+        internal val nodePotentialAnalyzingResult = IdentityHashMap<TNode, MutableCollection<AnalyzingResult>>()
+        internal val nodeActualAnalyzingResult = IdentityHashMap<TNode, kotlin.Pair<Int, AnalyzingResult?>>()
+
         fun getNodeStartSuggestions(node: TNode) =
             nodeStartSuggestions.computeIfAbsent(node) { mutableSetOf() }
 
@@ -428,6 +371,40 @@ class StringRangeTree<TNode: Any>(
 
         fun getMapKeyNodes(node: TNode) =
             mapKeyNodes.computeIfAbsent(node) { mutableSetOf() }
+
+        fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult {
+            val result = baseResult.copyInput()
+            nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += result
+            return result
+        }
+
+        fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult {
+            var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.readSkippingChars)
+                .combineWith(stringContent.cursorMapper)
+            if(baseResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
+                absoluteContentMapper = baseResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
+            } else {
+                absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.skippedChars)
+                    .combineWith(absoluteContentMapper)
+            }
+            val stringMappingInfo = FileMappingInfo(
+                baseResult.mappingInfo.lines,
+                absoluteContentMapper
+            )
+            val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
+            nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += stringAnalyzingResult
+            return stringAnalyzingResult
+        }
+
+        fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int = Int.MAX_VALUE) {
+            if(node !in nodeActualAnalyzingResult) {
+                nodeActualAnalyzingResult[node] = unmappedCursor to analyzingResult
+                return
+            }
+            val bestCursor = nodeActualAnalyzingResult[node]!!.first
+            if(unmappedCursor > bestCursor)
+                nodeActualAnalyzingResult[node] = unmappedCursor to analyzingResult
+        }
 
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
             getNodeStartSuggestions(input).add {
@@ -595,6 +572,23 @@ class StringRangeTree<TNode: Any>(
                     }
                 }
             }
+
+        override fun <TInput, TResult> onError(
+            error: DataResult.Error<TResult>,
+            input: TInput,
+        ) { }
+
+        override fun <TInput> markStringParseError(input: TInput) { }
+
+        override fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput) {
+            @Suppress("UNCHECKED_CAST")
+            // Only use actual analyzing results for the node if it was also able to parse the full string,
+            // otherwise there was an error but another decoder did not return an error, so the string
+            // should not be interpreted by the errored decoder
+            finishNodeAnalyzingResultOverlay(input as TNode, null)
+        }
+
+        override fun <TInput> onDecodeStart(input: TInput) { }
     }
 
     data class Suggestion<TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {
@@ -641,6 +635,12 @@ class StringRangeTree<TNode: Any>(
         }
         fun escape(string: String): String
     }
+
+    fun interface StringContentGetter<TNode> {
+        fun getStringContent(node: TNode): StringContent?
+    }
+
+    data class StringContent(val content: String, val cursorMapper: SplitProcessedInputCursorMapper, val escaper: StringEscaper)
 
     class Builder<TNode: Any> {
         private val nodesSet = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
@@ -815,10 +815,8 @@ class StringRangeTree<TNode: Any>(
     inner class DecoderErrorLeafRangesCallback(
         private val nodeClass: KClass<out TNode>,
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
-        private val stringGetter: (TNode) -> Triple<String, SplitProcessedInputCursorMapper, StringEscaper>?,
     ) : PreLaunchDecoderOutputTracker.ResultCallback {
-        private val errors = mutableListOf<kotlin.Pair<StringRange, String>>()
-        private val decodeStackCounts = mutableMapOf<TNode, Int>()
+        private val errors = mutableListOf<kotlin.Pair<StringRange, String?>>()
 
         private fun throwForPartialOverlap(range1: StringRange, range2: StringRange) {
             throw IllegalStateException("Ranges of nodes must not partially overlap. They must either not overlap or one must encompass the other. Ranges: $range1, $range2")
@@ -839,37 +837,29 @@ class StringRangeTree<TNode: Any>(
 
         override fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput) {
             val inputNode = nodeClass.safeCast(input) ?: return
-            // Only add error when the decoder is the topmost decoder for this node
-            if(postDecrementDecodeStackCount(inputNode) > 1) return
             val range = getNodeRange(inputNode) ?: return
             addError(error, range)
         }
 
-        override fun <TInput, TResult> onStringParseError(error: DataResult.Error<TResult>, input: TInput, cursor: Int) {
+        override fun <TInput> markStringParseError(input: TInput) {
             val inputNode = nodeClass.safeCast(input) ?: return
             val range = getNodeRange(inputNode) ?: return
 
-            val stringInfo = stringGetter(inputNode)
-            if(stringInfo == null) {
-                addError(error, range)
-                return
-            }
-            val mapper = stringInfo.second
-            val startCursor = mapper.mapToSource(cursor)
-
-            addError(error, StringRange(startCursor, range.end))
+            // Don't add error message, diagnostics are already generated by the decoder.
+            // Should not be replaced by other decoder errors, because string parsing errors are more specific
+            addError(null, StringRange.at(range.start))
         }
 
-        private fun addError(error: DataResult.Error<*>, range: StringRange) {
+        private fun addError(error: DataResult.Error<*>?, range: StringRange) {
             // Use compareTo instead of compareToExclusive, because the latter doesn't return 0 for equal ranges of length 0
             val index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) {
-                errors.add(-index - 1, range to error.message())
+                errors.add(-index - 1, range to error?.message())
                 return
             }
             val existingRange = errors[index].first
             if(existingRange.start <= range.start && existingRange.end >= range.end) {
-                errors[index] = range to error.message()
+                errors[index] = range to error?.message()
                 return
             }
 
@@ -882,8 +872,6 @@ class StringRangeTree<TNode: Any>(
 
             //Since decoding was successful, all errors that are encompassed by the input node's range are removed
             val inputNode = nodeClass.safeCast(input) ?: return
-            // Only remove errors when the decoder is the topmost decoder for this node
-            if(postDecrementDecodeStackCount(inputNode) > 1) return
             val range = ranges[inputNode] ?: return
             var index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) return
@@ -906,23 +894,12 @@ class StringRangeTree<TNode: Any>(
             }
         }
 
-        override fun <TInput> onDecodeStart(input: TInput) {
-            val inputNode = nodeClass.safeCast(input) ?: return
-            decodeStackCounts[inputNode] = decodeStackCounts.getOrDefault(inputNode, 0) + 1
-        }
-
-        private fun postDecrementDecodeStackCount(node: TNode): Int {
-            val count = decodeStackCounts[node]!!
-            if(count == 1)
-                decodeStackCounts.remove(node)
-            else
-                decodeStackCounts[node] = count - 1
-
-            return count
-        }
+        override fun <TInput> onDecodeStart(input: TInput) { }
 
         fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
-            return errors.map { (range, message) ->
+            return errors.mapNotNull { (range, message) ->
+                if(message == null)
+                    return@mapNotNull null
                 Diagnostic().also {
                     it.range = Range(
                         AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.start + fileMappingInfo.readSkippingChars), fileMappingInfo),

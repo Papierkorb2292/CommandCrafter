@@ -4,8 +4,8 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import com.mojang.serialization.DynamicOps
 import net.minecraft.resources.RegistryOps
-import net.minecraft.util.parsing.packrat.Dictionary
 import net.minecraft.util.parsing.packrat.Atom
+import net.minecraft.util.parsing.packrat.Dictionary
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.mixin.editor.processing.DelegatingOpsAccessor
@@ -176,9 +176,14 @@ fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCurs
             sourceIndex++
             continue
         }
-        val escapedCharacterCount =
-            if(sourceString[sourceIndex + 1] == 'u') 5
-            else 1
+        val escapedChar = sourceString[sourceIndex + 1]
+        val escapedCharacterCount = when(escapedChar) {
+            'u' -> 5
+            'U' -> 9
+            'x' -> 3
+            'N' -> sourceString.indexOf('}', sourceIndex) - sourceIndex
+            else -> 1
+        }
         cursorMapper.addFollowingMapping(
             cursorMapper.prevTargetEnd + consumedEscapedCharacterCount + startSourceCursor,
             sourceIndex - consumedEscapedCharacterCount + 1 - cursorMapper.prevTargetEnd

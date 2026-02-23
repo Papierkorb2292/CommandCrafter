@@ -280,6 +280,8 @@ public class SnbtGrammarMixin {
         return terms;
     }
 
+    // TODO: Make escape sequences more lenient (also change createCursorMapperForEscapedCharacters)
+
     @WrapOperation(
             method = "createParser",
             at = @At(

@@ -9,7 +9,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorM
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.string_range_gson.JsonReader
 import net.papierkorb2292.command_crafter.string_range_gson.JsonToken
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
@@ -322,24 +321,24 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }
     }
 
-    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): (JsonElement) -> Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
-        override fun invoke(p1: JsonElement): Triple<String, SplitProcessedInputCursorMapper, StringRangeTree.StringEscaper>? {
-            if(p1 !is JsonPrimitive || !p1.isString)
+    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): StringRangeTree.StringContentGetter<JsonElement> {
+        override fun getStringContent(node: JsonElement): StringRangeTree.StringContent? {
+            if(node !is JsonPrimitive || !node.isString)
                 return null
-            val range = tree.ranges[p1]!!
+            val range = tree.ranges[node]!!
             val firstChar = input[range.start]
             val isQuoted = firstChar == '"' || firstChar == '\''
             val sourceString =
                 if(isQuoted)
-                    // If the string is missing content and end quotes, end-1 will be before start+1
+                // If the string is missing content and end quotes, end-1 will be before start+1
                     if(range.end - 1 > range.start)
                         input.substring(range.start + 1, range.end - 1)
                     else
                         input.substring(range.start + 1, range.end)
                 else
                     input.substring(range.start, range.end)
-            return Triple(
-                p1.asString,
+            return StringRangeTree.StringContent(
+                node.asString,
                 createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
                 if(isQuoted) StringRangeTree.StringEscaper.escapeForQuotes(firstChar.toString()) else StringRangeTree.StringEscaper.Identity
             )

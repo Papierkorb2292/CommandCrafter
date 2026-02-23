@@ -5,7 +5,6 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
-import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.AnalyzingDynamicOps
 import java.lang.reflect.Type
 import java.util.*
@@ -59,6 +58,16 @@ inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValue(value: TValue, blo
         return block()
     } finally {
         remove()
+    }
+}
+
+inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValueSwap(value: TValue, block: () -> TResult): TResult {
+    val prev = get()
+    set(value)
+    try {
+        return block()
+    } finally {
+        if(prev == null) remove() else set(prev)
     }
 }
 

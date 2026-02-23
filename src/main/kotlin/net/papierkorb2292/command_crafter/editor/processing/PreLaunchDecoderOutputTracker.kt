@@ -6,7 +6,7 @@ import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
 import net.papierkorb2292.command_crafter.helper.getOrNull
-import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import org.spongepowered.asm.mixin.MixinEnvironment
 import java.lang.invoke.MethodHandles
 
@@ -41,7 +41,7 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
     }
 
     fun <TResult, TInput> decodeWithCallback(decoder: Decoder<TResult>, ops: DynamicOps<TInput>, input: TInput, callback: ResultCallback): DataResult<Pair<TResult, TInput>> {
-        RESULT_CALLBACK.runWithValue(callback) {
+        RESULT_CALLBACK.runWithValueSwap(callback) {
             return decoder.decode(ops, input)
         }
     }
@@ -79,14 +79,14 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         )
     }
 
-    fun <TInput, TResult> onStringParseError(dataResult: DataResult.Error<TResult>, input: TInput, cursor: Int) {
+    fun <TInput> markStringParseError(input: TInput) {
         val callback = RESULT_CALLBACK.getOrNull() ?: return
-        callback.onStringParseError(dataResult, input, cursor)
+        callback.markStringParseError(input)
     }
 
     interface ResultCallback {
         fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput)
-        fun <TInput, TResult> onStringParseError(error: DataResult.Error<TResult>, input: TInput, cursor: Int)
+        fun <TInput> markStringParseError(input: TInput)
         fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput)
         fun <TInput> onDecodeStart(input: TInput)
     }
