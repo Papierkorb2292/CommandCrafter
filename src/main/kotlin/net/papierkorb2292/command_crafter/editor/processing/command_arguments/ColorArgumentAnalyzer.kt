@@ -54,7 +54,6 @@ class ColorArgumentAnalyzer : CommandArgumentAnalyzerService<ColorArgument> {
                         params.color.blue.toFloat()
                     )
                     val label = PackedEncoderColorInfo.colorToHex(packed, false)
-                    //return listOf(ColorPresentation("hex $label"))
                     return listOf(ColorPresentation(label).apply {
                         // Insert 'hex ' literal
                         additionalTextEdits = listOf(TextEdit(Range(params.range.start, params.range.start), "hex "))
