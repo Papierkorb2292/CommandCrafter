@@ -18,6 +18,7 @@ class AnalyzingResult(
     val mappingInfo: FileMappingInfo,
     val semanticTokens: SemanticTokensBuilder,
     val diagnostics: MutableList<Diagnostic>,
+    val colorInfos: MutableList<ColorInfo>,
     val filePosition: Position,
     var documentation: String? = null,
 ) : ActualSyntaxNode, PotentialSyntaxNode {
@@ -25,6 +26,7 @@ class AnalyzingResult(
     constructor(reader: FileMappingInfo, filePosition: Position) : this(
         reader,
         SemanticTokensBuilder(reader),
+        mutableListOf(),
         mutableListOf(),
         filePosition
     )
@@ -41,6 +43,7 @@ class AnalyzingResult(
     fun combineWithActual(other: AnalyzingResult) {
         semanticTokens.combineWith(other.semanticTokens)
         diagnostics += other.diagnostics
+        colorInfos += other.colorInfos
         addSyntaxNodes(actualSyntaxNodes, other.actualSyntaxNodes)
     }
 
@@ -71,6 +74,14 @@ class AnalyzingResult(
                 tags = original.tags
                 relatedInformation = original.relatedInformation
                 data = original.data
+            }
+        }
+        result.colorInfos += colorInfos.map { original ->
+            // Copy data. Original needs to stay the same because this method is used for caching
+            object : ColorInfo {
+                override val color = original.color
+                override val range = position.offsetRange(original.range)
+                override fun getPresentation(params: ColorPresentationParams) = original.getPresentation(params)
             }
         }
         val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes)
@@ -159,7 +170,7 @@ class AnalyzingResult(
 
     fun copyInput(): AnalyzingResult {
         val newMappingInfo = mappingInfo.copy()
-        return AnalyzingResult(newMappingInfo, SemanticTokensBuilder(newMappingInfo), mutableListOf(), filePosition, documentation)
+        return AnalyzingResult(newMappingInfo, SemanticTokensBuilder(newMappingInfo), mutableListOf(), mutableListOf(), filePosition, documentation)
     }
     fun copy() = copyInput().also {
         it.combineWith(this)
@@ -175,6 +186,8 @@ class AnalyzingResult(
             filtered.diagnostics += diagnostics
         if(featureConfig.isEnabled(analyzerNameInserts.map(::getSemanticTokensFeatureKey), true))
             filtered.semanticTokens.combineWith(semanticTokens)
+        if(featureConfig.isEnabled(analyzerNameInserts.map(::getColorFeatureKey), true))
+            filtered.colorInfos += colorInfos
 
         val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes)
         if(actualEncompassingRange != null)
@@ -318,6 +331,7 @@ class AnalyzingResult(
         fun getDefinitionsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.definitions"
         fun getDiagnosticsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.diagnostics"
         fun getSemanticTokensFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.semanticTokens"
+        fun getColorFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.color"
 
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
             val cached = mappingInfo.positionFromCursorFIFOCache.getAndMoveToLast(cursor)

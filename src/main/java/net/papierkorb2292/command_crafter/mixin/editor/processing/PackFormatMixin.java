@@ -37,7 +37,7 @@ public class PackFormatMixin {
 
                     final StringRangeTree.SuggestionProvider<T> suggestionProvider = () ->
                             PackFormat.BOTTOM_CODEC.encode(currentVersion, ops, ops.empty()).result().stream()
-                                    .map(encoded -> new StringRangeTree.Suggestion<>(encoded, false, completion -> {
+                                    .map(encoded -> new StringRangeTree.Suggestion<>(encoded, false, false, completion -> {
                                         completion.setDetail("Minecraft's current pack version");
                                         return Unit.INSTANCE;
                                     }));

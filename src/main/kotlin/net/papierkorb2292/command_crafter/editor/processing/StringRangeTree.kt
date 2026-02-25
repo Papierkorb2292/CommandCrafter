@@ -591,8 +591,10 @@ class StringRangeTree<TNode: Any>(
         override fun <TInput> onDecodeStart(input: TInput) { }
     }
 
-    data class Suggestion<TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {
-        constructor(element: TNode): this(element, false, null)
+    data class Suggestion<TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val preferHex: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {
+        constructor(element: TNode): this(element, false, false, null)
+
+        fun withPreferHex() = copy(preferHex = true)
     }
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
 

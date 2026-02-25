@@ -276,11 +276,16 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Value) {
                     suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
-                        val stringWriter = StringWriter()
-                        val jsonWriter = JsonWriter(stringWriter)
-                        jsonWriter.formattingStyle = formattingStyle
-                        Streams.write(suggestion.element, jsonWriter)
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape(stringWriter.toString()), completionModifier = { completion ->
+                        val baseString = if(suggestion.preferHex && suggestion.element is JsonPrimitive && suggestion.element.isNumber) {
+                            "0x" + suggestion.element.asInt.toUInt().toString(16).uppercase()
+                        } else {
+                            val stringWriter = StringWriter()
+                            val jsonWriter = JsonWriter(stringWriter)
+                            jsonWriter.formattingStyle = formattingStyle
+                            Streams.write(suggestion.element, jsonWriter)
+                            stringWriter.toString()
+                        }
+                        StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = { completion ->
                             if(suggestion.element is JsonObject && suggestion.element.isEmpty || suggestion.element is JsonArray && suggestion.element.isEmpty) {
                                 // Must be done with a command instead of additionalTextEdit, because the latter would cause problems when the cursor is at the end of a line
                                 // (and additionalTextEdit isn't meant to be used for completions at the cursor position)

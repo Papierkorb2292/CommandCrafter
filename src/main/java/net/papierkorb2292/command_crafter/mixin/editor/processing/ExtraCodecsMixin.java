@@ -1,18 +1,18 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.google.common.collect.Streams;
+import com.llamalad7.mixinextras.expression.Definition;
+import com.llamalad7.mixinextras.expression.Expression;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.RegistryOps;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.ExtraCodecs;
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo;
 import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
-import org.spongepowered.asm.mixin.Debug;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Slice;
@@ -53,5 +53,59 @@ public class ExtraCodecsMixin {
                 );
             }
         });
+    }
+
+    @Definition(
+            id = "COLOR_CODEC",
+            field = {
+                    "Lnet/minecraft/util/ExtraCodecs;RGB_COLOR_CODEC:Lcom/mojang/serialization/Codec;",
+                    "Lnet/minecraft/util/ExtraCodecs;STRING_RGB_COLOR:Lcom/mojang/serialization/Codec;",
+            }
+    )
+    @Expression("COLOR_CODEC = @(?)")
+    @ModifyExpressionValue(
+            method = "<clinit>",
+            at = @At("MIXINEXTRAS:EXPRESSION"),
+            require = 2
+    )
+    private static Codec<Integer> command_crafter$addRGBColorInfo(Codec<Integer> colorCodec) {
+        return PackedEncoderColorInfo.Companion.wrapCodec(new CodecSuggestionWrapper<>(colorCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
+            @Override
+            public @NotNull <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
+                return Stream.of(colorCodec.encodeStart(ops, 0xFFFFFF).getOrThrow());
+            }
+
+            @Override
+            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion) {
+                return suggestion.withPreferHex();
+            }
+        }), false, color -> color, color -> color);
+    }
+
+    @Definition(
+            id = "COLOR_CODEC",
+            field = {
+                    "Lnet/minecraft/util/ExtraCodecs;ARGB_COLOR_CODEC:Lcom/mojang/serialization/Codec;",
+                    "Lnet/minecraft/util/ExtraCodecs;STRING_ARGB_COLOR:Lcom/mojang/serialization/Codec;"
+            }
+    )
+    @Expression("COLOR_CODEC = @(?)")
+    @ModifyExpressionValue(
+            method = "<clinit>",
+            at = @At("MIXINEXTRAS:EXPRESSION"),
+            require = 2
+    )
+    private static Codec<Integer> command_crafter$addARGBColorInfo(Codec<Integer> colorCodec) {
+        return PackedEncoderColorInfo.Companion.wrapCodec(new CodecSuggestionWrapper<>(colorCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
+            @Override
+            public @NotNull <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
+                return Stream.of(colorCodec.encodeStart(ops, 0xFFFFFFFF).getOrThrow());
+            }
+
+            @Override
+            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion) {
+                return suggestion.withPreferHex();
+            }
+        }), true, color -> color, color -> color);
     }
 }

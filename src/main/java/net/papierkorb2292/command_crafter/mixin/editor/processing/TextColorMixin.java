@@ -6,6 +6,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
 import net.minecraft.network.chat.TextColor;
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -29,7 +30,7 @@ public class TextColorMixin {
             )
     )
     private static Codec<TextColor> command_crafter$addColorCodecSuggestions(Codec<TextColor> original) {
-        return new CodecSuggestionWrapper<>(original, new CodecSuggestionWrapper.SuggestionsProvider() {
+        return PackedEncoderColorInfo.Companion.wrapCodec(new CodecSuggestionWrapper<>(original, new CodecSuggestionWrapper.SuggestionsProvider() {
             @Override
             public @NotNull <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
                 return Streams.concat(
@@ -37,6 +38,6 @@ public class TextColorMixin {
                         Stream.of(ops.createString("#FFFFFF"))
                 );
             }
-        });
+        }), false, TextColor::getValue, TextColor::fromRgb);
     }
 }

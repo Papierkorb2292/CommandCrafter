@@ -14,6 +14,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
@@ -160,6 +161,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     triggerCharacters = allCompletionTriggerCharacters
                     resolveProvider = true
                 }
+                colorProvider = Either.forLeft(true)
             })
             workspace = WorkspaceServerCapabilities().apply {
                 fileOperations = FileOperationsServerCapabilities().apply {
@@ -366,7 +368,34 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 }
             }
 
+            override fun documentColor(params: DocumentColorParams): CompletableFuture<List<ColorInformation>> {
+                val file = openFiles[params.textDocument.uri]
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                return analyzer.thenApply { result ->
+                    result.colorInfos.map { info ->
+                        ColorInformation(info.range, info.color)
+                    }
+                }
+            }
 
+            override fun colorPresentation(params: ColorPresentationParams): CompletableFuture<List<ColorPresentation>> {
+                val file = openFiles[params.textDocument.uri]
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                return analyzer.thenApply { result ->
+                    val colorInfo = result.colorInfos.find { info ->
+                        // Find color that intersects the requested range.
+                        // Don't check for complete equality, because color presentations might change the range (for example when a color argument is replaced with a hex color argument)
+                        if(params.range.end < info.range.start) false
+                        else if(params.range.start > info.range.end) false
+                        else true
+                    } ?: return@thenApply emptyList()
+                    colorInfo.getPresentation(params)
+                }
+            }
 
             override fun hover(params: HoverParams): CompletableFuture<Hover> {
                 val file = openFiles[params.textDocument.uri] ?: return emptyHoverDefault

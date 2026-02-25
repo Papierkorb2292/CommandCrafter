@@ -70,6 +70,8 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             suggestion.element.asBoolean().orElseThrow {
                                 IllegalArgumentException("Boolean suggestion didn't represent a boolean: $suggestion")
                             }.toString()
+                        } else if(suggestion.preferHex && suggestion.element is IntTag) {
+                            "0x" + suggestion.element.value.toUInt().toString(16).uppercase()
                         } else if(node != tree.root || suggestion.element !is StringTag || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
                             suggestion.element.toString()
                         else

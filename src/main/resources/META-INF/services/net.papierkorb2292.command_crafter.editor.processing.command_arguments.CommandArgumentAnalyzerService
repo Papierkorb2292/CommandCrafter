@@ -17,3 +17,5 @@ net.papierkorb2292.command_crafter.editor.processing.command_arguments.ItemArgum
 net.papierkorb2292.command_crafter.editor.processing.command_arguments.EntityArgumentAnalyzer
 net.papierkorb2292.command_crafter.editor.processing.command_arguments.BlockStateArgumentAnalyzer
 net.papierkorb2292.command_crafter.editor.processing.command_arguments.BlockPredicateArgumentAnalyzer
+net.papierkorb2292.command_crafter.editor.processing.command_arguments.HexColorArgumentAnalyzer
+net.papierkorb2292.command_crafter.editor.processing.command_arguments.ColorArgumentAnalyzer
