@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.Color
 import org.eclipse.lsp4j.ColorPresentation
 import org.eclipse.lsp4j.ColorPresentationParams
 import org.eclipse.lsp4j.Range
+import java.util.*
 import kotlin.jvm.optionals.getOrNull
 
 class PackedEncoderColorInfo<TNode>(
@@ -16,7 +17,7 @@ class PackedEncoderColorInfo<TNode>(
     packedColor: Int,
     private val hasAlpha: Boolean,
     private val encoder: Encoder<Int>,
-    private val ops: DynamicOps<TNode>
+    private val ops: DynamicOps<TNode>,
 ) : ColorInfo {
     companion object {
         fun <A> wrapCodec(delegate: Codec<A>, hasAlpha: Boolean, toPacked: (A) -> Int, fromPacked: (Int) -> A) = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
@@ -33,9 +34,7 @@ class PackedEncoderColorInfo<TNode>(
         }
 
         fun colorToHex(color: Int, hasAlpha: Boolean): String {
-            val string = color.toUInt().toString(16).uppercase()
-            val formattedLength = if(hasAlpha) 8 else 6
-            return "0".repeat(formattedLength - string.length) + string
+            return String.format(Locale.ROOT, if(hasAlpha) "%08X" else "%06X", color);
         }
     }
 
