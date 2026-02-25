@@ -17,7 +17,7 @@ class CodecSuggestionWrapper<A>(private val delegate: Codec<A>, val suggestionsP
             @Suppress("UNCHECKED_CAST")
             val castedOps = analyzingOps as StringRangeTree.AnalyzingDynamicOps<T>
             castedOps.getNodeStartSuggestions(input).add {
-                suggestionsProvider.getSuggestions(ops).map { suggestionsProvider.suggestionModifier(StringRangeTree.Suggestion(it)) }
+                suggestionsProvider.getSuggestions(ops).map { suggestionsProvider.suggestionModifier(StringRangeTree.Suggestion(it), ops) }
             }
         }
         return delegate.decode(ops, input)
@@ -25,6 +25,6 @@ class CodecSuggestionWrapper<A>(private val delegate: Codec<A>, val suggestionsP
 
     interface SuggestionsProvider {
         fun <T> getSuggestions(ops: DynamicOps<T>): Stream<T>
-        fun <T> suggestionModifier(suggestion: StringRangeTree.Suggestion<T>): StringRangeTree.Suggestion<T> = suggestion
+        fun <T> suggestionModifier(suggestion: StringRangeTree.Suggestion<T>, ops: DynamicOps<T>): StringRangeTree.Suggestion<T> = suggestion
     }
 }

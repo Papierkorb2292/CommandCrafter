@@ -595,6 +595,7 @@ class StringRangeTree<TNode: Any>(
         constructor(element: TNode): this(element, false, false, null)
 
         fun withPreferHex() = copy(preferHex = true)
+        fun withCompletionModifier(completionModifier: ((CompletionItem) -> Unit)? = null) = copy(completionModifier = completionModifier)
     }
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
 

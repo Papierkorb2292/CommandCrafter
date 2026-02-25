@@ -4,9 +4,12 @@ import com.google.common.collect.Streams;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
+import kotlin.Unit;
 import net.minecraft.network.chat.TextColor;
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo;
+import org.eclipse.lsp4j.CompletionItemKind;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,6 +40,19 @@ public class TextColorMixin {
                         NAMED_COLORS.keySet().stream().map(ops::createString),
                         Stream.of(ops.createString("#FFFFFF"))
                 );
+            }
+
+            @Override
+            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion, @NotNull DynamicOps<T> ops) {
+                return suggestion.withCompletionModifier(completionItem -> {
+                    final var color = ops.getStringValue(suggestion.getElement()).flatMap(TextColor::parseColor).result().orElse(null);
+                    completionItem.setKind(CompletionItemKind.Color);
+                    if(color != null) {
+                        // VSCode uses detail to preview colors in auto-complete list
+                        completionItem.setDetail("#" + PackedEncoderColorInfo.Companion.colorToHex(color.getValue(), false));
+                    }
+                    return Unit.INSTANCE;
+                });
             }
         }), false, TextColor::getValue, TextColor::fromRgb);
     }

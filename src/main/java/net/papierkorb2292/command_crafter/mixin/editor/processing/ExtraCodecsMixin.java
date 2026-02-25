@@ -76,7 +76,7 @@ public class ExtraCodecsMixin {
             }
 
             @Override
-            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion) {
+            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion, @NotNull DynamicOps<T> ops) {
                 return suggestion.withPreferHex();
             }
         }), false, color -> color, color -> color);
@@ -103,7 +103,7 @@ public class ExtraCodecsMixin {
             }
 
             @Override
-            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion) {
+            public <T> StringRangeTree.@NotNull Suggestion<T> suggestionModifier(StringRangeTree.@NotNull Suggestion<T> suggestion, @NotNull DynamicOps<T> ops) {
                 return suggestion.withPreferHex();
             }
         }), true, color -> color, color -> color);
