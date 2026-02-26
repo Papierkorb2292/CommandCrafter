@@ -92,4 +92,10 @@ class ColorArgumentAnalyzer : CommandArgumentAnalyzerService<ColorArgument> {
         }
         result.semanticTokens.addMultiline(range, TokenType.PARAMETER, 0)
     }
+
+    override fun modifyVanillaCompletion(completion: CompletionItem) {
+        val color = ChatFormatting.getByName(completion.label)?.color ?: return
+        completion.kind = CompletionItemKind.Color
+        completion.detail = "#" + PackedEncoderColorInfo.colorToHex(color, false)
+    }
 }

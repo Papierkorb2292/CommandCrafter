@@ -853,12 +853,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
                         this.cursor = endCursor
                     })
-                    val suggestionFutures = try {
+                    val suggestionInfo = try {
                         if(completionReader.resourceCreator.languageServer != null) {
                             DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.set(completionReader.resourceCreator.languageServer.dynamicRegistryManager) // Some items require components for some completions
                         }
                         completionParentNode.children.map { child ->
                             try {
+                                val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
                                 child.listSuggestions(
                                     contextBuilder.withSource(
                                         completionCommandSourceProvider(
@@ -872,26 +873,31 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                         min(parsedNodeRange.start, extendedTruncatedInput.length)
 
                                     )
-                                )
+                                ) to analyzer
                             } catch(e: Exception) {
                                 CommandCrafter.LOGGER.debug(
                                     "Error while getting suggestions for command node ${child.name}",
                                     e
                                 )
-                                Suggestions.empty()
+                                Suggestions.empty() to null
                             }
-                        }.toTypedArray()
+                        }
                     } finally {
                         DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.remove()
                     }
+                    val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
                     val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                         SUGGESTIONS_FULL_INPUT.remove()
                         CompletableFuture.failedFuture(it)
                     }.thenApply {
                         SUGGESTIONS_FULL_INPUT.remove()
-                        val completionItems = suggestionFutures.flatMap { it.get().list }.toSet().map {
-                            it.toCompletionItem(completionReader, lineNumber, cursor)
-                        } + suggestionFutures.flatMap {
+                        val completionItems = suggestionInfo.flatMap { (future, analyzer) ->
+                            val suggestionList = future.get().list
+                            suggestionList.map { suggestion ->
+                                suggestion.toCompletionItem(completionReader, lineNumber, cursor)
+                                    .also { analyzer?.modifyVanillaCompletion(it) }
+                            }
+                        }.distinct() + suggestionFutures.flatMap {
                             (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                                 ?: emptyList()
                         }

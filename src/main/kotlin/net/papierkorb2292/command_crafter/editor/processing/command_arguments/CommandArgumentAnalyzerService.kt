@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import org.eclipse.lsp4j.CompletionItem
 import java.util.*
 
 /**
@@ -90,4 +91,5 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
     )
 
     fun hasCustomCompletions(context: CommandContext<SharedSuggestionProvider>, name: String): Boolean = false
+    fun modifyVanillaCompletion(completion: CompletionItem) { }
 }
