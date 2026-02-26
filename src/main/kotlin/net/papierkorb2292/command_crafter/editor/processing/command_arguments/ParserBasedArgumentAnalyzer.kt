@@ -10,6 +10,8 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.CompletionItemKind
 
 class ParserBasedArgumentAnalyzer : CommandArgumentAnalyzerService<ParserBasedArgument<*>>{
     override val argumentTypes: List<Class<out ParserBasedArgument<*>>>
@@ -38,5 +40,9 @@ class ParserBasedArgumentAnalyzer : CommandArgumentAnalyzerService<ParserBasedAr
             PackratParserAdditionalArgs.analyzingResult.remove()
             PackratParserAdditionalArgs.furthestAnalyzingResult.remove()
         }
+    }
+
+    override fun modifyVanillaCompletion(completion: CompletionItem) {
+        completion.kind = CompletionItemKind.Keyword
     }
 }
