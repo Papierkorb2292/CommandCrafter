@@ -27,6 +27,7 @@
     1,4,3,15,0, 0,4,3,10,0
   ],
   "diagnostics" : [ ],
+  "colorInfos" : [ ],
   "filePosition" : {
     "line" : 0,
     "character" : 0
