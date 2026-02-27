@@ -8,6 +8,7 @@ class FeatureConfig(private val entries: Map<String, Entry>) {
             "analyzer.definitions" to Entry.ENABLE,
             "analyzer.diagnostics" to Entry.ENABLE,
             "analyzer.semanticTokens" to Entry.ENABLE,
+            "analyzer.color" to Entry.ENABLE,
             MinecraftLanguageServer.AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH to Entry.DISABLE,
             MinecraftLanguageServer.AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH to Entry.DISABLE,
             MinecraftLanguageServer.AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH to Entry.DISABLE
