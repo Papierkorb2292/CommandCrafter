@@ -17,9 +17,7 @@ import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
-import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
@@ -405,6 +403,44 @@ object TestCommandCrafter {
         // A node only counts child literals, but not itself
         assertLiteralCount(leafCommand, "leaf_command", 0U)
         assertLiteralCount(rootNode, "leaf_command", 1U)
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testNegatePosition(context: GameTestHelper) {
+        context.assertValueEqual(
+            Position(0, 0),
+            Position(0, 0).negate(true),
+            "negate zero-based identity"
+        )
+        context.assertValueEqual(
+            Position(1, 1),
+            Position(1, 1).negate(false),
+            "negate one-based identity"
+        )
+
+        context.assertValueEqual(
+            Position(10, 20),
+            Position(2,5).negate(true).offsetBy(Position(2, 5).offsetBy(Position(10, 20), true), true),
+            "multiline zero-based inverse"
+        )
+        context.assertValueEqual(
+            Position(10, 20),
+            Position(2,5).negate(false).offsetBy(Position(2, 5).offsetBy(Position(10, 20), false), false),
+            "multiline one-based inverse"
+        )
+
+        context.assertValueEqual(
+            Position(10, 20),
+            Position(0,5).negate(true).offsetBy(Position(0, 5).offsetBy(Position(10, 20), true), true),
+            "singleline zero-based inverse"
+        )
+        context.assertValueEqual(
+            Position(10, 20),
+            Position(0,5).negate(false).offsetBy(Position(0, 5).offsetBy(Position(10, 20), false), false),
+            "singleline one-based inverse"
+        )
 
         context.succeed()
     }

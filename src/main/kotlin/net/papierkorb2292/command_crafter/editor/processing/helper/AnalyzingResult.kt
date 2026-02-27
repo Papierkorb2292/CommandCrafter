@@ -81,7 +81,19 @@ class AnalyzingResult(
             object : ColorInfo {
                 override val color = original.color
                 override val range = position.offsetRange(original.range)
-                override fun getPresentation(params: ColorPresentationParams) = original.getPresentation(params)
+                override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
+                    params.range = position.negate().offsetRange(params.range)
+                    val presentations =  original.getPresentation(params)
+                    for(presentation in presentations) {
+                        if(presentation.textEdit != null)
+                            presentation.textEdit.range = position.offsetRange(presentation.textEdit.range)
+                        if(presentation.additionalTextEdits != null)
+                            for(textEdit in presentation.additionalTextEdits) {
+                                textEdit.range = position.offsetRange(textEdit.range)
+                            }
+                    }
+                    return presentations
+                }
             }
         }
         val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes)

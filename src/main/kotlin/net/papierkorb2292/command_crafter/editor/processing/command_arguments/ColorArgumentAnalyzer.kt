@@ -34,8 +34,8 @@ class ColorArgumentAnalyzer : CommandArgumentAnalyzerService<ColorArgument> {
         val packedColor = formatting.color!!
         result.colorInfos += object : ColorInfo {
             override val range = Range(
-                AnalyzingResult.getPositionFromCursor(range.start + result.mappingInfo.readSkippingChars, result.mappingInfo),
-                AnalyzingResult.getPositionFromCursor(range.end + result.mappingInfo.readSkippingChars, result.mappingInfo)
+                AnalyzingResult.getPositionFromCursor(result.mappingInfo.cursorMapper.mapToSource(range.start + result.mappingInfo.readSkippingChars), result.mappingInfo),
+                AnalyzingResult.getPositionFromCursor(result.mappingInfo.cursorMapper.mapToSource(range.end + result.mappingInfo.readSkippingChars), result.mappingInfo)
             )
             override val color = Color(
                 ARGB.redFloat(packedColor).toDouble(),

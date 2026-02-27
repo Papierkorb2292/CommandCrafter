@@ -37,6 +37,9 @@ fun Range.offsetBy(other: Position, zeroBased: Boolean = true): Range {
 fun Position.offsetRange(other: Range, zeroBased: Boolean = true): Range {
     return Range(offsetBy(other.start, zeroBased), offsetBy(other.end, zeroBased))
 }
+fun Position.negate(zeroBased: Boolean = true): Position =
+    if(zeroBased) Position(-line, -character)
+    else Position(2 - line, 2 - character)
 
 operator fun Position.compareTo(other: Position): Int =
     if(line != other.line) line.compareTo(other.line)

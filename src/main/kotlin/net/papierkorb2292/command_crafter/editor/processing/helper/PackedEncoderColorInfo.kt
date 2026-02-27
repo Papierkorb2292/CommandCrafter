@@ -23,8 +23,8 @@ class PackedEncoderColorInfo<TNode>(
         fun <A> wrapCodec(delegate: Codec<A>, hasAlpha: Boolean, toPacked: (A) -> Int, fromPacked: (Int) -> A) = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
             analyzingResult.colorInfos += PackedEncoderColorInfo(
                 Range(
-                    AnalyzingResult.getPositionFromCursor(stringRange.start + analyzingResult.mappingInfo.readSkippingChars, analyzingResult.mappingInfo),
-                    AnalyzingResult.getPositionFromCursor(stringRange.end + analyzingResult.mappingInfo.readSkippingChars, analyzingResult.mappingInfo),
+                    AnalyzingResult.getPositionFromCursor(analyzingResult.mappingInfo.cursorMapper.mapToSource(stringRange.start + analyzingResult.mappingInfo.readSkippingChars), analyzingResult.mappingInfo),
+                    AnalyzingResult.getPositionFromCursor(analyzingResult.mappingInfo.cursorMapper.mapToSource(stringRange.end + analyzingResult.mappingInfo.readSkippingChars), analyzingResult.mappingInfo),
                 ),
                 if(hasAlpha) { toPacked(parsed) } else { toPacked(parsed) or 0xFF000000.toInt() },
                 hasAlpha,
