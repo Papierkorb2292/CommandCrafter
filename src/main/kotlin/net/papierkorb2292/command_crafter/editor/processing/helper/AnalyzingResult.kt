@@ -20,7 +20,10 @@ class AnalyzingResult(
     val diagnostics: MutableList<Diagnostic>,
     val colorInfos: MutableList<ColorInfo>,
     val filePosition: Position,
-    var documentation: String? = null,
+    var documentation: String?,
+    private val actualSyntaxNodes: MutableList<RangedSyntaxNode<ActualSyntaxNode>>,
+    private val finishedPotentialSyntaxNodes: MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
+    private val buildingPotentialSyntaxNodes: MutableMap<String, MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
 ) : ActualSyntaxNode, PotentialSyntaxNode {
 
     constructor(reader: FileMappingInfo, filePosition: Position) : this(
@@ -28,12 +31,12 @@ class AnalyzingResult(
         SemanticTokensBuilder(reader),
         mutableListOf(),
         mutableListOf(),
-        filePosition
+        filePosition,
+        null,
+        mutableListOf(),
+        mutableListOf(),
+        mutableMapOf(),
     )
-
-    private val actualSyntaxNodes = mutableListOf<RangedSyntaxNode<ActualSyntaxNode>>()
-    private val finishedPotentialSyntaxNodes = mutableListOf<MutableList< RangedSyntaxNode<PotentialSyntaxNode>>>()
-    private val buildingPotentialSyntaxNodes = mutableMapOf<String, MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>()
 
     fun combineWith(other: AnalyzingResult) {
         combineWithActual(other)
@@ -59,55 +62,52 @@ class AnalyzingResult(
     }
 
     fun addOffset(parent: AnalyzingResult, position: Position, cursorOffset: Int): AnalyzingResult {
-        val result = parent.copyInput()
-        result.semanticTokens.combineWith(semanticTokens)
-        result.semanticTokens.offset(position)
-        result.diagnostics += diagnostics.map { original ->
-            // Copy data. Original needs to stay the same because this method is used for caching
-            Diagnostic().apply {
-                range = position.offsetRange(original.range)
-                severity = original.severity
-                code = original.code
-                codeDescription = original.codeDescription
-                source = original.source
-                message = original.message
-                tags = original.tags
-                relatedInformation = original.relatedInformation
-                data = original.data
-            }
-        }
-        result.colorInfos += colorInfos.map { original ->
-            // Copy data. Original needs to stay the same because this method is used for caching
-            object : ColorInfo {
-                override val color = original.color
-                override val range = position.offsetRange(original.range)
-                override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
-                    params.range = position.negate().offsetRange(params.range)
-                    val presentations =  original.getPresentation(params)
-                    for(presentation in presentations) {
-                        if(presentation.textEdit != null)
-                            presentation.textEdit.range = position.offsetRange(presentation.textEdit.range)
-                        if(presentation.additionalTextEdits != null)
-                            for(textEdit in presentation.additionalTextEdits) {
-                                textEdit.range = position.offsetRange(textEdit.range)
-                            }
-                    }
-                    return presentations
+        return AnalyzingResult(
+            parent.mappingInfo,
+            SemanticTokensBuilder(parent.mappingInfo).apply {
+                combineWith(semanticTokens)
+                offset(position)
+            },
+            diagnostics.mapTo(mutableListOf()) { original ->
+                // Copy data. Original needs to stay the same because this method is used for caching
+                Diagnostic().apply {
+                    range = position.offsetRange(original.range)
+                    severity = original.severity
+                    code = original.code
+                    codeDescription = original.codeDescription
+                    source = original.source
+                    message = original.message
+                    tags = original.tags
+                    relatedInformation = original.relatedInformation
+                    data = original.data
                 }
-            }
-        }
-        val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes)
-        if(actualEncompassingRange != null)
-            result.addActualSyntaxNode(actualEncompassingRange + cursorOffset, this.offsetActualInput(-cursorOffset).offsetActualOutput(position))
-
-        val potentialEncompassingRange = (finishedPotentialSyntaxNodes.asSequence() + buildingPotentialSyntaxNodes.values.asSequence())
-            .mapNotNull { encompassingNodeRange(it) }
-            .reduceOrNull(StringRange::encompassing)
-        if(potentialEncompassingRange != null)
-            result.finishedPotentialSyntaxNodes += mutableListOf(
-                RangedSyntaxNode(potentialEncompassingRange + cursorOffset, this.offsetPotentialInput(-cursorOffset).offsetPotentialOutput(position))
-            )
-        return result
+            },
+            colorInfos.mapTo(mutableListOf()) { original ->
+                // Copy data. Original needs to stay the same because this method is used for caching
+                object : ColorInfo {
+                    override val color = original.color
+                    override val range = position.offsetRange(original.range)
+                    override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
+                        params.range = position.negate().offsetRange(params.range)
+                        val presentations =  original.getPresentation(params)
+                        for(presentation in presentations) {
+                            if(presentation.textEdit != null)
+                                presentation.textEdit.range = position.offsetRange(presentation.textEdit.range)
+                            if(presentation.additionalTextEdits != null)
+                                for(textEdit in presentation.additionalTextEdits) {
+                                    textEdit.range = position.offsetRange(textEdit.range)
+                                }
+                        }
+                        return presentations
+                    }
+                }
+            },
+            parent.filePosition,
+            parent.documentation,
+            getActualNodeCompressed(this.offsetActualInput(-cursorOffset).offsetActualOutput(position), cursorOffset),
+            getPotentialNodeCompressed(this.offsetPotentialInput(-cursorOffset).offsetPotentialOutput(position), cursorOffset),
+            mutableMapOf(),
+        )
     }
 
     /**
@@ -181,8 +181,12 @@ class AnalyzingResult(
     }
 
     fun copyInput(): AnalyzingResult {
-        val newMappingInfo = mappingInfo.copy()
-        return AnalyzingResult(newMappingInfo, SemanticTokensBuilder(newMappingInfo), mutableListOf(), mutableListOf(), filePosition, documentation)
+        val result = AnalyzingResult(
+            mappingInfo.copy(),
+            filePosition,
+        )
+        result.documentation = documentation
+        return result
     }
     fun copy() = copyInput().also {
         it.combineWith(this)
@@ -193,27 +197,40 @@ class AnalyzingResult(
     }
 
     fun filterDisabledFeatures(featureConfig: FeatureConfig, analyzerNameInserts: List<String>): AnalyzingResult {
-        val filtered = copyInput()
-        if(featureConfig.isEnabled(analyzerNameInserts.map(::getDiagnosticsFeatureKey), true))
-            filtered.diagnostics += diagnostics
-        if(featureConfig.isEnabled(analyzerNameInserts.map(::getSemanticTokensFeatureKey), true))
-            filtered.semanticTokens.combineWith(semanticTokens)
-        if(featureConfig.isEnabled(analyzerNameInserts.map(::getColorFeatureKey), true))
-            filtered.colorInfos += colorInfos
+        return AnalyzingResult(
+            mappingInfo,
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getSemanticTokensFeatureKey), true))
+                semanticTokens
+            else SemanticTokensBuilder(mappingInfo),
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getDiagnosticsFeatureKey), true))
+                diagnostics
+            else mutableListOf(),
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getColorFeatureKey), true))
+                colorInfos
+            else mutableListOf(),
+            filePosition,
+            documentation,
+            getActualNodeCompressed(
+                FeatureFilteredActualSyntaxNode(this, featureConfig, analyzerNameInserts)
+            ),
+            getPotentialNodeCompressed(
+                FeatureFilteredPotentialSyntaxNode(this, featureConfig, analyzerNameInserts)
+            ),
+            mutableMapOf(),
+        )
+    }
 
-        val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes)
-        if(actualEncompassingRange != null)
-            filtered.addActualSyntaxNode(actualEncompassingRange, FeatureFilteredActualSyntaxNode(this, featureConfig, analyzerNameInserts))
+    private fun getActualNodeCompressed(node: ActualSyntaxNode, offset: Int = 0): MutableList<RangedSyntaxNode<ActualSyntaxNode>> {
+        val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes) ?: return mutableListOf()
+        return mutableListOf(RangedSyntaxNode(actualEncompassingRange + offset, node))
+    }
 
+    private fun getPotentialNodeCompressed(node: PotentialSyntaxNode, offset: Int = 0): MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>> {
         val potentialEncompassingRange = (finishedPotentialSyntaxNodes.asSequence() + buildingPotentialSyntaxNodes.values.asSequence())
             .mapNotNull { encompassingNodeRange(it) }
             .reduceOrNull(StringRange::encompassing)
-        if(potentialEncompassingRange != null)
-            filtered.finishedPotentialSyntaxNodes += mutableListOf(
-                RangedSyntaxNode(potentialEncompassingRange, FeatureFilteredPotentialSyntaxNode(this, featureConfig, analyzerNameInserts))
-            )
-
-        return filtered
+            ?: return mutableListOf()
+        return mutableListOf(mutableListOf(RangedSyntaxNode(potentialEncompassingRange + offset, node)))
     }
 
     private fun encompassingNodeRange(nodes: List<RangedSyntaxNode<*>>): StringRange? {
