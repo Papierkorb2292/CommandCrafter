@@ -138,13 +138,13 @@ class StringRangeTree<TNode: Any>(
     private fun getNodeRangeOrThrow(node: TNode) =
         ranges[node] ?: throw IllegalStateException("Node $node not found in ranges")
 
-    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, completionEscaper: StringEscaper) {
+    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, ResolvedSuggestion>>()
             analyzingDynamicOps.nodeStartSuggestions[node]?.let { suggestionProviders ->
                 val range = nodeAllowedStartRanges[node] ?: StringRange.at(getNodeRangeOrThrow(node).start)
-                nodeSuggestions += range to suggestionResolver.resolveNodeSuggestion(suggestionProviders, this, node, range, copiedMappingInfo, completionEscaper)
+                nodeSuggestions += range to suggestionResolver.resolveNodeSuggestion(suggestionProviders, this, node, range, copiedMappingInfo)
             }
             analyzingDynamicOps.mapKeySuggestions[node]
                 .concatNullable(analyzingDynamicOps.mapKeyNodes[node]?.flatMap { mapKeyNode ->
@@ -152,7 +152,7 @@ class StringRangeTree<TNode: Any>(
                 })?.let { suggestionProviders ->
                     val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
                     nodeSuggestions += ranges.map { range ->
-                        range to suggestionResolver.resolveMapKeySuggestion(suggestionProviders, this, node, range, copiedMappingInfo, completionEscaper)
+                        range to suggestionResolver.resolveMapKeySuggestion(suggestionProviders, this, node, range, copiedMappingInfo)
                     }
                 }
             nodeSuggestions
@@ -226,7 +226,6 @@ class StringRangeTree<TNode: Any>(
         val suggestionResolver: SuggestionResolver<TNode>,
         val stringGetter: StringContentGetter<TNode>,
         val nodeClass: KClass<out TNode>,
-        var completionEscaper: StringEscaper = StringEscaper.Identity,
         val registryWrapper: HolderLookup.Provider? = null,
         val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     ) {
@@ -276,8 +275,6 @@ class StringRangeTree<TNode: Any>(
         fun withRegistry(wrapperLookup: HolderLookup.Provider?)
             = copy(registryWrapper = wrapperLookup)
 
-        fun withCompletionEscaper(escaper: StringEscaper) = copy(completionEscaper = escaper)
-
         fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
 
         fun withSuggestionResolver(resolver: SuggestionResolver<TNode>) = copy(suggestionResolver = resolver)
@@ -299,7 +296,7 @@ class StringRangeTree<TNode: Any>(
                 }
                 if(diagnosticSeverity != null)
                     generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
-                analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver, completionEscaper)
+                analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver)
                 analyzingDynamicOps.tree.combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps)
             }
         }
@@ -608,7 +605,6 @@ class StringRangeTree<TNode: Any>(
             node: TNode,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
-            stringEscaper: StringEscaper,
         ): ResolvedSuggestion
 
         fun resolveMapKeySuggestion(
@@ -617,7 +613,6 @@ class StringRangeTree<TNode: Any>(
             map: TNode,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
-            stringEscaper: StringEscaper,
         ): ResolvedSuggestion
     }
 

@@ -58,7 +58,6 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         node: Tag,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
-        stringEscaper: StringRangeTree.StringEscaper,
     ): StringRangeTree.ResolvedSuggestion {
         val valueEnd = tree.ranges[node]!!.end
         return StringRangeTree.ResolvedSuggestion(
@@ -76,7 +75,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             suggestion.element.toString()
                         else
                             suggestion.element.value
-                    StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = { completion ->
+                    StreamCompletionItemProvider.Completion(baseString, completionModifier = { completion ->
                         if(suggestion.element is CompoundTag && suggestion.element.isEmpty || suggestion.element is CollectionTag && suggestion.element.isEmpty) {
                             // Must be done with a command instead of additionalTextEdit, because the latter would cause problems when the cursor is at the end of a line
                             // (and additionalTextEdit isn't meant to be used for completions at the cursor position)
@@ -95,7 +94,6 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         map: Tag,
         suggestionRange: StringRange,
         mappingInfo: FileMappingInfo,
-        stringEscaper: StringRangeTree.StringEscaper,
     ): StringRangeTree.ResolvedSuggestion {
         // Clear args, because keyEndParser could mess with them otherwise, leading to problems when invoking the NbtSuggestionResolver as part of a packrat parser (like in item predicates)
         val restoreArgsCallback = PackratParserAdditionalArgs.temporarilyClearArgs()
@@ -117,7 +115,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                         val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
                         // Similar to StringNbtWriter.escapeName
                         val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else StringTag.quoteAndEscape(key)
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape("$escapedKey: "), key, suggestion.completionModifier)
+                        StreamCompletionItemProvider.Completion("$escapedKey: ", key, suggestion.completionModifier)
                     }
             }
         )

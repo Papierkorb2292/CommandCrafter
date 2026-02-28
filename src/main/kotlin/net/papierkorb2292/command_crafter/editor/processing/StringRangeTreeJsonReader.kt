@@ -269,7 +269,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             node: JsonElement,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
-            stringEscaper: StringRangeTree.StringEscaper,
         ): StringRangeTree.ResolvedSuggestion {
             val replaceEnd = tree.ranges[node]!!.end
             return StringRangeTree.ResolvedSuggestion(
@@ -285,7 +284,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                             Streams.write(suggestion.element, jsonWriter)
                             stringWriter.toString()
                         }
-                        StreamCompletionItemProvider.Completion(stringEscaper.escape(baseString), completionModifier = { completion ->
+                        StreamCompletionItemProvider.Completion(baseString, completionModifier = { completion ->
                             if(suggestion.element is JsonObject && suggestion.element.isEmpty || suggestion.element is JsonArray && suggestion.element.isEmpty) {
                                 // Must be done with a command instead of additionalTextEdit, because the latter would cause problems when the cursor is at the end of a line
                                 // (and additionalTextEdit isn't meant to be used for completions at the cursor position)
@@ -304,7 +303,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             map: JsonElement,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
-            stringEscaper: StringRangeTree.StringEscaper,
         ): StringRangeTree.ResolvedSuggestion {
             val replaceEnd = keyEndParser(suggestionRange)
             return StringRangeTree.ResolvedSuggestion(
@@ -319,7 +317,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         .map { suggestion ->
                             val element = suggestion.element
                             val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                            StreamCompletionItemProvider.Completion(stringEscaper.escape("\"$key\": "), key, suggestion.completionModifier)
+                            StreamCompletionItemProvider.Completion("\"$key\": ", key, suggestion.completionModifier)
                         }
                 }
             )
