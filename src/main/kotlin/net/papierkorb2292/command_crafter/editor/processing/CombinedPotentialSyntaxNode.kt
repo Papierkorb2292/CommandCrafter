@@ -8,7 +8,7 @@ import java.util.concurrent.CompletableFuture
 class CombinedPotentialSyntaxNode(
     private val providers: List<PotentialSyntaxNode>
 ) : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
+    override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>> {
         val futures = providers.map { it.getCompletions(cursor, context) }
         return CompletableFuture.allOf(*futures.toTypedArray())
             .thenApply { futures.flatMap { it?.get() ?: emptyList() } }

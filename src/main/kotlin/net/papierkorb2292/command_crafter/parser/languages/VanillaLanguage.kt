@@ -835,7 +835,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             object : PotentialSyntaxNode {
                 override fun getCompletions(
                     cursor: Int,
-                    context: CompletionContext
+                    context: CompletionContext?
                 ): CompletableFuture<List<CompletionItem>> {
                     val rootCompletions = rootCompletions?.getCompletions(cursor, context)
                     if(rootCompletions != null)

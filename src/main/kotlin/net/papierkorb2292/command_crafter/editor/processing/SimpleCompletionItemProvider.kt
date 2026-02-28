@@ -17,7 +17,7 @@ class SimpleCompletionItemProvider(
     private val label: String = text,
     private val kind: CompletionItemKind? = null,
 ) : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>> =
+    override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>> =
         CompletableFuture.completedFuture(listOf(createCompletionItem(cursor)))
 
     fun createCompletionItem(sourceCursor: Int): CompletionItem {

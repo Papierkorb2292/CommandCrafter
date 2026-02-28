@@ -239,7 +239,7 @@ object TestCommandCrafter {
                 object : PotentialSyntaxNode {
                     override fun getCompletions(
                         cursor: Int,
-                        context: CompletionContext
+                        context: CompletionContext?
                     ) = CompletableFuture.completedFuture(listOf(CompletionItem().apply {
                         label = "Example"
                         textEdit = Either.forLeft(TextEdit().apply {

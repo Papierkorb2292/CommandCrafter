@@ -74,7 +74,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                 StringRange(0, finalResult.mappingInfo.accumulatedLineLengths.last()),
                 object : PotentialSyntaxNode {
-                    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>>? {
+                    override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>>? {
                         AnalyzingClientCommandSource.allowServersideCompletions.set(true)
                         return analyzingResult.getCompletions(cursor, context)
                     }

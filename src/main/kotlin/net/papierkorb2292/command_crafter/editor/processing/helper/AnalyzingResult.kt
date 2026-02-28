@@ -238,7 +238,7 @@ class AnalyzingResult(
             getPotentialNodeCompressed(object : PotentialSyntaxNode {
                 override fun getCompletions(
                     cursor: Int,
-                    context: CompletionContext,
+                    context: CompletionContext?,
                 ): CompletableFuture<List<CompletionItem>>? =
                     this@AnalyzingResult.getCompletions(cursor, context)?.thenApply { completions ->
                         for(completion in completions) {
@@ -376,7 +376,7 @@ class AnalyzingResult(
 
     override fun getCompletions(
         cursor: Int,
-        context: CompletionContext,
+        context: CompletionContext?,
     ): CompletableFuture<List<CompletionItem>>? {
         val completions = (finishedPotentialSyntaxNodes + buildingPotentialSyntaxNodes.values).mapNotNull {
             getSyntaxNodeAtCursor(cursor, it, true)?.getCompletions(cursor, context)
@@ -539,7 +539,7 @@ class AnalyzingResult(
     }
 
     class FeatureFilteredPotentialSyntaxNode(private val delegate: PotentialSyntaxNode, private val featureConfig: FeatureConfig, private val analyzerNameInserts: List<String>) : PotentialSyntaxNode {
-        override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>>? =
+        override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>>? =
             if(featureConfig.isEnabled(analyzerNameInserts.map(::getCompletionsFeatureKey), true))
                 delegate.getCompletions(cursor, context)
             else CompletableFuture.completedFuture(emptyList())

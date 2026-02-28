@@ -14,7 +14,7 @@ class StreamCompletionItemProvider(
     private val kind: CompletionItemKind?,
     private val completionsCallback: () -> Stream<Completion>,
 ) : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
+    override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>> {
         // Uses SimpleCompletionItemProvider to calculate the positions and such and then adjusts the text and label for each completion
         val base = SimpleCompletionItemProvider("", insertStart, replaceEndProvider, mappingInfo, kind = kind).createCompletionItem(cursor)
         return CompletableFuture.completedFuture(completionsCallback().map { completion ->

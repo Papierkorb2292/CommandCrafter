@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import org.eclipse.lsp4j.CompletionContext
 import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.CompletionTriggerKind
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
@@ -17,15 +18,15 @@ import java.util.concurrent.CompletableFuture
  * (but empty lists are allowed to be cached)
  */
 interface PotentialSyntaxNode {
-    fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>>?
+    fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>>?
 }
 
 fun PotentialSyntaxNode.offsetPotentialInput(offset: Int) = object : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext) = this@offsetPotentialInput.getCompletions(cursor + offset, context)
+    override fun getCompletions(cursor: Int, context: CompletionContext?) = this@offsetPotentialInput.getCompletions(cursor + offset, context)
 }
 
 fun PotentialSyntaxNode.offsetPotentialOutput(offset: Position) = object : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext) = this@offsetPotentialOutput.getCompletions(cursor, context)?.thenApply { completions ->
+    override fun getCompletions(cursor: Int, context: CompletionContext?) = this@offsetPotentialOutput.getCompletions(cursor, context)?.thenApply { completions ->
         completions.map { completion ->
             completion.textEdit = completion.textEdit?.map({ left ->
                 left.range = offset.offsetRange(left.range)
@@ -45,14 +46,14 @@ fun PotentialSyntaxNode.offsetPotentialOutput(offset: Position) = object : Poten
 }
 
 fun PotentialSyntaxNode.withUniqueCompletions() = object : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext): CompletableFuture<List<CompletionItem>>? {
+    override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>>? {
         val completionFuture = this@withUniqueCompletions.getCompletions(cursor, context)
         return completionFuture?.thenApply { it.distinct() }
     }
 }
 
 fun PotentialSyntaxNode.filterPotentialCursor(cursorPredicate: (Int) -> Boolean) = object : PotentialSyntaxNode {
-    override fun getCompletions(cursor: Int, context: CompletionContext) =
+    override fun getCompletions(cursor: Int, context: CompletionContext?) =
         if(!cursorPredicate(cursor)) null
         else this@filterPotentialCursor.getCompletions(cursor, context)
 }
