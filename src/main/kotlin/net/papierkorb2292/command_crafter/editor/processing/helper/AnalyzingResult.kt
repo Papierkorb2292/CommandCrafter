@@ -6,6 +6,7 @@ import net.papierkorb2292.command_crafter.editor.FeatureConfig
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
@@ -217,6 +218,40 @@ class AnalyzingResult(
                 FeatureFilteredPotentialSyntaxNode(this, featureConfig, analyzerNameInserts)
             ),
             mutableMapOf(),
+        )
+    }
+
+    fun withStringEscaperActual(escaper: StringRangeTree.StringEscaper): AnalyzingResult {
+        // Doesn't have to do anything at the moment
+        return this
+    }
+
+    fun withStringEscaperPotential(escaper: StringRangeTree.StringEscaper): AnalyzingResult {
+        return AnalyzingResult(
+            mappingInfo,
+            semanticTokens,
+            diagnostics,
+            colorInfos,
+            filePosition,
+            documentation,
+            actualSyntaxNodes,
+            getPotentialNodeCompressed(object : PotentialSyntaxNode {
+                override fun getCompletions(
+                    cursor: Int,
+                    context: CompletionContext,
+                ): CompletableFuture<List<CompletionItem>>? =
+                    this@AnalyzingResult.getCompletions(cursor, context)?.thenApply { completions ->
+                        for(completion in completions) {
+                            completion.textEdit.map({ textEdit ->
+                                textEdit.newText = escaper.escape(textEdit.newText)
+                            }, { insertReplaceEdit ->
+                                insertReplaceEdit.newText = escaper.escape(insertReplaceEdit.newText)
+                            })
+                        }
+                        completions
+                    }
+            }),
+            mutableMapOf()
         )
     }
 

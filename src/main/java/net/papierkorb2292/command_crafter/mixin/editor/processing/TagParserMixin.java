@@ -131,7 +131,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             method = "lambda$static$0",
             at = @At("HEAD")
     )
-    private static void command_crafter$analyzeFlattenedNbt(String input, CallbackInfoReturnable<DataResult<CompoundTag>> cir, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult) {
+    private static void command_crafter$analyzeFlattenedNbt(String input, CallbackInfoReturnable<DataResult<CompoundTag>> cir, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent")LocalRef<StringRangeTree.StringContent> stringContentRef) {
         @SuppressWarnings("unchecked")
         final var analyzingOps = (StringRangeTree.AnalyzingDynamicOps<Object>)getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS());
         if(analyzingOps == null)
@@ -140,6 +140,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
         final var stringContent = analyzingOps.getStringContentGetter().getStringContent(inputNode);
         if(stringContent == null)
             return;
+        stringContentRef.set(stringContent);
         analyzingResult.set(analyzingOps.createStringAnalyzingResultOverlay(inputNode, stringContent));
 
         final var nbtReader = TagParser.create(NbtOps.INSTANCE);
@@ -167,12 +168,12 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             at = @At("RETURN:FIRST"),
             remap = false
     )
-    private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult) {
+    private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContent) {
         final var input = command_crafter$flattenedCodecInput.get();
         @SuppressWarnings("unchecked")
         final var analyzingOps = (StringRangeTree.AnalyzingDynamicOps<Object>)getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS());
         if(analyzingOps != null) {
-            analyzingOps.finishNodeAnalyzingResultOverlay(input, analyzingResult.get(), result.isSuccess() ? Integer.MAX_VALUE : s.length());
+            analyzingOps.finishNodeAnalyzingResultOverlay(input, analyzingResult.get(), result.isSuccess() ? Integer.MAX_VALUE : s.length(), stringContent.get());
         }
         return result;
     }
@@ -182,7 +183,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             at = @At("RETURN:LAST"),
             remap = false
     )
-    private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResultRef) {
+    private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResultRef, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContent) {
         final var input = command_crafter$flattenedCodecInput.get();
         PreLaunchDecoderOutputTracker.INSTANCE.markStringParseError(input);
         @SuppressWarnings("unchecked")
@@ -198,7 +199,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             diagnostic.setMessage(exception.getMessage());
             diagnostic.setSeverity(DiagnosticSeverity.Error);
             analyzingResult.getDiagnostics().add(diagnostic);
-            analyzingOps.finishNodeAnalyzingResultOverlay(input, analyzingResult, exception.getCursor());
+            analyzingOps.finishNodeAnalyzingResultOverlay(input, analyzingResult, exception.getCursor(), stringContent.get());
         }
         return result;
     }

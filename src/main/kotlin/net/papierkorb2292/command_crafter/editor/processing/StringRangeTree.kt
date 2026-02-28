@@ -208,14 +208,14 @@ class StringRangeTree<TNode: Any>(
 
     fun combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps: AnalyzingDynamicOps<TNode>) {
         for((node, _) in getNodesAndKeysSorted(analyzingDynamicOps)) {
-            val actualAnalyzingResult = analyzingDynamicOps.nodeActualAnalyzingResult[node]?.second
+            val actualAnalyzingResult = analyzingDynamicOps.nodeActualAnalyzingResult[node]?.second?.getActual()
             if(actualAnalyzingResult != null) {
                 analyzingDynamicOps.baseResult.semanticTokens.overlay(listOf(actualAnalyzingResult.semanticTokens).iterator())
                 actualAnalyzingResult.semanticTokens.clear()
                 analyzingDynamicOps.baseResult.combineWithActual(actualAnalyzingResult)
             }
-            for(potentialAnalyzingResult in analyzingDynamicOps.nodePotentialAnalyzingResult[node] ?: continue) {
-                analyzingDynamicOps.baseResult.combineWithPotentialFinished(potentialAnalyzingResult)
+            for(potentialNodeAnalyzingResult in analyzingDynamicOps.nodePotentialAnalyzingResult[node] ?: continue) {
+                analyzingDynamicOps.baseResult.combineWithPotentialFinished(potentialNodeAnalyzingResult.getPotential())
             }
         }
     }
@@ -360,8 +360,8 @@ class StringRangeTree<TNode: Any>(
          */
         internal val mapKeyNodes = IdentityHashMap<TNode, MutableCollection<TNode>>()
 
-        internal val nodePotentialAnalyzingResult = IdentityHashMap<TNode, MutableCollection<AnalyzingResult>>()
-        internal val nodeActualAnalyzingResult = IdentityHashMap<TNode, kotlin.Pair<Int, AnalyzingResult?>>()
+        internal val nodePotentialAnalyzingResult = IdentityHashMap<TNode, MutableCollection<NodeAnalyzingResult>>()
+        internal val nodeActualAnalyzingResult = IdentityHashMap<TNode, kotlin.Pair<Int, NodeAnalyzingResult?>>()
 
         fun getNodeStartSuggestions(node: TNode) =
             nodeStartSuggestions.computeIfAbsent(node) { mutableSetOf() }
@@ -374,7 +374,7 @@ class StringRangeTree<TNode: Any>(
 
         fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult {
             val result = baseResult.copyInput()
-            nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += result
+            nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += NodeAnalyzingResult(result)
             return result
         }
 
@@ -392,18 +392,20 @@ class StringRangeTree<TNode: Any>(
                 absoluteContentMapper
             )
             val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
-            nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += stringAnalyzingResult
+            nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += NodeAnalyzingResult(stringAnalyzingResult, stringContent.escaper)
             return stringAnalyzingResult
         }
 
-        fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int = Int.MAX_VALUE) {
+        fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null) {
             if(node !in nodeActualAnalyzingResult) {
-                nodeActualAnalyzingResult[node] = unmappedCursor to analyzingResult
+                nodeActualAnalyzingResult[node] =
+                    unmappedCursor to NodeAnalyzingResult.fromNullable(analyzingResult, stringContent?.escaper)
                 return
             }
             val bestCursor = nodeActualAnalyzingResult[node]!!.first
             if(unmappedCursor > bestCursor)
-                nodeActualAnalyzingResult[node] = unmappedCursor to analyzingResult
+                nodeActualAnalyzingResult[node] =
+                    unmappedCursor to NodeAnalyzingResult.fromNullable(analyzingResult, stringContent?.escaper)
         }
 
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
@@ -644,6 +646,17 @@ class StringRangeTree<TNode: Any>(
     }
 
     data class StringContent(val content: String, val cursorMapper: SplitProcessedInputCursorMapper, val escaper: StringEscaper)
+
+    data class NodeAnalyzingResult(val analyzingResult: AnalyzingResult, val escaper: StringEscaper? = null) {
+        companion object {
+            fun fromNullable(analyzingResult: AnalyzingResult?, escaper: StringEscaper?): NodeAnalyzingResult? =
+                if(analyzingResult == null) null
+                else NodeAnalyzingResult(analyzingResult, escaper)
+        }
+
+        fun getActual() = if(escaper == null) analyzingResult else analyzingResult.withStringEscaperActual(escaper)
+        fun getPotential() = if(escaper == null) analyzingResult else analyzingResult.withStringEscaperPotential(escaper)
+    }
 
     class Builder<TNode: Any> {
         private val nodesSet = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
