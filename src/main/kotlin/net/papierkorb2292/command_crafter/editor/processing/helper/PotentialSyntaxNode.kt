@@ -57,3 +57,14 @@ fun PotentialSyntaxNode.filterPotentialCursor(cursorPredicate: (Int) -> Boolean)
         if(!cursorPredicate(cursor)) null
         else this@filterPotentialCursor.getCompletions(cursor, context)
 }
+
+fun PotentialSyntaxNode.filterCompletionTrigger(triggerCharacters: Set<String>) = object : PotentialSyntaxNode {
+    override fun getCompletions(
+        cursor: Int,
+        context: CompletionContext?,
+    ): CompletableFuture<List<CompletionItem>>? {
+        if(context?.triggerKind == CompletionTriggerKind.TriggerCharacter && context.triggerCharacter !in triggerCharacters)
+            return null
+        return this@filterCompletionTrigger.getCompletions(cursor, context)
+    }
+}

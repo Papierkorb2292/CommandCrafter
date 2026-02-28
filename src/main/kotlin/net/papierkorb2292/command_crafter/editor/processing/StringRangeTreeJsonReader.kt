@@ -5,7 +5,9 @@ import com.google.gson.internal.LazilyParsedNumber
 import com.google.gson.internal.Streams
 import com.google.gson.stream.JsonWriter
 import com.mojang.brigadier.context.StringRange
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
+import net.papierkorb2292.command_crafter.editor.processing.helper.filterCompletionTrigger
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -231,7 +233,6 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
 
     private data class ReaderStackEntry(val element: JsonElement, val startPos: Int, val allowedStartPos: Int)
 
-    //TODO: Check for trigger characters
     class StringRangeTreeSuggestionResolver(private val readerProvider: () -> Reader) : StringRangeTree.SuggestionResolver<JsonElement> {
 
         constructor(directiveReader: DirectiveStringReader<*>): this({ directiveReader.copy().asReader() })
@@ -293,7 +294,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                             suggestion.completionModifier?.invoke(completion)
                         })
                     }
-                }
+                }.filterCompletionTrigger(MinecraftLanguageServer.jsonCompletionTriggerCharacters)
             )
         }
 
@@ -320,7 +321,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                             val escapedKey = JsonPrimitive(key).toString()
                             StreamCompletionItemProvider.Completion("$escapedKey: ", key, suggestion.completionModifier)
                         }
-                }
+                }.filterCompletionTrigger(MinecraftLanguageServer.jsonCompletionTriggerCharacters)
             )
         }
     }
