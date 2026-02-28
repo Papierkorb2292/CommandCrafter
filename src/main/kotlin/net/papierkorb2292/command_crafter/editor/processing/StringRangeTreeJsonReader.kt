@@ -317,7 +317,8 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         .map { suggestion ->
                             val element = suggestion.element
                             val key = if(element.isJsonPrimitive) element.asString else element.toString()
-                            StreamCompletionItemProvider.Completion("\"$key\": ", key, suggestion.completionModifier)
+                            val escapedKey = JsonPrimitive(key).toString()
+                            StreamCompletionItemProvider.Completion("$escapedKey: ", key, suggestion.completionModifier)
                         }
                 }
             )
