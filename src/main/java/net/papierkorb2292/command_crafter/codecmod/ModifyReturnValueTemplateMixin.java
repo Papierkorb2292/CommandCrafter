@@ -8,13 +8,13 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(Object.class)
 public class ModifyReturnValueTemplateMixin {
 
-    @Shadow static Object shadow;
+    @Shadow Object shadow;
 
     @ModifyReturnValue(
             method = "",
             at = @At("RETURN")
     )
-    private static Object injectionHandler(Object codec) {
+    private Object injectionHandler(Object codec) {
         return codec;
     }
 }

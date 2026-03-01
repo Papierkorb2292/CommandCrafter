@@ -88,7 +88,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                 val mixinClassName = "CodecMod${transformerClassName}_${method.name}"
                 mixin.name = "$mixinPackage.$mixinClassName".replace('.', '/')
                 updateAnnotationValue(mixin.invisibleAnnotations, Mixin::class, "value", listOf(codecModData.target))
-                fillShadows(codecModData, mixin, argumentTypes)
+                fillShadows(codecModData, mixin, targetClass, argumentTypes)
 
                 // Configure injection
                 val injectionHandler = mixin.methods.first { it.name == "injectionHandler" }
@@ -114,14 +114,14 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
                         updateAnnotationValue(injectionHandler.invisibleAnnotations, Definition::class, "field", codecModData.javaFieldWrite)
-                        injectCall(injectionHandler, mixin, invoke, codecModData, argumentTypes)
+                        injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
                     CodecModType.MODIFY_RETURN_VALUE -> {
                         if(returnType != argumentTypes[0]) {
                             throw IllegalArgumentException("Handler does not return same type as first argument at ${transformer.name}::${method.name}")
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyReturnValue::class, "method", codecModData.methodName)
-                        injectCall(injectionHandler, mixin, invoke, codecModData, argumentTypes)
+                        injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
                     CodecModType.WRAP_CODEC_FIELD -> {
                         if(returnType != argumentTypes[0]) {
@@ -136,7 +136,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
                         updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", "?.?('${codecModData.codecField}')")
-                        injectCall(injectionHandler, mixin, invoke, codecModData, argumentTypes)
+                        injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
                     else -> throw IllegalStateException()
                 }
@@ -160,31 +160,48 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         }
     }
 
-    private fun injectCall(method: MethodNode, mixin: ClassNode, invoke: MethodInsnNode, codecModData: CodecModData, handlerArguments: Array<Type>) {
+    private fun injectCall(method: MethodNode, mixin: ClassNode, target: ClassNode, invoke: MethodInsnNode, codecModData: CodecModData, handlerArguments: Array<Type>) {
+        val isTargetStatic = Bytecode.isStatic(
+            target.methods.find { it.name == codecModData.methodName }
+                ?: throw IllegalArgumentException("Method ${method.name} does not exist")
+        )
+        if(isTargetStatic) {
+            method.access = method.access or Opcodes.ACC_STATIC
+            (method.instructions.first { it.opcode == Opcodes.ALOAD } as VarInsnNode).`var` -= 1 // No more 'this' parameter
+        }
         val returnInsn = method.instructions.find { it.opcode == Opcodes.ARETURN }
         val call = InsnList()
         // Load shadows
         for(i in codecModData.fieldAccess.indices) {
             val field = codecModData.fieldAccess[i]
-            call.add(FieldInsnNode(Opcodes.GETSTATIC, mixin.name, field, handlerArguments[i+1].descriptor))
+            val opcode = if(Bytecode.isStatic(target.fields.first { it.name == field })) Opcodes.GETSTATIC else Opcodes.GETFIELD
+            if(opcode == Opcodes.GETFIELD) {
+                if(isTargetStatic)
+                    throw IllegalArgumentException("Codec mod can't access non-static field $field in static method")
+                call.add(VarInsnNode(Opcodes.ALOAD, 0)) // Load `this`
+            }
+            call.add(FieldInsnNode(opcode, mixin.name, field, handlerArguments[i+1].descriptor))
         }
         // Load target method parameters
         for(i in 1 until (handlerArguments.size - codecModData.fieldAccess.size)) {
             val type = handlerArguments[i + codecModData.fieldAccess.size]
-            call.add(VarInsnNode(type.getOpcode(Opcodes.ILOAD), i))
+            call.add(VarInsnNode(type.getOpcode(Opcodes.ILOAD), if(isTargetStatic) i else i + 1))
         }
         call.add(invoke)
         method.instructions.insertBefore(returnInsn, call)
     }
 
-    private fun fillShadows(codecModData: CodecModData, classNode: ClassNode, argumentTypes: Array<Type>) {
-        val templateIndex = classNode.fields.indexOfFirst { it.name == "shadow" }
-        val template = classNode.fields.removeAt(templateIndex)
+    private fun fillShadows(codecModData: CodecModData, mixin: ClassNode, target: ClassNode, argumentTypes: Array<Type>) {
+        val templateIndex = mixin.fields.indexOfFirst { it.name == "shadow" }
+        val template = mixin.fields.removeAt(templateIndex)
         for(i in codecModData.fieldAccess.indices) {
-            template.accept(classNode)
-            val shadow = classNode.fields.last()
+            template.accept(mixin)
+            val shadow = mixin.fields.last()
             shadow.name = codecModData.fieldAccess[i]
+            val sourceField = target.fields.find { it.name == shadow.name }
+                ?: throw IllegalArgumentException("Could not find shadow field for ${shadow.name}")
             shadow.desc = argumentTypes[i + 1].descriptor
+            shadow.access = sourceField.access
         }
     }
 

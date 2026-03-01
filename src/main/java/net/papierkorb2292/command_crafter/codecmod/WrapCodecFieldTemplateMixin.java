@@ -9,14 +9,14 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(Object.class)
 public class WrapCodecFieldTemplateMixin {
 
-    @Shadow static Object shadow;
+    @Shadow Object shadow;
 
     @Expression("")
     @ModifyExpressionValue(
             method = "",
             at = @At("MIXINEXTRAS:EXPRESSION")
     )
-    private static Object injectionHandler(Object codec) {
+    private Object injectionHandler(Object codec) {
         return codec;
     }
 }

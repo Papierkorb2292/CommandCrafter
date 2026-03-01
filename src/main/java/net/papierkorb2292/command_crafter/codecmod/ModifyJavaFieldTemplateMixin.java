@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(Object.class)
 public class ModifyJavaFieldTemplateMixin {
 
-    @Shadow static Object shadow;
+    @Shadow Object shadow;
 
     @Definition(id = "field", field = "")
     @Expression("field = @(?)")
@@ -18,7 +18,7 @@ public class ModifyJavaFieldTemplateMixin {
             method = "",
             at = @At("MIXINEXTRAS:EXPRESSION")
     )
-    private static Object injectionHandler(Object codec) {
+    private Object injectionHandler(Object codec) {
         return codec;
     }
 }
