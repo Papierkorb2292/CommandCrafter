@@ -212,6 +212,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
             @Suppress("UNCHECKED_CAST")
             when(codecMod.values[i]) {
                 "target" -> data.target = codecMod.values[i+1] as Type
+                "targetName" -> data.target = Type.getType(codecMod.values[i+1] as String)
                 "methodName" -> data.methodName = codecMod.values[i+1] as String
                 "javaFieldWrite" -> data.javaFieldWrite = codecMod.values[i+1] as String
                 "codecField" -> data.codecField = codecMod.values[i+1] as String

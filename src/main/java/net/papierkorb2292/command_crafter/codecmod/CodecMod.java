@@ -19,7 +19,12 @@ public @interface CodecMod {
     /**
      * The target class that contains the codec
      */
-    Class<?> target();
+    Class<?> target() default void.class;
+
+    /**
+     * Alternative to {@link #target} that can be used if the class is not accessible
+     */
+    String targetName() default "";
 
     /**
      * The target method to modify. If no other modification is specified, the return value of the target method will be wrapped.
