@@ -117,12 +117,15 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         // Find method that writes to the specified field, if none is given
                         if(codecModData.methodName.isEmpty()) {
                             val method = targetClass.methods.find { method ->
-                                method.instructions.any { it is FieldInsnNode && it.opcode == Opcodes.PUTSTATIC && it.name == codecModData.javaFieldWrite }
+                                method.instructions.any { it is FieldInsnNode && it.name == codecModData.javaFieldWrite && (it.opcode == Opcodes.PUTSTATIC || it.opcode == Opcodes.PUTFIELD) }
                             } ?: throw IllegalArgumentException("Could not find field write for ${transformer.name}::${method.name}")
                             codecModData.methodName = method.name
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
                         updateAnnotationValue(injectionHandler.invisibleAnnotations, Definition::class, "field", codecModData.javaFieldWrite)
+                        val isStaticField = Bytecode.isStatic(targetClass.fields.find { it.name == codecModData.javaFieldWrite })
+                        val targetExpression = if(isStaticField) "field = @(?)" else "?.field = @(?)"
+                        updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", targetExpression)
                         injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
                     CodecModType.MODIFY_RETURN_VALUE -> {

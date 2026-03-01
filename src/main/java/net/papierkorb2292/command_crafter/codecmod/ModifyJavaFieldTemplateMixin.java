@@ -13,7 +13,7 @@ public class ModifyJavaFieldTemplateMixin {
     @Shadow Object shadow;
 
     @Definition(id = "field", field = "")
-    @Expression("field = @(?)")
+    @Expression("")
     @ModifyExpressionValue(
             method = "",
             at = @At("MIXINEXTRAS:EXPRESSION")

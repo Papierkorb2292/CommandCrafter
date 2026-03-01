@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(Object.class)
 public interface ModifyJavaFieldInterfaceTemplateMixin {
     @Definition(id = "field", field = "")
-    @Expression("field = @(?)")
+    @Expression("")
     @ModifyExpressionValue(
             method = "",
             at = @At("MIXINEXTRAS:EXPRESSION")
