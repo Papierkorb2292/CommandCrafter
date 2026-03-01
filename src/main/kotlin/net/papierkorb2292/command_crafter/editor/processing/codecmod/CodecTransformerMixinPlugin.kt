@@ -116,10 +116,10 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         }
                         // Find method that writes to the specified field, if none is given
                         if(codecModData.methodName.isEmpty()) {
-                            val method = targetClass.methods.find { method ->
+                            val foundMethod = targetClass.methods.find { method ->
                                 method.instructions.any { it is FieldInsnNode && it.name == codecModData.javaFieldWrite && (it.opcode == Opcodes.PUTSTATIC || it.opcode == Opcodes.PUTFIELD) }
                             } ?: throw IllegalArgumentException("Could not find field write for ${transformer.name}::${method.name}")
-                            codecModData.methodName = method.name
+                            codecModData.methodName = foundMethod.name + foundMethod.desc
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
                         updateAnnotationValue(injectionHandler.invisibleAnnotations, Definition::class, "field", codecModData.javaFieldWrite)
@@ -141,10 +141,10 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         }
                         // Find method that adds the specified field, if none is given
                         if(codecModData.methodName.isEmpty()) {
-                            val method = targetClass.methods.find { method ->
+                            val foundMethod = targetClass.methods.find { method ->
                                 method.instructions.any { it is LdcInsnNode && it.cst == codecModData.codecField }
                             } ?: throw IllegalArgumentException("Could not find codec field for ${transformer.name}::${method.name}")
-                            codecModData.methodName = method.name
+                            codecModData.methodName = foundMethod.name + foundMethod.desc
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
                         val targetExpression = if(codecModData.includeCodecField) "?.?('${codecModData.codecField}')" else "@(?).?('${codecModData.codecField}')"
@@ -175,7 +175,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
 
     private fun injectCall(method: MethodNode, mixin: ClassNode, target: ClassNode, invoke: MethodInsnNode, codecModData: CodecModData, handlerArguments: Array<Type>) {
         val isTargetStatic = Bytecode.isStatic(
-            target.methods.find { it.name == codecModData.methodName }
+            target.methods.find { it.name == codecModData.methodName || it.name + it.desc == codecModData.methodName }
                 ?: throw IllegalArgumentException("Method ${method.name} does not exist")
         )
         if(isTargetStatic) {
