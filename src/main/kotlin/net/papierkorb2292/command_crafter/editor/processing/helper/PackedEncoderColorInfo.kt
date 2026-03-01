@@ -5,11 +5,11 @@ import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.Encoder
 import net.minecraft.util.ARGB
 import net.papierkorb2292.command_crafter.editor.processing.CodecAnalyzingWrapper
-import org.eclipse.lsp4j.Color
-import org.eclipse.lsp4j.ColorPresentation
-import org.eclipse.lsp4j.ColorPresentationParams
-import org.eclipse.lsp4j.Range
+import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import org.eclipse.lsp4j.*
 import java.util.*
+import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
 class PackedEncoderColorInfo<TNode>(
@@ -20,17 +20,43 @@ class PackedEncoderColorInfo<TNode>(
     private val ops: DynamicOps<TNode>,
 ) : ColorInfo {
     companion object {
-        fun <A> wrapCodec(delegate: Codec<A>, hasAlpha: Boolean, toPacked: (A) -> Int, fromPacked: (Int) -> A) = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
-            analyzingResult.colorInfos += PackedEncoderColorInfo(
-                Range(
-                    AnalyzingResult.getPositionFromCursor(analyzingResult.mappingInfo.cursorMapper.mapToSource(stringRange.start + analyzingResult.mappingInfo.readSkippingChars), analyzingResult.mappingInfo),
-                    AnalyzingResult.getPositionFromCursor(analyzingResult.mappingInfo.cursorMapper.mapToSource(stringRange.end + analyzingResult.mappingInfo.readSkippingChars), analyzingResult.mappingInfo),
-                ),
-                if(hasAlpha) { toPacked(parsed) } else { toPacked(parsed) or 0xFF000000.toInt() },
-                hasAlpha,
-                delegate.comap(fromPacked),
-                ops
-            )
+
+        fun wrapCodec(delegate: Codec<Int>, hasAlpha: Boolean): Codec<Int> = wrapCodec(delegate, hasAlpha, { it }, { it })
+
+        fun <A> wrapCodec(delegate: Codec<A>, hasAlpha: Boolean, toPacked: (A) -> Int, fromPacked: (Int) -> A, additionalSuggestions: () -> List<A> = ::emptyList): Codec<A> {
+            val withColorInfo = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
+                analyzingResult.colorInfos += PackedEncoderColorInfo(
+                    Range(
+                        AnalyzingResult.getPositionFromCursor(analyzingResult.mappingInfo.cursorMapper.mapToSource(stringRange.start + analyzingResult.mappingInfo.readSkippingChars), analyzingResult.mappingInfo),
+                        AnalyzingResult.getPositionFromCursor(analyzingResult.mappingInfo.cursorMapper.mapToSource(stringRange.end + analyzingResult.mappingInfo.readSkippingChars), analyzingResult.mappingInfo),
+                    ),
+                    if(hasAlpha) { toPacked(parsed) } else { toPacked(parsed) or 0xFF000000.toInt() },
+                    hasAlpha,
+                    delegate.comap(fromPacked),
+                    ops
+                )
+            }
+            return CodecSuggestionWrapper(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
+                override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+                    val colors = additionalSuggestions() + fromPacked(-1) // Suggest white so the user sees that they can input a color
+                    return colors.stream().map { delegate.encodeStart(ops, it).orThrow }
+                }
+
+                override fun <T: Any> suggestionModifier(
+                    suggestion: StringRangeTree.Suggestion<T>,
+                    ops: DynamicOps<T>,
+                ): StringRangeTree.Suggestion<T> =
+                    suggestion.withPreferHex().withCompletionModifier { completionItem ->
+                        val color = delegate.parse(ops, suggestion.element)
+                            .map { toPacked(it) }
+                            .result().orElse(null)?.and(0xFFFFFF) // Doesn't accept alpha
+                        completionItem.kind = CompletionItemKind.Color
+                        if(color != null) {
+                            // VSCode uses detail to preview colors in auto-complete list
+                            completionItem.detail = "#" + colorToHex(color, false)
+                        }
+                    }
+            })
         }
 
         fun colorToHex(color: Int, hasAlpha: Boolean): String {

@@ -7,9 +7,9 @@ import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapp
 import net.papierkorb2292.command_crafter.helper.getOrNull
 
 class PrimitiveCodecSuggestionWrapper<A>(private val delegate: PrimitiveCodec<A>, val suggestionsProvider: SuggestionsProvider): PrimitiveCodec<A> {
-    override fun <T> read(
+    override fun <T: Any> read(
         ops: DynamicOps<T>,
-        input: T,
+        input: T?,
     ): DataResult<A> {
         if(input == null) return delegate.read(ops, null)
         StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull()?.let { analyzingOps ->

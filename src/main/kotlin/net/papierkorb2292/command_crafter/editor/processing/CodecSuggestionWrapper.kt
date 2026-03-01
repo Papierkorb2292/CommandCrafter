@@ -24,7 +24,7 @@ class CodecSuggestionWrapper<A>(private val delegate: Codec<A>, val suggestionsP
     }
 
     interface SuggestionsProvider {
-        fun <T> getSuggestions(ops: DynamicOps<T>): Stream<T>
-        fun <T> suggestionModifier(suggestion: StringRangeTree.Suggestion<T>, ops: DynamicOps<T>): StringRangeTree.Suggestion<T> = suggestion
+        fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T>
+        fun <T: Any> suggestionModifier(suggestion: StringRangeTree.Suggestion<T>, ops: DynamicOps<T>): StringRangeTree.Suggestion<T> = suggestion
     }
 }

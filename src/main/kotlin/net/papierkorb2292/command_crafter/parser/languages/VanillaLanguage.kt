@@ -1120,7 +1120,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 // Unit to suggest {} for inline functions
                 Codec.EMPTY.codec(),
                 // Suggesting 'this'
-                StringRepresentable.fromEnumWithMapping({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "this" })
+                StringRepresentable.fromValues { arrayOf(StringIdentifiableUnit("this")) }
             )
         )
 
@@ -1207,7 +1207,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val codec = if(suggestNegationChar) Codec.either(
                 tagEntryListCodec,
                 // Also suggest inverted lists
-                StringRepresentable.fromEnumWithMapping({ arrayOf(StringIdentifiableUnit.INSTANCE) }, { "![]" })
+                StringRepresentable.fromValues { arrayOf(StringIdentifiableUnit("![]")) }
             ) else tagEntryListCodec
             StringRangeTreeJsonResourceAnalyzer.CURRENT_TAG_ANALYZING_REGISTRY.runWithValue(registry) {
                 analyzeTagTupleEntries(reader, analyzingResult, codec, throwSyntaxErrors, hasNegationChar)
