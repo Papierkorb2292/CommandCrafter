@@ -49,6 +49,10 @@
         "adapter": "kotlin",
         "value": "net.papierkorb2292.command_crafter.client.config.CommandCrafterModMenu"
       }
+    ],
+    "command_crafter:codecmod": [
+      "net.papierkorb2292.command_crafter.editor.processing.codecmod.CodecTransformers",
+      "net.papierkorb2292.command_crafter.client.editor.processing.codecmod.ClientCodecTransformers"
     ]
   },
   "mixins": [

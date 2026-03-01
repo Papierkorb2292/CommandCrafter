@@ -5,6 +5,7 @@
   "injectors": {
     "defaultRequire": 1
   },
+  "plugin": "net.papierkorb2292.command_crafter.editor.processing.codecmod.CodecTransformerMixinPlugin",
   "mixinextras": {
     "minVersion": "0.5.0"
   },
