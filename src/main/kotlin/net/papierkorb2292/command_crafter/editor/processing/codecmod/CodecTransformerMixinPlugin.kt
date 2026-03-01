@@ -135,7 +135,8 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                             codecModData.methodName = method.name
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
-                        updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", "?.?('${codecModData.codecField}')")
+                        val targetExpression = if(codecModData.includeCodecField) "?.?('${codecModData.codecField}')" else "@(?).?('${codecModData.codecField}')"
+                        updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", targetExpression)
                         injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
                     else -> throw IllegalStateException()
@@ -214,6 +215,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                 "methodName" -> data.methodName = codecMod.values[i+1] as String
                 "javaFieldWrite" -> data.javaFieldWrite = codecMod.values[i+1] as String
                 "codecField" -> data.codecField = codecMod.values[i+1] as String
+                "includeCodecField" -> data.includeCodecField = codecMod.values[i+1] as Boolean
                 "fieldAccess" -> data.fieldAccess = codecMod.values[i+1] as List<String>
             }
         }
@@ -278,6 +280,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         var methodName: String = "",
         var javaFieldWrite: String = "",
         var codecField: String = "",
+        var includeCodecField: Boolean = false,
         var fieldAccess: List<String> = emptyList(),
     )
 

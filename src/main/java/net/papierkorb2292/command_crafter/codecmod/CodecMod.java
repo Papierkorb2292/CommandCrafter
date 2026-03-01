@@ -39,6 +39,11 @@ public @interface CodecMod {
     String codecField() default "";
 
     /**
+     * If true, codecField() will wrap the fieldOf() or optionalFieldOf() result. Otherwise, it will wrap the content of the field (the receiver)
+     */
+    boolean includeCodecField() default false;
+
+    /**
      * Any additional shadow field values that the handler should receive. Fields must be static.
      */
     String[] fieldAccess() default {};
