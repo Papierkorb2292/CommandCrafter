@@ -49,7 +49,7 @@ public @interface CodecMod {
     boolean includeCodecField() default false;
 
     /**
-     * Any additional shadow field values that the handler should receive. Fields must be static.
+     * Any additional shadow field values that the handler should receive. A value of "this" will give you the instance that the target method is called on, if it is not static.
      */
     String[] fieldAccess() default {};
 }

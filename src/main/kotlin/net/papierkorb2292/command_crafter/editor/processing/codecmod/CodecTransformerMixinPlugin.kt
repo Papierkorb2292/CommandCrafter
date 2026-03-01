@@ -29,17 +29,22 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
     private val generatedMixinClasses = mutableMapOf<String, ByteArray>()
     private val generatedMixinNames = mutableListOf<String>()
 
+    private fun getTemplate(name: String): ClassNode {
+        val template = ClassNode()
+        ClassReader(this.javaClass.classLoader.getResource("net/papierkorb2292/command_crafter/codecmod/$name.class")!!.readBytes())
+            .accept(template, 0)
+        return template
+
+    }
+
     override fun onLoad(mixinPackage: String) {
         registerMixins()
-        val modifyReturnValueTemplate = ClassNode()
-        ClassReader(this.javaClass.classLoader.getResource(modifyReturnValueTemplateName)!!.readBytes())
-            .accept(modifyReturnValueTemplate, 0)
-        val modifyJavaFieldTemplate = ClassNode()
-        ClassReader(this.javaClass.classLoader.getResource(modifyJavaFieldTemplateName)!!.readBytes())
-            .accept(modifyJavaFieldTemplate, 0)
-        val wrapCodecFieldTemplate = ClassNode()
-        ClassReader(this.javaClass.classLoader.getResource(wrapCodecFieldTemplateName)!!.readBytes())
-            .accept(wrapCodecFieldTemplate, 0)
+        val modifyReturnValueTemplate = getTemplate("ModifyReturnValueTemplateMixin")
+        val modifyReturnValueInterfaceTemplate = getTemplate("ModifyReturnValueInterfaceTemplateMixin")
+        val modifyJavaFieldTemplate = getTemplate("ModifyJavaFieldTemplateMixin")
+        val modifyJavaFieldInterfaceTemplate = getTemplate("ModifyJavaFieldInterfaceTemplateMixin")
+        val wrapCodecFieldTemplate = getTemplate("WrapCodecFieldTemplateMixin")
+        val wrapCodecFieldInterfaceTemplate = getTemplate("WrapCodecFieldInterfaceTemplateMixin")
 
         // Find all transformers specified through the entrypoint
         val transformers = FabricLoader.getInstance().getEntrypointContainers("command_crafter:codecmod", Any::class.java)
@@ -73,13 +78,14 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                 val targetClassRaw = this.javaClass.classLoader.getResource(codecModData.target!!.internalName + ".class")!!.readBytes()
                 val targetClass = ClassNode()
                 ClassReader(targetClassRaw).accept(targetClass, 0)
+                val targetsInterface = targetClass.access.and(Opcodes.ACC_INTERFACE) != 0
                 val mixin = ClassNode()
 
                 // Add mixin boilerplate
                 val template = when(codecModData.type) {
-                    CodecModType.MODIFY_JAVA_FIELD -> modifyJavaFieldTemplate
-                    CodecModType.MODIFY_RETURN_VALUE -> modifyReturnValueTemplate
-                    CodecModType.WRAP_CODEC_FIELD -> wrapCodecFieldTemplate
+                    CodecModType.MODIFY_JAVA_FIELD -> if(targetsInterface) modifyJavaFieldInterfaceTemplate else modifyJavaFieldTemplate
+                    CodecModType.MODIFY_RETURN_VALUE -> if(targetsInterface) modifyReturnValueInterfaceTemplate else modifyReturnValueTemplate
+                    CodecModType.WRAP_CODEC_FIELD -> if(targetsInterface) wrapCodecFieldInterfaceTemplate else wrapCodecFieldTemplate
                     else -> throw IllegalStateException()
                 }
                 template.accept(mixin)
@@ -88,7 +94,10 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                 val mixinClassName = "CodecMod${transformerClassName}_${method.name}"
                 mixin.name = "$mixinPackage.$mixinClassName".replace('.', '/')
                 updateAnnotationValue(mixin.invisibleAnnotations, Mixin::class, "value", listOf(codecModData.target))
-                fillShadows(codecModData, mixin, targetClass, argumentTypes)
+                if(targetsInterface && codecModData.fieldAccess.any { it != "this" })
+                    throw IllegalArgumentException("Can't shadow interface fields")
+                if(!targetsInterface)
+                    fillShadows(codecModData, mixin, targetClass, argumentTypes)
 
                 // Configure injection
                 val injectionHandler = mixin.methods.first { it.name == "injectionHandler" }
@@ -175,6 +184,12 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         // Load shadows
         for(i in codecModData.fieldAccess.indices) {
             val field = codecModData.fieldAccess[i]
+            if(field == "this") {
+                if(isTargetStatic)
+                    throw IllegalArgumentException("Can't access `this` in a static method")
+                call.add(VarInsnNode(Opcodes.ALOAD, 0))
+                continue
+            }
             val opcode = if(Bytecode.isStatic(target.fields.first { it.name == field })) Opcodes.GETSTATIC else Opcodes.GETFIELD
             if(opcode == Opcodes.GETFIELD) {
                 if(isTargetStatic)
@@ -196,11 +211,13 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         val templateIndex = mixin.fields.indexOfFirst { it.name == "shadow" }
         val template = mixin.fields.removeAt(templateIndex)
         for(i in codecModData.fieldAccess.indices) {
+            val name = codecModData.fieldAccess[i]
+            if(name == "this") continue // Special case: Will give `this` instance, doesn't need field
+            val sourceField = target.fields.find { it.name == name }
+                ?: throw IllegalArgumentException("Could not find shadow field for $name")
             template.accept(mixin)
             val shadow = mixin.fields.last()
-            shadow.name = codecModData.fieldAccess[i]
-            val sourceField = target.fields.find { it.name == shadow.name }
-                ?: throw IllegalArgumentException("Could not find shadow field for ${shadow.name}")
+            shadow.name = name
             shadow.desc = argumentTypes[i + 1].descriptor
             shadow.access = sourceField.access
         }
