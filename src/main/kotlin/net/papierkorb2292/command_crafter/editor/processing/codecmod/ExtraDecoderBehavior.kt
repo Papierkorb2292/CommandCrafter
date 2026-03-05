@@ -71,8 +71,20 @@ interface ExtraDecoderBehavior<in TNode : Any> {
     data class RegisteredBehavior<TNode : Any>(val callback: ExtraDecoderBehavior<TNode>, val ops: DynamicOps<TNode>) {}
 
     enum class BranchBehavior {
+        /**
+         * The vanilla behavior, using the first successful value
+         */
         SHORT_CIRCUIT,
+
+        /**
+         * Try out all branches that should add suggestions (for example: try out both options in EitherCodec)
+         */
         ALL_VALID,
+
+        /**
+         * Try out all branches that could contribute to the encoded value. Useful for resolving nbt paths or analyzing `data merge`.
+         * Different to [ALL_VALID] in that [ALL_POSSIBLE] also tries out all options in a dispatch codec, if the type field is not present.
+         */
         ALL_POSSIBLE
     }
 }
