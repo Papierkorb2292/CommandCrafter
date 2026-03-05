@@ -452,7 +452,7 @@ class StringRangeTree<TNode: Any>(
             return delegate.getMap(input).map { delegateMap ->
                 // Map key suggestions are only added if the input is actually a map,
                 // because otherwise an error can be thrown when trying to resolve the suggestions due to there being no internal ranges between entries
-                val suggestedKeys = mutableListOf<TNode>()
+                val suggestedKeys = mutableSetOf<TNode>()
                 getMapKeySuggestions(input).add { suggestedKeys.stream().map { ExtraDecoderBehavior.PossibleValue(it) } }
                 object : MapLike<TNode> {
                     override fun get(key: TNode): TNode? {
