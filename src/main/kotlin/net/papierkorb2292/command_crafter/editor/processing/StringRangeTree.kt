@@ -9,6 +9,7 @@ import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.appendNullable
 import net.papierkorb2292.command_crafter.helper.concatNullable
@@ -17,7 +18,10 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
-import org.eclipse.lsp4j.*
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
+import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.function.BiConsumer
@@ -60,7 +64,6 @@ import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
 import kotlin.reflect.KClass
-import kotlin.reflect.safeCast
 
 /**
  * Used for storing the [StringRange]s of the nodes in a tree alongside the nodes themselves,
@@ -284,15 +287,13 @@ class StringRangeTree<TNode: Any>(
         fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
             if(contentDecoder != null) {
                 val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.createSerializationContext(ops) ?: ops, analyzingResult, stringGetter)
-                AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.runWithValueSwap(analyzingDynamicOps) {
-                    IS_ANALYZING_DECODER.runWithValueSwap(true) {
-                        PreLaunchDecoderOutputTracker.decodeWithCallback(
-                            contentDecoder,
-                            wrappedOps,
-                            stringRangeTree.root,
-                            FirstDecoderResultCallback(analyzingDynamicOps)
-                        )
-                    }
+                IS_ANALYZING_DECODER.runWithValueSwap(true) {
+                    ExtraDecoderBehavior.decodeWithBehavior(
+                        contentDecoder,
+                        wrappedOps,
+                        stringRangeTree.root,
+                        FirstDecoderExtraBehavior(analyzingDynamicOps)
+                    )
                 }
                 if(diagnosticSeverity != null)
                     generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
@@ -304,13 +305,13 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(nodeClass, accessedKeysWatcher)
+            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(accessedKeysWatcher)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
-                PreLaunchDecoderOutputTracker.decodeWithCallback(
+                ExtraDecoderBehavior.decodeWithBehavior(
                     decoder,
                     filteredOps,
                     stringRangeTree.root,
-                    FirstDecoderResultCallback(errorCallback)
+                    FirstDecoderExtraBehavior(errorCallback)
                 )
             }
             analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
@@ -321,13 +322,12 @@ class StringRangeTree<TNode: Any>(
         override val delegate: DynamicOps<TNode>,
         tree: StringRangeTree<TNode>,
         internal val baseResult: AnalyzingResult,
-        val stringContentGetter: StringContentGetter<TNode>
-    ) : DelegatingDynamicOps<TNode>, PreLaunchDecoderOutputTracker.ResultCallback {
-        var tree = tree
+        override val stringContentGetter: StringContentGetter<TNode>
+    ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode>, ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode> {
+        override var tree = tree
             private set
 
         companion object {
-            val CURRENT_ANALYZING_OPS = ThreadLocal<AnalyzingDynamicOps<*>>()
             private const val EMPTY_MAP_PLACEHOLDER_KEY = "command_crafter:empty_map_placeholder"
 
             /**
@@ -346,8 +346,8 @@ class StringRangeTree<TNode: Any>(
                 }
         }
 
-        internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<SuggestionProvider<TNode>>>()
-        internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<SuggestionProvider<TNode>>>()
+        internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>>()
+        internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>>()
 
         /**
          * Maps TNode instances that have keys to a collection of TNode instances that were used to represent the keys.
@@ -369,13 +369,13 @@ class StringRangeTree<TNode: Any>(
         fun getMapKeyNodes(node: TNode) =
             mapKeyNodes.computeIfAbsent(node) { mutableSetOf() }
 
-        fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult {
+        override fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult {
             val result = baseResult.copyInput()
             nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += NodeAnalyzingResult(result)
             return result
         }
 
-        fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult {
+        override fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult {
             var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.readSkippingChars)
                 .combineWith(stringContent.cursorMapper)
             if(baseResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
@@ -393,7 +393,7 @@ class StringRangeTree<TNode: Any>(
             return stringAnalyzingResult
         }
 
-        fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null) {
+        override fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int, stringContent: StringContent?) {
             if(node !in nodeActualAnalyzingResult) {
                 nodeActualAnalyzingResult[node] =
                     unmappedCursor to NodeAnalyzingResult.fromNullable(analyzingResult, stringContent?.escaper)
@@ -408,15 +408,15 @@ class StringRangeTree<TNode: Any>(
         override fun getBooleanValue(input: TNode): DataResult<Boolean> {
             getNodeStartSuggestions(input).add {
                 Stream.of(
-                    Suggestion(delegate.createBoolean(true), true),
-                    Suggestion(delegate.createBoolean(false), true)
+                    ExtraDecoderBehavior.PossibleValue(delegate.createBoolean(true), true),
+                    ExtraDecoderBehavior.PossibleValue(delegate.createBoolean(false), true)
                 )
             }
             return delegate.getBooleanValue(input)
         }
 
         override fun getStream(input: TNode): DataResult<Stream<TNode>> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createList(Stream.empty()))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createList(Stream.empty()))) }
             return delegate.getStream(input).map { stream ->
                 val placeholder = delegate.emptyList()
                 var isEmpty = true
@@ -433,27 +433,27 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getByteBuffer(input: TNode): DataResult<ByteBuffer> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createByteList(ByteBuffer.allocate(0)))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createByteList(ByteBuffer.allocate(0)))) }
             return delegate.getByteBuffer(input)
         }
 
         override fun getIntStream(input: TNode): DataResult<IntStream> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createIntList(IntStream.empty()))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createIntList(IntStream.empty()))) }
             return delegate.getIntStream(input)
         }
 
         override fun getLongStream(input: TNode): DataResult<LongStream> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createLongList(LongStream.empty()))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createLongList(LongStream.empty()))) }
             return delegate.getLongStream(input)
         }
 
         override fun getMap(input: TNode): DataResult<MapLike<TNode>> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createMap(Collections.emptyMap()))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createMap(Collections.emptyMap()))) }
             return delegate.getMap(input).map { delegateMap ->
                 // Map key suggestions are only added if the input is actually a map,
                 // because otherwise an error can be thrown when trying to resolve the suggestions due to there being no internal ranges between entries
                 val suggestedKeys = mutableListOf<TNode>()
-                getMapKeySuggestions(input).add { suggestedKeys.stream().map { Suggestion(it) } }
+                getMapKeySuggestions(input).add { suggestedKeys.stream().map { ExtraDecoderBehavior.PossibleValue(it) } }
                 object : MapLike<TNode> {
                     override fun get(key: TNode): TNode? {
                         suggestedKeys += key
@@ -477,7 +477,7 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getList(input: TNode): DataResult<Consumer<Consumer<TNode>>> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createList(Stream.empty()))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createList(Stream.empty()))) }
             return delegate.getList(input).map { list ->
                 Consumer { entryConsumer ->
                     var isEmpty = true
@@ -495,7 +495,7 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getStringValue(input: TNode): DataResult<String> {
-            getNodeStartSuggestions(input).add { Stream.of(Suggestion(delegate.createString(""))) }
+            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createString(""))) }
             return delegate.getStringValue(input)
         }
 
@@ -572,35 +572,35 @@ class StringRangeTree<TNode: Any>(
                 }
             }
 
-        override fun <TInput, TResult> onError(
-            error: DataResult.Error<TResult>,
-            input: TInput,
-        ) { }
-
-        override fun <TInput> markStringParseError(input: TInput) { }
-
-        override fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput) {
+        override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
             @Suppress("UNCHECKED_CAST")
             // Only use actual analyzing results for the node if it was also able to parse the full string,
             // otherwise there was an error but another decoder did not return an error, so the string
             // should not be interpreted by the errored decoder
-            finishNodeAnalyzingResultOverlay(input as TNode, null)
+            finishNodeAnalyzingResultOverlay(input, null)
         }
 
-        override fun <TInput> onDecodeStart(input: TInput) { }
+        override fun notePossibleValues(
+            input: TNode,
+            provider: ExtraDecoderBehavior.PossibleValue.Provider<TNode>,
+            shouldSuggest: Boolean
+        ) {
+            if(shouldSuggest)
+                getNodeStartSuggestions(input) += provider
+        }
+
+        override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>?
+            get() = this
+
+        override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
+            get() = ExtraDecoderBehavior.BranchBehavior.ALL_VALID
     }
 
-    data class Suggestion<TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val preferHex: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {
-        constructor(element: TNode): this(element, false, false, null)
-
-        fun withPreferHex() = copy(preferHex = true)
-        fun withCompletionModifier(completionModifier: ((CompletionItem) -> Unit)? = null) = copy(completionModifier = completionModifier)
-    }
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
 
     interface SuggestionResolver<TNode : Any> {
         fun resolveNodeSuggestion(
-            suggestionProviders: Collection<SuggestionProvider<TNode>>,
+            suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>,
             tree: StringRangeTree<TNode>,
             node: TNode,
             suggestionRange: StringRange,
@@ -608,16 +608,12 @@ class StringRangeTree<TNode: Any>(
         ): ResolvedSuggestion
 
         fun resolveMapKeySuggestion(
-            suggestionProviders: Collection<SuggestionProvider<TNode>>,
+            suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>,
             tree: StringRangeTree<TNode>,
             map: TNode,
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
         ): ResolvedSuggestion
-    }
-
-    fun interface SuggestionProvider<TNode> {
-        fun createSuggestions(): Stream<Suggestion<TNode>>
     }
 
     fun interface StringEscaper {
@@ -824,9 +820,8 @@ class StringRangeTree<TNode: Any>(
      * range are ignored
      */
     inner class DecoderErrorLeafRangesCallback(
-        private val nodeClass: KClass<out TNode>,
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
-    ) : PreLaunchDecoderOutputTracker.ResultCallback {
+    ) : ExtraDecoderBehavior<TNode> {
         private val errors = mutableListOf<kotlin.Pair<StringRange, String?>>()
 
         private fun throwForPartialOverlap(range1: StringRange, range2: StringRange) {
@@ -846,15 +841,13 @@ class StringRangeTree<TNode: Any>(
             return mapKeyRanges[map]?.firstOrNull { it.first == node }?.second
         }
 
-        override fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput) {
-            val inputNode = nodeClass.safeCast(input) ?: return
-            val range = getNodeRange(inputNode) ?: return
+        override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
+            val range = getNodeRange(input) ?: return
             addError(error, range)
         }
 
-        override fun <TInput> markStringParseError(input: TInput) {
-            val inputNode = nodeClass.safeCast(input) ?: return
-            val range = getNodeRange(inputNode) ?: return
+        override fun markStringParseError(input: TNode) {
+            val range = getNodeRange(input) ?: return
 
             // Don't add error message, diagnostics are already generated by the decoder.
             // Should not be replaced by other decoder errors, because string parsing errors are more specific
@@ -878,12 +871,11 @@ class StringRangeTree<TNode: Any>(
                 throwForPartialOverlap(existingRange, range)
         }
 
-        override fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput) {
+        override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
             if(isPartial) return
 
             //Since decoding was successful, all errors that are encompassed by the input node's range are removed
-            val inputNode = nodeClass.safeCast(input) ?: return
-            val range = ranges[inputNode] ?: return
+            val range = ranges[input] ?: return
             var index = errors.binarySearch { entry -> entry.first.compareTo(range) }
             if(index < 0) return
 
@@ -905,7 +897,7 @@ class StringRangeTree<TNode: Any>(
             }
         }
 
-        override fun <TInput> onDecodeStart(input: TInput) { }
+        override fun onDecodeStart(input: TNode) { }
 
         fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
             return errors.mapNotNull { (range, message) ->

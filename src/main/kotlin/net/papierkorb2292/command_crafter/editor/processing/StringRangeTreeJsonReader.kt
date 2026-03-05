@@ -6,6 +6,7 @@ import com.google.gson.internal.Streams
 import com.google.gson.stream.JsonWriter
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.editor.processing.helper.filterCompletionTrigger
 import net.papierkorb2292.command_crafter.helper.memoizeLast
@@ -265,7 +266,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }.memoizeLast()
 
         override fun resolveNodeSuggestion(
-            suggestionProviders: Collection<StringRangeTree.SuggestionProvider<JsonElement>>,
+            suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<JsonElement>>,
             tree: StringRangeTree<JsonElement>,
             node: JsonElement,
             suggestionRange: StringRange,
@@ -275,7 +276,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
                 StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Value) {
-                    suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
+                    suggestionProviders.stream().flatMap { it.getValue() }.distinct().map { suggestion ->
                         val baseString = if(suggestion.preferHex && suggestion.element is JsonPrimitive && suggestion.element.isNumber) {
                             "0x" + suggestion.element.asInt.toUInt().toString(16).uppercase()
                         } else {
@@ -299,7 +300,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }
 
         override fun resolveMapKeySuggestion(
-            suggestionProviders: Collection<StringRangeTree.SuggestionProvider<JsonElement>>,
+            suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<JsonElement>>,
             tree: StringRangeTree<JsonElement>,
             map: JsonElement,
             suggestionRange: StringRange,
@@ -313,7 +314,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
                         .map { it.first }
                         .toSet()
-                    suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct()
+                    suggestionProviders.stream().flatMap { it.getValue() }.distinct()
                         .filter { it.element !in existingKeys }
                         .map { suggestion ->
                             val element = suggestion.element

@@ -5,7 +5,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.AnalyzingDynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import java.lang.reflect.Type
 import java.util.*
 import java.util.concurrent.Semaphore
@@ -129,10 +129,11 @@ fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
         return if(input == defaultValue) DataResult.success(prefix) else this@orEmpty.encode(input, ops, prefix)
     }
 
-    override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
+    override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
         if(input == ops.empty()) {
             // Add suggestions from other codec
-            if(AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() != null)
+            val branchBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)?.branchBehavior
+            if(branchBehavior != null && branchBehavior != ExtraDecoderBehavior.BranchBehavior.SHORT_CIRCUIT)
                 this@orEmpty.decode(ops, input)
 
             return DataResult.success(Pair.of(defaultValue, ops.emptyList()))

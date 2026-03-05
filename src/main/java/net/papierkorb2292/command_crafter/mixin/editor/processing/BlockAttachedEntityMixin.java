@@ -37,7 +37,7 @@ public abstract class BlockAttachedEntityMixin extends Entity {
             if(o != null) return false;
             PreLaunchDecoderOutputTracker.INSTANCE.onDecoded(
                     DataResult.error(() -> s.replace("{}", "null")),
-                    dynamicOpsReadView.getDynamic().getValue()
+                    dynamicOpsReadView.getDynamic()
             );
             return false;
         }

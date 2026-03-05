@@ -1,5 +1,6 @@
 package org.spongepowered.asm.mixin.transformer;
 
+import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks;
 import net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
@@ -29,6 +30,14 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
         // I *should* check if the class implements `Decoder`, but that doesn't work for inner classes of
         // Mixins, because it's not possible to get a `ClassInfo` for them, so I'll just leave it. Consistency ;)
 
+        // Check for @NoDecoderCallbacks
+        if(classNode.invisibleAnnotations != null) {
+            for (final var annotation : classNode.invisibleAnnotations) {
+                if (annotation.desc.equals(NoDecoderCallbacks.class.descriptorString()))
+                    return false;
+            }
+        }
+
         MethodNode decodeMethod = null;
         for(final var method : classNode.methods) {
             if(method.name.equals(decoderMethodName) && method.desc.equals(decoderMethodDesc) && (method.access & Opcodes.ACC_ABSTRACT) == 0) {
@@ -54,6 +63,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                         callbackObjectDesc
                 )
         ); // Load INSTANCE
+        callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 1)); // Load ops
         callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 2)); // Load input
         callbackInjection.add(
                 new MethodInsnNode(
@@ -63,7 +73,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                         PreLaunchDecoderOutputTracker.ON_DECODE_START_DESC,
                         false
                 )
-        ); // Call INSTANCE.onDecodeStart(input)
+        ); // Call INSTANCE.onDecodeStart(ops, input)
 
         decodeMethod.instructions.insert(callbackInjection);
     }
@@ -89,6 +99,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                     )
             ); // Load INSTANCE
             callbackInjection.add(new InsnNode(Opcodes.SWAP));
+            callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 1)); // Load ops
             callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 2)); // Load input
             callbackInjection.add(
                     new MethodInsnNode(
@@ -98,7 +109,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                             PreLaunchDecoderOutputTracker.ON_DECODED_DESC,
                             false
                     )
-            ); // Call INSTANCE.onDecoded(returnValue, input)
+            ); // Call INSTANCE.onDecoded(returnValue, ops, input)
 
             decodeMethod.instructions.insertBefore(returnInsn, callbackInjection);
         }

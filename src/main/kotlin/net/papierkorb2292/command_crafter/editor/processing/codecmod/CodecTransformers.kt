@@ -31,7 +31,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -146,9 +145,9 @@ object CodecTransformers {
             }
 
             override fun <T : Any> suggestionModifier(
-                suggestion: StringRangeTree.Suggestion<T>,
+                suggestion: ExtraDecoderBehavior.PossibleValue<T>,
                 ops: DynamicOps<T>
-            ): StringRangeTree.Suggestion<T> =
+            ): ExtraDecoderBehavior.PossibleValue<T> =
                 suggestion.withCompletionModifier { completion ->
                     completion.detail = "Minecraft's current pack version"
                 }
@@ -202,17 +201,15 @@ object CodecTransformers {
         codec.beforeDecode(object : BeforeDecodeCallback {
             override fun <TNode: Any> invoke(input: TNode, ops: DynamicOps<TNode>) {
                 val registry = CURRENT_TAG_ANALYZING_REGISTRY.getOrNull() ?: return
-                val analyzingOps = StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() ?: return
                 @Suppress("UNCHECKED_CAST")
-                val castedOps = analyzingOps as StringRangeTree.AnalyzingDynamicOps<TNode>
-                castedOps.getNodeStartSuggestions(input).add {
+                ExtraDecoderBehavior.getCurrentBehavior(ops)?.notePossibleValues(input, {
                     Stream.concat(
                         registry.listElementIds()
                             .map { key -> ops.createString(key!!.identifier().toString()) },
                         registry.listTagIds()
                             .map { key -> ops.createString("#" + key!!.location().toString()) }
-                    ).map(StringRangeTree<TNode>::Suggestion)
-                }
+                    ).map(ExtraDecoderBehavior<TNode>::PossibleValue)
+                })
             }
         })
 }

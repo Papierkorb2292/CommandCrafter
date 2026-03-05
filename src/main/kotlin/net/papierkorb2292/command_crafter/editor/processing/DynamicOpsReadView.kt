@@ -4,8 +4,9 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.core.HolderLookup
 import net.minecraft.world.level.storage.ValueInput
-import net.minecraft.world.level.storage.ValueInput.ValueInputList
 import net.minecraft.world.level.storage.ValueInput.TypedInputList
+import net.minecraft.world.level.storage.ValueInput.ValueInputList
+import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.helper.cast
 import net.papierkorb2292.command_crafter.helper.flatten
 import java.util.*
@@ -31,19 +32,11 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
         fun <TEntry: Any> getTypedListReadViewCodec(entryCodec: Codec<TEntry>): Codec<DynamicOpsTypedListReadView<TEntry>> =
             entryCodec.listOf().xmap({ DynamicOpsTypedListReadView(it.toMutableList()) }, { listOf() })
 
-        fun getReadDecoder(registries: HolderLookup.Provider, reader: (DynamicOpsReadView<*>) -> Unit): Decoder<Unit> {
-            return object : Decoder<Unit> {
-                override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<Unit, T>> {
-                    val dynamicOpsReadView = create(Dynamic(ops, input), registries)
-                    if(dynamicOpsReadView.isError)
-                        return dynamicOpsReadView.map { Pair.of(Unit, ops.createList(Stream.of(input))) }
-                    reader(dynamicOpsReadView.result().get())
-                    // Clear result callback to prevent it from clearing errors just because of the successful return
-                    PreLaunchDecoderOutputTracker.clearResultCallback()
-                    return DataResult.success(Pair.of(Unit, ops.emptyList()))
-                }
-            }
-        }
+        /**
+         * Creates a Decoder backed by a [ValueInput] consumer. The caller should check that the input is actually a map.
+         */
+        fun getReadDecoder(registries: HolderLookup.Provider, reader: (DynamicOpsReadView<*>) -> Unit): Decoder<Unit> =
+            ReadDecoder(registries, reader)
     }
 
     override fun <T: Any> read(key: String, codec: Codec<T>) =
@@ -124,5 +117,16 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
         override fun iterator() = content.iterator()
         override fun isEmpty() = content.isEmpty()
         override fun stream() = content.stream()
+    }
+
+    @NoDecoderCallbacks // Don't remove reader errors just because of the successful return
+    private class ReadDecoder(val registries: HolderLookup.Provider, val reader: (DynamicOpsReadView<*>) -> Unit) : Decoder<Unit> {
+        override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<Unit, T>> {
+            val dynamicOpsReadView = create(Dynamic(ops, input), registries)
+            if(dynamicOpsReadView.isError)
+                return dynamicOpsReadView.map { Pair.of(Unit, ops.createList(Stream.of(input))) }
+            reader(dynamicOpsReadView.result().get())
+            return DataResult.success(Pair.of(Unit, ops.emptyList()))
+        }
     }
 }

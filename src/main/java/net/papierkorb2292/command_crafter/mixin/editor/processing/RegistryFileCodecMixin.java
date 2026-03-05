@@ -1,19 +1,18 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.RegistryOps;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.RegistryFileCodec;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.RegistryFileCodec;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.resources.ResourceKey;
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,8 +22,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.stream.Stream;
-
-import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(RegistryFileCodec.class)
 public class RegistryFileCodecMixin<E> {
@@ -69,7 +66,8 @@ public class RegistryFileCodecMixin<E> {
             remap = false
     )
     private <T> void command_crafter$suggestEntryCodecWhenIdWasFound(DynamicOps<T> ops, T input, CallbackInfoReturnable<DataResult<Pair<Holder<E>, T>>> cir) {
-        if(getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS()) != null)
+        final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);
+        if(extraBehavior != null && extraBehavior.getBranchBehavior() != ExtraDecoderBehavior.BranchBehavior.SHORT_CIRCUIT)
             elementCodec.decode(ops, input);
     }
 }

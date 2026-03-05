@@ -5,8 +5,8 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.helper.getOrNull
 import kotlin.jvm.optionals.getOrNull
 
 class CodecAnalyzingWrapper<A>(private val delegate: Codec<A>, val callback: (AnalyzingResult, StringRange, A, DynamicOps<*>) -> Unit): Codec<A> {
@@ -17,13 +17,12 @@ class CodecAnalyzingWrapper<A>(private val delegate: Codec<A>, val callback: (An
         val result = delegate.decode(ops, input)
         val decoded = result.result().getOrNull()
         if(input == null || decoded == null) return result
-        StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull()?.let { analyzingOps ->
+        ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingBehavior?.let { analyzingBehavior ->
             @Suppress("UNCHECKED_CAST")
-            val castedOps = analyzingOps as StringRangeTree.AnalyzingDynamicOps<T>
-            val range = analyzingOps.tree.ranges[input]!!
-            val analyzingResult = castedOps.createNodeAnalyzingResultOverlay(input)
+            val range = analyzingBehavior.tree.ranges[input]!!
+            val analyzingResult = analyzingBehavior.createNodeAnalyzingResultOverlay(input)
             callback(analyzingResult, range, decoded.first, ops)
-            castedOps.finishNodeAnalyzingResultOverlay(input, analyzingResult)
+            analyzingBehavior.finishNodeAnalyzingResultOverlay(input, analyzingResult)
         }
         return result
     }

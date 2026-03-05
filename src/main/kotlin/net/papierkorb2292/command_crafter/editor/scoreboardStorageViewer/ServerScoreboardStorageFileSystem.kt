@@ -12,32 +12,30 @@ import com.mojang.serialization.JsonOps
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.TagParser
-import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.world.scores.ScoreHolder
-import net.minecraft.world.scores.criteria.ObjectiveCriteria
-import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.ComponentSerialization
 import net.minecraft.network.chat.numbers.NumberFormat
 import net.minecraft.network.chat.numbers.NumberFormatTypes
+import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.stats.Stat
 import net.minecraft.stats.StatType
-import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.ComponentSerialization
-import net.minecraft.resources.Identifier
+import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.Util
 import net.minecraft.world.level.storage.LevelResource
-import net.minecraft.util.ExtraCodecs
+import net.minecraft.world.scores.ScoreHolder
+import net.minecraft.world.scores.criteria.ObjectiveCriteria
+import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
 import net.papierkorb2292.command_crafter.editor.EditorURI
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
-import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.CommandStorageAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ObjectiveAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
 import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -64,15 +62,12 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
             override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<ObjectiveCriteria, T>> {
                 @Suppress("UNCHECKED_CAST")
-                val analyzingOps = (StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() as StringRangeTree.AnalyzingDynamicOps<T>?)
-                if(analyzingOps != null) {
-                    analyzingOps.getNodeStartSuggestions(input).add {
-                        Stream.concat(
-                            ObjectiveCriteria.getCustomCriteriaNames().stream(),
-                            BuiltInRegistries.STAT_TYPE.stream().flatMap { getStatNames(it) }
-                        ).map { StringRangeTree.Suggestion(ops.createString(it)) }
-                    }
-                }
+                ExtraDecoderBehavior.getCurrentBehavior(ops)?.notePossibleValues(input,  {
+                    Stream.concat(
+                        ObjectiveCriteria.getCustomCriteriaNames().stream(),
+                        BuiltInRegistries.STAT_TYPE.stream().flatMap { getStatNames(it) }
+                    ).map { ExtraDecoderBehavior.PossibleValue(ops.createString(it)) }
+                })
                 return ops.getStringValue(input).flatMap {  criterionName ->
                     ObjectiveCriteria.byName(criterionName).map {
                         DataResult.success(com.mojang.datafixers.util.Pair(it, ops.empty()))
@@ -109,11 +104,9 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                     .map { pair -> pair.mapFirst { Optional.of(it) } }
                 val type = ops.getMap(input).result().getOrNull()?.get("type")
                     ?: return numberFormat
-                @Suppress("UNCHECKED_CAST")
-                val analyzingOps = (StringRangeTree.AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() as StringRangeTree.AnalyzingDynamicOps<T>?)
-                if(analyzingOps != null) {
-                    analyzingOps.getNodeStartSuggestions(type).add { Stream.of(StringRangeTree.Suggestion(ops.createString(DEFAULT_TYPE))) }
-                }
+                ExtraDecoderBehavior.getCurrentBehavior(ops)?.notePossibleValues(type, {
+                    Stream.of(ExtraDecoderBehavior.PossibleValue(ops.createString(DEFAULT_TYPE)))
+                })
                 val parsedType = ops.getStringValue(type).result().getOrNull()
                 if(parsedType == DEFAULT_TYPE)
                     return DataResult.success(com.mojang.datafixers.util.Pair(Optional.empty(), input))

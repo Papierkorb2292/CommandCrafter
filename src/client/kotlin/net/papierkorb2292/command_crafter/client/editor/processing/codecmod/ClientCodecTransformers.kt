@@ -29,7 +29,7 @@ object ClientCodecTransformers {
     @CodecMod(target = KeybindContents::class, codecField = "keybind")
     fun suggestKeybindContents(codec: PrimitiveCodec<String>): PrimitiveCodec<String> =
         PrimitiveCodecSuggestionWrapper(codec, object : SuggestionsProvider {
-            override fun <T> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                 return KeyMappingAccessor.getALL().keys.stream().map<T>(ops::createString)
             }
         })
@@ -39,7 +39,7 @@ object ClientCodecTransformers {
     @CodecMod(target = TranslatableContents::class, codecField = "translate")
     fun suggestTranslationNames(codec: PrimitiveCodec<String>): PrimitiveCodec<String> =
         PrimitiveCodecSuggestionWrapper(codec, object : SuggestionsProvider {
-            override fun <T> getSuggestions(ops: DynamicOps<T>): Stream<T> =
+            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
                 (Language.getInstance() as? ClientLanguageAccessor)
                     ?.storage?.keys?.stream()
                     ?.map<T>(ops::createString)
@@ -54,7 +54,7 @@ object ClientCodecTransformers {
                 RecordCodecBuilder.mapCodec {
                     it.group(
                         CodecSuggestionWrapper(Identifier.CODEC, object : SuggestionsProvider {
-                            override fun <T> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+                            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                                 val atlasSuggestions = ArrayList<T>()
                                 Minecraft.getInstance().atlasManager.forEach { id, _ ->
                                     atlasSuggestions.add(ops.createString(id.toString()))
@@ -65,7 +65,7 @@ object ClientCodecTransformers {
                         Codec.PASSTHROUGH.fieldOf("sprite").onlyDecodeRecord(),
                     ).apply(it) { atlas, sprite ->
                         CodecSuggestionWrapper(Codec.STRING, object : SuggestionsProvider {
-                            override fun <T> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+                            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                                 var atlasCandidates: Stream<TextureAtlas>? = null
                                 atlas.ifPresent { atlasId ->
                                     try {

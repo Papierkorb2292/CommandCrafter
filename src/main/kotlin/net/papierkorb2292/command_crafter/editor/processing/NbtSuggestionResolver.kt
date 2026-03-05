@@ -7,6 +7,7 @@ import net.minecraft.util.parsing.packrat.Atom
 import net.minecraft.util.parsing.packrat.ErrorCollector
 import net.minecraft.util.parsing.packrat.commands.Grammar
 import net.minecraft.util.parsing.packrat.commands.StringReaderParserState
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.getSymbolByName
 import net.papierkorb2292.command_crafter.helper.memoizeLast
@@ -53,7 +54,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     }.memoizeLast()
 
     override fun resolveNodeSuggestion(
-        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<Tag>>,
+        suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<Tag>>,
         tree: StringRangeTree<Tag>,
         node: Tag,
         suggestionRange: StringRange,
@@ -63,7 +64,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         return StringRangeTree.ResolvedSuggestion(
             valueEnd,
             StreamCompletionItemProvider(suggestionRange.end, { valueEnd }, mappingInfo, CompletionItemKind.Value) {
-                suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct().map { suggestion ->
+                suggestionProviders.stream().flatMap { it.getValue() }.distinct().map { suggestion ->
                     val baseString =
                         if(suggestion.isNumberABoolean) {
                             suggestion.element.asBoolean().orElseThrow {
@@ -89,7 +90,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     }
 
     override fun resolveMapKeySuggestion(
-        suggestionProviders: Collection<StringRangeTree.SuggestionProvider<Tag>>,
+        suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<Tag>>,
         tree: StringRangeTree<Tag>,
         map: Tag,
         suggestionRange: StringRange,
@@ -109,7 +110,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                     .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
                     .map { it.first }
                     .toSet()
-                suggestionProviders.stream().flatMap { it.createSuggestions() }.distinct()
+                suggestionProviders.stream().flatMap { it.getValue() }.distinct()
                     .filter { it.element !in existingKeys }
                     .map { suggestion ->
                         val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()

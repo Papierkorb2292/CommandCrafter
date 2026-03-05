@@ -6,7 +6,7 @@ import com.mojang.serialization.Encoder
 import net.minecraft.util.ARGB
 import net.papierkorb2292.command_crafter.editor.processing.CodecAnalyzingWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.stream.Stream
@@ -43,9 +43,9 @@ class PackedEncoderColorInfo<TNode>(
                 }
 
                 override fun <T: Any> suggestionModifier(
-                    suggestion: StringRangeTree.Suggestion<T>,
+                    suggestion: ExtraDecoderBehavior.PossibleValue<T>,
                     ops: DynamicOps<T>,
-                ): StringRangeTree.Suggestion<T> =
+                ): ExtraDecoderBehavior.PossibleValue<T> =
                     suggestion.withPreferHex().withCompletionModifier { completionItem ->
                         val color = delegate.parse(ops, suggestion.element)
                             .map { toPacked(it) }

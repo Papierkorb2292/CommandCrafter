@@ -12,14 +12,15 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.DynamicOps;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
-import net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
 import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -30,8 +31,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(TagParser.class)
 public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, AllowMalformedContainer, AnalyzingResultCreator {
@@ -96,7 +95,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
         }
     }
 
-    private static ThreadLocal<Object> command_crafter$flattenedCodecInput = new ThreadLocal<>();
+    private static ThreadLocal<Dynamic<?>> command_crafter$flattenedCodecInput = new ThreadLocal<>();
 
     @ModifyExpressionValue(
             method = "<clinit>",
@@ -111,7 +110,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             @Override
             public <U> DataResult<Pair<CompoundTag, U>> decode(DynamicOps<U> ops, U input) {
                 final var prevStringErrorInput = command_crafter$flattenedCodecInput.get();
-                command_crafter$flattenedCodecInput.set(input);
+                command_crafter$flattenedCodecInput.set(new Dynamic<>(ops, input));
                 var result = codec.decode(ops, input);
                 if(prevStringErrorInput != null)
                     command_crafter$flattenedCodecInput.set(prevStringErrorInput);
@@ -131,17 +130,21 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             method = "lambda$static$0",
             at = @At("HEAD")
     )
-    private static void command_crafter$analyzeFlattenedNbt(String input, CallbackInfoReturnable<DataResult<CompoundTag>> cir, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent")LocalRef<StringRangeTree.StringContent> stringContentRef) {
-        @SuppressWarnings("unchecked")
-        final var analyzingOps = (StringRangeTree.AnalyzingDynamicOps<Object>)getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS());
-        if(analyzingOps == null)
+    private static void command_crafter$analyzeFlattenedNbt(String input, CallbackInfoReturnable<DataResult<CompoundTag>> cir, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContentRef) {
+        final var dynamic = command_crafter$flattenedCodecInput.get();
+        command_crafter$analyzeFlattenedNbtGeneric(dynamic, analyzingResult, stringContentRef);
+    }
+
+    private static <T> void command_crafter$analyzeFlattenedNbtGeneric(Dynamic<T> dynamic, LocalRef<AnalyzingResult> analyzingResult, LocalRef<StringRangeTree.StringContent> stringContentRef) {
+        final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(dynamic.getOps());
+        if(extraBehavior == null || extraBehavior.getNodeAnalyzingBehavior() == null)
             return;
-        final var inputNode = command_crafter$flattenedCodecInput.get();
-        final var stringContent = analyzingOps.getStringContentGetter().getStringContent(inputNode);
+        final var analyzingBehavior = extraBehavior.getNodeAnalyzingBehavior();
+        final var stringContent = analyzingBehavior.getStringContentGetter().getStringContent(dynamic.getValue());
         if(stringContent == null)
             return;
         stringContentRef.set(stringContent);
-        analyzingResult.set(analyzingOps.createStringAnalyzingResultOverlay(inputNode, stringContent));
+        analyzingResult.set(analyzingBehavior.createStringAnalyzingResultOverlay(dynamic.getValue(), stringContent));
 
         final var nbtReader = TagParser.create(NbtOps.INSTANCE);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
@@ -169,13 +172,21 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             remap = false
     )
     private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContent) {
-        final var input = command_crafter$flattenedCodecInput.get();
-        @SuppressWarnings("unchecked")
-        final var analyzingOps = (StringRangeTree.AnalyzingDynamicOps<Object>)getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS());
-        if(analyzingOps != null) {
-            analyzingOps.finishNodeAnalyzingResultOverlay(input, analyzingResult.get(), result.isSuccess() ? Integer.MAX_VALUE : s.length(), stringContent.get());
-        }
+        final var dynamic = command_crafter$flattenedCodecInput.get();
+        command_crafter$finishFlattenedCodecAnalyzingResultGeneric(dynamic, result.isSuccess() ? Integer.MAX_VALUE : s.length(), analyzingResult, stringContent);
         return result;
+    }
+
+    private static <T> void command_crafter$finishFlattenedCodecAnalyzingResultGeneric(Dynamic<T> dynamic, int cursor, LocalRef<AnalyzingResult> analyzingResult, LocalRef<StringRangeTree.StringContent> stringContent) {
+        final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(dynamic.getOps());
+        if(extraBehavior != null && extraBehavior.getNodeAnalyzingBehavior() != null) {
+            extraBehavior.getNodeAnalyzingBehavior().finishNodeAnalyzingResultOverlay(
+                    dynamic.getValue(),
+                    analyzingResult.get(),
+                    cursor,
+                    stringContent.get()
+            );
+        }
     }
 
     @ModifyReturnValue(
@@ -184,11 +195,17 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             remap = false
     )
     private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResultRef, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContent) {
-        final var input = command_crafter$flattenedCodecInput.get();
-        PreLaunchDecoderOutputTracker.INSTANCE.markStringParseError(input);
-        @SuppressWarnings("unchecked")
-        final var analyzingOps = (StringRangeTree.AnalyzingDynamicOps<Object>)getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS());
-        if(analyzingOps != null) {
+        final var dynamic = command_crafter$flattenedCodecInput.get();
+        command_crafter$markFlattenedCodecSyntaxErrorGeneric(dynamic, s, exception, analyzingResultRef, stringContent);
+        return result;
+    }
+
+    private static <T> void command_crafter$markFlattenedCodecSyntaxErrorGeneric(Dynamic<T> dynamic, String s, CommandSyntaxException exception, LocalRef<AnalyzingResult> analyzingResultRef, LocalRef<StringRangeTree.StringContent> stringContent) {
+        final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(dynamic.getOps());
+        if(extraBehavior == null)
+            return;
+        extraBehavior.markStringParseError(dynamic.getValue());
+        if(extraBehavior.getNodeAnalyzingBehavior() != null) {
             final var analyzingResult = analyzingResultRef.get();
             final var mappingInfo = analyzingResult.getMappingInfo();
             final var diagnostic = new Diagnostic();
@@ -199,8 +216,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             diagnostic.setMessage(exception.getMessage());
             diagnostic.setSeverity(DiagnosticSeverity.Error);
             analyzingResult.getDiagnostics().add(diagnostic);
-            analyzingOps.finishNodeAnalyzingResultOverlay(input, analyzingResult, exception.getCursor(), stringContent.get());
+            extraBehavior.getNodeAnalyzingBehavior().finishNodeAnalyzingResultOverlay(dynamic.getValue(), analyzingResult, exception.getCursor(), stringContent.get());
         }
-        return result;
     }
 }
