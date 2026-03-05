@@ -15,6 +15,7 @@ import kotlin.jvm.optionals.getOrDefault
 
 // Uses dummy Encoders in a bunch of places to use methods of Codec that are not available for just a Decoder.
 // Btw. don't really know why Mojang didn't use DynamicOps in the first place
+// Also caches results to prevent unnecessary decoding (for example when multiple entities read from the same instance)
 class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val registries: HolderLookup.Provider, val map: Optional<MapLike<TNode>>) :
     ValueInput {
     companion object {
@@ -39,31 +40,54 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
             ReadDecoder(registries, reader)
     }
 
-    override fun <T: Any> read(key: String, codec: Codec<T>) =
-        read(codec.optionalFieldOf(key)).flatten()
+    private val readKeyCache = mutableMapOf<kotlin.Pair<String, Codec<*>>, Optional<*>>()
 
+    @Suppress("UNCHECKED_CAST")
+    override fun <T: Any> read(key: String, codec: Codec<T>) =
+        readKeyCache.getOrPut(key to codec) {
+            read(codec.optionalFieldOf(key)).flatten()
+        } as Optional<T>
+
+    private val readMapCodecCache = mutableMapOf<MapCodec<*>, Optional<*>>()
+
+    @Suppress("UNCHECKED_CAST")
     @Deprecated("Deprecated in Java")
     override fun <T: Any> read(mapCodec: MapCodec<T>) =
-        map.flatMap { mapCodec.decode(dynamic.ops, it).resultOrPartial() }
+        readMapCodecCache.getOrPut(mapCodec) {
+            map.flatMap { mapCodec.decode(dynamic.ops, it).resultOrPartial() }
+        } as Optional<T>
+
+    private val childCache = mutableMapOf<String, Optional<ValueInput>>()
 
     override fun child(key: String): Optional<ValueInput> =
-        read(key, getReadViewCodec(registries)).cast()
+        childCache.getOrPut(key) {
+            read(key, getReadViewCodec(registries)).cast()
+        }
 
 
     override fun childOrEmpty(key: String): ValueInput =
         child(key).getOrDefault(DynamicOpsReadView(Dynamic(dynamic.ops), registries, Optional.empty()))
 
+    private val childrenListCache = mutableMapOf<String, Optional<ValueInputList>>()
+
     override fun childrenList(key: String): Optional<ValueInputList> =
-        read(key, getListReadViewCodec(registries)).cast()
+        childrenListCache.getOrPut(key) {
+            read(key, getListReadViewCodec(registries)).cast()
+        }
 
     override fun childrenListOrEmpty(key: String): ValueInputList =
         childrenList(key).getOrDefault(DynamicOpsListReadView(mutableListOf()))
 
+    private val listCache = mutableMapOf<kotlin.Pair<String, Codec<*>>, Optional<TypedInputList<*>>>()
+
+    @Suppress("UNCHECKED_CAST")
     override fun <T: Any> list(
         key: String,
         typeCodec: Codec<T>,
     ): Optional<TypedInputList<T>> =
-        read(key, getTypedListReadViewCodec(typeCodec)).cast()
+        listCache.getOrPut(key to typeCodec) {
+            read(key, getTypedListReadViewCodec(typeCodec)).cast()
+        } as Optional<TypedInputList<T>>
 
     override fun <T: Any> listOrEmpty(key: String, typeCodec: Codec<T>): TypedInputList<T> =
         list(key, typeCodec).getOrDefault(DynamicOpsTypedListReadView(mutableListOf()))
