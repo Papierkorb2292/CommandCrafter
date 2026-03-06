@@ -759,7 +759,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         // Make sure to get the registry access that includes reloadable files
                         val registryAccess = if(source is CommandSourceStack) (source.server.recipeManager as RecipeManagerAccessor).registries else source.registryAccess()
                         hasCustomCompletions = analyzer.hasCustomCompletions(context, node.name)
-                        DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(reader.resourceCreator.languageServer!!.dynamicRegistryManager) {
+                        DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(reader.resourceCreator.languageServer?.dynamicRegistryManager) {
                             callArgumentAnalyzerUnchecked(
                                 analyzer,
                                 context,

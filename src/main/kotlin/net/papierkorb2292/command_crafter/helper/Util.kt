@@ -61,9 +61,9 @@ inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValue(value: TValue, blo
     }
 }
 
-inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValueSwap(value: TValue, block: () -> TResult): TResult {
+inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValueSwap(value: TValue?, block: () -> TResult): TResult {
     val prev = get()
-    set(value)
+    if(value != null) set(value) else remove()
     try {
         return block()
     } finally {
