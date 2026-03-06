@@ -26,7 +26,7 @@ class ScoreHolderArgumentAnalyzer : CommandArgumentAnalyzerService<ScoreHolderAr
         buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
-        if(reader.peek() != '@') {
+        if(!reader.canRead() || reader.peek() != '@') {
             result.semanticTokens.addMultiline(range, PARAMETER, 0)
             return
         }
