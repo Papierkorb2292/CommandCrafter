@@ -58,6 +58,7 @@ dependencies {
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
+    log4jConfigs.from("log4j-dev.xml")
     splitEnvironmentSourceSets()
     mods {
         create("commandcrafter") {
