@@ -33,7 +33,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.Command
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.getLastNodeWithRedirects
-import net.papierkorb2292.command_crafter.parser.helper.resolveRedirects
+import net.papierkorb2292.command_crafter.parser.helper.resolveRedirect
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
@@ -323,7 +323,7 @@ class MacroAnalyzingCrawlerRunner(
             return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
         val childSpawner = Spawner(
             spawner,
-            lastNode.resolveRedirects().children.filter { it.resolveRedirects().children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
+            lastNode.resolveRedirect().children.filter { it.resolveRedirect().children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
             nextAttemptIndex,
             commandParseResults.context.lastChild
         )
@@ -537,7 +537,7 @@ class MacroAnalyzingCrawlerRunner(
         fun pushCrawler() {
             if(nextNodes.isEmpty())
                 return
-            val redirectedNodes = nextNodes.map { it.resolveRedirects() }
+            val redirectedNodes = nextNodes.map { it.resolveRedirect() }
             crawlers += Crawler(
                 redirectedNodes.distinct(),
                 nextNodes.mapIndexedNotNull { i, node ->

@@ -827,7 +827,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         rootCompletions: AnalyzingResult? = null,
         completionsChannel: String = AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
     ) {
-        val completionParentNode = parentNode.node.resolveRedirects()
+        val completionParentNode = parentNode.node.resolveRedirect()
         analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
             completionsChannel,
             StringRange(
@@ -953,7 +953,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
         var furthestParsedContext: CommandContextBuilder<SharedSuggestionProvider>? = null
-        for(nextNode in parentNode.node.resolveRedirects().children) {
+        for(nextNode in parentNode.node.resolveRedirect().children) {
             val newReader = reader.copy()
             val start = newReader.cursor
             val newContext = context.copy()

@@ -41,12 +41,7 @@ fun limitCommandTreeForSource(commandManager: Commands, source: CommandSourceSta
     return rootNode as RootCommandNode<SharedSuggestionProvider>
 }
 
-fun <S> CommandNode<S>.resolveRedirects(): CommandNode<S> {
-    var node = this
-    while(node.redirect != null)
-        node = node.redirect
-    return node
-}
+fun <S> CommandNode<S>.resolveRedirect(): CommandNode<S> = redirect ?: this
 
 fun <S> CommandContextBuilder<S>.getLastNodeWithRedirects(): CommandNode<S> {
     val lastChild = this.lastChild
