@@ -45,4 +45,7 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
 
     override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>?
         get() = delegate.nodeAnalyzingBehavior
+
+    override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
+        get() = delegate.branchBehavior
 }
