@@ -75,18 +75,18 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
 
-    val dummyEntityDecoder: Map<EntityType<*>, Decoder<Unit>>
-    val dummyBlockEntityDecoders: Map<Block, Decoder<Unit>>
+    val dummyEntities: Map<EntityType<*>, Entity>
+    val dummyBlockEntities: Map<Block, BlockEntity>
 
     init {
         val prevOverride = BUILTIN_REGISTRY_OVERRIDE.get()
         try {
             BUILTIN_REGISTRY_OVERRIDE.set(registries)
-            dummyEntityDecoder = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
-                .mapNotNull { createDummyEntityDecoder(it.key.identifier(), it.value) }
+            dummyEntities = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
+                .mapNotNull { createDummyEntity(it.key.identifier(), it.value) }
                 .toMap()
-            dummyBlockEntityDecoders = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
-                .mapNotNull { createDummyBlockEntityDecoder(it.key.identifier(), it.value) }
+            dummyBlockEntities = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
+                .mapNotNull { createDummyBlockEntity(it.key.identifier(), it.value) }
                 .flatten()
                 .toMap()
         } finally {
@@ -98,40 +98,51 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     }
 
     fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SharedSuggestionProvider>): Decoder<Unit>? {
-        return try {
-            when(dataObjectSource.kind) {
-                DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
+        return when(dataObjectSource.kind) {
+            DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
+                try {
                     @Suppress("UNCHECKED_CAST")
-                    dummyEntityDecoder[ResourceArgument.getEntityType(
+                    val entity = dummyEntities[ResourceArgument.getEntityType(
                         context as CommandContext<CommandSourceStack>,
                         dataObjectSource.argumentName
-                    ).value()]
+                    ).value()] ?: return null
+                    DynamicOpsReadView.getReadDecoder(registries) { input ->
+                        entity.load(input)
+                    }
+                } catch(_: IllegalArgumentException) {
+                    // No entity argument found, maybe it's macro. Decoder should try out all entities
+                    DynamicOpsReadView.getReadDecoder(registries) { input ->
+                        for(entity in dummyEntities.values) {
+                            entity.load(input)
+                        }
+                    }
                 }
             }
-        } catch(_: IllegalArgumentException) {
-            //TODO: This can happen when accessing an argument that contains a macro variable. Maybe this case should be handled by trying out all possible values?
-            null
         }
     }
 
-    private fun <T : Entity> createDummyEntityDecoder(id: Identifier, entityType: EntityType<T>): Pair<EntityType<T>, Decoder<Unit>>? {
+    fun getDecoderForBlock(block: Block): Decoder<Unit>? {
+        val blockEntity = dummyBlockEntities[block] ?: return null
+        return DynamicOpsReadView.getReadDecoder(registries, blockEntity::loadWithComponents)
+    }
+
+    private fun <T : Entity> createDummyEntity(id: Identifier, entityType: EntityType<T>): Pair<EntityType<T>, Entity>? {
         try {
             @Suppress("UNCHECKED_CAST")
             val entity = (entityType as EntityTypeAccessor<T>).factory.create(entityType, dummyWorld) ?: return null
-            return entityType to DynamicOpsReadView.getReadDecoder(registries, entity::load)
+            return entityType to entity
         } catch(e: Throwable) {
-            CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id", e)
             return null
         }
     }
 
-    private fun <T : BlockEntity> createDummyBlockEntityDecoder(id: Identifier, blockEntityType: BlockEntityType<T>): Sequence<Pair<Block, Decoder<Unit>>>? {
+
+    private fun <T : BlockEntity> createDummyBlockEntity(id: Identifier, blockEntityType: BlockEntityType<T>): Sequence<Pair<Block, BlockEntity>>? {
         try {
             @Suppress("UNCHECKED_CAST")
             val accessor = blockEntityType as BlockEntityTypeAccessor<T>
             val blockEntity = accessor.factory.create(BlockPos.ZERO, accessor.validBlocks.first().defaultBlockState()) ?: return null
-            val decoder = DynamicOpsReadView.getReadDecoder(registries, blockEntity::loadWithComponents)
-            return accessor.validBlocks.asSequence().map { it to decoder }
+            return accessor.validBlocks.asSequence().map { it to blockEntity }
         } catch(e: Throwable) {
             CommandCrafter.LOGGER.warn("Error creating dummy block entity of type $id", e)
             return null

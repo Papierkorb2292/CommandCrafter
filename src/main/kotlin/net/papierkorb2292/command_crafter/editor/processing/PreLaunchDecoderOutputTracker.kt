@@ -45,6 +45,10 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         ExtraDecoderBehavior.getCurrentBehavior(ops)?.onDecodeStart(input)
     }
 
+    fun <TInput : Any> onDecodeStart(dynamic: Dynamic<TInput>) {
+        onDecodeStart(dynamic.ops, dynamic.value)
+    }
+
     const val ON_DECODED_NAME = "onDecoded"
     const val ON_DECODED_DESC = "(Lcom/mojang/serialization/DataResult;Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)V"
 

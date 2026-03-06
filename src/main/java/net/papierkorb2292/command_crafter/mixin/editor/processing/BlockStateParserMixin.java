@@ -218,8 +218,9 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
         if(state != null) {
             //noinspection unchecked
             var dataObjectDecoding = DataObjectDecoding.Companion.getForReader((DirectiveStringReader<AnalyzingResourceCreator>) reader);
-            if (dataObjectDecoding != null)
-                decoder = dataObjectDecoding.getDummyBlockEntityDecoders().get(state.getBlock());
+            if (dataObjectDecoding != null) {
+                decoder = dataObjectDecoding.getDecoderForBlock(state.getBlock());
+            }
         }
 
         StringRangeTree.TreeOperations.Companion.forNbt(

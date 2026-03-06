@@ -35,6 +35,7 @@ public abstract class BlockAttachedEntityMixin extends Entity {
             // Error is only added when block pos is null. The other possible case is that the block pos is too far away from the entities position,
             // but this can't be checked when analyzing since relative coordinates might be used in the command.
             if(o != null) return false;
+            PreLaunchDecoderOutputTracker.INSTANCE.onDecodeStart(dynamicOpsReadView.getDynamic()); // Start first, because the outermost decoder does not invoke callbacks
             PreLaunchDecoderOutputTracker.INSTANCE.onDecoded(
                     DataResult.error(() -> s.replace("{}", "null")),
                     dynamicOpsReadView.getDynamic()
