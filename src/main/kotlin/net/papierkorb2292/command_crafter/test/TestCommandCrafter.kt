@@ -2,13 +2,22 @@ package net.papierkorb2292.command_crafter.test
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.*
+import net.minecraft.commands.arguments.blocks.BlockPredicateArgument
+import net.minecraft.commands.arguments.blocks.BlockStateArgument
+import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.arguments.item.ItemArgument
+import net.minecraft.commands.arguments.item.ItemPredicateArgument
 import net.minecraft.commands.functions.StringTemplate
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.network.chat.Component
@@ -24,6 +33,7 @@ import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.parser.helper.StringifiableCommandNode
 import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
@@ -655,6 +665,95 @@ object TestCommandCrafter {
         )
 
         context.succeed()
+    }
+
+    private val argumentTypesWithoutEquals: Set<Class<*>> = setOf(
+        ScoreHolderArgument::class.java,
+        MessageArgument::class.java,
+        EntityArgument::class.java,
+        BlockPredicateArgument::class.java,
+        ItemPredicateArgument::class.java,
+        FunctionArgument::class.java,
+        NbtPathArgument::class.java,
+        BlockStateArgument::class.java,
+        ItemArgument::class.java,
+        ResourceOrIdArgument::class.java,
+        GameProfileArgument::class.java
+    )
+
+    @GameTest
+    fun testStringifiedArgumentExamples(context: GameTestHelper) {
+        val dispatcher = getCommandDispatcher(context)
+        for(node in dispatcher.root.children) {
+            recursivelyTestStringifiedArgumentExamples(node, dispatcher, context)
+        }
+        context.succeed()
+    }
+
+    fun <T> recursivelyTestStringifiedArgumentExamples(node: CommandNode<T>, dispatcher: CommandDispatcher<SharedSuggestionProvider>, context: GameTestHelper) {
+        if(node is ArgumentCommandNode<T, *>) {
+            val source = context.level.server.createCommandSourceStack()
+            val argumentType = node.type
+            var argumentClass: Class<*> = argumentType.javaClass
+            var argumentHasEquals = true
+            while(argumentClass != Any::class.java) {
+                if(argumentClass in argumentTypesWithoutEquals) {
+                    argumentHasEquals = false
+                    break
+                }
+                argumentClass = argumentClass.superclass
+            }
+
+            val examples = argumentType.examples
+            for(example in examples) {
+               val (parsed, joined) = parseArgumentAndStringify(node, example, dispatcher, source) ?: continue
+                val (transpiledParsed, transpiledJoined) = parseArgumentAndStringify(node, joined, dispatcher, source) ?: throw IllegalStateException("Parsing stringified example threw error")
+
+                if(argumentHasEquals) {
+                    context.assertValueEqual(
+                        parsed,
+                        transpiledParsed,
+                        "Parsing stringified example '$example' for $node"
+                    )
+                } else {
+                    context.assertValueEqual(
+                        joined,
+                        transpiledJoined,
+                        "Stringified example '$example' for $node"
+                    )
+                }
+            }
+        }
+
+        for(child in node.children) {
+            recursivelyTestStringifiedArgumentExamples(child, dispatcher, context)
+        }
+    }
+
+    fun <S, T> parseArgumentAndStringify(node: ArgumentCommandNode<S, T>, input: String, dispatcher: CommandDispatcher<SharedSuggestionProvider>, source: CommandSourceStack): Pair<T, String>? {
+        val builder = CommandContextBuilder(dispatcher, source, dispatcher.root, 0)
+        val reader = DirectiveStringReader(FileMappingInfo(listOf(input)), dispatcher, RawZipResourceCreator())
+        @Suppress("UNCHECKED_CAST")
+        try {
+            node.parse(reader, builder as CommandContextBuilder<S>)
+        } catch(_: CommandSyntaxException) {
+            return null
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val commandContext = builder.build(input) as CommandContext<CommandSourceStack>
+        val parsed = commandContext.getArgument(node.name, Any::class.java)
+        reader.cursor = 0
+        val stringified = (node as StringifiableCommandNode).`command_crafter$stringifyNode`(commandContext, StringRange(0, input.length), reader)
+        val joined = stringified.joinToString("") { either ->
+            either.map(
+                { string -> string },
+                { resource -> throw IllegalStateException("Stringified vanilla example shouldn't contain raw resource") }
+            )
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        return parsed as T to joined
     }
 
     private fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult {
