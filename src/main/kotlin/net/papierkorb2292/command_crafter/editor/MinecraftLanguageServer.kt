@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.tag.convention.v2.TagUtil
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
+import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
@@ -20,6 +21,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.Fil
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import org.apache.logging.log4j.core.pattern.AnsiEscape
 import org.eclipse.lsp4j.*
@@ -287,8 +289,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenComposeAsync { analyzingResult ->
-                    val completions = analyzingResult.getCompletions(cursor, params.context)
-                        ?: return@thenComposeAsync emptyCompletionsDefault
+                    val completions = DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(dynamicRegistryManager) {
+                        analyzingResult.getCompletions(cursor, params.context)
+                    } ?: return@thenComposeAsync emptyCompletionsDefault
                     completions.thenApply {
                         sortCommonTagCompletionsAtEnd(it)
                         Either.forLeft(

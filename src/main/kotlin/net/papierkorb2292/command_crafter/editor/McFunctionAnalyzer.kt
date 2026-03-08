@@ -2,8 +2,10 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.minecraft.commands.SharedSuggestionProvider
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.Language
 import net.papierkorb2292.command_crafter.parser.LanguageManager
@@ -36,7 +38,14 @@ class McFunctionAnalyzer(
         )
         val result = AnalyzingResult(reader.fileMappingInfo, Position())
         reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-        LanguageManager.analyse(reader, sourceProvider(languageServer), result, Language.TopLevelClosure(VanillaLanguage()))
+        DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
+            LanguageManager.analyse(
+                reader,
+                sourceProvider(languageServer),
+                result,
+                Language.TopLevelClosure(VanillaLanguage())
+            )
+        }
         reader.resourceCreator.resourceStack.pop()
         val filtered = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
         if(!Thread.currentThread().isInterrupted)

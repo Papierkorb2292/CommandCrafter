@@ -759,18 +759,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         // Make sure to get the registry access that includes reloadable files
                         val registryAccess = if(source is CommandSourceStack) (source.server.recipeManager as RecipeManagerAccessor).registries else source.registryAccess()
                         hasCustomCompletions = analyzer.hasCustomCompletions(context, node.name)
-                        DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(reader.resourceCreator.languageServer?.dynamicRegistryManager) {
-                            callArgumentAnalyzerUnchecked(
-                                analyzer,
-                                context,
-                                node.type,
-                                range,
-                                node.name,
-                                analyzeReader,
-                                CommandBuildContext.simple(registryAccess, contextBuilder.source.enabledFeatures()),
-                                nodeAnalyzingResult
-                            )
-                        }
+                        callArgumentAnalyzerUnchecked(
+                            analyzer,
+                            context,
+                            node.type,
+                            range,
+                            node.name,
+                            analyzeReader,
+                            CommandBuildContext.simple(registryAccess, contextBuilder.source.enabledFeatures()),
+                            nodeAnalyzingResult
+                        )
                     }
                 } catch(e: Exception) {
                     CommandCrafter.LOGGER.debug("Error while analyzing command node ${node.name}", e)
@@ -855,37 +853,30 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
                         this.cursor = endCursor
                     })
-                    val suggestionInfo = try {
-                        if(completionReader.resourceCreator.languageServer != null) {
-                            DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.set(completionReader.resourceCreator.languageServer.dynamicRegistryManager) // Some items require components for some completions
-                        }
-                        completionParentNode.children.map { child ->
-                            try {
-                                val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
-                                child.listSuggestions(
-                                    contextBuilder.withSource(
-                                        completionCommandSourceProvider(
-                                            contextBuilder.source,
-                                            SUGGESTIONS_FULL_INPUT.get(),
-                                            context
-                                        )
-                                    ).build(extendedTruncatedInput),
-                                    SuggestionsBuilder(
-                                        extendedTruncatedInput, truncatedInputLowerCase,
-                                        min(parsedNodeRange.start, extendedTruncatedInput.length)
-
+                    val suggestionInfo = completionParentNode.children.map { child ->
+                        try {
+                            val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
+                            child.listSuggestions(
+                                contextBuilder.withSource(
+                                    completionCommandSourceProvider(
+                                        contextBuilder.source,
+                                        SUGGESTIONS_FULL_INPUT.get(),
+                                        context
                                     )
-                                ) to analyzer
-                            } catch(e: Exception) {
-                                CommandCrafter.LOGGER.debug(
-                                    "Error while getting suggestions for command node ${child.name}",
-                                    e
+                                ).build(extendedTruncatedInput),
+                                SuggestionsBuilder(
+                                    extendedTruncatedInput, truncatedInputLowerCase,
+                                    min(parsedNodeRange.start, extendedTruncatedInput.length)
+
                                 )
-                                Suggestions.empty() to null
-                            }
+                            ) to analyzer
+                        } catch(e: Exception) {
+                            CommandCrafter.LOGGER.debug(
+                                "Error while getting suggestions for command node ${child.name}",
+                                e
+                            )
+                            Suggestions.empty() to null
                         }
-                    } finally {
-                        DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.remove()
                     }
                     val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
                     val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {

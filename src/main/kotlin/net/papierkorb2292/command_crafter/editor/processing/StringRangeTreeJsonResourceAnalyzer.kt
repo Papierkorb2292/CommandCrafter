@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.Position
@@ -62,11 +63,13 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
-            StringRangeTree.TreeOperations.forJson(
-                parsedStringRangeTree,
-                concatenatedLines
-            ).withRegistry(languageServer.dynamicRegistryManager)
-                .analyzeFull(result, fileDecoder)
+            DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
+                StringRangeTree.TreeOperations.forJson(
+                    parsedStringRangeTree,
+                    concatenatedLines
+                ).withRegistry(languageServer.dynamicRegistryManager)
+                    .analyzeFull(result, fileDecoder)
+            }
             return result
         }
 
