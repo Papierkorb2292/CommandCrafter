@@ -157,6 +157,7 @@
     "packrat.ComponentPredicateParserMixin",
     "packrat.DictionaryAccessor",
     "packrat.GrammarMixin",
+    "packrat.LookaheadTermMixin",
     "packrat.OptionalTermsMixin",
     "packrat.ParserWithDecodingMixin",
     "packrat.RepeatedTermsMixin",
