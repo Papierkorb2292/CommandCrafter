@@ -24,8 +24,14 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
     }
 
     override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
-        if(postDecrementDecodeStackCount(input) > 1) return
-        delegate.onResult(result, isPartial, input)
+        if(isPartial) {
+            // onError has been called before
+            if(input !in decodeStackCounts)
+                delegate.onResult(result, true, input)
+        } else {
+            if(postDecrementDecodeStackCount(input) > 1) return
+            delegate.onResult(result, false, input)
+        }
     }
 
     override fun onDecodeStart(input: TNode) {
@@ -34,6 +40,12 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
         if(newCount > 1) return
         delegate.onDecodeStart(input)
     }
+
+    override fun commitErrors(level: ExtraDecoderBehavior.DecoderErrorLevel) =
+        delegate.commitErrors(level)
+
+    override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner =
+        delegate.markErrorLateAddition()
 
     override fun markStringParseError(input: TNode) = delegate.markStringParseError(input)
     override fun markCompletelyAccessed(input: TNode) = delegate.markCompletelyAccessed(input)

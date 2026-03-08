@@ -7,6 +7,8 @@ import net.minecraft.world.level.storage.ValueInput
 import net.minecraft.world.level.storage.ValueInput.TypedInputList
 import net.minecraft.world.level.storage.ValueInput.ValueInputList
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior.Companion.IDENTITY_LATE_ADDITION_RUNNER
 import net.papierkorb2292.command_crafter.helper.cast
 import net.papierkorb2292.command_crafter.helper.flatten
 import java.util.*
@@ -16,14 +18,22 @@ import kotlin.jvm.optionals.getOrDefault
 // Uses dummy Encoders in a bunch of places to use methods of Codec that are not available for just a Decoder.
 // Btw. don't really know why Mojang didn't use DynamicOps in the first place
 // Also caches results to prevent unnecessary decoding (for example when multiple entities read from the same instance)
-class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val registries: HolderLookup.Provider, val map: Optional<MapLike<TNode>>) :
+class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val registries: HolderLookup.Provider, val map: Optional<MapLike<TNode>>, private val lateAdditionRunner: ExtraDecoderBehavior.LateAdditionRunner) :
     ValueInput {
     companion object {
         fun <TNode : Any> create(
             dynamic: Dynamic<TNode>,
             registries: HolderLookup.Provider
         ): DataResult<DynamicOpsReadView<TNode>> =
-            dynamic.ops.getMap(dynamic.value).map { DynamicOpsReadView(dynamic, registries, Optional.of(it)) }
+            dynamic.ops.getMap(dynamic.value).map { mapLike ->
+                DynamicOpsReadView(
+                    dynamic,
+                    registries,
+                    Optional.of(mapLike),
+                    ExtraDecoderBehavior.getCurrentBehavior(dynamic.ops)?.markErrorLateAddition()
+                        ?: IDENTITY_LATE_ADDITION_RUNNER
+                )
+            }
 
         private fun <T : Any> dummyEncodeDynamicOpsReadView(readView: DynamicOpsReadView<T>) = DataResult.success(Dynamic(readView.dynamic.ops, readView.dynamic.ops.empty()))
 
@@ -54,7 +64,9 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
     @Deprecated("Deprecated in Java")
     override fun <T: Any> read(mapCodec: MapCodec<T>) =
         readMapCodecCache.getOrPut(mapCodec) {
-            map.flatMap { mapCodec.decode(dynamic.ops, it).resultOrPartial() }
+            lateAdditionRunner.acceptLateAddition {
+                map.flatMap { mapCodec.decode(dynamic.ops, it).resultOrPartial() }
+            }
         } as Optional<T>
 
     private val childCache = mutableMapOf<String, Optional<ValueInput>>()
@@ -66,7 +78,7 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
 
 
     override fun childOrEmpty(key: String): ValueInput =
-        child(key).getOrDefault(DynamicOpsReadView(Dynamic(dynamic.ops), registries, Optional.empty()))
+        child(key).getOrDefault(DynamicOpsReadView(Dynamic(dynamic.ops), registries, Optional.empty(), IDENTITY_LATE_ADDITION_RUNNER))
 
     private val childrenListCache = mutableMapOf<String, Optional<ValueInputList>>()
 

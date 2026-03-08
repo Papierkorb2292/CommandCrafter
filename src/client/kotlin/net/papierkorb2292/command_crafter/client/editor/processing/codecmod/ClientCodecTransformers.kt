@@ -16,7 +16,8 @@ import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyDecodeRecord
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.forGetterIdent
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyAnalyzingRecord
 import net.papierkorb2292.command_crafter.mixin.client.editor.ClientLanguageAccessor
 import net.papierkorb2292.command_crafter.mixin.client.editor.KeyMappingAccessor
 import net.papierkorb2292.command_crafter.mixin.client.editor.TextureAtlasAccessor
@@ -51,43 +52,41 @@ object ClientCodecTransformers {
     fun suggestAtlasSpriteNames(codec: MapCodec<Identifier>): MapCodec<Identifier> {
         return RecordCodecBuilder.mapCodec { instance ->
             instance.group(
-                RecordCodecBuilder.mapCodec {
-                    it.group(
-                        CodecSuggestionWrapper(Identifier.CODEC, object : SuggestionsProvider {
-                            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
-                                val atlasSuggestions = ArrayList<T>()
-                                Minecraft.getInstance().atlasManager.forEach { id, _ ->
-                                    atlasSuggestions.add(ops.createString(id.toString()))
-                                }
-                                return atlasSuggestions.stream()
-                            }
-                        }).lenientOptionalFieldOf("atlas").onlyDecodeRecord(),
-                        Codec.PASSTHROUGH.fieldOf("sprite").onlyDecodeRecord(),
-                    ).apply(it) { atlas, sprite ->
-                        CodecSuggestionWrapper(Codec.STRING, object : SuggestionsProvider {
-                            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
-                                var atlasCandidates: Stream<TextureAtlas>? = null
-                                atlas.ifPresent { atlasId ->
-                                    try {
-                                        atlasCandidates = Stream.of(Minecraft.getInstance().atlasManager.getAtlasOrThrow(atlasId))
-                                    } catch(ignored: IllegalArgumentException) { /* Let the `atlasCandidates == null` case run instead */ }
-                                }
-                                if(atlasCandidates == null) {
-                                    val atlasTextureList = mutableListOf<TextureAtlas>()
-                                    Minecraft.getInstance().atlasManager.forEach { _, texture ->
-                                        atlasTextureList.add(texture)
-                                    }
-                                    atlasCandidates = atlasTextureList.stream()
-                                }
-                                return atlasCandidates
-                                    .flatMap { texture -> (texture as TextureAtlasAccessor).getTexturesByName().keys.stream() }
-                                    .map { id -> ops.createString(id.toString()) }
-                            }
-                        }).decode(sprite)
+                CodecSuggestionWrapper(Identifier.CODEC, object : SuggestionsProvider {
+                    override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+                        val atlasSuggestions = ArrayList<T>()
+                        Minecraft.getInstance().atlasManager.forEach { id, _ ->
+                            atlasSuggestions.add(ops.createString(id.toString()))
+                        }
+                        return atlasSuggestions.stream()
                     }
-                }.onlyDecodeRecord(),
-                codec.forGetter { it }
-            ).apply(instance) { ignored, result -> result }
+                }).onlyAnalyzingRecord("atlas"),
+                Codec.PASSTHROUGH.onlyAnalyzingRecord("sprite"),
+                codec.forGetterIdent(),
+            ).apply(instance) { atlas, sprite, result ->
+                if(sprite.isEmpty) return@apply result
+                CodecSuggestionWrapper(Codec.STRING, object : SuggestionsProvider {
+                    override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+                        var atlasCandidates: Stream<TextureAtlas>? = null
+                        atlas.ifPresent { atlasId ->
+                            try {
+                                atlasCandidates = Stream.of(Minecraft.getInstance().atlasManager.getAtlasOrThrow(atlasId))
+                            } catch(ignored: IllegalArgumentException) { /* Let the `atlasCandidates == null` case run instead */ }
+                        }
+                        if(atlasCandidates == null) {
+                            val atlasTextureList = mutableListOf<TextureAtlas>()
+                            Minecraft.getInstance().atlasManager.forEach { _, texture ->
+                                atlasTextureList.add(texture)
+                            }
+                            atlasCandidates = atlasTextureList.stream()
+                        }
+                        return atlasCandidates
+                            .flatMap { texture -> (texture as TextureAtlasAccessor).getTexturesByName().keys.stream() }
+                            .map { id -> ops.createString(id.toString()) }
+                    }
+                }).decode(sprite.get())
+                result
+            }
         }
     }
 }

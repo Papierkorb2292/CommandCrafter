@@ -15,6 +15,9 @@ import java.util.stream.Stream
 interface ExtraDecoderBehavior<in TNode : Any> {
     companion object {
         private val CURRENT_EXTRA_DECODER_BEHAVIOR = ThreadLocal<RegisteredBehavior<*>>()
+        val IDENTITY_LATE_ADDITION_RUNNER = object : LateAdditionRunner {
+            override fun <T> acceptLateAddition(adder: () -> T): T = adder()
+        }
 
         fun <TNode : Any> getCurrentBehavior(ops: DynamicOps<TNode>): ExtraDecoderBehavior<TNode>? {
             val behavior = CURRENT_EXTRA_DECODER_BEHAVIOR.getOrNull() ?: return null
@@ -42,6 +45,8 @@ interface ExtraDecoderBehavior<in TNode : Any> {
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
     fun onDecodeStart(input: TNode) {}
+    fun commitErrors(level: DecoderErrorLevel) {}
+    fun markErrorLateAddition(): LateAdditionRunner = IDENTITY_LATE_ADDITION_RUNNER
 
     fun markCompletelyAccessed(input: TNode) {}
 
@@ -86,5 +91,15 @@ interface ExtraDecoderBehavior<in TNode : Any> {
          * Different to [ALL_VALID] in that [ALL_POSSIBLE] also tries out all options in a dispatch codec, if the type field is not present.
          */
         ALL_POSSIBLE
+    }
+
+    enum class DecoderErrorLevel {
+        ERROR,
+        WARNING,
+        IGNORE
+    }
+
+    interface LateAdditionRunner {
+        fun <T> acceptLateAddition(adder: () -> T): T
     }
 }

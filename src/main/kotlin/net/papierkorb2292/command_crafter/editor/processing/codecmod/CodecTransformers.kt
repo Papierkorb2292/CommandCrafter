@@ -154,9 +154,9 @@ object CodecTransformers {
         })
         return RecordCodecBuilder.mapCodec { instance ->
             instance.group(
-                formatSuggestingCodec.fieldOf("min_format").onlyDecodeRecord(),
-                formatSuggestingCodec.fieldOf("max_format").onlyDecodeRecord(),
-                codec.forGetter { it }
+                formatSuggestingCodec.onlyAnalyzingRecord("min_format"),
+                formatSuggestingCodec.onlyAnalyzingRecord("max_format"),
+                codec.forGetterIdent()
             ).apply(instance, { _, _, format -> format })
         }
     }

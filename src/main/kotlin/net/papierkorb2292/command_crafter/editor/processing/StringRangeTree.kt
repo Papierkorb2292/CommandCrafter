@@ -35,10 +35,10 @@ import kotlin.collections.Collection
 import kotlin.collections.List
 import kotlin.collections.Map
 import kotlin.collections.MutableCollection
+import kotlin.collections.MutableList
 import kotlin.collections.MutableMap
 import kotlin.collections.Set
 import kotlin.collections.associateTo
-import kotlin.collections.binarySearch
 import kotlin.collections.contains
 import kotlin.collections.emptyList
 import kotlin.collections.firstNotNullOfOrNull
@@ -60,6 +60,7 @@ import kotlin.collections.plus
 import kotlin.collections.plusAssign
 import kotlin.collections.reversed
 import kotlin.collections.set
+import kotlin.collections.sumOf
 import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
@@ -305,7 +306,7 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.DecoderErrorLeafRangesCallback(accessedKeysWatcher)
+            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher, stringRangeTree.root)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
                 ExtraDecoderBehavior.decodeWithBehavior(
                     decoder,
@@ -816,18 +817,17 @@ class StringRangeTree<TNode: Any>(
      * A decoder  callback that tracks all errors and the range of the input that caused them.
      *
      * This callback only keeps the errors that are caused by the leaf nodes of a StringRangeTree that is reduced
-     * to only the nodes with errors. In other words, all errors whose range encompasses another error's
-     * range are ignored
+     * to only the nodes with errors. In other words, errors from a node are ignored if its children already have errors.
      */
-    inner class DecoderErrorLeafRangesCallback(
+    inner class LeafErrorDecoderCallback(
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
+        root: TNode,
     ) : ExtraDecoderBehavior<TNode> {
-        private val errors = mutableListOf<kotlin.Pair<StringRange, String?>>()
-
-        private fun throwForPartialOverlap(range1: StringRange, range2: StringRange) {
-            throw IllegalStateException("Ranges of nodes must not partially overlap. They must either not overlap or one must encompass the other. Ranges: $range1, $range2")
+        private val stack = ArrayList<ErrorStackEntry<TNode>>(16)
+        private val lateAdditionMergers = ArrayList<() -> Unit>()
+        init {
+            stack.add(ErrorStackEntry(root))
         }
-
         private fun getNodeRange(node: TNode): StringRange? {
             ranges[node]?.let {
                 return it
@@ -844,6 +844,7 @@ class StringRangeTree<TNode: Any>(
         override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
             val range = getNodeRange(input) ?: return
             addError(error, range)
+            popStack()
         }
 
         override fun markStringParseError(input: TNode) {
@@ -855,54 +856,149 @@ class StringRangeTree<TNode: Any>(
         }
 
         private fun addError(error: DataResult.Error<*>?, range: StringRange) {
-            // Use compareTo instead of compareToExclusive, because the latter doesn't return 0 for equal ranges of length 0
-            val index = errors.binarySearch { entry -> entry.first.compareTo(range) }
-            if(index < 0) {
-                errors.add(-index - 1, range to error?.message())
-                return
+            val stackEntry = stack.last()
+            if(!stackEntry.ignoreErrors) {
+                stackEntry.comittedDiagnostics.errors += range to error?.message()
+                stackEntry.ignoreErrors = true
             }
-            val existingRange = errors[index].first
-            if(existingRange.start <= range.start && existingRange.end >= range.end) {
-                errors[index] = range to error?.message()
-                return
-            }
-
-            if((existingRange.start < range.start).xor(existingRange.end > range.end))
-                throwForPartialOverlap(existingRange, range)
         }
 
         override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
             if(isPartial) return
+            // Since decoding was successful, all other errors that children added are cleared.
+            // Warnings are kept, since they exist even if the result was decoded correctly
+            stack.last().clearChildErrors()
+            popStack()
+        }
 
-            //Since decoding was successful, all errors that are encompassed by the input node's range are removed
-            val range = ranges[input] ?: return
-            var index = errors.binarySearch { entry -> entry.first.compareTo(range) }
-            if(index < 0) return
+        override fun onDecodeStart(input: TNode) {
+            pushStack(input)
+        }
 
-            while(index >= 0) {
-                val existingRange = errors[index].first
-                if(existingRange.start < range.start) {
-                    if(existingRange.end < range.end && existingRange.end > range.start)
-                        throwForPartialOverlap(existingRange, range)
-                    break
+        override fun commitErrors(level: ExtraDecoderBehavior.DecoderErrorLevel) {
+            val stackEntry = stack.last()
+            when(level) {
+                ExtraDecoderBehavior.DecoderErrorLevel.IGNORE -> stackEntry.isEntryIgnored = true
+                ExtraDecoderBehavior.DecoderErrorLevel.WARNING -> {
+                    stackEntry.childDiagnostics.values.forEach { child ->
+                        stackEntry.comittedDiagnostics.warnings += child.errors
+                        child.errors.clear()
+                    }
                 }
-                if(existingRange.end > range.end) {
-                    if(existingRange.start > range.start && existingRange.start < range.end)
-                        throwForPartialOverlap(existingRange, range)
-                    break
+                ExtraDecoderBehavior.DecoderErrorLevel.ERROR -> {
+                    stackEntry.childDiagnostics.values.forEach { child ->
+                        stackEntry.comittedDiagnostics.errors += child.errors
+                        child.errors.clear()
+                    }
                 }
-                errors.removeAt(index)
-                if(index >= errors.size)
-                    index = errors.lastIndex
             }
         }
 
-        override fun onDecodeStart(input: TNode) { }
+        override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
+            val stackCopy = ArrayList(stack)
+            stack.last().hasLateAddition = true
+            lateAdditionMergers += {
+                for(i in stackCopy.lastIndex downTo 1) {
+                    val entry = stackCopy[i]
+                    if(entry.ignoreErrors)
+                        break
+                    stackCopy[i - 1].offerChild(entry.node, entry.getAllDiagnostics())
+                }
+            }
+            return object : ExtraDecoderBehavior.LateAdditionRunner {
+                override fun <T> acceptLateAddition(adder: () -> T): T {
+                    stack += stackCopy.last()
+                    val result = adder()
+                    stack.removeLast()
+                    return result
+                }
+            }
+        }
+
+        private fun pushStack(node: TNode) {
+            stack += ErrorStackEntry(node)
+        }
+
+        private fun popStack() {
+            val popped = stack.removeLast()
+            if(popped.isEntryIgnored) return
+            val next = stack.last()
+            if(popped.hasLateAddition) {
+                next.hasLateAddition = true
+                return // Will be merged later when generating diagnostics
+            }
+            next.offerChild(popped.node, popped.getAllDiagnostics())
+        }
 
         fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
-            return errors.mapNotNull { (range, message) ->
-                if(message == null)
-                    return@mapNotNull null
+            lateAdditionMergers.forEach { it() }
+            return stack.last().getAllDiagnostics().build(fileMappingInfo, severity)
+        }
+    }
+
+    private class ErrorStackEntry<TNode>(
+        val node: TNode,
+        val comittedDiagnostics: NodeDiagnostics = NodeDiagnostics(),
+        val childDiagnostics: MutableMap<TNode, NodeDiagnostics> = mutableMapOf(),
+        var ignoreErrors: Boolean = false,
+        var isEntryIgnored: Boolean = false,
+        var hasLateAddition: Boolean = false,
+    ) {
+        fun clearChildErrors() {
+            childDiagnostics.values.forEach { it.errors.clear() }
+        }
+
+        fun getAllDiagnostics(): NodeDiagnostics {
+            val diagnostics = NodeDiagnostics(comittedDiagnostics.errors.toMutableList(), comittedDiagnostics.warnings.toMutableList())
+            diagnostics.errors += childDiagnostics.values.flatMap { it.errors }
+            diagnostics.warnings += childDiagnostics.values.flatMap { it.warnings }
+            return diagnostics
+        }
+
+        fun offerChild(child: TNode, diagnostics: NodeDiagnostics) {
+            val prev = childDiagnostics[child]
+            if(prev == null) {
+                if(diagnostics.errors.isNotEmpty()) {
+                    // Errors from this entry should be ignored in favor of errors from the child
+                    this.ignoreErrors = true
+                    this.comittedDiagnostics.errors.clear()
+                }
+                childDiagnostics[child] = diagnostics
+                return
+            }
+            // Select option with fewer errors
+            if(prev.errors.size != diagnostics.errors.size) {
+                if(prev.errors.size > diagnostics.errors.size)
+                    childDiagnostics[child] = diagnostics
+                return
+            }
+            // Select option with fewer warnings
+            if(prev.warnings.size != diagnostics.warnings.size) {
+                if(prev.warnings.size > diagnostics.warnings.size)
+                    childDiagnostics[child] = diagnostics
+                return
+            }
+
+            // Select option with smaller (more specific) diagnostics
+            val prevDiagnosticTotalLength = prev.errors.sumOf { it.first.length } + prev.warnings.sumOf { it.first.length }
+            val newDiagnosticTotalLength = diagnostics.errors.sumOf { it.first.length } + diagnostics.warnings.sumOf { it.first.length }
+            if(prevDiagnosticTotalLength != newDiagnosticTotalLength) {
+                if(prevDiagnosticTotalLength > newDiagnosticTotalLength)
+                    childDiagnostics[child] = diagnostics
+                return
+            }
+
+            // Just add diagnostics from both
+            prev.errors += diagnostics.errors
+            prev.warnings += diagnostics.warnings
+        }
+    }
+    private class NodeDiagnostics(
+        val errors: MutableList<kotlin.Pair<StringRange, String?>> = mutableListOf(),
+        val warnings: MutableList<kotlin.Pair<StringRange, String?>> = mutableListOf()
+    ) {
+        fun build(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity): List<Diagnostic> {
+            fun createDiagnostic(message: String, range: StringRange, severity: DiagnosticSeverity) =
                 Diagnostic().also {
                     it.range = Range(
                         AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(range.start + fileMappingInfo.readSkippingChars), fileMappingInfo),
@@ -911,6 +1007,15 @@ class StringRangeTree<TNode: Any>(
                     it.message = message
                     it.severity = severity
                 }
+
+            return errors.mapNotNull { (range, message) ->
+                if(message == null)
+                    return@mapNotNull null
+                createDiagnostic(message, range, severity)
+            } + warnings.mapNotNull { (range, message) ->
+                if(message == null)
+                    return@mapNotNull null
+                createDiagnostic(message, range, DiagnosticSeverity.Warning)
             }
         }
     }
