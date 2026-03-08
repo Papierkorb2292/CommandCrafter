@@ -165,15 +165,17 @@ object CodecTransformers {
     @CodecMod(target = TagEntry::class, javaFieldWrite = "CODEC")
     fun verifyTagEntry(codec: Codec<TagEntry>): Codec<TagEntry> = codec.flatXmap( { tagEntry ->
         @Suppress("UNCHECKED_CAST")
-        val registry = CURRENT_TAG_ANALYZING_REGISTRY.getOrNull() as Registry<Any>? // Where we're going we don't need: type safety
+        val registry = CURRENT_TAG_ANALYZING_REGISTRY.getOrNull() as HolderLookup.RegistryLookup<Any>? // Where we're going we don't need: type safety
             ?: return@flatXmap DataResult.success(tagEntry)
+        @Suppress("UNCHECKED_CAST")
+        val registryKey = registry.key() as ResourceKey<out Registry<Any>>
         val entryExists = tagEntry.build(object : TagEntry.Lookup<Any> {
             override fun element(key: Identifier, required: Boolean): Any? =
-                registry.get(ResourceKey.create(registry.key(), key)).orElse(null)
+                registry.get(ResourceKey.create(registryKey, key)).orElse(null)
 
             // Return null when no tag was found and not null when a tag was found
             override fun tag(key: Identifier): Collection<Any>? =
-                registry.get(TagKey.create(registry.key(), key))
+                registry.get(TagKey.create(registryKey, key))
                     .map<Collection<Any>> { emptyList() }.orElse(null)
 
         }) {}
