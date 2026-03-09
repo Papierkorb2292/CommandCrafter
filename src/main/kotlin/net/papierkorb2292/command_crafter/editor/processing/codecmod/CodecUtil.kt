@@ -26,18 +26,23 @@ fun <T> Codec<T>.afterDecode(callback: AfterDecodeCallback<T>) = object : Codec<
         }
 }
 
+fun <F> Decoder<F>.noErrorTracking() = object : Decoder<F> {
+    override fun <T : Any> decode(
+        ops: DynamicOps<T>,
+        input: T,
+    ): DataResult<Pair<F, T>> {
+        val result = this@noErrorTracking.decode(ops, input)
+        ExtraDecoderBehavior.getCurrentBehavior(ops)?.commitErrors(ExtraDecoderBehavior.DecoderErrorLevel.IGNORE)
+        return result
+    }
+}
+
 fun <O, F : Any> Codec<F>.onlyAnalyzingRecord(field: String): RecordCodecBuilder<O, Optional<F>> = RecordCodecBuilder.of(
     { Optional.empty() },
-    Codec.of(MapCodec.unit<F> { null }.codec(), object : Decoder<F> {
-        override fun <T : Any> decode(
-            ops: DynamicOps<T>,
-            input: T,
-        ): DataResult<Pair<F, T>> {
-            val result = this@onlyAnalyzingRecord.decode(ops, input)
-            ExtraDecoderBehavior.getCurrentBehavior(ops)?.commitErrors(ExtraDecoderBehavior.DecoderErrorLevel.IGNORE)
-            return result
-        }
-    }).lenientOptionalFieldOf(field)
+    Codec.of(
+        MapCodec.unit<F> { null }.codec(),
+        this@onlyAnalyzingRecord.noErrorTracking()
+    ).lenientOptionalFieldOf(field)
 )
 fun <T> MapCodec<T>.forGetterIdent(): RecordCodecBuilder<T, T> = forGetter { it }
 

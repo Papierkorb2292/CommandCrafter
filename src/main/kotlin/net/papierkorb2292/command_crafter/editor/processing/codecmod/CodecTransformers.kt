@@ -7,6 +7,7 @@ import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.MapCodec
 import com.mojang.serialization.codecs.PrimitiveCodec
 import com.mojang.serialization.codecs.RecordCodecBuilder
+import it.unimi.dsi.fastutil.ints.IntList
 import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
 import net.minecraft.core.HolderLookup
@@ -25,6 +26,8 @@ import net.minecraft.tags.TagKey
 import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.InclusiveRange
 import net.minecraft.util.StringRepresentable
+import net.minecraft.world.item.DyeColor
+import net.minecraft.world.item.component.FireworkExplosion
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
@@ -70,6 +73,18 @@ object CodecTransformers {
             TextColor::getValue,
             TextColor::fromRgb,
         ) { ChatFormatting.entries.mapNotNull(TextColor::fromLegacyFormat) } // Lazy, because the map isn't initialized yet when the codec is constructed
+    @JvmStatic
+    @CodecMod(target = FireworkExplosion::class, javaFieldWrite = "COLOR_LIST_CODEC")
+    fun addFireworkExplosionColorInfo(codec: Codec<IntList>): Codec<IntList> = codec.beforeDecode(object : BeforeDecodeCallback {
+        override fun <TNode : Any> invoke(
+            input: TNode,
+            ops: DynamicOps<TNode>,
+        ) {
+            if(ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingBehavior == null)
+                return
+            PackedEncoderColorInfo.wrapCodec(Codec.INT, false).listOf().noErrorTracking().decode(ops, input)
+        }
+    })
 
     @JvmStatic
     @CodecMod(targetName = $$"Lnet/minecraft/core/component/DataComponentPatch$PatchKey;", javaFieldWrite = "CODEC")
@@ -91,13 +106,26 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = StringRepresentable.StringRepresentableCodec::class, javaFieldWrite = "codec")
-    fun <T: StringRepresentable> addStringRepresentableSuggestions(codec: Codec<T>, values: Array<T>): Codec<T> =
-        CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+    fun <T: StringRepresentable> addStringRepresentableSuggestions(codec: Codec<T>, values: Array<T>): Codec<T> {
+        val isDyeColor = values.firstOrNull() is DyeColor
+        if(isDyeColor) {
+            return PackedEncoderColorInfo.wrapCodec(
+                codec,
+                false,
+                { (it as DyeColor).textureDiffuseColor }, // Use textureDiffuseColor because it is used most commonly by Minecraft
+                { rgb ->
+                    @Suppress("UNCHECKED_CAST")
+                    PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, { it.textureDiffuseColor }) as T
+                }
+            )
+        }
+        return CodecSuggestionWrapper(codec, object : SuggestionsProvider {
             // Technically should be applying name transformer, but I don't think anybody is relying on that since
             // it's not even encoded correctly
             override fun <T : Any> getSuggestions(ops: DynamicOps<T>) =
                 Arrays.stream(values).map { ops.createString(it.serializedName) }
         })
+    }
     
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "codec")

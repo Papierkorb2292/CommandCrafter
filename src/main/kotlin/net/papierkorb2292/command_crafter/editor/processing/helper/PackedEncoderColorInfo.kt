@@ -11,6 +11,8 @@ import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
+import kotlin.math.cbrt
+import kotlin.math.pow
 
 class PackedEncoderColorInfo<TNode>(
     override val range: Range,
@@ -38,7 +40,7 @@ class PackedEncoderColorInfo<TNode>(
             }
             return CodecSuggestionWrapper(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
                 override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
-                    val colors = additionalSuggestions() + fromPacked(-1) // Suggest white so the user sees that they can input a color
+                    val colors = additionalSuggestions() + fromPacked(if(hasAlpha) -1 else 0xFFFFFF) // Suggest white so the user sees that they can input a color
                     return colors.stream().map { delegate.encodeStart(ops, it).orThrow }
                 }
 
@@ -61,6 +63,55 @@ class PackedEncoderColorInfo<TNode>(
 
         fun colorToHex(color: Int, hasAlpha: Boolean): String {
             return String.format(Locale.ROOT, if(hasAlpha) "%08X" else "%06X", color);
+        }
+
+        fun <A> roundColorLab(validColors: Iterable<A>, inputColor: Int, toPacked: (A) -> Int): A {
+            val requestedLAB = FloatArray(3)
+            val candidateLAB = FloatArray(3)
+            rgbToLab(
+                ARGB.redFloat(inputColor),
+                ARGB.greenFloat(inputColor),
+                ARGB.blueFloat(inputColor),
+                requestedLAB
+            )
+            return validColors.minBy { validColor ->
+                val validPacked = toPacked(validColor)
+                rgbToLab(
+                    ARGB.redFloat(validPacked),
+                    ARGB.greenFloat(validPacked),
+                    ARGB.blueFloat(validPacked),
+                    candidateLAB
+                )
+                var dist = 0f
+                for(i in 0 until 3) {
+                    val diff = requestedLAB[i] - candidateLAB[i]
+                    dist += diff * diff
+                }
+
+                dist
+            }
+        }
+
+        private fun rgbToLab(r: Float, g: Float, b: Float, out: FloatArray) {
+            val linearR = r.pow(2.2f)
+            val linearG = g.pow(2.2f)
+            val linearB = b.pow(2.2f)
+            val x = 0.412453f * linearR + 0.357580f * linearG + 0.180423f * linearB
+            val y = 0.212671f * linearR + 0.715160f * linearG + 0.072169f * linearB
+            val z = 0.019334f * linearR + 0.119193f * linearG + 0.950227f * linearB
+            val d65ReferenceX = 0.950489f
+            val d65ReferenceY = 1f
+            val d65ReferenceZ = 1.088840f
+            val delta = 6f/29
+
+            fun f(t: Float): Float =
+                if(t > delta * delta * delta) cbrt(t)
+                else t / (3 * delta * delta) + 4f/29
+
+            val fY = f(y / d65ReferenceY)
+            out[0] = 116 * fY - 16
+            out[1] = 500 * (f(x / d65ReferenceX) - fY)
+            out[2] = 200 * (fY - f(z / d65ReferenceZ))
         }
     }
 
