@@ -93,7 +93,8 @@ object CodecTransformers {
         DyeColor::getTextureDiffuseColor, // Use textureDiffuseColor because it is used most commonly by Minecraft
         { rgb ->
             PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor)
-        }
+        },
+        { DyeColor.entries }
     )
 
     @JvmStatic
@@ -119,14 +120,15 @@ object CodecTransformers {
     fun <T: StringRepresentable> addStringRepresentableSuggestions(codec: Codec<T>, values: Array<T>): Codec<T> {
         val isDyeColor = values.firstOrNull() is DyeColor
         if(isDyeColor) {
+            @Suppress("UNCHECKED_CAST")
             return PackedEncoderColorInfo.wrapCodec(
                 codec,
                 false,
                 { (it as DyeColor).textureDiffuseColor }, // Use textureDiffuseColor because it is used most commonly by Minecraft
                 { rgb ->
-                    @Suppress("UNCHECKED_CAST")
-                    PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, { it.textureDiffuseColor }) as T
-                }
+                    PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor) as T
+                },
+                { DyeColor.entries as List<T> }
             )
         }
         return CodecSuggestionWrapper(codec, object : SuggestionsProvider {

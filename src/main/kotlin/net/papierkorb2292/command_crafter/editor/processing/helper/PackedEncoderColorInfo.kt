@@ -40,7 +40,11 @@ class PackedEncoderColorInfo<TNode>(
             }
             return CodecSuggestionWrapper(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
                 override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
-                    val colors = additionalSuggestions() + fromPacked(if(hasAlpha) -1 else 0xFFFFFF) // Suggest white so the user sees that they can input a color
+                    var colors = additionalSuggestions()
+                    // Suggest white so the user sees that they can input a color
+                    val white = fromPacked(if(hasAlpha) -1 else 0xFFFFFF)
+                    if(white !in colors)
+                        colors = colors + white
                     return colors.stream().map { delegate.encodeStart(ops, it).orThrow }
                 }
 
