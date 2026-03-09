@@ -25,6 +25,10 @@ class FileMappingInfo(
     @JsonIgnore
     val completionItemToPositionFIFOCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
 ) {
+    companion object {
+        fun fromLines(lines: List<String>) = FileMappingInfo(lines)
+    }
+
     val accumulatedLineLengths = IntList(lines.size)
     init {
         var accumulatedLength = 0

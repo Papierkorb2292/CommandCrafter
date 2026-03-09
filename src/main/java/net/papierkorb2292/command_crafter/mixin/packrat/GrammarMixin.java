@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.packrat;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -11,26 +10,42 @@ import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.util.parsing.packrat.ErrorCollector;
+import net.minecraft.util.parsing.packrat.ErrorEntry;
 import net.minecraft.util.parsing.packrat.ParseState;
 import net.minecraft.util.parsing.packrat.SuggestionSupplier;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
-import net.minecraft.util.parsing.packrat.ErrorEntry;
-import net.minecraft.util.parsing.packrat.ErrorCollector;
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.stream.Stream;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(Grammar.class)
 public class GrammarMixin {
+
+    @ModifyVariable(
+            method = "parseForSuggestions",
+            at = @At("STORE")
+    )
+    private StringReader command_crafter$useDirectiveStringReader(StringReader original) {
+        final var fullInput = getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT());
+        if (fullInput == null)
+            return original;
+        fullInput.toCompleted();
+        fullInput.setString(original.getString());
+        return fullInput;
+    }
 
     @ModifyArg(
             method = "parseForSuggestions",
