@@ -72,7 +72,8 @@ object CodecTransformers {
             false,
             TextColor::getValue,
             TextColor::fromRgb,
-        ) { ChatFormatting.entries.mapNotNull(TextColor::fromLegacyFormat) } // Lazy, because the map isn't initialized yet when the codec is constructed
+            { ChatFormatting.entries.mapNotNull(TextColor::fromLegacyFormat) } // Lazy, because the map isn't initialized yet when the codec is constructed
+        )
     @JvmStatic
     @CodecMod(target = FireworkExplosion::class, javaFieldWrite = "COLOR_LIST_CODEC")
     fun addFireworkExplosionColorInfo(codec: Codec<IntList>): Codec<IntList> = codec.beforeDecode(object : BeforeDecodeCallback {
@@ -94,7 +95,8 @@ object CodecTransformers {
         { rgb ->
             PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor)
         },
-        { DyeColor.entries }
+        { DyeColor.entries },
+        { "$it (${it.id})" }
     )
 
     @JvmStatic

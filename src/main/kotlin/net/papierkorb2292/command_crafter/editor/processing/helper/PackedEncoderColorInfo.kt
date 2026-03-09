@@ -14,18 +14,20 @@ import kotlin.jvm.optionals.getOrNull
 import kotlin.math.cbrt
 import kotlin.math.pow
 
-class PackedEncoderColorInfo<TNode>(
+class PackedEncoderColorInfo<TNode, TColor>(
     override val range: Range,
     packedColor: Int,
     private val hasAlpha: Boolean,
-    private val encoder: Encoder<Int>,
+    private val encoder: Encoder<TColor>,
+    private val fromPacked: (Int) -> TColor,
     private val ops: DynamicOps<TNode>,
+    private val nameProvider: ((TColor) -> String)? = null,
 ) : ColorInfo {
     companion object {
 
         fun wrapCodec(delegate: Codec<Int>, hasAlpha: Boolean): Codec<Int> = wrapCodec(delegate, hasAlpha, { it }, { it })
 
-        fun <A> wrapCodec(delegate: Codec<A>, hasAlpha: Boolean, toPacked: (A) -> Int, fromPacked: (Int) -> A, additionalSuggestions: () -> List<A> = ::emptyList): Codec<A> {
+        fun <TColor> wrapCodec(delegate: Codec<TColor>, hasAlpha: Boolean, toPacked: (TColor) -> Int, fromPacked: (Int) -> TColor, additionalSuggestions: () -> List<TColor> = ::emptyList, nameProvider: ((TColor) -> String)? = null): Codec<TColor> {
             val withColorInfo = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
                 analyzingResult.colorInfos += PackedEncoderColorInfo(
                     Range(
@@ -34,8 +36,10 @@ class PackedEncoderColorInfo<TNode>(
                     ),
                     if(hasAlpha) { toPacked(parsed) } else { toPacked(parsed) or 0xFF000000.toInt() },
                     hasAlpha,
-                    delegate.comap(fromPacked),
-                    ops
+                    delegate,
+                    fromPacked,
+                    ops,
+                    nameProvider
                 )
             }
             return CodecSuggestionWrapper(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
@@ -53,11 +57,13 @@ class PackedEncoderColorInfo<TNode>(
                     ops: DynamicOps<T>,
                 ): ExtraDecoderBehavior.PossibleValue<T> =
                     suggestion.withPreferHex().withCompletionModifier { completionItem ->
-                        val color = delegate.parse(ops, suggestion.element)
-                            .map { toPacked(it) }
-                            .result().orElse(null)?.and(0xFFFFFF) // Doesn't accept alpha
                         completionItem.kind = CompletionItemKind.Color
-                        if(color != null) {
+                        val parsed = delegate.parse(ops, suggestion.element).result().orElse(null)
+                        if(parsed != null) {
+                            if(nameProvider != null)
+                                completionItem.label = nameProvider(parsed)
+
+                            val color = toPacked(parsed).and(0xFFFFFF) // Doesn't accept alpha
                             // VSCode uses detail to preview colors in auto-complete list
                             completionItem.detail = "#" + colorToHex(color, false)
                         }
@@ -133,9 +139,11 @@ class PackedEncoderColorInfo<TNode>(
             params.color.green.toFloat(),
             params.color.blue.toFloat()
         )
-        val encoded = encoder.encodeStart(ops, packed).result().orElse(null) ?: return emptyList()
+        val colorValue = fromPacked(packed)
+        val encoded = encoder.encodeStart(ops, colorValue).result().orElse(null) ?: return emptyList()
         val number = ops.getNumberValue(encoded).result().getOrNull()
-        val label = if(number is Int) "0x" + colorToHex(number, hasAlpha) else encoded.toString()
-        return listOf(ColorPresentation(label))
+        val serialized = if(number is Int) "0x" + colorToHex(number, hasAlpha) else encoded.toString()
+        val label = nameProvider?.invoke(colorValue) ?: serialized
+        return listOf(ColorPresentation(label, TextEdit(range, serialized)))
     }
 }
