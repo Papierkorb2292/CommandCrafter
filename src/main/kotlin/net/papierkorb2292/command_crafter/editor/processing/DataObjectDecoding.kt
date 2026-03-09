@@ -132,6 +132,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             val entity = (entityType as EntityTypeAccessor<T>).factory.create(entityType, dummyWorld) ?: return null
             return entityType to entity
         } catch(e: Throwable) {
+            CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id", e)
             return null
         }
     }
