@@ -158,10 +158,10 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
     @NoDecoderCallbacks // Don't remove reader errors just because of the successful return
     private class ReadDecoder(val registries: HolderLookup.Provider, val reader: (DynamicOpsReadView<*>) -> Unit) : Decoder<Unit> {
         override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<Unit, T>> {
-            val dynamicOpsReadView = create(Dynamic(ops, input), registries)
+            val dynamicOpsReadView = getReadViewCodec(registries).decode(ops, input)
             if(dynamicOpsReadView.isError)
                 return dynamicOpsReadView.map { Pair.of(Unit, ops.createList(Stream.of(input))) }
-            reader(dynamicOpsReadView.result().get())
+            reader(dynamicOpsReadView.result().get().first)
             return DataResult.success(Pair.of(Unit, ops.emptyList()))
         }
     }
