@@ -85,6 +85,16 @@ object CodecTransformers {
             PackedEncoderColorInfo.wrapCodec(Codec.INT, false).listOf().noErrorTracking().decode(ops, input)
         }
     })
+    @JvmStatic
+    @CodecMod(target = DyeColor::class, javaFieldWrite = "LEGACY_ID_CODEC")
+    fun addLegacyDyeColorCodecColorInfo(codec: Codec<DyeColor>): Codec<DyeColor> = PackedEncoderColorInfo.wrapCodec(
+        codec,
+        false,
+        DyeColor::getTextureDiffuseColor, // Use textureDiffuseColor because it is used most commonly by Minecraft
+        { rgb ->
+            PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor)
+        }
+    )
 
     @JvmStatic
     @CodecMod(targetName = $$"Lnet/minecraft/core/component/DataComponentPatch$PatchKey;", javaFieldWrite = "CODEC")
