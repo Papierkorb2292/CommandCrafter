@@ -306,7 +306,7 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher, stringRangeTree.root)
+            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
                 ExtraDecoderBehavior.decodeWithBehavior(
                     decoder,
@@ -821,7 +821,6 @@ class StringRangeTree<TNode: Any>(
      */
     inner class LeafErrorDecoderCallback(
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
-        root: TNode,
     ) : ExtraDecoderBehavior<TNode> {
         private val stack = ArrayList<ErrorStackEntry<TNode>>(16)
         private val lateAdditionMergers = ArrayList<() -> Unit>()
