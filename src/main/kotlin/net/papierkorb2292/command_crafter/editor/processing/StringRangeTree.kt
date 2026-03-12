@@ -229,7 +229,6 @@ class StringRangeTree<TNode: Any>(
         val ops: DynamicOps<TNode>,
         val suggestionResolver: SuggestionResolver<TNode>,
         val stringGetter: StringContentGetter<TNode>,
-        val nodeClass: KClass<out TNode>,
         val registryWrapper: HolderLookup.Provider? = null,
         val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     ) {
@@ -245,7 +244,6 @@ class StringRangeTree<TNode: Any>(
                     JsonOps.INSTANCE,
                     StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(content),
                     StringRangeTreeJsonReader.StringContentGetter(jsonTree, content),
-                    JsonElement::class
                 )
 
             fun forJson(jsonTree: StringRangeTree<JsonElement>, reader: DirectiveStringReader<*>) =
@@ -254,7 +252,6 @@ class StringRangeTree<TNode: Any>(
                     JsonOps.INSTANCE,
                     StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(reader),
                     StringRangeTreeJsonReader.StringContentGetter(jsonTree, reader.string),
-                    JsonElement::class
                 )
 
             fun forNbt(nbtTree: StringRangeTree<Tag>, content: String) =
@@ -263,7 +260,6 @@ class StringRangeTree<TNode: Any>(
                     NbtOps.INSTANCE,
                     NbtSuggestionResolver(content),
                     NbtStringContentGetter(nbtTree, content),
-                    Tag::class
                 )
 
             fun forNbt(nbtTree: StringRangeTree<Tag>, reader: DirectiveStringReader<*>) =
@@ -272,7 +268,6 @@ class StringRangeTree<TNode: Any>(
                     NbtOps.INSTANCE,
                     NbtSuggestionResolver(reader),
                     NbtStringContentGetter(nbtTree, reader.string),
-                    Tag::class
                 )
         }
 
