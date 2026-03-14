@@ -19,7 +19,7 @@ public class SummonCommandMixin {
             )
     )
     private static CompoundTagArgument command_crafter$addNbtDecoder(CompoundTagArgument original) {
-        ((DataObjectSourceContainer)original).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_REGISTRY_ENTRY, "entity"));
+        ((DataObjectSourceContainer)original).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_SUMMON, "entity"));
         return original;
     }
 }

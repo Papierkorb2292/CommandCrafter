@@ -43,9 +43,6 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
         fun <TEntry: Any> getTypedListReadViewCodec(entryCodec: Codec<TEntry>): Codec<DynamicOpsTypedListReadView<TEntry>> =
             entryCodec.listOf().xmap({ DynamicOpsTypedListReadView(it.toMutableList()) }, { listOf() })
 
-        /**
-         * Creates a Decoder backed by a [ValueInput] consumer. The caller should check that the input is actually a map.
-         */
         fun getReadDecoder(registries: HolderLookup.Provider, reader: (DynamicOpsReadView<*>) -> Unit): Decoder<Unit> =
             ReadDecoder(registries, reader)
     }

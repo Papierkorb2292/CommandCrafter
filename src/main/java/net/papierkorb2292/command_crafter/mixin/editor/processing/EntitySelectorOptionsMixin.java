@@ -8,17 +8,18 @@ import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
-import net.minecraft.commands.arguments.selector.EntitySelectorParser;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.IdentifierException;
+import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
@@ -34,6 +35,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.function.Predicate;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @SuppressWarnings("unused")
 @Mixin(EntitySelectorOptions.class)
@@ -586,5 +591,19 @@ public class EntitySelectorOptionsMixin {
             );
         }
         return value;
+    }
+
+    @WrapOperation(
+            method = "lambda$bootStrap$35",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"
+            )
+    )
+    private static void command_crafter$trackTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op) {
+        final var tracker = getOrNull(DataObjectDecoding.Companion.getSELECTOR_TYPE_PREDICATE_TRACKER());
+        if(tracker != null)
+            tracker.add(predicate);
+        op.call(parser, predicate);
     }
 }

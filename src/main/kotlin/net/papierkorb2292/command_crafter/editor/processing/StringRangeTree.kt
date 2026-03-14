@@ -64,7 +64,6 @@ import kotlin.collections.sumOf
 import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
-import kotlin.reflect.KClass
 
 /**
  * Used for storing the [StringRange]s of the nodes in a tree alongside the nodes themselves,
@@ -231,6 +230,7 @@ class StringRangeTree<TNode: Any>(
         val stringGetter: StringContentGetter<TNode>,
         val registryWrapper: HolderLookup.Provider? = null,
         val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
+        val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode
     ) {
         // Size should never be 0, because a root element has to be present. If it is 1, there are no child elements.
         val isRootEmpty = stringRangeTree.orderedNodes.size == 1
@@ -280,9 +280,11 @@ class StringRangeTree<TNode: Any>(
 
         fun withDiagnosticSeverity(severity: DiagnosticSeverity?) = copy(diagnosticSeverity = severity)
 
+        fun withBranchBehaviorProvider(branchBehaviorProvider: BranchBehaviorProvider<TNode>) = copy(branchBehaviorProvider = branchBehaviorProvider)
+
         fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
             if(contentDecoder != null) {
-                val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(stringRangeTree, registryWrapper?.createSerializationContext(ops) ?: ops, analyzingResult, stringGetter)
+                val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(this, registryWrapper?.createSerializationContext(ops) ?: ops, analyzingResult)
                 IS_ANALYZING_DECODER.runWithValueSwap(true) {
                     ExtraDecoderBehavior.decodeWithBehavior(
                         contentDecoder,
@@ -301,11 +303,12 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher)
+            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher, branchBehaviorProvider)
+            val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
                 ExtraDecoderBehavior.decodeWithBehavior(
                     decoder,
-                    filteredOps,
+                    mergeErrorSuppressingOps,
                     stringRangeTree.root,
                     FirstDecoderExtraBehavior(errorCallback)
                 )
@@ -318,7 +321,8 @@ class StringRangeTree<TNode: Any>(
         override val delegate: DynamicOps<TNode>,
         tree: StringRangeTree<TNode>,
         internal val baseResult: AnalyzingResult,
-        override val stringContentGetter: StringContentGetter<TNode>
+        override val stringContentGetter: StringContentGetter<TNode>,
+        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>
     ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode>, ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode> {
         override var tree = tree
             private set
@@ -331,14 +335,13 @@ class StringRangeTree<TNode: Any>(
              * @see [wrapDynamicOps]
              */
             fun <TNode : Any> createAnalyzingOps(
-                tree: StringRangeTree<TNode>,
+                treeOperations: TreeOperations<TNode>,
                 delegate: DynamicOps<TNode>,
                 analyzingResult: AnalyzingResult,
-                stringContentGetter: StringContentGetter<TNode>
             ): kotlin.Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> =
                 wrapDynamicOps(delegate) {
-                    if(it is AnalyzingDynamicOps && it.tree === tree) it
-                    else AnalyzingDynamicOps(it, tree, analyzingResult, stringContentGetter)
+                    if(it is AnalyzingDynamicOps && it.tree === treeOperations.stringRangeTree) it
+                    else AnalyzingDynamicOps(it, treeOperations.stringRangeTree, analyzingResult, treeOperations.stringGetter, treeOperations.branchBehaviorProvider)
                 }
         }
 
@@ -568,12 +571,17 @@ class StringRangeTree<TNode: Any>(
                 }
             }
 
+        override fun onDecodeStart(input: TNode) {
+            branchBehaviorProvider.onDecodeEnd(input)
+        }
+
         override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
             @Suppress("UNCHECKED_CAST")
             // Only use actual analyzing results for the node if it was also able to parse the full string,
             // otherwise there was an error but another decoder did not return an error, so the string
             // should not be interpreted by the errored decoder
             finishNodeAnalyzingResultOverlay(input, null)
+            branchBehaviorProvider.onDecodeEnd(input)
         }
 
         override fun notePossibleValues(
@@ -585,11 +593,11 @@ class StringRangeTree<TNode: Any>(
                 getNodeStartSuggestions(input) += provider
         }
 
-        override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>?
+        override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>
             get() = this
 
         override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
-            get() = ExtraDecoderBehavior.BranchBehavior.ALL_VALID
+            get() = branchBehaviorProvider.getBranchBehavior(true)
     }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
@@ -816,8 +824,9 @@ class StringRangeTree<TNode: Any>(
      */
     inner class LeafErrorDecoderCallback(
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
+        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>
     ) : ExtraDecoderBehavior<TNode> {
-        private val stack = ArrayList<ErrorStackEntry<TNode>>(16)
+        private var stack = ArrayList<ErrorStackEntry<TNode>>(16)
         private val lateAdditionMergers = ArrayList<() -> Unit>()
         init {
             stack.add(ErrorStackEntry(root))
@@ -858,6 +867,7 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
+            branchBehaviorProvider.onDecodeEnd(input)
             if(isPartial) return
             // Since decoding was successful, all other errors that children added are cleared.
             // Warnings are kept, since they exist even if the result was decoded correctly
@@ -867,6 +877,7 @@ class StringRangeTree<TNode: Any>(
 
         override fun onDecodeStart(input: TNode) {
             pushStack(input)
+            branchBehaviorProvider.onDecodeStart(input)
         }
 
         override fun commitErrors(level: ExtraDecoderBehavior.DecoderErrorLevel) {
@@ -894,20 +905,25 @@ class StringRangeTree<TNode: Any>(
             lateAdditionMergers += {
                 for(i in stackCopy.lastIndex downTo 1) {
                     val entry = stackCopy[i]
-                    if(entry.ignoreErrors)
+                    if(entry.isEntryIgnored)
                         break
                     stackCopy[i - 1].offerChild(entry.node, entry.getAllDiagnostics())
                 }
             }
             return object : ExtraDecoderBehavior.LateAdditionRunner {
                 override fun <T> acceptLateAddition(adder: () -> T): T {
+                    val prevStack = stack
+                    stack = ArrayList(16)
                     stack += stackCopy.last()
                     val result = adder()
-                    stack.removeLast()
+                    stack = prevStack
                     return result
                 }
             }
         }
+
+        override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
+            get() = branchBehaviorProvider.getBranchBehavior(false)
 
         private fun pushStack(node: TNode) {
             stack += ErrorStackEntry(node)
@@ -925,8 +941,28 @@ class StringRangeTree<TNode: Any>(
         }
 
         fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
-            lateAdditionMergers.forEach { it() }
+            for(i in lateAdditionMergers.lastIndex downTo 0)
+                lateAdditionMergers[i].invoke()
             return stack.last().getAllDiagnostics().build(fileMappingInfo, severity)
+        }
+
+        inner class PathErrorSuppressingDynamicOps(override val delegate: DynamicOps<TNode>): DelegatingDynamicOps<TNode> {
+            fun <TResult> onNodeAccess(input: TNode, dataResult: DataResult<TResult>): DataResult<TResult> {
+                // Don't show errors for missing keys or invalid list lengths when Minecraft doesn't actually enforce it (like in a path or for a merge)
+                if(dataResult.isSuccess && branchBehavior == ExtraDecoderBehavior.BranchBehavior.ALL_POSSIBLE_ENCODED && input == stack.last().node) {
+                    stack.last().ignoreErrors = true
+                }
+                return dataResult
+            }
+
+            override fun getMap(input: TNode) = onNodeAccess(input, delegate.getMap(input))
+            override fun getMapValues(input: TNode) = onNodeAccess(input, delegate.getMapValues(input))
+            override fun getMapEntries(input: TNode) = onNodeAccess(input, delegate.getMapEntries(input))
+            override fun getList(input: TNode) = onNodeAccess(input, delegate.getList(input))
+            override fun getStream(input: TNode) = onNodeAccess(input, delegate.getStream(input))
+            override fun getByteBuffer(input: TNode) = onNodeAccess(input, delegate.getByteBuffer(input))
+            override fun getIntStream(input: TNode) = onNodeAccess(input, delegate.getIntStream(input))
+            override fun getLongStream(input: TNode) = onNodeAccess(input, delegate.getLongStream(input))
         }
     }
 
@@ -1013,4 +1049,5 @@ class StringRangeTree<TNode: Any>(
             }
         }
     }
+
 }

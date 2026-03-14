@@ -8,9 +8,11 @@ import io.netty.buffer.ByteBuf
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceArgument
+import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.BlockPos
 import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.Registries
+import net.minecraft.nbt.Tag
 import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.resources.Identifier
@@ -24,10 +26,13 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.helper.DummyWorld
 import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockEntityTypeAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EntityTypeAccessor
 import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import java.util.function.Predicate
 
 class DataObjectDecoding(private val registries: RegistryAccess) {
     companion object {
@@ -35,6 +40,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         // Used to replace components in Holder.Reference.components so default components can be accessed outside a world,
         // even when the code accesses the builtin registries directly (for example ItemStack constructors)
         val BUILTIN_REGISTRY_OVERRIDE = ThreadLocal<RegistryAccess>()
+
+        val SELECTOR_TYPE_PREDICATE_TRACKER = ThreadLocal<MutableList<Predicate<Entity>>>()
 
         private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
             enumConstantCodec(DataObjectSourceKind::class.java),
@@ -97,9 +104,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SharedSuggestionProvider>): Decoder<Unit>? {
+    fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SharedSuggestionProvider>, reader: DirectiveStringReader<*>): Decoder<Unit>? {
         return when(dataObjectSource.kind) {
-            DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
+            DataObjectSourceKind.ENTITY_SUMMON -> {
                 try {
                     @Suppress("UNCHECKED_CAST")
                     val entity = dummyEntities[ResourceArgument.getEntityType(
@@ -118,6 +125,46 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
                 }
             }
+            DataObjectSourceKind.ENTITY_CHANGE -> {
+                val selectorArgument = (context as CommandContextAccessor).arguments[dataObjectSource.argumentName]
+                val validEntities = if(selectorArgument != null) {
+                    val selectorInput = selectorArgument.range.get(context.input)
+                    val selectorInputReader = reader.copy()
+                    selectorInputReader.toCompleted()
+                    selectorInputReader.string = selectorInput
+                    selectorInputReader.cursor = 0
+                    val selectorParser = EntitySelectorParser(selectorInputReader, true)
+                    getEntityChangeCandidates(selectorParser)
+                } else {
+                    dummyEntities.values
+                }
+                DynamicOpsReadView.getReadDecoder(registries) { input ->
+                    for(entity in validEntities) {
+                        entity.load(input)
+                    }
+                }
+            }
+            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> {
+                // It is not possible to know which block entity it is. Decoder should try out all blocks
+                DynamicOpsReadView.getReadDecoder(registries) { input ->
+                    for(blockEntity in dummyBlockEntities.values) {
+                        blockEntity.loadWithComponents(input)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getEntityChangeCandidates(selectorParser: EntitySelectorParser): Collection<Entity> {
+        val predicates = mutableListOf<Predicate<Entity>>()
+        SELECTOR_TYPE_PREDICATE_TRACKER.runWithValue(predicates) {
+            selectorParser.parse()
+        }
+        val selector = selectorParser.selector
+        if(!selector.includesEntities())
+            return listOf() // Selector includes only players and their data can't be modified
+        return dummyEntities.values.filter { entity ->
+            predicates.all { predicate -> predicate.test(entity) }
         }
     }
 
@@ -150,9 +197,17 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String)
+    data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String) {
+        fun getNBTBranchBehavior(): BranchBehaviorProvider<Tag> = when(kind) {
+            DataObjectSourceKind.ENTITY_SUMMON -> BranchBehaviorProvider.Decode
+            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.NBT_MERGE
+            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.NBT_MERGE
+        }
+    }
 
     enum class DataObjectSourceKind {
-        ENTITY_REGISTRY_ENTRY
+        ENTITY_SUMMON,
+        ENTITY_CHANGE,
+        BLOCK_ENTITY_CHANGE,
     }
 }

@@ -1,9 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 import com.mojang.datafixers.util.Pair
-import com.mojang.serialization.DataResult
-import com.mojang.serialization.Decoder
-import com.mojang.serialization.DynamicOps
+import com.mojang.serialization.*
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -33,6 +31,16 @@ interface ExtraDecoderBehavior<in TNode : Any> {
             input: TNode,
             extraDecoderBehavior: ExtraDecoderBehavior<TNode>,
         ): DataResult<Pair<TResult, TNode>> =
+            CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(RegisteredBehavior(extraDecoderBehavior, ops)) {
+                decoder.decode(ops, input)
+            }
+
+        fun <TResult, TNode : Any> decodeWithBehavior(
+            decoder: MapDecoder<TResult>,
+            ops: DynamicOps<TNode>,
+            input: MapLike<TNode>,
+            extraDecoderBehavior: ExtraDecoderBehavior<TNode>,
+        ): DataResult<TResult> =
             CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(RegisteredBehavior(extraDecoderBehavior, ops)) {
                 decoder.decode(ops, input)
             }
@@ -84,13 +92,14 @@ interface ExtraDecoderBehavior<in TNode : Any> {
         /**
          * Try out all branches that should add suggestions (for example: try out both options in EitherCodec)
          */
-        ALL_VALID,
+        ALL_POSSIBLE_DECODED,
 
         /**
          * Try out all branches that could contribute to the encoded value. Useful for resolving nbt paths or analyzing `data merge`.
-         * Different to [ALL_VALID] in that [ALL_POSSIBLE] also tries out all options in a dispatch codec, if the type field is not present.
+         * Different to [ALL_POSSIBLE_DECODED] in that [ALL_POSSIBLE_ENCODED] also tries out all options in a dispatch codec, if the type field is not present.
+         * Additionally, map errors like missing keys are ignored.
          */
-        ALL_POSSIBLE
+        ALL_POSSIBLE_ENCODED
     }
 
     enum class DecoderErrorLevel {

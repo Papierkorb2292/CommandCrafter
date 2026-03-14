@@ -29,7 +29,6 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
-        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
         val nbtReader = TagParser.create(NbtOps.INSTANCE)
         (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
         (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
@@ -38,16 +37,15 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
         val nbt: Tag = nbtReader.parseAsArgument(reader)
         val tree: StringRangeTree<Tag> = treeBuilder.build(nbt)
-
-        val decoder: Decoder<*>? =
-            if(dataObjectSource != null)
-                DataObjectDecoding.getForReader(reader)?.getDecoderForSource(dataObjectSource, context)
-            else null
+        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`() ?: return
+        val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader)?.getDecoderForSource(dataObjectSource, context, reader)
 
         StringRangeTree.TreeOperations.forNbt(
             tree,
             reader
         ).withDiagnosticSeverity(DiagnosticSeverity.Warning)
+            .withBranchBehaviorProvider(dataObjectSource.getNBTBranchBehavior())
+            .withRegistry(buildContext)
             .analyzeFull(result, decoder)
     }
 }
