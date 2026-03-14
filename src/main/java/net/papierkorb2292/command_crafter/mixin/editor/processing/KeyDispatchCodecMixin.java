@@ -45,7 +45,7 @@ public class KeyDispatchCodecMixin<K, V> {
 
         final var possibleKeyTracker = new DecoderPossibleValueTracker<T>();
         final var dispatchValue = new MutableObject<Pair<T, Boolean>>();
-        ExtraDecoderBehavior.Companion.decodeWithBehavior(keyCodec, ops, new MapLike<>() {
+        final var lenientAccessTrackingMap = new MapLike<T>() {
             private void onAccessedKey(T key) {
                 if(dispatchValue.get() == null)
                     dispatchValue.setValue(Pair.of(key, false));
@@ -56,20 +56,23 @@ public class KeyDispatchCodecMixin<K, V> {
             @Override
             public T get(T key) {
                 onAccessedKey(key);
-                return input.get(key);
+                final var value =  input.get(key);
+                return value != null ? value : ops.empty();
             }
 
             @Override
             public T get(String key) {
                 onAccessedKey(ops.createString(key));
-                return input.get(key);
+                final var value =  input.get(key);
+                return value != null ? value : ops.empty();
             }
 
             @Override
             public Stream<Pair<T, T>> entries() {
                 return input.entries();
             }
-        }, possibleKeyTracker);
+        };
+        ExtraDecoderBehavior.Companion.decodeWithBehavior(keyCodec, ops, lenientAccessTrackingMap, possibleKeyTracker);
 
         // Analyzing assumes that exactly one key was exacted by the key codec
         if(dispatchValue.get() == null || dispatchValue.get().getSecond()) {
@@ -78,7 +81,7 @@ public class KeyDispatchCodecMixin<K, V> {
         }
 
         final var key = dispatchValue.get().getFirst();
-        final var possibleValues = possibleKeyTracker.getPossibleValues().get(input.get(key));
+        final var possibleValues = possibleKeyTracker.getPossibleValues().get(lenientAccessTrackingMap.get(key));
         if(possibleValues == null) {
             CommandCrafter.INSTANCE.getLOGGER().debug("Dispatcher key codec did not provide possible values: {}", keyCodec.toString());
             return result;
