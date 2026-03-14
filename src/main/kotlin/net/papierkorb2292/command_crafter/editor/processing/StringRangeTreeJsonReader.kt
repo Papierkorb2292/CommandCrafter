@@ -320,7 +320,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                             val element = suggestion.element
                             val key = if(element.isJsonPrimitive) element.asString else element.toString()
                             val escapedKey = JsonPrimitive(key).toString()
-                            StreamCompletionItemProvider.Completion("$escapedKey: ", key, suggestion.completionModifier)
+                            StreamCompletionItemProvider.Completion("$escapedKey:", key, suggestion.completionModifier)
                         }
                 }.filterCompletionTrigger(MinecraftLanguageServer.jsonCompletionTriggerCharacters)
             )

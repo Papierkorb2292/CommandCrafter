@@ -116,7 +116,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                         val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
                         // Similar to StringNbtWriter.escapeName
                         val escapedKey = if(SIMPLE_NAME.matcher(key).matches()) key else StringTag.quoteAndEscape(key)
-                        StreamCompletionItemProvider.Completion("$escapedKey: ", key, suggestion.completionModifier)
+                        StreamCompletionItemProvider.Completion("$escapedKey:", key, suggestion.completionModifier)
                     }
             }
         )
