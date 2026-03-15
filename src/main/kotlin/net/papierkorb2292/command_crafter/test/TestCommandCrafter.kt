@@ -530,6 +530,31 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testEntityMergeNbtAnalyzing(context: GameTestHelper) {
+        val markedLines = """
+            data merge entity @s {§NoAI:1b,CustomName:[§{},{click_event:{§}}]} 
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val analyzingResult = analyseCommand(context, processedLines)
+        val multipleSuggestionsLocationIndices = listOf(0, 2)
+        for(index in multipleSuggestionsLocationIndices) {
+            val absoluteCursor = markedLocations[index].absoluteCursor
+            context.assertTrue(
+                analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!!.get().size >= 5,
+                "Multiple suggestions at index $index"
+            )
+        }
+
+        context.assertTrue(
+            analyzingResult.diagnostics.any { it.range.start == markedLocations[1].position },
+            "Error for missing keys inside a merged list"
+        )
+
+        context.succeed()
+    }
+
+    @GameTest
     fun testMultilineCommandsHighlighting(context: GameTestHelper) {
         // With trailing spaces!
         val lines = """
