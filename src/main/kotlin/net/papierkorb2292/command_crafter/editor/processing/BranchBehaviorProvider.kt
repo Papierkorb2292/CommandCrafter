@@ -7,8 +7,9 @@ import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecode
 
 interface BranchBehaviorProvider<in TNode> {
     companion object {
-        val NBT_MERGE: BranchBehaviorProvider<Tag> = ConditionalAllPossible { it is CompoundTag }
-        fun <TNode> getForPathLookup(newValue: TNode?): BranchBehaviorProvider<TNode> = ConditionalAllPossible { it != newValue }
+        fun getNBTMerge(): BranchBehaviorProvider<Tag> = ConditionalAllPossible(Decode) { it is CompoundTag }
+        fun <TNode> getForPathLookup(newValue: TNode?): BranchBehaviorProvider<TNode> = ConditionalAllPossible(Decode) { it != newValue }
+        fun getNBTMergePathLookup(newValue: Tag): BranchBehaviorProvider<Tag> = ConditionalAllPossible(getNBTMerge()) { it != newValue }
     }
 
     fun getBranchBehavior(includeSuggestions: Boolean): ExtraDecoderBehavior.BranchBehavior
@@ -24,18 +25,27 @@ interface BranchBehaviorProvider<in TNode> {
         override fun onDecodeEnd(input: Any?) {}
     }
 
-    class ConditionalAllPossible<in TNode>(private val allPossiblePredicate: Predicate<in TNode>) : BranchBehaviorProvider<TNode> {
+    class ConditionalAllPossible<in TNode>(
+        private val delegate: BranchBehaviorProvider<TNode>,
+        private val allPossiblePredicate: Predicate<in TNode>,
+    ) : BranchBehaviorProvider<TNode> {
         private var failedPredicateCount: Int = 0
         override fun getBranchBehavior(includeSuggestions: Boolean) =
-            if(failedPredicateCount != 0) Decode.getBranchBehavior(includeSuggestions)
+            if(failedPredicateCount != 0) delegate.getBranchBehavior(includeSuggestions)
             else ExtraDecoderBehavior.BranchBehavior.ALL_POSSIBLE_ENCODED
 
         override fun onDecodeStart(input: TNode) {
-            if(failedPredicateCount > 0 || !allPossiblePredicate.test(input)) failedPredicateCount++
+            if(failedPredicateCount > 0 || !allPossiblePredicate.test(input)) {
+                delegate.onDecodeStart(input)
+                failedPredicateCount++
+            }
         }
 
         override fun onDecodeEnd(input: TNode) {
-            if(failedPredicateCount > 0) failedPredicateCount--
+            if(failedPredicateCount > 0) {
+                delegate.onDecodeEnd(input)
+                failedPredicateCount--
+            }
         }
     }
 }

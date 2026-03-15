@@ -200,8 +200,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String) {
         fun getNBTBranchBehavior(): BranchBehaviorProvider<Tag> = when(kind) {
             DataObjectSourceKind.ENTITY_SUMMON -> BranchBehaviorProvider.Decode
-            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.NBT_MERGE
-            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.NBT_MERGE
+            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
+            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
         }
     }
 
