@@ -37,7 +37,7 @@ fun <F> Decoder<F>.noErrorTracking() = object : Decoder<F> {
     }
 }
 
-fun <O, F : Any> Codec<F>.onlyAnalyzingRecord(field: String): RecordCodecBuilder<O, Optional<F>> = RecordCodecBuilder.of(
+fun <O, F : Any> Decoder<F>.onlyAnalyzingRecord(field: String): RecordCodecBuilder<O, Optional<F>> = RecordCodecBuilder.of(
     { Optional.empty() },
     Codec.of(
         MapCodec.unit<F> { null }.codec(),
