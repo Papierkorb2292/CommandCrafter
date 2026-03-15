@@ -28,7 +28,7 @@ class McFunctionAnalyzer(
         val reader = DirectiveStringReader(
             file.createFileMappingInfo(),
             dispatcher,
-            AnalyzingResourceCreator(languageServer, file.uri).apply {
+            AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager).apply {
                 (file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData)?.let { persistentCache ->
                     if(persistentCache.usedCommandDispatcher == dispatcher)
                         previousCache = persistentCache

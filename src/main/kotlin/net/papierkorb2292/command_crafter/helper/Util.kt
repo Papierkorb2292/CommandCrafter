@@ -5,7 +5,10 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
+import net.minecraft.core.HolderLookup
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import java.lang.reflect.Type
 import java.util.*
 import java.util.concurrent.Semaphore
@@ -146,3 +149,6 @@ fun <T: Any> Optional<Optional<T>>.flatten(): Optional<T> =
     if(isEmpty) Optional.empty() else get()
 fun <TParent: Any, TChild : TParent> Optional<TChild>.cast(): Optional<TParent> =
     Optional.ofNullable(orElse(null))
+
+val MinecraftServer.lootRegistries: HolderLookup.Provider
+    get() = (this.recipeManager as RecipeManagerAccessor).registries

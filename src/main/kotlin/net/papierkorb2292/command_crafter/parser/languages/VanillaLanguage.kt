@@ -60,7 +60,6 @@ import net.papierkorb2292.command_crafter.editor.processing.command_arguments.Co
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.helper.*
-import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
 import org.eclipse.lsp4j.*
@@ -348,7 +347,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.dispatcher,
                     AnalyzingResourceCreator(
                         reader.resourceCreator.languageServer,
-                        reader.resourceCreator.sourceFunctionUri
+                        reader.resourceCreator.sourceFunctionUri,
+                        reader.resourceCreator.registries
                     )
                 ).apply {
                     // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
@@ -757,7 +757,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(node.type::class.java)!!
                         val source = contextBuilder.source
                         // Make sure to get the registry access that includes reloadable files
-                        val registryAccess = if(source is CommandSourceStack) (source.server.recipeManager as RecipeManagerAccessor).registries else source.registryAccess()
+                        val registryAccess = if(source is CommandSourceStack) source.server.lootRegistries else source.registryAccess()
                         hasCustomCompletions = analyzer.hasCustomCompletions(context, node.name)
                         callArgumentAnalyzerUnchecked(
                             analyzer,

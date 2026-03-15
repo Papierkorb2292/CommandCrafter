@@ -75,8 +75,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
 
         fun getForReader(directiveStringReader: DirectiveStringReader<AnalyzingResourceCreator>): DataObjectDecoding? {
-            val languageServer = directiveStringReader.resourceCreator.languageServer ?: return null
-            return GET_FOR_REGISTRIES(languageServer.dynamicRegistryManager)
+            return GET_FOR_REGISTRIES(directiveStringReader.resourceCreator.registries)
         }
     }
 

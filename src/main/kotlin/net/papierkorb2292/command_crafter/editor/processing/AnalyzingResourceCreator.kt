@@ -2,11 +2,12 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import java.util.*
 
-class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val sourceFunctionUri: String) {
+class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val sourceFunctionUri: String, val registries: RegistryAccess) {
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
 
     /**
@@ -17,23 +18,6 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
 
     var previousCache: CacheData? = null
     val newCache = CacheData()
-
-    constructor(
-        languageServer: MinecraftLanguageServer?,
-        sourceFunctionUri: String,
-        topLevelAnalyzingResult: AnalyzingResult,
-    ): this(languageServer, sourceFunctionUri) {
-        resourceStack.push(ResourceStackEntry(topLevelAnalyzingResult))
-    }
-
-    constructor(
-        languageServer: MinecraftLanguageServer?,
-        sourceFunctionUri: String,
-        resourceCreator: AnalyzingResourceCreator,
-    ): this(languageServer, sourceFunctionUri) {
-        resourceStack.clear()
-        resourceStack.addAll(resourceCreator.resourceStack)
-    }
 
     fun canSuggestionsSkipRange(absoluteStart: Int, absoluteEnd: Int): Boolean {
         val suggestionCursor = suggestionRequestInfo?.absoluteCursor ?: return false

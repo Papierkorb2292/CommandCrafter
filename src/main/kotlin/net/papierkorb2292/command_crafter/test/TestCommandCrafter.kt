@@ -629,7 +629,8 @@ object TestCommandCrafter {
                 commandDispatcher,
                 AnalyzingResourceCreator(
                     null,
-                    "testPack/data/minecraft/function/test.mcfunction"
+                    "testPack/data/minecraft/function/test.mcfunction",
+                    source.server.registryAccess()
                 )
             ),
             source,
@@ -705,7 +706,8 @@ object TestCommandCrafter {
                 commandDispatcher,
                 AnalyzingResourceCreator(
                     null,
-                    "testPack/data/minecraft/function/test.mcfunction"
+                    "testPack/data/minecraft/function/test.mcfunction",
+                    source.server.registryAccess()
                 )
             ),
             source,

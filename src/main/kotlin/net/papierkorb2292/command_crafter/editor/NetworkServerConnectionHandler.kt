@@ -43,8 +43,8 @@ import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAddition
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.runWithValue
-import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RegistrySynchronizationAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.CommandsAccessor
@@ -320,7 +320,7 @@ object NetworkServerConnectionHandler {
             val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
             val server = context.server
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, ""))
+            val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, "", context.server.registryAccess()))
             reader.cursor = payload.cursor
             serverConnection.contextCompletionProvider.getCompletions(reader, payload.context).thenAccept {
                 context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
@@ -386,7 +386,7 @@ object NetworkServerConnectionHandler {
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
         val registryManager = server.reloadableRegistries().lookup() as RegistryAccess
 
-        val tagWrapperLookup = (server.recipeManager as RecipeManagerAccessor).registries
+        val tagWrapperLookup = server.lootRegistries
 
         val serializedRegistriesTags = serializeTags(tagWrapperLookup, registryManager)
         // Sync tags of non-dynamic registries first, because
