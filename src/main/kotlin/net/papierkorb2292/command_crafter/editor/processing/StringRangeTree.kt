@@ -67,7 +67,7 @@ import kotlin.math.min
 
 /**
  * Used for storing the [StringRange]s of the nodes in a tree alongside the nodes themselves,
- * so semantic tokens and other editor language features can use them.
+ * so auto-completion and other editor language features can use them.
  */
 class StringRangeTree<TNode: Any>(
     val root: TNode,
