@@ -138,6 +138,7 @@
     "packrat.ComponentPredicateParserMixin",
     "packrat.DictionaryAccessor",
     "packrat.GrammarMixin",
+    "packrat.LookaheadTermMixin",
     "packrat.OptionalTermsMixin",
     "packrat.ParserWithDecodingMixin",
     "packrat.RepeatedTermsMixin",
@@ -199,6 +200,7 @@
     "parser.vanilla_improved.TagGroupLoaderTrackedEntryMixin",
     "parser.vanilla_improved.TagKeyAccessor",
     "parser.vanilla_improved.TagParseRuleMixin",
+    "parser.vanilla_improved.UnquotedStringParseRuleMixin",
     "test.GameTestHelperAccessor"
   ]
 }

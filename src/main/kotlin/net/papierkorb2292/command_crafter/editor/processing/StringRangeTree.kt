@@ -539,9 +539,8 @@ class StringRangeTree<TNode: Any>(
                     isEmpty = false
                     return@flatMap Stream.of(pair)
                 }
-                if(!isEmpty)
+                if(!isEmpty || map in placeholders)
                     return@flatMap Stream.empty()
-                insertContainerPlaceholder(map, placeholderValue)
                 getMapKeyNodes(map).add(pair.first)
                 Stream.of(pair)
             }
@@ -562,12 +561,8 @@ class StringRangeTree<TNode: Any>(
                         biConsumer.accept(key, value)
                         isEmpty = false
                     }
-                    if(isEmpty) {
-                        val placeholderValue = delegate.emptyList()
-                        val placeholderKey = delegate.createString(EMPTY_MAP_PLACEHOLDER_KEY)
-                        if(insertContainerPlaceholder(input, placeholderValue))
-                            biConsumer.accept(placeholderKey, placeholderValue)
-                    }
+                    if(isEmpty && input !in placeholders)
+                        biConsumer.accept(delegate.createString(EMPTY_MAP_PLACEHOLDER_KEY), delegate.emptyList())
                 }
             }
 

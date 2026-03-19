@@ -7,6 +7,7 @@ import com.llamalad7.mixinextras.sugar.Cancellable;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
@@ -88,6 +89,27 @@ public class ParserWithDecodingMixin<T> {
             analyzingResultThreadLocal.set(analyzingResultArg);
         }
         return (T)nbt;
+    }
+
+    @WrapOperation(
+            method = "parseForCommands",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/util/parsing/packrat/commands/CommandArgumentParser;parseForCommands(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
+            )
+    )
+    private T command_crafter$stringifyNbt(CommandArgumentParser<T> instance, StringReader reader, Operation<T> op) {
+        if (!(val$ops.empty() instanceof Tag))
+            return op.call(instance, reader);
+
+        final var stringifiedArgument = getOrNull(PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument());
+        PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().remove();
+        final var nbt =  op.call(instance, reader);
+        if(stringifiedArgument != null) {
+            stringifiedArgument.getStringified().add(Either.left(nbt.toString()));
+            PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(stringifiedArgument);
+        }
+        return nbt;
     }
 
     @ModifyReceiver(
