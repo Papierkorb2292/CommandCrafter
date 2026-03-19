@@ -54,7 +54,7 @@ public class BlockPredicateArgumentMixin implements StringifiableArgumentType {
             if(tag.getTag() instanceof RawResourceRegistryEntryList<Block> rawResource) {
                 result.add(Either.right(rawResource.getResource()));
             } else {
-                result.add(Either.left(tag.getTag().unwrapKey().orElseThrow().toString()));
+                result.add(Either.left(tag.getTag().unwrapKey().orElseThrow().location().toString()));
             }
             if(!tag.getVagueProperties().isEmpty()) {
                 final var properties = tag.getVagueProperties().entrySet().stream()
