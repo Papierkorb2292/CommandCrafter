@@ -153,7 +153,7 @@ object CodecTransformers {
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
                 EntityTypePredicate.CODEC.map { it.types },
-                DataObjectDecoding::getDecoderForEntities,
+                DataObjectDecoding::getConditionDecoderForEntities,
             ).fieldOf("type").decoder(),
             BranchBehaviorProvider.getForPathLookup(null)
         )

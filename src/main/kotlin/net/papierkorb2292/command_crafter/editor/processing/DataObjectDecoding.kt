@@ -175,7 +175,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     // No entity argument found, maybe it's macro. Decoder should try out all entities
                     DynamicOpsReadView.getReadDecoder(registries) { input ->
                         for(entity in dummyEntities.values) {
-                            analyzeEntity(entity, input)
+                            if(entity !is ServerPlayer)
+                                analyzeEntity(entity, input)
                         }
                     }
                 }
@@ -219,7 +220,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         if(!selector.includesEntities())
             return listOf() // Selector includes only players and their data can't be modified
         return dummyEntities.values.filter { entity ->
-            predicates.all { predicate -> predicate.test(entity) }
+            entity !is ServerPlayer && predicates.all { predicate -> predicate.test(entity) }
         }
     }
 
@@ -230,7 +231,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    fun getDecoderForBlocks(blocks: HolderSet<Block>?): Decoder<Unit> =
+    fun getConditionDecoderForBlocks(blocks: HolderSet<Block>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(blocks == null || !blocks.isBound)
                 dummyBlockEntities.values.distinct().forEach { analyzeBlockEntity(it, valueInput) }
@@ -244,7 +245,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
         }
 
-    fun getDecoderForEntities(entityTypes: HolderSet<EntityType<*>>?): Decoder<Unit> =
+    fun getConditionDecoderForEntities(entityTypes: HolderSet<EntityType<*>>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(entityTypes == null || !entityTypes.isBound)
                 dummyEntities.values.forEach { analyzeEntity(it, valueInput) }
@@ -257,7 +258,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
         }
 
-    fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
+    private fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
         try {
             blockEntity.loadWithComponents(valueInput)
         } catch(e: Throwable) {
@@ -265,7 +266,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    fun analyzeEntity(entity: Entity, valueInput: ValueInput) {
+    private fun analyzeEntity(entity: Entity, valueInput: ValueInput) {
         if(entity.type in entitiesWithError)
             return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
         try {
