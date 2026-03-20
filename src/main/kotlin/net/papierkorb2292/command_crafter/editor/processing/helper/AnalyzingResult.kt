@@ -222,8 +222,17 @@ class AnalyzingResult(
     }
 
     fun withStringEscaperActual(escaper: StringRangeTree.StringEscaper): AnalyzingResult {
-        // Doesn't have to do anything at the moment
-        return this
+        return AnalyzingResult(
+            mappingInfo,
+            semanticTokens,
+            diagnostics,
+            colorInfos.mapTo(mutableListOf()) { it.withStringEscaper(escaper) },
+            filePosition,
+            documentation,
+            actualSyntaxNodes,
+            finishedPotentialSyntaxNodes,
+            buildingPotentialSyntaxNodes
+        )
     }
 
     fun withStringEscaperPotential(escaper: StringRangeTree.StringEscaper): AnalyzingResult {

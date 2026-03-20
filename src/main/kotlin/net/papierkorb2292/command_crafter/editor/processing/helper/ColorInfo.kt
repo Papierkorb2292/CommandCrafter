@@ -1,12 +1,25 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
-import org.eclipse.lsp4j.Color
-import org.eclipse.lsp4j.ColorPresentation
-import org.eclipse.lsp4j.ColorPresentationParams
-import org.eclipse.lsp4j.Range
+import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import org.eclipse.lsp4j.*
 
 interface ColorInfo {
     val range: Range
     val color: Color
     fun getPresentation(params: ColorPresentationParams): List<ColorPresentation>
+}
+
+fun ColorInfo.withStringEscaper(escaper: StringRangeTree.StringEscaper) = object : ColorInfo {
+    override val range: Range
+        get() = this@withStringEscaper.range
+    override val color: Color
+        get() = this@withStringEscaper.color
+
+    override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> =
+        this@withStringEscaper.getPresentation(params).map { presentation ->
+            val editColor = presentation.textEdit.newText ?: presentation.label
+            val editRange = presentation.textEdit.range ?: range
+            presentation.textEdit = TextEdit(editRange, escaper.escape(editColor))
+            presentation
+        }
 }
