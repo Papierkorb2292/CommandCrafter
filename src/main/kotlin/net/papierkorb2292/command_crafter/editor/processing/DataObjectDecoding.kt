@@ -235,7 +235,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     fun getDecoderForEntities(entityTypes: HolderSet<EntityType<*>>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(entityTypes == null || !entityTypes.isBound)
-                dummyBlockEntities.values.forEach { it.loadWithComponents(valueInput) }
+                dummyEntities.values.forEach { it.load(valueInput) }
             else
                 entityTypes.stream().forEach { dummyEntities[it.value()]?.load(valueInput) }
         }
