@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.HexColorArgument
 import net.minecraft.util.ARGB
@@ -27,7 +26,6 @@ class HexColorArgumentAnalyzer : CommandArgumentAnalyzerService<HexColorArgument
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         val packedColor = context.getArgument(name, Int::class.java)

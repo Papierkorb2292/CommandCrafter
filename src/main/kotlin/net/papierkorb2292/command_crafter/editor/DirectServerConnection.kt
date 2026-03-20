@@ -28,6 +28,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -106,7 +107,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     }.memoizeLast()
 
     override val dynamicRegistryManager: RegistryAccess
-        get() = server.registryAccess()
+        get() = server.lootRegistries
     override val commandDispatcher: CommandDispatcher<SharedSuggestionProvider>
         get() = commandDispatcherFactory(server.commands)
     override val functionPermissions = server.functionCompilationPermissions

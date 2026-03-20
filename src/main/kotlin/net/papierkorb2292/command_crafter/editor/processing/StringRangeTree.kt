@@ -5,7 +5,7 @@ import com.google.gson.JsonElement
 import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
-import net.minecraft.core.HolderLookup
+import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
@@ -41,7 +41,6 @@ import kotlin.collections.Set
 import kotlin.collections.associateTo
 import kotlin.collections.contains
 import kotlin.collections.emptyList
-import kotlin.collections.firstNotNullOfOrNull
 import kotlin.collections.firstOrNull
 import kotlin.collections.flatMap
 import kotlin.collections.forEach
@@ -96,6 +95,10 @@ class StringRangeTree<TNode: Any>(
      * but a representing node is needed for further processing.
      */
     val placeholderNodes: Set<TNode>,
+    /**
+     * Maps nodes to their parent (list or map)
+     */
+    val parentNodes: Map<TNode, TNode>,
 ) {
     /**
      * Flattens the list and sorts it. The lists contained in the input must already be sorted.
@@ -150,7 +153,7 @@ class StringRangeTree<TNode: Any>(
                 nodeSuggestions += range to suggestionResolver.resolveNodeSuggestion(suggestionProviders, this, node, range, copiedMappingInfo)
             }
             analyzingDynamicOps.mapKeySuggestions[node]
-                .concatNullable(analyzingDynamicOps.mapKeyNodes[node]?.flatMap { mapKeyNode ->
+                .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeys[node]?.flatMap { mapKeyNode ->
                     analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList()
                 })?.let { suggestionProviders ->
                     val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
@@ -184,7 +187,7 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    fun getNodesAndKeysSorted(analyzingDynamicOps: AnalyzingDynamicOps<TNode>): List<kotlin.Pair<TNode, StringRange>> {
+    fun getNodesAndKeysSorted(accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>?): List<kotlin.Pair<TNode, StringRange>> {
         val result = mutableListOf<kotlin.Pair<TNode, StringRange>>()
         val pendingKeys = mutableListOf<kotlin.Pair<TNode, StringRange>>()
         for(node in orderedNodes) {
@@ -195,7 +198,7 @@ class StringRangeTree<TNode: Any>(
             val keys = mapKeyRanges[node] ?: continue
             // Make sure to use the key instances from the dynamic ops
             val mappedKeys: MutableMap<TNode, TNode?> = keys.associateTo(mutableMapOf()) { it.first to null }
-            for(key in analyzingDynamicOps.mapKeyNodes[node] ?: continue) {
+            for(key in accessedKeysWatcher?.accessedKeys[node] ?: continue) {
                 if(key in mappedKeys)
                     mappedKeys[key] = key
             }
@@ -210,7 +213,7 @@ class StringRangeTree<TNode: Any>(
     }
 
     fun combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps: AnalyzingDynamicOps<TNode>) {
-        for((node, _) in getNodesAndKeysSorted(analyzingDynamicOps)) {
+        for((node, _) in getNodesAndKeysSorted(analyzingDynamicOps.accessedKeysWatcher)) {
             val actualAnalyzingResult = analyzingDynamicOps.nodeActualAnalyzingResult[node]?.second?.getActual()
             if(actualAnalyzingResult != null) {
                 analyzingDynamicOps.baseResult.semanticTokens.overlay(listOf(actualAnalyzingResult.semanticTokens).iterator())
@@ -223,12 +226,15 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
+    fun getParent(child: TNode, accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>? = null): TNode? =
+        parentNodes[child] ?: accessedKeysWatcher?.keyToMap[child]
+
     data class TreeOperations<TNode: Any>(
         val stringRangeTree: StringRangeTree<TNode>,
         val ops: DynamicOps<TNode>,
         val suggestionResolver: SuggestionResolver<TNode>,
         val stringGetter: StringContentGetter<TNode>,
-        val registryWrapper: HolderLookup.Provider? = null,
+        val registryAccess: RegistryAccess? = null,
         val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
         val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode
     ) {
@@ -271,8 +277,8 @@ class StringRangeTree<TNode: Any>(
                 )
         }
 
-        fun withRegistry(wrapperLookup: HolderLookup.Provider?)
-            = copy(registryWrapper = wrapperLookup)
+        fun withRegistry(registryAccess: RegistryAccess?)
+            = copy(registryAccess = registryAccess)
 
         fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
 
@@ -284,7 +290,7 @@ class StringRangeTree<TNode: Any>(
 
         fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
             if(contentDecoder != null) {
-                val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(this, registryWrapper?.createSerializationContext(ops) ?: ops, analyzingResult)
+                val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(this, registryAccess?.createSerializationContext(ops) ?: ops, analyzingResult)
                 IS_ANALYZING_DECODER.runWithValueSwap(true) {
                     ExtraDecoderBehavior.decodeWithBehavior(
                         contentDecoder,
@@ -301,9 +307,9 @@ class StringRangeTree<TNode: Any>(
         }
 
         fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
-            val (accessedKeysWatcher, ops) = wrapDynamicOps(registryWrapper?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
+            val (accessedKeysWatcher, ops) = wrapDynamicOps(registryAccess?.createSerializationContext(ops) ?: ops, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }
-            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher, branchBehaviorProvider)
+            val errorCallback = stringRangeTree.LeafErrorDecoderCallback(accessedKeysWatcher, branchBehaviorProvider, registryAccess)
             val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
                 ExtraDecoderBehavior.decodeWithBehavior(
@@ -322,10 +328,13 @@ class StringRangeTree<TNode: Any>(
         tree: StringRangeTree<TNode>,
         internal val baseResult: AnalyzingResult,
         override val stringContentGetter: StringContentGetter<TNode>,
-        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>
+        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>,
+        override val registries: RegistryAccess?,
     ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode>, ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode> {
         override var tree = tree
             private set
+
+        internal var accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>? = null
 
         companion object {
             private const val EMPTY_MAP_PLACEHOLDER_KEY = "command_crafter:empty_map_placeholder"
@@ -338,23 +347,27 @@ class StringRangeTree<TNode: Any>(
                 treeOperations: TreeOperations<TNode>,
                 delegate: DynamicOps<TNode>,
                 analyzingResult: AnalyzingResult,
-            ): kotlin.Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> =
-                wrapDynamicOps(delegate) {
+            ): kotlin.Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> {
+                val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(delegate) {
                     if(it is AnalyzingDynamicOps && it.tree === treeOperations.stringRangeTree) it
-                    else AnalyzingDynamicOps(it, treeOperations.stringRangeTree, analyzingResult, treeOperations.stringGetter, treeOperations.branchBehaviorProvider)
+                    else AnalyzingDynamicOps(
+                        it,
+                        treeOperations.stringRangeTree,
+                        analyzingResult,
+                        treeOperations.stringGetter,
+                        treeOperations.branchBehaviorProvider,
+                        treeOperations.registryAccess
+                    )
                 }
+                // Apply AccessedKeysWatcher second, so it includes placeholder entries
+                val (accessedKeysWatcher, wrappedAccessedKeysWatcherOps) = wrapDynamicOps(wrappedAnalyzingOps, ::AccessedKeysWatcherDynamicOps)
+                analyzingOps.accessedKeysWatcher = accessedKeysWatcher
+                return analyzingOps to wrappedAccessedKeysWatcherOps
+            }
         }
 
         internal val nodeStartSuggestions = IdentityHashMap<TNode, MutableCollection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>>()
         internal val mapKeySuggestions = IdentityHashMap<TNode, MutableCollection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>>()
-
-        /**
-         * Maps TNode instances that have keys to a collection of TNode instances that were used to represent the keys.
-         *
-         * For example, when MapLike.getEntries is used, which returns TNode instances of each key in the map, those instances are added to the collection,
-         * such that completions that are added for those nodes can be used to suggest keys.
-         */
-        internal val mapKeyNodes = IdentityHashMap<TNode, MutableCollection<TNode>>()
 
         internal val nodePotentialAnalyzingResult = IdentityHashMap<TNode, MutableCollection<NodeAnalyzingResult>>()
         internal val nodeActualAnalyzingResult = IdentityHashMap<TNode, kotlin.Pair<Int, NodeAnalyzingResult?>>()
@@ -364,9 +377,6 @@ class StringRangeTree<TNode: Any>(
 
         fun getMapKeySuggestions(node: TNode) =
             mapKeySuggestions.computeIfAbsent(node) { mutableSetOf() }
-
-        fun getMapKeyNodes(node: TNode) =
-            mapKeyNodes.computeIfAbsent(node) { mutableSetOf() }
 
         override fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult {
             val result = baseResult.copyInput()
@@ -524,7 +534,8 @@ class StringRangeTree<TNode: Any>(
                 nodeAllowedStartRanges,
                 tree.mapKeyRanges,
                 tree.internalNodeRangesBetweenEntries,
-                tree.placeholderNodes + placeholder
+                tree.placeholderNodes + placeholder,
+                tree.parentNodes
             )
             return true
         }
@@ -535,13 +546,11 @@ class StringRangeTree<TNode: Any>(
             var isEmpty = true
             return Stream.concat(entries, Stream.of(Pair(placeholderKey, placeholderValue))).flatMap { pair ->
                 if(pair.second !== placeholderValue) {
-                    getMapKeyNodes(map).add(pair.first)
                     isEmpty = false
                     return@flatMap Stream.of(pair)
                 }
                 if(!isEmpty || map in placeholders)
                     return@flatMap Stream.empty()
-                getMapKeyNodes(map).add(pair.first)
                 Stream.of(pair)
             }
         }
@@ -557,7 +566,6 @@ class StringRangeTree<TNode: Any>(
                 Consumer { biConsumer ->
                     var isEmpty = true
                     consumer.accept { key, value ->
-                        getMapKeyNodes(input).add(key)
                         biConsumer.accept(key, value)
                         isEmpty = false
                     }
@@ -593,6 +601,8 @@ class StringRangeTree<TNode: Any>(
 
         override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
             get() = branchBehaviorProvider.getBranchBehavior(true)
+
+        override fun getParent(child: TNode): TNode? = tree.getParent(child, accessedKeysWatcher)
     }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
@@ -656,6 +666,7 @@ class StringRangeTree<TNode: Any>(
         private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<kotlin.Pair<TNode, StringRange>>>()
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
         private val placeholderNodes = mutableSetOf<TNode>()
+        private val parentNodes = IdentityHashMap<TNode, TNode>()
 
         var clampNodeRange: StringRange? = null
 
@@ -709,6 +720,10 @@ class StringRangeTree<TNode: Any>(
             placeholderNodes += node
         }
 
+        fun addChild(parent: TNode, child: TNode) {
+            parentNodes[child] = parent
+        }
+
         fun build(root: TNode): StringRangeTree<TNode> {
             for(node in orderedNodes) {
                 if(node !in nodeRanges) {
@@ -717,11 +732,12 @@ class StringRangeTree<TNode: Any>(
             }
             return StringRangeTree(root, orderedNodes.mapIndexed { index, it ->
                 it ?: throw UnresolvedPlaceholderError("Node order placeholder not resolved at order index $index")
-            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries, placeholderNodes)
+            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries, placeholderNodes, parentNodes)
         }
 
         class NodeWithoutRangeError(message: String) : Error(message)
         class UnresolvedPlaceholderError(message: String): Error(message)
+        class NodeWithoutParentError(message: String) : Error(message)
     }
 
     class PartialBuilder<TNode: Any> private constructor(private val stack: ArrayDeque<PartialNode<TNode>>, private var nextNodeIndex: Int, private val parentStackTop: PartialNode<TNode>?, private val poppedNodes: ArrayList<PartialNode<TNode>?>) {
@@ -736,6 +752,7 @@ class StringRangeTree<TNode: Any>(
             var rangesBetweenEntries: MutableCollection<StringRange>? = null,
             var mapKeyRanges: MutableCollection<kotlin.Pair<TNode, StringRange>>? = null,
             var isPlaceholder: Boolean? = null,
+            var children: MutableCollection<TNode>? = null,
         ) {
             fun copyFrom(other: PartialNode<TNode>) {
                 require(index == other.index) { "Tried to copy from a node with a different index" }
@@ -746,6 +763,7 @@ class StringRangeTree<TNode: Any>(
                 rangesBetweenEntries = rangesBetweenEntries.appendNullable(other.rangesBetweenEntries)
                 mapKeyRanges = mapKeyRanges.appendNullable(other.mapKeyRanges)
                 isPlaceholder = other.isPlaceholder ?: isPlaceholder
+                children = other.children.appendNullable(children)
             }
 
             fun addRangeBetweenEntries(range: StringRange) {
@@ -762,6 +780,14 @@ class StringRangeTree<TNode: Any>(
                     this.mapKeyRanges = mutableListOf(key to range)
                 else
                     mapKeyRanges.add(key to range)
+            }
+
+            fun addChild(child: TNode) {
+                val children = children
+                if(children == null)
+                    this.children = mutableListOf(child)
+                else
+                    children += child
             }
         }
 
@@ -807,6 +833,9 @@ class StringRangeTree<TNode: Any>(
                 node.mapKeyRanges?.forEach { basicBuilder.addMapKeyRange(node.node!!, it.first, it.second) }
                 if(node.isPlaceholder == true)
                     basicBuilder.addPlaceholderNode(node.node!!)
+                for(child in node.children ?: emptyList()) {
+                    basicBuilder.addChild(node.node!!, child)
+                }
             }
         }
     }
@@ -819,7 +848,8 @@ class StringRangeTree<TNode: Any>(
      */
     inner class LeafErrorDecoderCallback(
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
-        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>
+        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>,
+        override val registries: RegistryAccess?
     ) : ExtraDecoderBehavior<TNode> {
         private var stack = ArrayList<ErrorStackEntry<TNode>>(16)
         private val lateAdditionMergers = ArrayList<() -> Unit>()
@@ -831,11 +861,7 @@ class StringRangeTree<TNode: Any>(
                 return it
             }
             // Node could be a key, so check if key access happened for it
-            val map = accessedKeysWatcherDynamicOps.accessedKeys.firstNotNullOfOrNull {
-                if(node in it.value) {
-                    it.key
-                } else null
-            } ?: return null
+            val map = accessedKeysWatcherDynamicOps.keyToMap[node] ?: return null
             return mapKeyRanges[map]?.firstOrNull { it.first == node }?.second
         }
 
@@ -893,6 +919,8 @@ class StringRangeTree<TNode: Any>(
                 }
             }
         }
+
+        override fun getParent(child: TNode): TNode? = this@StringRangeTree.getParent(child, accessedKeysWatcherDynamicOps)
 
         override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
             val stackCopy = ArrayList(stack)

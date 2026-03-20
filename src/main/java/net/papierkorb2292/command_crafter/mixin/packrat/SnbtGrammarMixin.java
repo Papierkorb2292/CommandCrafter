@@ -12,33 +12,17 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.DynamicOps;
 import it.unimi.dsi.fastutil.chars.CharSet;
-import net.minecraft.nbt.ByteTag;
-import net.minecraft.nbt.DoubleTag;
-import net.minecraft.nbt.EndTag;
-import net.minecraft.nbt.FloatTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.LongTag;
-import net.minecraft.nbt.ShortTag;
-import net.minecraft.nbt.SnbtGrammar;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.*;
 import net.minecraft.util.parsing.packrat.*;
-import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
 import net.minecraft.util.parsing.packrat.commands.StringReaderTerms;
+import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
 import net.papierkorb2292.command_crafter.editor.processing.TokenInfo;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquotedStringParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ByteTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.DoubleTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.EndTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.FloatTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.IntTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.LongTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ShortTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.StringTagAccessor;
+import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
@@ -48,10 +32,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.*;
@@ -239,6 +225,47 @@ public class SnbtGrammarMixin {
     )
     private static Term<StringReader> command_crafter$allowMissingCompoundEnd(Term<StringReader> term) {
         return command_crafter$wrapTermAllowReaderEndIfMalformed(term);
+    }
+
+    @WrapOperation(
+            method = "lambda$createParser$17",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DynamicOps;createMap(Ljava/util/Map;)Ljava/lang/Object;"
+            )
+    )
+    private static Object command_crafter$addCompoundChildren(DynamicOps<?> ops, Map<?, ?> map, Operation<Object> op) {
+        final var compound = op.call(ops, map);
+        var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+        if(builderArg != null) {
+            var node = builderArg.getStringRangeTreeBuilder().peekNode();
+            if(node != null) {
+                for (final var child : map.values()) {
+                    node.addChild((Tag) child);
+                }
+            }
+        }
+        return compound;
+    }
+
+    @WrapOperation(
+            method = "lambda$createParser$21",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DynamicOps;createList(Ljava/util/stream/Stream;)Ljava/lang/Object;"
+            )
+    )
+    private static Object command_crafter$addListChildren(DynamicOps<?> ops, Stream<?> stream, Operation<Object> op) {
+        var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+        if (builderArg == null) return op.call(ops, stream);
+        var node = builderArg.getStringRangeTreeBuilder().peekNode();
+        if (node == null) return op.call(ops, stream);
+
+        final var entries = new ArrayList<>();
+        final var list = op.call(ops, stream.peek(entries::add));
+        for (final var child : entries)
+            node.addChild((Tag) child);
+        return list;
     }
 
     @ModifyExpressionValue(

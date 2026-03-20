@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Decoder
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.CompoundTagArgument
 import net.minecraft.nbt.NbtOps
@@ -26,7 +25,6 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         val nbtReader = TagParser.create(NbtOps.INSTANCE)
@@ -38,14 +36,14 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         val nbt: Tag = nbtReader.parseAsArgument(reader)
         val tree: StringRangeTree<Tag> = treeBuilder.build(nbt)
         val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`() ?: return
-        val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader)?.getDecoderForSource(dataObjectSource, context, reader)
+        val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader)
 
         StringRangeTree.TreeOperations.forNbt(
             tree,
             reader
         ).withDiagnosticSeverity(DiagnosticSeverity.Warning)
             .withBranchBehaviorProvider(dataObjectSource.getNBTBranchBehavior())
-            .withRegistry(buildContext)
+            .withRegistry(reader.resourceCreator.registries)
             .analyzeFull(result, decoder)
     }
 }

@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
@@ -22,7 +21,6 @@ class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         val selectorReader = EntitySelectorParser(reader, true)

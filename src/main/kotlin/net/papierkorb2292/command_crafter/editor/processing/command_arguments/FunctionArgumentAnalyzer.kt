@@ -4,7 +4,6 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.IdentifierException
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.item.FunctionArgument
 import net.minecraft.resources.Identifier
@@ -28,7 +27,6 @@ class FunctionArgumentAnalyzer : CommandArgumentAnalyzerService<FunctionArgument
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         val argument = context.getArgument(name, FunctionArgument.Result::class.java)

@@ -18,7 +18,6 @@ import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.JsonOps
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
@@ -755,9 +754,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         )
                     } else if(node is ArgumentCommandNode<*, *>) {
                         val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(node.type::class.java)!!
-                        val source = contextBuilder.source
-                        // Make sure to get the registry access that includes reloadable files
-                        val registryAccess = if(source is CommandSourceStack) source.server.lootRegistries else source.registryAccess()
                         hasCustomCompletions = analyzer.hasCustomCompletions(context, node.name)
                         callArgumentAnalyzerUnchecked(
                             analyzer,
@@ -766,7 +762,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             range,
                             node.name,
                             analyzeReader,
-                            CommandBuildContext.simple(registryAccess, contextBuilder.source.enabledFeatures()),
                             nodeAnalyzingResult
                         )
                     }
@@ -806,11 +801,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         @Suppress("UNCHECKED_CAST")
-        analyzer.analyze(context, type as TArgumentType, range, name, reader, buildContext, result)
+        analyzer.analyze(context, type as TArgumentType, range, name, reader, result)
     }
 
 

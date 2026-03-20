@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.serialization.DataResult
+import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 
 /**
@@ -60,4 +61,9 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
 
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
         get() = delegate.branchBehavior
+
+    override val registries: RegistryAccess?
+        get() = delegate.registries
+
+    override fun getParent(child: TNode): TNode? = delegate.getParent(child)
 }

@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.arguments.*
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.RangeArgument
 import net.minecraft.commands.arguments.coordinates.*
@@ -33,7 +32,6 @@ class NumberArgumentAnalyzer : CommandArgumentAnalyzerService<ArgumentType<*>> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         result.semanticTokens.addMultiline(range, TokenType.NUMBER, 0)

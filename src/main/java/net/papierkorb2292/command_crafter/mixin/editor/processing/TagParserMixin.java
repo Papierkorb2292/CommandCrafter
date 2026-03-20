@@ -19,6 +19,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
+import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
 import net.papierkorb2292.command_crafter.editor.processing.helper.*;
@@ -160,10 +161,13 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
         }
         final var tree = treeBuilder.build(nbt);
 
-        // TODO: Use a decoder from somewhere
-        StringRangeTree.TreeOperations.Companion.forNbt(tree, stringContent.getContent())
-                .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                .analyzeFull(analyzingResult.get(), null);
+        final var decoderData = DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue());
+        if (decoderData != null)
+            StringRangeTree.TreeOperations.Companion.forNbt(tree, stringContent.getContent())
+                    .withDiagnosticSeverity(DiagnosticSeverity.Warning)
+                    .withRegistry(extraBehavior.getRegistries())
+                    .withBranchBehaviorProvider(decoderData.getBranchBehavior())
+                    .analyzeFull(analyzingResult.get(), decoderData.getDecoder());
     }
 
     @ModifyReturnValue(

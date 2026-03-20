@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.NbtPathArgument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -20,7 +19,6 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         CommandArgumentAnalyzerService.currentAnalyzingResult.runWithValue(result) {

@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceOrIdArgument
 import net.minecraft.nbt.EndTag
@@ -38,7 +37,6 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         val grammar = (type as ResourceOrIdArgumentAccessor).grammar
@@ -111,7 +109,7 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
                 Identifier.tryParse(nbtString.value()) == null
             })
-            .withRegistry(buildContext)
+            .withRegistry(reader.resourceCreator.registries)
         if(!isInline)
             treeOperations = treeOperations.withDiagnosticSeverity(null)
         treeOperations.analyzeFull(result, inlineOrReferenceCodec)

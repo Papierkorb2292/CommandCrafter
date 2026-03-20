@@ -28,6 +28,7 @@ import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilde
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
+import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -831,7 +832,7 @@ object TestCommandCrafter {
                 AnalyzingResourceCreator(
                     null,
                     "testPack/data/minecraft/function/test.mcfunction",
-                    source.server.registryAccess()
+                    source.server.lootRegistries
                 )
             ),
             source,

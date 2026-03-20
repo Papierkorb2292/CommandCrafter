@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
@@ -383,12 +382,9 @@ object NetworkServerConnectionHandler {
         // Used by the client to clear previous sync, just in case something went wrong
         networkHandler.send(ClientboundCustomPayloadPacket(StartRegistrySyncS2CPacket(syncedRegistryIds.toList())))
 
-        // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
-        val registryManager = server.reloadableRegistries().lookup() as RegistryAccess
+        val registryManager = server.lootRegistries
 
-        val tagWrapperLookup = server.lootRegistries
-
-        val serializedRegistriesTags = serializeTags(tagWrapperLookup, registryManager)
+        val serializedRegistriesTags = serializeTags(registryManager)
         // Sync tags of non-dynamic registries first, because
         // client builds registry manager once all SYNCED_REGISTRIES have been received
         registryManager.listRegistryKeys().forEach {
@@ -406,23 +402,21 @@ object NetworkServerConnectionHandler {
     }
 
     private fun serializeTags(
-        tagWrapperLookup: HolderLookup.Provider,
-        entryLookup: RegistryAccess,
+        registries: RegistryAccess,
     ): Map<ResourceKey<out Registry<*>>, TagNetworkSerialization.NetworkPayload> {
-        return tagWrapperLookup.listRegistryKeys().map {
+        return registries.listRegistryKeys().collect(Collectors.toMap({ key -> key }, { key ->
             val serializedTags = mutableMapOf<Identifier, IntList>()
-            val tagRegistry = tagWrapperLookup.lookupOrThrow(it)
-            val entryRegistry = entryLookup.lookupOrThrow(it)
-            for(tag in tagRegistry.listTags().toList()) {
+            val registry = registries.lookupOrThrow(key)
+            for(tag in registry.listTags().toList()) {
                 val serialized = IntArrayList(tag.size())
                 for(entry in tag) {
                     val id = entry.unwrapKey().orElseThrow { IllegalArgumentException("Synced tag entries must have an id") }
-                    serialized.add(entryRegistry.getId(entryRegistry.getValue(id)))
+                    serialized.add(registry.getId(registry.getValue(id)))
                 }
                 serializedTags[tag.key().location] = serialized
             }
-            it to TagPacketSerializerSerializedAccessor.callInit(serializedTags)
-        }.collect(Collectors.toMap({ it.first }, { it.second }))
+            TagPacketSerializerSerializedAccessor.callInit(serializedTags)
+        }))
     }
 
     private fun sendDynamicRegistry(

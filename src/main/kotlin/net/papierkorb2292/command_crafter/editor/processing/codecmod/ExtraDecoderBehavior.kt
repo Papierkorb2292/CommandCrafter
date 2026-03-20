@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
+import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -10,7 +11,7 @@ import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import org.eclipse.lsp4j.CompletionItem
 import java.util.stream.Stream
 
-interface ExtraDecoderBehavior<in TNode : Any> {
+interface ExtraDecoderBehavior<TNode : Any> {
     companion object {
         private val CURRENT_EXTRA_DECODER_BEHAVIOR = ThreadLocal<RegisteredBehavior<*>>()
         val IDENTITY_LATE_ADDITION_RUNNER = object : LateAdditionRunner {
@@ -49,6 +50,9 @@ interface ExtraDecoderBehavior<in TNode : Any> {
     val branchBehavior: BranchBehavior
         get() = BranchBehavior.SHORT_CIRCUIT
 
+    val registries: RegistryAccess?
+        get() = null
+
     fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {}
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
@@ -59,6 +63,8 @@ interface ExtraDecoderBehavior<in TNode : Any> {
     fun markCompletelyAccessed(input: TNode) {}
 
     fun notePossibleValues(input: TNode, provider: PossibleValue.Provider<TNode>, shouldSuggest: Boolean = true) {}
+
+    fun getParent(child: TNode): TNode? = null
 
     val nodeAnalyzingBehavior: NodeAnalyzingBehavior<TNode>?
         get() = null

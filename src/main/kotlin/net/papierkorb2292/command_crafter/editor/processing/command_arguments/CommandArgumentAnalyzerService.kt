@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
@@ -37,7 +36,6 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
                     range: StringRange,
                     name: String,
                     reader: DirectiveStringReader<AnalyzingResourceCreator>,
-                    buildContext: CommandBuildContext,
                     result: AnalyzingResult,
                 ) {
                     result.semanticTokens.addMultiline(range, TokenType.PARAMETER, 0)
@@ -76,9 +74,6 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
      * The [reader]'s position can be modified and is
      * recommended to be at the end of the argument after the method returns. Its position
      * can be used by the caller to determine how far the lenient parser could read the argument.
-     *
-     * For convenience, this method also provides a [CommandBuildContext], so the implementation doesn't
-     * have to get it from the ArgumentType
      */
     fun analyze(
         context: CommandContext<SharedSuggestionProvider>,
@@ -86,7 +81,6 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     )
 

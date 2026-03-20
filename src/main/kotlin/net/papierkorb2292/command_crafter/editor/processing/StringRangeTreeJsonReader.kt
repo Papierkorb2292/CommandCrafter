@@ -184,6 +184,7 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         }
                     }
 
+                    builder.addChild(current, value)
                     if(current is JsonArray) {
                         current.add(value)
                     } else {

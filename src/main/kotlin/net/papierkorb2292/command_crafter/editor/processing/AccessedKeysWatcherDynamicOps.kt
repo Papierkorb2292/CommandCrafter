@@ -1,21 +1,21 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.datafixers.util.Pair
-import com.mojang.serialization.*
-import java.nio.ByteBuffer
+import com.mojang.serialization.DataResult
+import com.mojang.serialization.DynamicOps
+import com.mojang.serialization.MapLike
 import java.util.*
 import java.util.function.BiConsumer
 import java.util.function.Consumer
-import java.util.function.Function
-import java.util.stream.IntStream
-import java.util.stream.LongStream
 import java.util.stream.Stream
 
 class AccessedKeysWatcherDynamicOps<T>(override val delegate: DynamicOps<T>): DelegatingDynamicOps<T> {
-    val accessedKeys = mutableMapOf<T, MutableSet<T>>()
+    val accessedKeys = IdentityHashMap<T, MutableSet<T>>()
+    val keyToMap = IdentityHashMap<T, T>()
 
     private fun addAccessedKey(map: T, key: T) {
         accessedKeys.getOrPut(map) { Collections.newSetFromMap(IdentityHashMap()) } += key
+        keyToMap[key] = map
     }
 
     override fun getMapValues(input: T): DataResult<Stream<Pair<T, T>>> =

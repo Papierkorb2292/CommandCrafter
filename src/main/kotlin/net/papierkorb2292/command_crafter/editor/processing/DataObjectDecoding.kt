@@ -2,7 +2,9 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.serialization.Codec
+import com.mojang.serialization.DataResult
 import com.mojang.serialization.Decoder
+import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
 import net.minecraft.commands.CommandSourceStack
@@ -10,6 +12,7 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceArgument
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.BlockPos
+import net.minecraft.core.HolderSet
 import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.Tag
@@ -23,25 +26,29 @@ import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.entity.BlockEntityType
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
-import net.papierkorb2292.command_crafter.helper.DummyWorld
-import net.papierkorb2292.command_crafter.helper.memoizeLast
-import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockEntityTypeAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EntityTypeAccessor
 import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import java.util.function.Predicate
+import kotlin.jvm.optionals.getOrNull
 
 class DataObjectDecoding(private val registries: RegistryAccess) {
     companion object {
         val GET_FOR_REGISTRIES = ::DataObjectDecoding.memoizeLast()
+
         // Used to replace components in Holder.Reference.components so default components can be accessed outside a world,
         // even when the code accesses the builtin registries directly (for example ItemStack constructors)
         val BUILTIN_REGISTRY_OVERRIDE = ThreadLocal<RegistryAccess>()
 
         val SELECTOR_TYPE_PREDICATE_TRACKER = ThreadLocal<MutableList<Predicate<Entity>>>()
+
+        // Applied by CompoundTag.CODEC (TODO) and TagParser.FLATTENED_CODEC
+        val EMBEDDED_NBT_DECODER = ThreadLocal<EmbeddedNbtDecoderData<*>>()
 
         private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
             enumConstantCodec(DataObjectSourceKind::class.java),
@@ -52,14 +59,15 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         )
         private val DATA_OBJECT_SOURCE_CODEC = RecordCodecBuilder.create { instance ->
             instance.group(
-                Codec.STRING.xmap({ DataObjectSourceKind.valueOf(it) }, { it.toString() }).fieldOf("kind").forGetter(DataObjectSource::kind),
+                Codec.STRING.xmap({ DataObjectSourceKind.valueOf(it) }, { it.toString() }).fieldOf("kind")
+                    .forGetter(DataObjectSource::kind),
                 Codec.STRING.fieldOf("argument_name").forGetter(DataObjectSource::argumentName),
             ).apply(instance, ::DataObjectSource)
         }
 
         fun registerDataObjectSourceAdditionalDataType() {
             ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
-                Identifier.fromNamespaceAndPath("command_crafter","data_object_source"),
+                Identifier.fromNamespaceAndPath("command_crafter", "data_object_source"),
                 { argumentType ->
                     if(argumentType is DataObjectSourceContainer) {
                         argumentType.`command_crafter$getDataObjectSource`()
@@ -74,9 +82,43 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             )
         }
 
-        fun getForReader(directiveStringReader: DirectiveStringReader<AnalyzingResourceCreator>): DataObjectDecoding? {
+        fun getForReader(directiveStringReader: DirectiveStringReader<AnalyzingResourceCreator>): DataObjectDecoding {
             return GET_FOR_REGISTRIES(directiveStringReader.resourceCreator.registries)
         }
+
+        fun <TNode> getEmbeddedNbtDecoder(node: TNode): EmbeddedNbtDecoderData<*>? {
+            val decoderData = EMBEDDED_NBT_DECODER.getOrNull()
+            return if(decoderData?.node == node) decoderData else null
+        }
+
+        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, parentNodeDecoder: Decoder<out Decoder<*>?>, branchBehaviorProvider: BranchBehaviorProvider<Any>): Codec<TResult> = object : Codec<TResult> {
+            override fun <T: Any> encode(input: TResult, ops: DynamicOps<T>, prefix: T): DataResult<T> =
+                delegate.encode(input, ops, prefix)
+
+            override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<TResult, T>> {
+                val parent = ExtraDecoderBehavior.getCurrentBehavior(ops)?.getParent(input)
+                    ?: return delegate.decode(ops, input)
+                val embeddedDecoder = parentNodeDecoder.decode(ops, parent).result().getOrNull()?.first
+                    ?: return delegate.decode(ops, input)
+                return decodeWithEmbedding(delegate, ops, input, embeddedDecoder, branchBehaviorProvider)
+            }
+        }
+
+        fun <TDataObjectRef> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef) -> Decoder<Unit>) = object : Decoder<Decoder<Unit>?> {
+            override fun <T : Any> decode(
+                ops: DynamicOps<T>,
+                input: T,
+            ): DataResult<com.mojang.datafixers.util.Pair<Decoder<Unit>?, T>> =
+                delegate.decode(ops, input).map { pair ->
+                    val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries ?: return@map null
+                    pair.mapFirst { ref -> decoderConverter(GET_FOR_REGISTRIES(registries), ref)}
+                }
+        }
+
+        fun <TNode, TResult> decodeWithEmbedding(delegate: Decoder<TResult>, ops: DynamicOps<TNode>, node: TNode, embeddedDecoder: Decoder<*>, branchBehaviorProvider: BranchBehaviorProvider<Any>): DataResult<com.mojang.datafixers.util.Pair<TResult, TNode>> =
+            EMBEDDED_NBT_DECODER.runWithValueSwap(EmbeddedNbtDecoderData(node, embeddedDecoder, branchBehaviorProvider)) {
+                delegate.decode(ops, node)
+            }
     }
 
     val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
@@ -172,6 +214,22 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         return DynamicOpsReadView.getReadDecoder(registries, blockEntity::loadWithComponents)
     }
 
+    fun getDecoderForBlocks(blocks: HolderSet<Block>?): Decoder<Unit> =
+        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
+            if(blocks == null || !blocks.isBound)
+                dummyBlockEntities.values.forEach { it.loadWithComponents(valueInput) }
+            else
+                blocks.stream().forEach { dummyBlockEntities[it.value()]?.loadWithComponents(valueInput) }
+        }
+
+    fun getDecoderForEntities(entityTypes: HolderSet<EntityType<*>>?): Decoder<Unit> =
+        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
+            if(entityTypes == null || !entityTypes.isBound)
+                dummyBlockEntities.values.forEach { it.loadWithComponents(valueInput) }
+            else
+                entityTypes.stream().forEach { dummyEntities[it.value()]?.load(valueInput) }
+        }
+
     private fun <T : Entity> createDummyEntity(id: Identifier, entityType: EntityType<T>): Pair<EntityType<T>, Entity>? {
         try {
             @Suppress("UNCHECKED_CAST")
@@ -203,6 +261,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
         }
     }
+
+    data class EmbeddedNbtDecoderData<TNode>(val node: TNode, val decoder: Decoder<*>, val branchBehavior: BranchBehaviorProvider<Any>)
 
     enum class DataObjectSourceKind {
         ENTITY_SUMMON,

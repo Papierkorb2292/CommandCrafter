@@ -214,13 +214,12 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
         var nbt = nbtReader.parseAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
 
+        //noinspection unchecked
+        var directiveStringReader= (DirectiveStringReader<AnalyzingResourceCreator>) reader;
         Decoder<?> decoder = null;
         if(state != null) {
-            //noinspection unchecked
-            var dataObjectDecoding = DataObjectDecoding.Companion.getForReader((DirectiveStringReader<AnalyzingResourceCreator>) reader);
-            if (dataObjectDecoding != null) {
-                decoder = dataObjectDecoding.getDecoderForBlock(state.getBlock());
-            }
+            var dataObjectDecoding = DataObjectDecoding.Companion.getForReader(directiveStringReader);
+            decoder = dataObjectDecoding.getDecoderForBlock(state.getBlock());
         }
 
         StringRangeTree.TreeOperations.Companion.forNbt(
@@ -228,6 +227,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
                 directiveReader
         )
                 .withDiagnosticSeverity(DiagnosticSeverity.Warning)
+                .withRegistry(directiveStringReader.getResourceCreator().getRegistries())
                 .analyzeFull(command_crafter$analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }

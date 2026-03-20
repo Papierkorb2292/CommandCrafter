@@ -10,6 +10,9 @@ import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.IntList
 import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
+import net.minecraft.advancements.criterion.EntityPredicate
+import net.minecraft.advancements.criterion.EntityTypePredicate
+import net.minecraft.advancements.criterion.NbtPredicate
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
@@ -31,8 +34,10 @@ import net.minecraft.world.item.component.FireworkExplosion
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
+import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
@@ -140,6 +145,18 @@ object CodecTransformers {
                 Arrays.stream(values).map { ops.createString(it.serializedName) }
         })
     }
+
+    @JvmStatic
+    @CodecMod(target = EntityPredicate::class, codecField = "nbt")
+    fun addEntityPredicateNbtSuggestions(codec: Codec<NbtPredicate>): Codec<NbtPredicate> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.convertToDataObjectDecoder(
+                EntityTypePredicate.CODEC.map { it.types },
+                DataObjectDecoding::getDecoderForEntities,
+            ).fieldOf("type").decoder(),
+            BranchBehaviorProvider.getForPathLookup(null)
+        )
     
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "codec")

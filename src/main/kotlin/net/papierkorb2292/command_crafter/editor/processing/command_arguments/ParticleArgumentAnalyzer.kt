@@ -3,7 +3,6 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ParticleArgument
 import net.minecraft.core.particles.SimpleParticleType
@@ -33,14 +32,13 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        buildContext: CommandBuildContext,
         result: AnalyzingResult,
     ) {
         val parameterDecoder = try {
             val startPos = reader.cursor
             val particleId = Identifier.read(reader)
             result.semanticTokens.addMultiline(startPos, reader.cursor - startPos, PARAMETER, 0)
-            val registry = buildContext.lookup(Registries.PARTICLE_TYPE)
+            val registry = reader.resourceCreator.registries.lookup(Registries.PARTICLE_TYPE)
             if(registry.isPresent) {
                 val particleType = registry.get().get(ResourceKey.create(Registries.PARTICLE_TYPE, particleId))
                 if(particleType.isPresent && particleType.get().value() !is SimpleParticleType) {
