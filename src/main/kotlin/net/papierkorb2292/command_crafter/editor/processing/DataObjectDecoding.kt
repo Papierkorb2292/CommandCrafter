@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.entity.BlockEntityType
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.noErrorTracking
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
@@ -98,7 +99,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<TResult, T>> {
                 val parent = ExtraDecoderBehavior.getCurrentBehavior(ops)?.getParent(input)
                     ?: return delegate.decode(ops, input)
-                val embeddedDecoder = parentNodeDecoder.decode(ops, parent).result().getOrNull()?.first
+                val embeddedDecoder = parentNodeDecoder.noErrorTracking().decode(ops, parent).result().getOrNull()?.first
                     ?: return delegate.decode(ops, input)
                 return decodeWithEmbedding(delegate, ops, input, embeddedDecoder, branchBehaviorProvider)
             }
