@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.mojang.authlib.GameProfile
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
@@ -19,13 +20,19 @@ import net.minecraft.nbt.Tag
 import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
+import net.minecraft.server.level.ClientInformation
+import net.minecraft.server.level.ServerLevel
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.flag.FeatureFlags
+import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.entity.BlockEntityType
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.noErrorTracking
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
@@ -35,6 +42,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockEntityTyp
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EntityTypeAccessor
 import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import java.util.*
 import java.util.function.Predicate
 import kotlin.jvm.optionals.getOrNull
 
@@ -47,6 +55,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         val BUILTIN_REGISTRY_OVERRIDE = ThreadLocal<RegistryAccess>()
 
         val SELECTOR_TYPE_PREDICATE_TRACKER = ThreadLocal<MutableList<Predicate<Entity>>>()
+        val PLAYER_CONSTRUCTOR_LEVEL_OVERRIDE = ThreadLocal<Level>()
 
         // Applied by CompoundTag.CODEC (TODO) and TagParser.FLATTENED_CODEC
         val EMBEDDED_NBT_DECODER = ThreadLocal<EmbeddedNbtDecoderData<*>>()
@@ -233,8 +242,23 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     private fun <T : Entity> createDummyEntity(id: Identifier, entityType: EntityType<T>): Pair<EntityType<T>, Entity>? {
         try {
+            if(entityType == EntityType.PLAYER) {
+                val entity = PLAYER_CONSTRUCTOR_LEVEL_OVERRIDE.runWithValueSwap(dummyWorld) {
+                    ServerPlayer(
+                        Util.nullIsFine<MinecraftServer>(null), // Handled with mixins
+                        Util.nullIsFine<ServerLevel>(null),
+                        GameProfile(UUID.randomUUID(), "DummyPlayer"),
+                        ClientInformation.createDefault()
+                    )
+                }
+                return entityType to entity
+            }
             @Suppress("UNCHECKED_CAST")
-            val entity = (entityType as EntityTypeAccessor<T>).factory.create(entityType, dummyWorld) ?: return null
+            val entity = (entityType as EntityTypeAccessor<T>).factory.create(entityType, dummyWorld)
+            if(entity == null) {
+                CommandCrafter.LOGGER.warn("Couldn't create dummy entity of type $id: Factory returned null")
+                return null
+            }
             return entityType to entity
         } catch(e: Throwable) {
             CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id", e)
