@@ -47,6 +47,8 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
             ReadDecoder(registries, reader)
     }
 
+    var alwaysReturnEmpty = true
+
     private val readKeyCache = mutableMapOf<kotlin.Pair<String, Codec<*>>, Optional<*>>()
 
     @Suppress("UNCHECKED_CAST")
@@ -63,7 +65,10 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
     override fun <T: Any> read(mapCodec: MapCodec<T>) =
         readMapCodecCache.getOrPut(mapCodec) {
             lateAdditionRunner.acceptLateAddition {
-                map.flatMap { mapCodec.decode(dynamic.ops, it).resultOrPartial() }
+                map.flatMap {
+                    val optional = mapCodec.decode(dynamic.ops, it).resultOrPartial()
+                    if(alwaysReturnEmpty) Optional.empty() else optional
+                }
             }
         } as Optional<T>
 
@@ -71,7 +76,10 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
 
     override fun child(key: String): Optional<ValueInput> =
         childCache.getOrPut(key) {
-            read(key, getReadViewCodec(registries)).cast()
+            alwaysReturnEmpty = false
+            val child = read(key, getReadViewCodec(registries))
+            alwaysReturnEmpty = true
+            child.cast()
         }
 
 
@@ -82,7 +90,10 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
 
     override fun childrenList(key: String): Optional<ValueInputList> =
         childrenListCache.getOrPut(key) {
-            read(key, getListReadViewCodec(registries)).cast()
+            alwaysReturnEmpty = false
+            val child = read(key, getListReadViewCodec(registries))
+            alwaysReturnEmpty = true
+            child.cast()
         }
 
     override fun childrenListOrEmpty(key: String): ValueInputList =
