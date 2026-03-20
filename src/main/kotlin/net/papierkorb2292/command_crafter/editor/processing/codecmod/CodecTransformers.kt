@@ -10,12 +10,15 @@ import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.IntList
 import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
+import net.minecraft.advancements.criterion.BlockPredicate
 import net.minecraft.advancements.criterion.EntityPredicate
 import net.minecraft.advancements.criterion.EntityTypePredicate
 import net.minecraft.advancements.criterion.NbtPredicate
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
+import net.minecraft.core.RegistryCodecs
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.registries.Registries
 import net.minecraft.locale.Language
 import net.minecraft.network.chat.TextColor
 import net.minecraft.network.chat.contents.TranslatableContents
@@ -155,6 +158,18 @@ object CodecTransformers {
                 EntityTypePredicate.CODEC.map { it.types },
                 DataObjectDecoding::getConditionDecoderForEntities,
             ).fieldOf("type").decoder(),
+            BranchBehaviorProvider.getForPathLookup(null)
+        )
+
+    @JvmStatic
+    @CodecMod(target = BlockPredicate::class, codecField = "nbt")
+    fun addBlockPredicateNbtSuggestions(codec: Codec<BlockPredicate>): Codec<BlockPredicate> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.convertToDataObjectDecoder(
+                RegistryCodecs.homogeneousList(Registries.BLOCK),
+                DataObjectDecoding::getConditionDecoderForBlocks,
+            ).fieldOf("blocks").decoder(),
             BranchBehaviorProvider.getForPathLookup(null)
         )
     
