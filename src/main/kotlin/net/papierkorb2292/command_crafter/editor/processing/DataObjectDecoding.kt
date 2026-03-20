@@ -27,10 +27,12 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.flag.FeatureFlags
+import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.block.entity.BlockEntityType
+import net.minecraft.world.level.storage.ValueInput
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
@@ -74,6 +76,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 Codec.STRING.fieldOf("argument_name").forGetter(DataObjectSource::argumentName),
             ).apply(instance, ::DataObjectSource)
         }
+
+        private val entitiesWithError = mutableSetOf<EntityType<*>>()
 
         fun registerDataObjectSourceAdditionalDataType() {
             ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
@@ -165,13 +169,13 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                         dataObjectSource.argumentName
                     ).value()] ?: return null
                     DynamicOpsReadView.getReadDecoder(registries) { input ->
-                        entity.load(input)
+                        analyzeEntity(entity, input)
                     }
                 } catch(_: IllegalArgumentException) {
                     // No entity argument found, maybe it's macro. Decoder should try out all entities
                     DynamicOpsReadView.getReadDecoder(registries) { input ->
                         for(entity in dummyEntities.values) {
-                            entity.load(input)
+                            analyzeEntity(entity, input)
                         }
                     }
                 }
@@ -191,7 +195,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 }
                 DynamicOpsReadView.getReadDecoder(registries) { input ->
                     for(entity in validEntities) {
-                        entity.load(input)
+                        analyzeEntity(entity, input)
                     }
                 }
             }
@@ -199,7 +203,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 // It is not possible to know which block entity it is. Decoder should try out all blocks
                 DynamicOpsReadView.getReadDecoder(registries) { input ->
                     for(blockEntity in dummyBlockEntities.values) {
-                        blockEntity.loadWithComponents(input)
+                        analyzeBlockEntity(blockEntity, input)
                     }
                 }
             }
@@ -221,24 +225,58 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     fun getDecoderForBlock(block: Block): Decoder<Unit>? {
         val blockEntity = dummyBlockEntities[block] ?: return null
-        return DynamicOpsReadView.getReadDecoder(registries, blockEntity::loadWithComponents)
+        return DynamicOpsReadView.getReadDecoder(registries) { input ->
+            analyzeBlockEntity(blockEntity, input)
+        }
     }
 
     fun getDecoderForBlocks(blocks: HolderSet<Block>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(blocks == null || !blocks.isBound)
-                dummyBlockEntities.values.forEach { it.loadWithComponents(valueInput) }
+                dummyBlockEntities.values.distinct().forEach { analyzeBlockEntity(it, valueInput) }
             else
-                blocks.stream().forEach { dummyBlockEntities[it.value()]?.loadWithComponents(valueInput) }
+                blocks.stream()
+                    .map { dummyBlockEntities[it.value()] }
+                    .filter { it != null }
+                    .distinct()
+                    .forEach {
+                        analyzeBlockEntity(it!!, valueInput)
+                    }
         }
 
     fun getDecoderForEntities(entityTypes: HolderSet<EntityType<*>>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(entityTypes == null || !entityTypes.isBound)
-                dummyEntities.values.forEach { it.load(valueInput) }
+                dummyEntities.values.forEach { analyzeEntity(it, valueInput) }
             else
-                entityTypes.stream().forEach { dummyEntities[it.value()]?.load(valueInput) }
+                entityTypes.stream()
+                    .map { dummyEntities[it.value()] }
+                    .filter { it != null }
+                    .forEach {
+                        analyzeEntity(it!!, valueInput)
+                    }
         }
+
+    fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
+        try {
+            blockEntity.loadWithComponents(valueInput)
+        } catch(e: Throwable) {
+            CommandCrafter.LOGGER.error("Error analyzing block entity nbt for type ${registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).getKey(blockEntity.type)}", e)
+        }
+    }
+
+    fun analyzeEntity(entity: Entity, valueInput: ValueInput) {
+        if(entity.type in entitiesWithError)
+            return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
+        try {
+            if(entity is ServerPlayer)
+                valueInput.read("SelectedItem", ItemStack.CODEC)
+            entity.load(valueInput)
+        } catch(e: Throwable) {
+            entitiesWithError += entity.type
+            CommandCrafter.LOGGER.error("Error analyzing entity nbt for type ${registries.lookupOrThrow(Registries.ENTITY_TYPE).getKey(entity.type)}. Entity will be ignored in the future.", e)
+        }
+    }
 
     private fun <T : Entity> createDummyEntity(id: Identifier, entityType: EntityType<T>): Pair<EntityType<T>, Entity>? {
         try {
