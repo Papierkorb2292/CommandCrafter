@@ -77,6 +77,7 @@ public class KeyDispatchCodecMixin<K, V> {
         // Analyzing assumes that exactly one key was exacted by the key codec
         if(dispatchValue.get() == null || dispatchValue.get().getSecond()) {
             CommandCrafter.INSTANCE.getLOGGER().debug("Dispatcher key codec did not access exactly one key: {}", keyCodec.toString());
+            command_crafter$onMissingPossibleKey(input, extraBehavior);
             return result;
         }
 
@@ -84,6 +85,7 @@ public class KeyDispatchCodecMixin<K, V> {
         final var possibleValues = possibleKeyTracker.getPossibleValues().get(lenientAccessTrackingMap.get(key));
         if(possibleValues == null) {
             CommandCrafter.INSTANCE.getLOGGER().debug("Dispatcher key codec did not provide possible values: {}", keyCodec.toString());
+            command_crafter$onMissingPossibleKey(input, extraBehavior);
             return result;
         }
 
@@ -92,5 +94,10 @@ public class KeyDispatchCodecMixin<K, V> {
         }
 
         return result;
+    }
+
+    private <T> void command_crafter$onMissingPossibleKey(MapLike<T> input, ExtraDecoderBehavior<T> extraBehavior) {
+        // Suppress any unknown key warnings for the input, since the proper decoder is unknown
+        input.entries().forEach(entry -> extraBehavior.markCompletelyAccessed(entry.getSecond()));
     }
 }
