@@ -566,6 +566,23 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testDecoderErrorTracking(context: GameTestHelper) {
+        val markedLines = """
+            execute if predicate {condition:"location_check",predicate:{block:{blocks:"chest",nbt:"{§"}}}
+            tellraw @s {atlas:§2,sprite:""}
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val analyzingResult = analyseCommand(context, processedLines)
+
+        context.assertValueEqual(2, analyzingResult.diagnostics.size, "Diagnostics count")
+        context.assertValueEqual(markedLocations[0].position, analyzingResult.diagnostics[0].range.start, "First diagnostic start")
+        context.assertValueEqual(markedLocations[1].position, analyzingResult.diagnostics[1].range.start, "Second diagnostic start")
+
+        context.succeed()
+    }
+
+    @GameTest
     fun testMultilineCommandsHighlighting(context: GameTestHelper) {
         // With trailing spaces!
         val lines = """

@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing.codecmod
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
+import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import java.util.*
 
 fun <T> Codec<T>.beforeDecode(callback: BeforeDecodeCallback) = object : Codec<T> {
@@ -26,23 +27,27 @@ fun <T> Codec<T>.afterDecode(callback: AfterDecodeCallback<T>) = object : Codec<
         }
 }
 
-fun <F> Decoder<F>.noErrorTracking() = object : Decoder<F> {
+fun <F> Decoder<F>.onlyAnalyzingBehavior() = @NoDecoderCallbacks object : Codec<F> {
     override fun <T : Any> decode(
         ops: DynamicOps<T>,
         input: T,
     ): DataResult<Pair<F, T>> {
-        val result = this@noErrorTracking.decode(ops, input)
-        ExtraDecoderBehavior.getCurrentBehavior(ops)?.commitErrors(ExtraDecoderBehavior.DecoderErrorLevel.IGNORE)
-        return result
+        val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
+        return if(behavior != null && behavior.nodeAnalyzingBehavior == null)
+            ExtraDecoderBehavior.decodeWithoutBehavior(this@onlyAnalyzingBehavior, ops, input)
+        else this@onlyAnalyzingBehavior.decode(ops, input)
     }
+
+    override fun <T> encode(
+        input: F,
+        ops: DynamicOps<T>,
+        prefix: T,
+    ): DataResult<T> = DataResult.success(prefix)
 }
 
 fun <O, F : Any> Decoder<F>.onlyAnalyzingRecord(field: String): RecordCodecBuilder<O, Optional<F>> = RecordCodecBuilder.of(
     { Optional.empty() },
-    Codec.of(
-        MapCodec.unit<F> { null }.codec(),
-        this@onlyAnalyzingRecord.noErrorTracking()
-    ).lenientOptionalFieldOf(field)
+    this@onlyAnalyzingRecord.onlyAnalyzingBehavior().lenientOptionalFieldOf(field)
 )
 fun <T> MapCodec<T>.forGetterIdent(): RecordCodecBuilder<T, T> = forGetter { it }
 

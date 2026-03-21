@@ -45,6 +45,15 @@ interface ExtraDecoderBehavior<TNode : Any> {
             CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(RegisteredBehavior(extraDecoderBehavior, ops)) {
                 decoder.decode(ops, input)
             }
+
+        fun <TResult, TNode : Any> decodeWithoutBehavior(
+            decoder: Decoder<TResult>,
+            ops: DynamicOps<TNode>,
+            input: TNode,
+        ): DataResult<Pair<TResult, TNode>> =
+            CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(null) {
+                decoder.decode(ops, input)
+            }
     }
 
     val branchBehavior: BranchBehavior

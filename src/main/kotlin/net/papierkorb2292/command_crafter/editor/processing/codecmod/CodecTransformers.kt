@@ -91,7 +91,7 @@ object CodecTransformers {
         ) {
             if(ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingBehavior == null)
                 return
-            PackedEncoderColorInfo.wrapCodec(Codec.INT, false).listOf().noErrorTracking().decode(ops, input)
+            PackedEncoderColorInfo.wrapCodec(Codec.INT, false).listOf().onlyAnalyzingBehavior().decode(ops, input)
         }
     })
     @JvmStatic
