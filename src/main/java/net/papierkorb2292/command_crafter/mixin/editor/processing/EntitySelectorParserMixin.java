@@ -5,13 +5,11 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
@@ -36,6 +34,10 @@ public class EntitySelectorParserMixin implements AnalyzingResultDataContainer, 
     @Shadow @Final private StringReader reader;
     @Shadow private BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestions;
 
+    @Shadow
+    private boolean includesEntities;
+    @Shadow
+    private int startPosition;
     private AnalyzingResult command_crafter$analyzingResult = null;
     private boolean command_crafter$allowMalformed = false;
 

@@ -8,6 +8,7 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(EntityArgument.class)
-public class EntityArgumentMixin {
+public class EntityArgumentMixin implements IsNonPlayerSelector {
 
     @ModifyExpressionValue(
             method = "listSuggestions",
@@ -51,5 +52,17 @@ public class EntityArgumentMixin {
     private int command_crafter$fixMC272429(int cursor, @Share("startCursor") LocalIntRef startPos) {
         // Minecraft would reset the cursor all the way to zero, which leads to bad error messages
         return cursor == 0 ? startPos.get() : cursor;
+    }
+
+    private boolean command_crafter$isNonPlayerSelector;
+
+    @Override
+    public void command_crafter$setIsNonPlayerSelector(boolean isNonPlayerSelector) {
+        command_crafter$isNonPlayerSelector = isNonPlayerSelector;
+    }
+
+    @Override
+    public boolean command_crafter$getIsNonPlayerSelector() {
+        return command_crafter$isNonPlayerSelector;
     }
 }

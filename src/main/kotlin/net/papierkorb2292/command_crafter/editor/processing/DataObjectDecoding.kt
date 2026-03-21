@@ -38,6 +38,7 @@ import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyAnalyzingBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockEntityTypeAccessor
@@ -79,7 +80,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
         private val entitiesWithError = mutableSetOf<EntityType<*>>()
 
-        fun registerDataObjectSourceAdditionalDataType() {
+        fun registerAdditionalDataTypes() {
             ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
                 Identifier.fromNamespaceAndPath("command_crafter", "data_object_source"),
                 { argumentType ->
@@ -93,6 +94,20 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                         true
                     } else false
                 }, DATA_OBJECT_SOURCE_PACKET_CODEC.cast(), DATA_OBJECT_SOURCE_CODEC
+            )
+            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
+                Identifier.fromNamespaceAndPath("command_crafter", "non_player_selector"),
+                { argumentType ->
+                    if(argumentType is IsNonPlayerSelector) {
+                        argumentType.`command_crafter$getIsNonPlayerSelector`()
+                    } else null
+                },
+                { argumentType, isNonPlayerSelector ->
+                    if(argumentType is IsNonPlayerSelector) {
+                        argumentType.`command_crafter$setIsNonPlayerSelector`(isNonPlayerSelector)
+                        true
+                    } else false
+                }, ByteBufCodecs.BOOL.cast(), Codec.BOOL
             )
         }
 
@@ -193,7 +208,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     selectorInputReader.string = selectorInput
                     selectorInputReader.cursor = 0
                     val selectorParser = EntitySelectorParser(selectorInputReader, true)
-                    getEntityChangeCandidates(selectorParser)
+                    getEntityChangeCandidates(selectorParser, false)
                 } else {
                     dummyEntities.values
                 }
@@ -214,16 +229,22 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    private fun getEntityChangeCandidates(selectorParser: EntitySelectorParser): Collection<Entity> {
+    fun getEntityChangeCandidates(selectorParser: EntitySelectorParser, includePlayers: Boolean): Collection<Entity> {
         val predicates = mutableListOf<Predicate<Entity>>()
         SELECTOR_TYPE_PREDICATE_TRACKER.runWithValue(predicates) {
             selectorParser.parse()
         }
         val selector = selectorParser.selector
-        if(!selector.includesEntities())
-            return listOf() // Selector includes only players and their data can't be modified
+        if(!selector.includesEntities()) {
+            if(includePlayers) {
+                val player = dummyEntities[EntityType.PLAYER]!!
+                if(predicates.all { predicate -> predicate.test(player) })
+                    return listOf(player)
+            }
+            return listOf()
+        }
         return dummyEntities.values.filter { entity ->
-            entity !is ServerPlayer && predicates.all { predicate -> predicate.test(entity) }
+            (entity !is ServerPlayer || includePlayers) && predicates.all { predicate -> predicate.test(entity) }
         }
     }
 

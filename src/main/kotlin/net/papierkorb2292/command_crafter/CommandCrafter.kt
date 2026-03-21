@@ -95,7 +95,7 @@ object CommandCrafter: ModInitializer {
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
-        DataObjectDecoding.registerDataObjectSourceAdditionalDataType()
+        DataObjectDecoding.registerAdditionalDataTypes()
 
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used

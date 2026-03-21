@@ -376,6 +376,8 @@ public class EntitySelectorOptionsMixin {
                                 (DirectiveStringReader<AnalyzingResourceCreator>) reader
                         );
                     } else {
+                        if(tagId.equals(Identifier.withDefaultNamespace("player")))
+                            selectorReader.setIncludesEntities(false);
                         analyzingResult.getSemanticTokens().addMultiline(
                                 startCursor,
                                 reader.getCursor() - startCursor,

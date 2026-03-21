@@ -75,6 +75,7 @@
     "editor.processing.EitherCodecMixin",
     "editor.processing.EndTagAccessor",
     "editor.processing.EntityArgumentMixin",
+    "editor.processing.EntityDataAccessDataProviderMixin",
     "editor.processing.EntityMixin",
     "editor.processing.EntitySelectorOptionsMixin",
     "editor.processing.EntitySelectorParserMixin",
