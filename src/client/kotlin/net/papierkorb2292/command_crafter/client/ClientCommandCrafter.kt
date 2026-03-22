@@ -8,7 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.font.FontManager
 import net.minecraft.client.renderer.PostChainConfig
-import net.minecraft.client.renderer.block.model.BlockModelDefinition
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelDispatcher
 import net.minecraft.client.renderer.item.ClientItem
 import net.minecraft.client.renderer.texture.atlas.SpriteSources
 import net.minecraft.client.resources.WaypointStyle
@@ -135,7 +135,7 @@ object ClientCommandCrafter : ClientModInitializer {
 
     val clientsideJsonResourceCodecs = mutableMapOf(
         PackContentFileType.ATLASES_FILE_TYPE to SpriteSources.FILE_CODEC,
-        PackContentFileType.BLOCKSTATES_FILE_TYPE to BlockModelDefinition.CODEC,
+        PackContentFileType.BLOCKSTATES_FILE_TYPE to BlockStateModelDispatcher.CODEC,
         PackContentFileType.EQUIPMENT_FILE_TYPE to ArmorType.CODEC,
         PackContentFileType.FONTS_FILE_TYPE to FontManager.FontDefinitionFile.CODEC,
         PackContentFileType.ITEMS_FILE_TYPE to ClientItem.CODEC,
