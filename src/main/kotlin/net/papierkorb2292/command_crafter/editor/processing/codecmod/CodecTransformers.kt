@@ -73,7 +73,8 @@ object CodecTransformers {
                 ARGB.blueFloat(it)
             )
         }), // Because JSON doesn't support hex
-        false
+        false,
+        nameProvider = { "0x${PackedEncoderColorInfo.colorToHex(it, false)}"} // Use hex instead of list for JSON
     )
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "STRING_RGB_COLOR")
@@ -89,7 +90,8 @@ object CodecTransformers {
                 ARGB.alphaFloat(it)
             )
         }), // Because JSON doesn't support hex
-        true
+        true,
+        nameProvider = { "0x${PackedEncoderColorInfo.colorToHex(it, true)}"} // Use hex instead of list for JSON
     )
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "STRING_ARGB_COLOR")
@@ -113,7 +115,7 @@ object CodecTransformers {
         ) {
             if(ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingBehavior == null)
                 return
-            PackedEncoderColorInfo.wrapCodec(Codec.INT, false).listOf().onlyAnalyzingBehavior().decode(ops, input)
+            PackedEncoderColorInfo.wrapCodec(Codec.INT, false, nameProvider = { "0x${PackedEncoderColorInfo.colorToHex(it, false)}"}).listOf().onlyAnalyzingBehavior().decode(ops, input)
         }
     })
     @JvmStatic

@@ -25,7 +25,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
 ) : ColorInfo {
     companion object {
 
-        fun wrapCodec(delegate: Codec<Int>, hasAlpha: Boolean): Codec<Int> = wrapCodec(delegate, hasAlpha, { it }, { it })
+        fun wrapCodec(delegate: Codec<Int>, hasAlpha: Boolean, nameProvider: ((Int) -> String)? = null): Codec<Int> = wrapCodec(delegate, hasAlpha, { it }, { it }, nameProvider = nameProvider)
 
         fun <TColor> wrapCodec(delegate: Codec<TColor>, hasAlpha: Boolean, toPacked: (TColor) -> Int, fromPacked: (Int) -> TColor, additionalSuggestions: () -> List<TColor> = ::emptyList, nameProvider: ((TColor) -> String)? = null, preferHex: Boolean = true): Codec<TColor> {
             val withColorInfo = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
