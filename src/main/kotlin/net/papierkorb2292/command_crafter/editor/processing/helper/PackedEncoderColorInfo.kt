@@ -27,7 +27,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
 
         fun wrapCodec(delegate: Codec<Int>, hasAlpha: Boolean): Codec<Int> = wrapCodec(delegate, hasAlpha, { it }, { it })
 
-        fun <TColor> wrapCodec(delegate: Codec<TColor>, hasAlpha: Boolean, toPacked: (TColor) -> Int, fromPacked: (Int) -> TColor, additionalSuggestions: () -> List<TColor> = ::emptyList, nameProvider: ((TColor) -> String)? = null): Codec<TColor> {
+        fun <TColor> wrapCodec(delegate: Codec<TColor>, hasAlpha: Boolean, toPacked: (TColor) -> Int, fromPacked: (Int) -> TColor, additionalSuggestions: () -> List<TColor> = ::emptyList, nameProvider: ((TColor) -> String)? = null, preferHex: Boolean = true): Codec<TColor> {
             val withColorInfo = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
                 analyzingResult.colorInfos += PackedEncoderColorInfo(
                     Range(
@@ -55,8 +55,9 @@ class PackedEncoderColorInfo<TNode, TColor>(
                 override fun <T: Any> suggestionModifier(
                     suggestion: ExtraDecoderBehavior.PossibleValue<T>,
                     ops: DynamicOps<T>,
-                ): ExtraDecoderBehavior.PossibleValue<T> =
-                    suggestion.withPreferHex().withCompletionModifier { completionItem ->
+                ): ExtraDecoderBehavior.PossibleValue<T> {
+                    val hexSuggestion = if(preferHex) suggestion.withPreferHex() else suggestion
+                    return hexSuggestion.withCompletionModifier { completionItem ->
                         completionItem.kind = CompletionItemKind.Color
                         val parsed = delegate.parse(ops, suggestion.element).result().orElse(null)
                         if(parsed != null) {
@@ -68,6 +69,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
                             completionItem.detail = "#" + colorToHex(color, false)
                         }
                     }
+                }
             })
         }
 

@@ -29,6 +29,7 @@ import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.pack.PackFormat
 import net.minecraft.tags.TagEntry
 import net.minecraft.tags.TagKey
+import net.minecraft.util.ARGB
 import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.InclusiveRange
 import net.minecraft.util.StringRepresentable
@@ -46,6 +47,8 @@ import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonR
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
+import org.joml.Vector3f
+import org.joml.Vector4f
 import java.util.*
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
@@ -62,13 +65,32 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "RGB_COLOR_CODEC")
-    fun addRGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(codec, false)
+    fun addRGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(
+        codec.withJsonEncodeAlternative(ExtraCodecs.VECTOR3F.comap {
+            Vector3f(
+                ARGB.redFloat(it),
+                ARGB.greenFloat(it),
+                ARGB.blueFloat(it)
+            )
+        }), // Because JSON doesn't support hex
+        false
+    )
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "STRING_RGB_COLOR")
     fun addStringRGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(codec, false)
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "ARGB_COLOR_CODEC")
-    fun addARGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(codec, true)
+    fun addARGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(
+        codec.withJsonEncodeAlternative(ExtraCodecs.VECTOR4F.comap {
+            Vector4f(
+                ARGB.redFloat(it),
+                ARGB.greenFloat(it),
+                ARGB.blueFloat(it),
+                ARGB.alphaFloat(it)
+            )
+        }), // Because JSON doesn't support hex
+        true
+    )
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "STRING_ARGB_COLOR")
     fun addStringARGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(codec, true)
@@ -104,7 +126,8 @@ object CodecTransformers {
             PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor)
         },
         { DyeColor.entries },
-        { "$it (${it.id})" }
+        { "$it (${it.id})" },
+        false
     )
 
     @JvmStatic
