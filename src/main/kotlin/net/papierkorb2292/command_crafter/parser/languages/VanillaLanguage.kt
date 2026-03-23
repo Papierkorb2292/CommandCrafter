@@ -71,12 +71,24 @@ import net.papierkorb2292.command_crafter.mixin.editor.debugger.FunctionBuilderA
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor as FunctionBuilderAccessor_Parser
 import org.eclipse.lsp4j.jsonrpc.messages.Either as JsonRPCEither
 
-data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources: Boolean = false) : Language {
+data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources: Boolean = false, val noBuildCheck: Boolean = false) : Language {
+    init {
+        if(noBuildCheck && (easyNewLine || inlineResources)) {
+            throw IllegalArgumentException("Vanilla language can't enable easyNewLine or inlineResources if noBuildCheck is used")
+        }
+    }
+
     override fun parseToVanilla(
         reader: DirectiveStringReader<RawZipResourceCreator>,
         source: CommandSourceStack,
         resource: RawResource,
     ) {
+        if(noBuildCheck) {
+            while(skipToNextCommandNoBuildCheck(reader)) {
+                resource.content += Either.left(reader.readLine() + '\n')
+            }
+            return
+        }
         while(skipToNextCommand(reader)) {
             if (LanguageManager.readDocComment(reader) != null)
                 continue
@@ -517,6 +529,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             indentStartCursor = reader.cursor
         }
         return macroBuilder.toString()
+    }
+
+    private fun skipToNextCommandNoBuildCheck(reader: DirectiveStringReader<*>): Boolean {
+        @Suppress("ControlFlowWithEmptyBody")
+        while(reader.endStatement(false) && reader.canRead() && reader.currentLanguage == this) { }
+        return reader.canRead() && reader.currentLanguage == this
     }
 
     private fun skipToNextCommand(reader: DirectiveStringReader<*>): Boolean {
@@ -971,7 +989,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             DEFAULT("default"),
             ALL_FEATURES("improved"),
             EASY_NEW_LINE("easyNewLine"),
-            INLINE_RESOURCES("inlineResources");
+            INLINE_RESOURCES("inlineResources"),
+            NO_BUILD_CHECK("noBuildCheck");
 
             override fun getSerializedName() = optionName
         }
@@ -984,6 +1003,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     VanillaLanguageOptions.EASY_NEW_LINE -> VanillaLanguage(easyNewLine = true, inlineResources = false)
                     VanillaLanguageOptions.INLINE_RESOURCES -> VanillaLanguage(easyNewLine = false, inlineResources = true)
                     VanillaLanguageOptions.ALL_FEATURES -> VanillaLanguage(easyNewLine = true, inlineResources = true)
+                    VanillaLanguageOptions.NO_BUILD_CHECK -> VanillaLanguage(noBuildCheck = true)
                 }
             }
     }
