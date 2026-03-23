@@ -39,6 +39,8 @@ import kotlin.collections.MutableList
 import kotlin.collections.MutableMap
 import kotlin.collections.Set
 import kotlin.collections.associateTo
+import kotlin.collections.component1
+import kotlin.collections.component2
 import kotlin.collections.contains
 import kotlin.collections.emptyList
 import kotlin.collections.firstOrNull
@@ -46,6 +48,7 @@ import kotlin.collections.flatMap
 import kotlin.collections.forEach
 import kotlin.collections.getOrPut
 import kotlin.collections.isNotEmpty
+import kotlin.collections.iterator
 import kotlin.collections.last
 import kotlin.collections.lastIndex
 import kotlin.collections.listOf
@@ -848,7 +851,7 @@ class StringRangeTree<TNode: Any>(
      */
     inner class LeafErrorDecoderCallback(
         private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
-        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>,
+        private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
         override val registries: RegistryAccess?
     ) : ExtraDecoderBehavior<TNode> {
         private var stack = ArrayList<ErrorStackEntry<TNode>>(16)
@@ -901,23 +904,28 @@ class StringRangeTree<TNode: Any>(
             branchBehaviorProvider.onDecodeStart(input)
         }
 
-        override fun commitErrors(level: ExtraDecoderBehavior.DecoderErrorLevel) {
-            val stackEntry = stack.last()
-            when(level) {
-                ExtraDecoderBehavior.DecoderErrorLevel.IGNORE -> stackEntry.isEntryIgnored = true
-                ExtraDecoderBehavior.DecoderErrorLevel.WARNING -> {
-                    stackEntry.childDiagnostics.values.forEach { child ->
-                        stackEntry.comittedDiagnostics.warnings += child.errors
-                        child.errors.clear()
-                    }
-                }
-                ExtraDecoderBehavior.DecoderErrorLevel.ERROR -> {
-                    stackEntry.childDiagnostics.values.forEach { child ->
-                        stackEntry.comittedDiagnostics.errors += child.errors
-                        child.errors.clear()
-                    }
-                }
+        override fun decodeChildrenForWarnings(branchBehaviorProvider: BranchBehaviorProvider<TNode>, decodeCallback: () -> Unit) {
+            val prevStack = stack
+            val stackTop = prevStack.last()
+            stack = ArrayList()
+            stack += ErrorStackEntry(stackTop.node)
+            val prevBehavior = this.branchBehaviorProvider
+            val prevLateAdditionMergers = ArrayList(lateAdditionMergers)
+            lateAdditionMergers.clear()
+            this.branchBehaviorProvider = branchBehaviorProvider
+            decodeCallback()
+            val warningEntry = stack.removeLast()
+            lateAdditionMergers.forEach { it() }
+            warningEntry.comittedDiagnostics.downgradeToWarnings()
+            stackTop.comittedDiagnostics.warnings += warningEntry.comittedDiagnostics.warnings
+            for((child, childDiagnostics) in warningEntry.childDiagnostics) {
+                childDiagnostics.downgradeToWarnings()
+                stackTop.offerChild(child, childDiagnostics)
             }
+            stack = prevStack
+            this.branchBehaviorProvider = prevBehavior
+            lateAdditionMergers.clear()
+            lateAdditionMergers += prevLateAdditionMergers
         }
 
         override fun getParent(child: TNode): TNode? = this@StringRangeTree.getParent(child, accessedKeysWatcherDynamicOps)
@@ -928,8 +936,6 @@ class StringRangeTree<TNode: Any>(
             lateAdditionMergers += {
                 for(i in stackCopy.lastIndex downTo 1) {
                     val entry = stackCopy[i]
-                    if(entry.isEntryIgnored)
-                        break
                     stackCopy[i - 1].offerChild(entry.node, entry.getAllDiagnostics())
                 }
             }
@@ -954,7 +960,6 @@ class StringRangeTree<TNode: Any>(
 
         private fun popStack() {
             val popped = stack.removeLast()
-            if(popped.isEntryIgnored) return
             val next = stack.last()
             if(popped.hasLateAddition) {
                 next.hasLateAddition = true
@@ -994,7 +999,6 @@ class StringRangeTree<TNode: Any>(
         val comittedDiagnostics: NodeDiagnostics = NodeDiagnostics(),
         val childDiagnostics: MutableMap<TNode, NodeDiagnostics> = mutableMapOf(),
         var ignoreErrors: Boolean = false,
-        var isEntryIgnored: Boolean = false,
         var hasLateAddition: Boolean = false,
     ) {
         fun clearChildErrors() {
@@ -1050,6 +1054,11 @@ class StringRangeTree<TNode: Any>(
         val errors: MutableList<kotlin.Pair<StringRange, String?>> = mutableListOf(),
         val warnings: MutableList<kotlin.Pair<StringRange, String?>> = mutableListOf()
     ) {
+        fun downgradeToWarnings() {
+            warnings += errors
+            errors.clear()
+        }
+
         fun build(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity): List<Diagnostic> {
             fun createDiagnostic(message: String, range: StringRange, severity: DiagnosticSeverity) =
                 Diagnostic().also {

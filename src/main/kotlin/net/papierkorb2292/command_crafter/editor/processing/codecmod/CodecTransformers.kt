@@ -20,6 +20,7 @@ import net.minecraft.core.RegistryCodecs
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.locale.Language
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.TextColor
 import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
@@ -173,6 +174,18 @@ object CodecTransformers {
                 Arrays.stream(values).map { ops.createString(it.serializedName) }
         })
     }
+
+    @JvmStatic
+    @CodecMod(target = CompoundTag::class, javaFieldWrite = "CODEC")
+    fun decodeEmbeddedNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> = codec.afterDecode(object : AfterDecodeCallback<CompoundTag> {
+        override fun <TNode : Any> invoke(result: CompoundTag, input: TNode, ops: DynamicOps<TNode>) {
+            val embeddedDecoder = DataObjectDecoding.getEmbeddedNbtDecoder(input) ?: return
+            val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return
+            behavior.decodeChildrenForWarnings(embeddedDecoder.branchBehavior) {
+                embeddedDecoder.decoder.decode(ops, input)
+            }
+        }
+    })
 
     @JvmStatic
     @CodecMod(target = EntityPredicate::class, codecField = "nbt")

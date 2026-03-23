@@ -42,8 +42,8 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
         delegate.onDecodeStart(input)
     }
 
-    override fun commitErrors(level: ExtraDecoderBehavior.DecoderErrorLevel) =
-        delegate.commitErrors(level)
+    override fun decodeChildrenForWarnings(branchBehaviorProvider: BranchBehaviorProvider<TNode>, decodeCallback: () -> Unit) =
+        delegate.decodeChildrenForWarnings(branchBehaviorProvider, decodeCallback)
 
     override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner =
         delegate.markErrorLateAddition()

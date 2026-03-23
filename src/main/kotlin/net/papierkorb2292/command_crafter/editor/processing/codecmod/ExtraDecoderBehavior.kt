@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing.codecmod
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -66,7 +67,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
     fun onDecodeStart(input: TNode) {}
-    fun commitErrors(level: DecoderErrorLevel) {}
+    fun decodeChildrenForWarnings(branchBehaviorProvider: BranchBehaviorProvider<TNode>, decodeCallback: () -> Unit) { decodeCallback() }
     fun markErrorLateAddition(): LateAdditionRunner = IDENTITY_LATE_ADDITION_RUNNER
 
     fun markCompletelyAccessed(input: TNode) {}
@@ -115,12 +116,6 @@ interface ExtraDecoderBehavior<TNode : Any> {
          * Additionally, map errors like missing keys are ignored.
          */
         ALL_POSSIBLE_ENCODED
-    }
-
-    enum class DecoderErrorLevel {
-        ERROR,
-        WARNING,
-        IGNORE
     }
 
     interface LateAdditionRunner {
