@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.Encoder
+import net.minecraft.nbt.Tag
 import net.minecraft.util.ARGB
 import net.papierkorb2292.command_crafter.editor.processing.CodecAnalyzingWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
@@ -22,6 +23,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
     private val fromPacked: (Int) -> TColor,
     private val ops: DynamicOps<TNode>,
     private val nameProvider: ((TColor) -> String)? = null,
+    private val preferHex: Boolean
 ) : ColorInfo {
     companion object {
 
@@ -39,7 +41,8 @@ class PackedEncoderColorInfo<TNode, TColor>(
                     delegate,
                     fromPacked,
                     ops,
-                    nameProvider
+                    nameProvider,
+                    preferHex
                 )
             }
             return CodecSuggestionWrapper(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
@@ -144,8 +147,9 @@ class PackedEncoderColorInfo<TNode, TColor>(
         val colorValue = fromPacked(packed)
         val encoded = encoder.encodeStart(ops, colorValue).result().orElse(null) ?: return emptyList()
         val number = ops.getNumberValue(encoded).result().getOrNull()
-        val serialized = if(number is Int) "0x" + colorToHex(number, hasAlpha) else encoded.toString()
-        val label = nameProvider?.invoke(colorValue) ?: serialized
+        val defaultLabel = if(preferHex && number is Int) "0x" + colorToHex(number, hasAlpha) else encoded.toString()
+        val serialized = if(encoded is Tag) defaultLabel else encoded.toString() // Allow hexadecimal in SNBT
+        val label = nameProvider?.invoke(colorValue) ?: defaultLabel
         return listOf(ColorPresentation(label, TextEdit(range, serialized)))
     }
 }
