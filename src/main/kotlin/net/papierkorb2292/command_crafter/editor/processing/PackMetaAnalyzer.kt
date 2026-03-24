@@ -16,7 +16,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHa
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
-import kotlin.io.path.Path
 
 class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>?) : FileAnalyseHandler {
     private val ANALYZER_CONFIG_PATH = ".packmeta"
@@ -49,7 +48,7 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
     override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith("pack.mcmeta")
 
     override fun analyzeAsync(file: OpenFile, languageServer: MinecraftLanguageServer, executor: ExecutorService, completableFuture: CompletableFuture<AnalyzingResult>): Future<*> {
-        val packFolder = Path(file.parsedUri.path).parent
+        val packFolder = file.parsedUri.parsePath().parent
         val dataPath = file.parsedUri.copyWithPath(packFolder.resolve("data").toString()).toString()
         val assetsPath = file.parsedUri.copyWithPath(packFolder.resolve("assets").toString()).toString()
         return languageServer.client!!.fileExists(dataPath)
