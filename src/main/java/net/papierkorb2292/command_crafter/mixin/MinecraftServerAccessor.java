@@ -14,8 +14,6 @@ public interface MinecraftServerAccessor {
     @Accessor
     MinecraftServer.ReloadableResources getResources();
 
-    // Keeps Yarn method name for now because MultiScoreboard refers to it.
-    // Could be changed when both mods have to be updated at the same time.
-    @Accessor("nextTickTimeNanos")
-    void setTickStartTimeNanos(long tickStartTimeNanos);
+    @Accessor
+    void setNextTickTimeNanos(long tickStartTimeNanos);
 }
