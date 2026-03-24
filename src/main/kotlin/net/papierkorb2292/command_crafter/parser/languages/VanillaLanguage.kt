@@ -788,7 +788,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 addNodeSuggestions(
                     parentNode,
                     analyzingResult,
-                    parsedNode.range,
+                    if(skipAnalyzedChars) StringRange(parsedNode.range.start, max(parsedNode.range.end, reader.cursor)) else parsedNode.range, // Range could have increased if easyNewLine read following lines
                     analyzeReader,
                     contextBuilder,
                     !easyNewLine,
