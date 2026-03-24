@@ -84,7 +84,10 @@ public class DataPackCommandMixin {
             throw ERROR_UNKNOWN_PACK.create(name);
         }
         try(var pack = packProfile.open()) {
-            if(!((pack instanceof FilePackResources) || (pack instanceof PathPackResources))) {
+            var primaryPack = pack;
+            if(primaryPack instanceof CompositePackResourcesAccessor compositePackResources)
+                primaryPack = compositePackResources.getPrimaryPackResources();
+            if(!((primaryPack instanceof FilePackResources) || (primaryPack instanceof PathPackResources))) {
                 throw ERROR_UNKNOWN_PACK.create(name);
             }
             if(argsBuilder.getPermissions() == null) {
@@ -100,7 +103,7 @@ public class DataPackCommandMixin {
                 var zipOutput = new ZipOutputStream(outputStream);
                 //noinspection unchecked
                 RawZipResourceCreator.Companion.buildDatapack(
-                        pack,
+                        primaryPack,
                         argsBuilder.build(),
                         (CommandDispatcher<SharedSuggestionProvider>)(Object)context.getSource().getServer().getCommands().getDispatcher(),
                         zipOutput

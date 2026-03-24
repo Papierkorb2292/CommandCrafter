@@ -35,33 +35,59 @@ class RawZipResourceCreator {
 
         fun buildDatapack(pack: PackResources, args: DatapackBuildArgs, dispatcher: CommandDispatcher<SharedSuggestionProvider>, output: ZipOutputStream) {
             val resourceCreator = RawZipResourceCreator()
+            val dataDirectory = PackType.SERVER_DATA.directory + '/'
+            var foundPackMeta = false
             when (pack) {
                 is PathPackResources -> {
-                    val dataRoot = (pack as PathPackResourcesAccessor).root.resolve(PackType.SERVER_DATA.directory)
-                    for(namespace in pack.getNamespaces(PackType.SERVER_DATA)) {
-                        PathPackResources.listPath(namespace, dataRoot.resolve(namespace), emptyList()) { fileId, content ->
-                            processFile(
-                                fileId,
-                                content,
-                                resourceCreator,
-                                args,
-                                dispatcher
-                            )
+                    val root = (pack as PathPackResourcesAccessor).root
+                    val files = java.nio.file.Files.find(root, Int.MAX_VALUE, { _, attributes -> attributes.isRegularFile })
+                    files.forEach { file ->
+                        val relativePath = root.relativize(file)
+                        val relativePathString = relativePath.toString()
+                        val ioSupplier = IoSupplier.create(file)
+                        if(!relativePath.startsWith(dataDirectory)) {
+                            if(relativePathString == PackResources.PACK_META)
+                                foundPackMeta = true
+                            copyToOutput(ZipEntry(relativePathString), ioSupplier, output)
+                            return@forEach
                         }
-                    }
-                }
-                is FilePackResources -> {
-                    val zipFile = (pack as ZipFileProvider).`command_crafter$getZipFile`()
-                    val dataDirectory = PackType.SERVER_DATA.directory
-                    for(entry in zipFile.entries()) {
-                        if(!entry.name.startsWith(dataDirectory)) continue
-                        val entryPath = Path.of(dataDirectory).relativize(Path.of(entry.name))
-                        if(entryPath.parent == null) continue
+                        val entryPath = Path.of(dataDirectory).relativize(relativePath)
+                        if(entryPath.parent == null) {
+                            copyToOutput(ZipEntry(relativePathString), ioSupplier, output)
+                            return@forEach
+                        }
                         val namespace = entryPath.getName(0)
                         val path = namespace.relativize(entryPath)
                         processFile(
                             Identifier.fromNamespaceAndPath(namespace.toString(), path.toString().replace('\\', '/')),
-                            IoSupplier.create(zipFile, entry),
+                            ioSupplier,
+                            resourceCreator,
+                            args,
+                            dispatcher
+                        )
+                    }
+                }
+                is FilePackResources -> {
+                    val zipFile = (pack as ZipFileProvider).`command_crafter$getZipFile`()
+                    for(entry in zipFile.entries()) {
+                        val ioSupplier = IoSupplier.create(zipFile, entry)
+                        val relativePath = Path.of(entry.name)
+                        if(!relativePath.startsWith(dataDirectory)) {
+                            if(entry.name == PackResources.PACK_META)
+                                foundPackMeta = true
+                            copyToOutput(entry, ioSupplier, output)
+                            continue
+                        }
+                        val entryPath = Path.of(dataDirectory).relativize(relativePath)
+                        if(entryPath.parent == null) {
+                            copyToOutput(entry, ioSupplier, output)
+                            continue
+                        }
+                        val namespace = entryPath.getName(0)
+                        val path = namespace.relativize(entryPath)
+                        processFile(
+                            Identifier.fromNamespaceAndPath(namespace.toString(), path.toString().replace('\\', '/')),
+                            ioSupplier,
                             resourceCreator,
                             args,
                             dispatcher
@@ -71,14 +97,21 @@ class RawZipResourceCreator {
                 else -> throw UNKNOWN_DATAPACK_EXCEPTION.create(pack.packId())
             }
 
-            val packMeta = (pack.getRootResource(PackResources.PACK_META)
-                ?: throw MISSING_PACK_META_EXCEPTION.create())
-                .get()
-            output.putNextEntry(ZipEntry(PackResources.PACK_META))
-            packMeta.copyTo(output)
-            packMeta.close()
+            if(!foundPackMeta)
+                throw MISSING_PACK_META_EXCEPTION.create()
 
             resourceCreator.createResources(output)
+        }
+
+        private fun copyToOutput(
+            entry: ZipEntry,
+            content: IoSupplier<InputStream>,
+            output: ZipOutputStream,
+        ) {
+            output.putNextEntry(entry)
+            val inputStream = content.get()
+            inputStream.copyTo(output)
+            inputStream.close()
         }
 
         private fun processFile(
@@ -103,6 +136,7 @@ class RawZipResourceCreator {
                             return
                         }
                         processor.validate(args, id, reader, dispatcher)
+                        break
                     } catch (e: Exception) {
                         throw PROCESSOR_EXCEPTION.create(fileId, e.message)
                     }

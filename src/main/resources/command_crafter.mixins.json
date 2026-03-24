@@ -170,6 +170,7 @@
     "parser.CommandNodeMixin",
     "parser.CommandsAccessor",
     "parser.CommandSyntaxExceptionMixin",
+    "parser.CompositePackResourcesAccessor",
     "parser.DataPackCommandMixin",
     "parser.FilePackResourcesMixin",
     "parser.FunctionBuilderAccessor",
