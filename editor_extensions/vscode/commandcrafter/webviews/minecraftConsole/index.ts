@@ -71,10 +71,12 @@ function setupCommandInput(commandInput: TextfieldElement, channelTabs: TabsElem
 
 function convertAnsiLines(lines: string[], converter: AnsiToHtmlConverter): HTMLElement {
     const container = document.createElement("div")
-    console.log(lines)
     container.innerHTML = converter.toHtml(lines.join("\n"))
-    console.log(container.innerHTML)
     return container
+}
+
+function escapeMessage(message: string): string {
+    return message.replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
 function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement, content: string) {
@@ -84,7 +86,7 @@ function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement,
         return;
     }
 
-    const lines = content.split('\n');
+    const lines = escapeMessage(content).split('\n');
 
     const title = lines.slice(0, 2);
     const detail = lines.slice(2);

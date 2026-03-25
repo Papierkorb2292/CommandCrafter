@@ -1,6 +1,6 @@
 {
   "mappingInfo" : {
-    "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
+    "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
     "cursorMapper" : {
       "sourceCursors" : [ 34, 60, 88, 210 ],
       "targetCursors" : [ 34, 60, 81, 203 ],
@@ -9,9 +9,9 @@
       "prevSourceEnd" : 225,
       "prevTargetEnd" : 218
     },
-    "readCharacters" : 218,
+    "readCharacters" : 340,
     "skippedChars" : 7,
-    "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228 ]
+    "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
   },
   "semanticTokens" : [
     0,0,22,17,0,
@@ -24,7 +24,13 @@
     1,4,5,15,0, 0,6,3,7,0,
     1,4,3,15,0, 0,4,6,15,0, 0,7,21,7,0,
     1,0,8,15,0,
-    1,4,3,15,0, 0,4,3,10,0
+    1,4,3,15,0, 0,4,3,10,0,
+    
+    2,0,9,4,0, 0,10,7,11,0, 0,8,12,18,0,
+    1,0,28,17,0,
+    1,0,9,4,0, 0,10,7,11,0,
+    1,4,9,4,0, 0,10,7,11,0, 0,8,12,18,0,
+    1,4,9,4,0, 0,10,7,11,0
   ],
   "diagnostics" : [ ],
   "colorInfos" : [ ],
@@ -70,6 +76,71 @@
       "cursorRange" : {
         "start" : 191,
         "end" : 191
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 228,
+        "end" : 228
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 228,
+        "end" : 237
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 238,
+        "end" : 245
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 259,
+        "end" : 259
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 287,
+        "end" : 287
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 287,
+        "end" : 296
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 297,
+        "end" : 304
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 305,
+        "end" : 309
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 309,
+        "end" : 318
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 319,
+        "end" : 326
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 340,
+        "end" : 344
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 344,
+        "end" : 353
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 354,
+        "end" : 361
       }
     } ],
     "language" : [ {
@@ -211,6 +282,41 @@
       "cursorRange" : {
         "start" : 227,
         "end" : 227
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 228,
+        "end" : 228
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 246,
+        "end" : 258
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 259,
+        "end" : 259
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 287,
+        "end" : 287
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 305,
+        "end" : 309
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 327,
+        "end" : 339
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 340,
+        "end" : 344
       }
     } ],
     "language_customSuggestions" : [ {

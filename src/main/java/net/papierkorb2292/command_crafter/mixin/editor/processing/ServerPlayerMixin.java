@@ -31,7 +31,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(ServerPlayer.class)
-public class ServerPlayerMixin extends Avatar {
+public abstract class ServerPlayerMixin extends Avatar {
 
     @Shadow
     @Final

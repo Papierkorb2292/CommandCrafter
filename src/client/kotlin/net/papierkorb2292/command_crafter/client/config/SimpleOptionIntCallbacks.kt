@@ -4,7 +4,7 @@ import com.mojang.serialization.Codec
 import net.minecraft.client.Minecraft
 import net.minecraft.client.OptionInstance
 import net.minecraft.client.Options
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.*
 import net.minecraft.client.gui.components.events.GuiEventListener
 import net.minecraft.client.gui.narration.NarrationElementOutput
@@ -48,9 +48,9 @@ object SimpleOptionIntCallbacks : OptionInstance.ValueSet<Int> {
                     return mutableListOf(label, textInput);
                 }
 
-                override fun renderWidget(context: GuiGraphics, mouseX: Int, mouseY: Int, delta: Float) {
-                    label.render(context, mouseX, mouseY, delta);
-                    textInput.render(context, mouseX, mouseY, delta);
+                override fun extractWidgetRenderState(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
+                    label.extractRenderState(context, mouseX, mouseY, delta);
+                    textInput.extractRenderState(context, mouseX, mouseY, delta);
                 }
 
                 override fun updateWidgetNarration(builder: NarrationElementOutput) { }

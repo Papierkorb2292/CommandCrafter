@@ -2184,7 +2184,7 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
             "sourceCursors" : [ 34, 60, 88, 210 ],
             "targetCursors" : [ 34, 60, 81, 203 ],
@@ -2193,9 +2193,9 @@
             "prevSourceEnd" : 225,
             "prevTargetEnd" : 218
           },
-          "readCharacters" : 228,
+          "readCharacters" : 361,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228 ]
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
         },
         "dispatcher" : null,
         "resourceCreator" : {
@@ -2290,7 +2290,7 @@
           "originResourceInfoSetEventStack" : [ ]
         },
         "directiveManager" : { },
-        "nextLine" : 12,
+        "nextLine" : 17,
         "onlyReadEscapedMultiline" : false,
         "furthestAccessedCursor" : 0,
         "currentIndentation" : 0,
@@ -2307,8 +2307,8 @@
           "character" : 1
         },
         "end" : {
-          "line" : 12,
-          "character" : 2
+          "line" : 17,
+          "character" : 22
         }
       },
       "dynamicBreakpoints" : { },
@@ -2591,7 +2591,7 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
             "sourceCursors" : [ 34, 60, 88, 210 ],
             "targetCursors" : [ 34, 60, 81, 203 ],
@@ -2600,9 +2600,9 @@
             "prevSourceEnd" : 225,
             "prevTargetEnd" : 218
           },
-          "readCharacters" : 228,
+          "readCharacters" : 361,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228 ]
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
         },
         "dispatcher" : null,
         "resourceCreator" : {
@@ -2697,7 +2697,7 @@
           "originResourceInfoSetEventStack" : [ ]
         },
         "directiveManager" : { },
-        "nextLine" : 12,
+        "nextLine" : 17,
         "onlyReadEscapedMultiline" : false,
         "furthestAccessedCursor" : 0,
         "currentIndentation" : 0,
@@ -2714,8 +2714,564 @@
           "character" : 1
         },
         "end" : {
-          "line" : 12,
-          "character" : 2
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 210 ],
+            "targetCursors" : [ 34, 60, 81, 203 ],
+            "lengths" : [ 25, 21, 16, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 225,
+            "prevTargetEnd" : 218
+          },
+          "readCharacters" : 361,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "source" : null,
+                      "worldPosition" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "level" : "ServerLevel[Test Level]",
+                      "permissions" : { },
+                      "textName" : "Server",
+                      "displayName" : {
+                        "contents" : {
+                          "text" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "visualOrderText" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "resultCallback" : { },
+                      "anchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signingContext" : { },
+                      "chatMessageChainer" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 210 ],
+            "targetCursors" : [ 34, 60, 81, 203 ],
+            "lengths" : [ 25, 21, 16, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 225,
+            "prevTargetEnd" : 218
+          },
+          "readCharacters" : 361,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "source" : null,
+                      "worldPosition" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "level" : "ServerLevel[Test Level]",
+                      "permissions" : { },
+                      "textName" : "Server",
+                      "displayName" : {
+                        "contents" : {
+                          "text" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "visualOrderText" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "resultCallback" : { },
+                      "anchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signingContext" : { },
+                      "chatMessageChainer" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 210 ],
+            "targetCursors" : [ 34, 60, 81, 203 ],
+            "lengths" : [ 25, 21, 16, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 225,
+            "prevTargetEnd" : 218
+          },
+          "readCharacters" : 361,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "source" : null,
+                      "worldPosition" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "level" : "ServerLevel[Test Level]",
+                      "permissions" : { },
+                      "textName" : "Server",
+                      "displayName" : {
+                        "contents" : {
+                          "text" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "visualOrderText" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "resultCallback" : { },
+                      "anchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signingContext" : { },
+                      "chatMessageChainer" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 34, 60, 88, 210 ],
+            "targetCursors" : [ 34, 60, 81, 203 ],
+            "lengths" : [ 25, 21, 16, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 225,
+            "prevTargetEnd" : 218
+          },
+          "readCharacters" : 361,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+        },
+        "dispatcher" : null,
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "source" : null,
+                      "worldPosition" : {
+                        "x" : 0.0,
+                        "y" : 0.0,
+                        "z" : 0.0
+                      },
+                      "level" : "ServerLevel[Test Level]",
+                      "permissions" : { },
+                      "textName" : "Server",
+                      "displayName" : {
+                        "contents" : {
+                          "text" : "Server"
+                        },
+                        "siblings" : [ ],
+                        "style" : { },
+                        "visualOrderText" : { }
+                      },
+                      "server" : null,
+                      "silent" : false,
+                      "resultCallback" : { },
+                      "anchor" : "FEET",
+                      "rotation" : {
+                        "x" : 0.0,
+                        "y" : 0.0
+                      },
+                      "signingContext" : { },
+                      "chatMessageChainer" : { }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
         }
       },
       "dynamicBreakpoints" : { },

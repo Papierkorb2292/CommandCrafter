@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.minecraft.util.Util
 import java.net.URLDecoder
+import java.nio.file.Path
 import java.util.regex.Pattern
 
 /**
@@ -42,6 +44,7 @@ class EditorURI private constructor(
     companion object {
         private val uriRegex = Regex("^(([^:/?#]+?):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
         private val encodedAsHex = Regex("(%[0-9A-Za-z][0-9A-Za-z])+")
+        private val IS_WINDOWS = Util.getPlatform() == Util.OS.WINDOWS
 
         fun parseURI(uri: String, strict: Boolean = false): EditorURI {
             val match = uriRegex.matchEntire(uri)
@@ -82,6 +85,9 @@ class EditorURI private constructor(
                 else -> path
             }
     }
+
+    // What, you thought Windows would just accept the path that VSCode gives us?
+    fun parsePath(): Path = if(IS_WINDOWS) Path.of(path.trimStart('/')) else Path.of(path)
 
     fun copyWithPath(path: String) = EditorURI(scheme, authority, path, query, fragment)
 

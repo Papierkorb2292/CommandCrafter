@@ -18,4 +18,6 @@
   }
 }, {
   "value" : "\n"
+}, {
+  "value" : "# This comment is preserved\n"
 } ]

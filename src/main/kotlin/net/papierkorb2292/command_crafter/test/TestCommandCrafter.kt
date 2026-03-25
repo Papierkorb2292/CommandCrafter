@@ -628,6 +628,11 @@ object TestCommandCrafter {
             function {
                 say HI!            
             }
+            @language vanilla noBuildCheck
+            # This comment is preserved
+            @language vanilla
+                @language vanilla noBuildCheck
+                @language vanilla
         """.trimIndent().lines()
         try {
             testAllFunctionParsers(lines, context)

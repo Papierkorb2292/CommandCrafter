@@ -1,6 +1,9 @@
 package net.papierkorb2292.command_crafter.helper
 
-import net.minecraft.core.*
+import net.minecraft.core.BlockPos
+import net.minecraft.core.GlobalPos
+import net.minecraft.core.Holder
+import net.minecraft.core.RegistryAccess
 import net.minecraft.core.particles.ExplosionParticleInfo
 import net.minecraft.core.particles.ParticleOptions
 import net.minecraft.sounds.SoundEvent
@@ -47,8 +50,6 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
     BuiltinDimensionTypes.OVERWORLD), false, false, 0, 0) {
     private val chunkManager = DummyChunkManager()
     override fun players(): MutableList<out Player> = mutableListOf()
-
-    override fun getShade(direction: Direction, shaded: Boolean) = 0f
 
     override fun getUncachedNoiseBiome(biomeX: Int, biomeY: Int, biomeZ: Int): Holder<Biome> {
         return registryAccess().getOrThrow(Biomes.PLAINS)
