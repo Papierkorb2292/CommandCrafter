@@ -7,14 +7,15 @@ import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecode
 
 interface BranchBehaviorProvider<in TNode> {
     companion object {
-        fun getNBTMerge(): BranchBehaviorProvider<Tag> = ConditionalAllPossible(Decode) { it is CompoundTag }
-        fun <TNode> getForPathLookup(newValue: TNode?): BranchBehaviorProvider<TNode> = ConditionalAllPossible(Decode) { it != newValue }
-        fun getNBTMergePathLookup(newValue: Tag): BranchBehaviorProvider<Tag> = ConditionalAllPossible(getNBTMerge()) { it != newValue }
+        fun getNBTMerge(): BranchBehaviorProvider<Tag> = ConditionalAllPossible(Decode, true) { it is CompoundTag }
+        fun <TNode> getForPathLookup(newValue: TNode?): BranchBehaviorProvider<TNode> = ConditionalAllPossible(Decode, false) { it != newValue }
+        fun getNBTMergePathLookup(newValue: Tag): BranchBehaviorProvider<Tag> = ConditionalAllPossible(getNBTMerge(), false) { it != newValue }
     }
 
     fun getBranchBehavior(includeSuggestions: Boolean): ExtraDecoderBehavior.BranchBehavior
     fun onDecodeStart(input: TNode)
     fun onDecodeEnd(input: TNode)
+    fun shouldDecodeNonCanonical(): Boolean
 
     object Decode : BranchBehaviorProvider<Any?> {
         override fun getBranchBehavior(includeSuggestions: Boolean) =
@@ -23,10 +24,12 @@ interface BranchBehaviorProvider<in TNode> {
 
         override fun onDecodeStart(input: Any?) {}
         override fun onDecodeEnd(input: Any?) {}
+        override fun shouldDecodeNonCanonical(): Boolean = true
     }
 
     class ConditionalAllPossible<in TNode>(
         private val delegate: BranchBehaviorProvider<TNode>,
+        private val decodeNonCanonical: Boolean,
         private val allPossiblePredicate: Predicate<in TNode>,
     ) : BranchBehaviorProvider<TNode> {
         private var failedPredicateCount: Int = 0
@@ -47,5 +50,8 @@ interface BranchBehaviorProvider<in TNode> {
                 failedPredicateCount--
             }
         }
+
+        override fun shouldDecodeNonCanonical(): Boolean =
+            if(failedPredicateCount != 0) delegate.shouldDecodeNonCanonical() else decodeNonCanonical
     }
 }

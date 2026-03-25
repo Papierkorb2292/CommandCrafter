@@ -331,7 +331,7 @@ class StringRangeTree<TNode: Any>(
         tree: StringRangeTree<TNode>,
         internal val baseResult: AnalyzingResult,
         override val stringContentGetter: StringContentGetter<TNode>,
-        private val branchBehaviorProvider: BranchBehaviorProvider<TNode>,
+        private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
         override val registries: RegistryAccess?,
     ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode>, ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode> {
         override var tree = tree
@@ -599,11 +599,26 @@ class StringRangeTree<TNode: Any>(
                 getNodeStartSuggestions(input) += provider
         }
 
+        override fun <TResult> decodeWithBehavior(
+            branchBehaviorProvider: BranchBehaviorProvider<TNode>,
+            convertToWarnings: Boolean,
+            decodeCallback: () -> TResult
+        ): TResult {
+            val prevBehavior = this.branchBehaviorProvider
+            this.branchBehaviorProvider = branchBehaviorProvider
+            val result = decodeCallback()
+            this.branchBehaviorProvider = prevBehavior
+            return result
+        }
+
         override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>
             get() = this
 
         override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
             get() = branchBehaviorProvider.getBranchBehavior(true)
+
+        override val decodeNonCanonical: Boolean
+            get() = branchBehaviorProvider.shouldDecodeNonCanonical()
 
         override fun getParent(child: TNode): TNode? = tree.getParent(child, accessedKeysWatcher)
     }
@@ -904,16 +919,21 @@ class StringRangeTree<TNode: Any>(
             branchBehaviorProvider.onDecodeStart(input)
         }
 
-        override fun decodeChildrenForWarnings(branchBehaviorProvider: BranchBehaviorProvider<TNode>, decodeCallback: () -> Unit) {
+        override fun <TResult> decodeWithBehavior(branchBehaviorProvider: BranchBehaviorProvider<TNode>, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult {
+            val prevBehavior = this.branchBehaviorProvider
+            this.branchBehaviorProvider = branchBehaviorProvider
+            if(!convertToWarnings) {
+                val result = decodeCallback()
+                this.branchBehaviorProvider = prevBehavior
+                return result
+            }
             val prevStack = stack
             val stackTop = prevStack.last()
             stack = ArrayList()
             stack += ErrorStackEntry(stackTop.node)
-            val prevBehavior = this.branchBehaviorProvider
             val prevLateAdditionMergers = ArrayList(lateAdditionMergers)
             lateAdditionMergers.clear()
-            this.branchBehaviorProvider = branchBehaviorProvider
-            decodeCallback()
+            val result = decodeCallback()
             val warningEntry = stack.removeLast()
             lateAdditionMergers.forEach { it() }
             warningEntry.comittedDiagnostics.downgradeToWarnings()
@@ -926,6 +946,7 @@ class StringRangeTree<TNode: Any>(
             this.branchBehaviorProvider = prevBehavior
             lateAdditionMergers.clear()
             lateAdditionMergers += prevLateAdditionMergers
+            return result
         }
 
         override fun getParent(child: TNode): TNode? = this@StringRangeTree.getParent(child, accessedKeysWatcherDynamicOps)
@@ -953,6 +974,9 @@ class StringRangeTree<TNode: Any>(
 
         override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
             get() = branchBehaviorProvider.getBranchBehavior(false)
+
+        override val decodeNonCanonical: Boolean
+            get() = branchBehaviorProvider.shouldDecodeNonCanonical()
 
         private fun pushStack(node: TNode) {
             stack += ErrorStackEntry(node)

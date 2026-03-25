@@ -67,7 +67,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
     fun onDecodeStart(input: TNode) {}
-    fun decodeChildrenForWarnings(branchBehaviorProvider: BranchBehaviorProvider<TNode>, decodeCallback: () -> Unit) { decodeCallback() }
+    fun <TResult> decodeWithBehavior(branchBehaviorProvider: BranchBehaviorProvider<TNode>, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult = decodeCallback()
     fun markErrorLateAddition(): LateAdditionRunner = IDENTITY_LATE_ADDITION_RUNNER
 
     fun markCompletelyAccessed(input: TNode) {}
@@ -78,6 +78,9 @@ interface ExtraDecoderBehavior<TNode : Any> {
 
     val nodeAnalyzingBehavior: NodeAnalyzingBehavior<TNode>?
         get() = null
+
+    val decodeNonCanonical: Boolean
+        get() = true
 
     interface NodeAnalyzingBehavior<in TNode : Any> {
         val stringContentGetter: StringRangeTree.StringContentGetter<in TNode>

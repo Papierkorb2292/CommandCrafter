@@ -1,10 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 import com.google.common.collect.BiMap
-import com.mojang.serialization.Codec
-import com.mojang.serialization.DataResult
-import com.mojang.serialization.DynamicOps
-import com.mojang.serialization.MapCodec
+import com.mojang.datafixers.util.Either
+import com.mojang.datafixers.util.Pair
+import com.mojang.serialization.*
 import com.mojang.serialization.codecs.PrimitiveCodec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.IntList
@@ -51,6 +50,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAc
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
+import java.util.function.Function
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
@@ -63,6 +63,34 @@ object CodecTransformers {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
             idToValue.keys.stream().map { idCodec.encodeStart(ops, it).getOrThrow() }
     })
+
+    @JvmStatic
+    @CodecMod(target = Codec::class, methodName = "withAlternative(Lcom/mojang/serialization/Codec;)Lcom/mojang/serialization/Codec;", fieldAccess = ["this"])
+    fun <A> ignoreAlternativeForPossibleEncoded(codec: Codec<A>, canonical: Codec<A>, alternative: Codec<A>): Codec<A> = Codec.of(codec, object : Decoder<A> {
+        override fun <T : Any> decode(
+            ops: DynamicOps<T>,
+            input: T,
+        ): DataResult<Pair<A, T>> {
+            val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
+                ?: return codec.decode(ops, input)
+            if(!extraBehavior.decodeNonCanonical)
+                return canonical.decode(ops, input)
+            // Use BranchBehaviorProvider.Decode for alternative, because there is nothing it could be merged with
+            return Codec.either(canonical, Codec.of(canonical, object : Decoder<A> {
+                override fun <T : Any> decode(
+                    ops: DynamicOps<T>,
+                    input: T,
+                ): DataResult<Pair<A, T>> = extraBehavior.decodeWithBehavior(BranchBehaviorProvider.Decode, false) {
+                    alternative.decode(ops, input)
+                }
+            })).map(Either<*, *>::unwrap).decode(ops, input)
+        }
+    })
+
+    @JvmStatic
+    @CodecMod(target = Codec::class, methodName = "withAlternative(Lcom/mojang/serialization/Codec;Ljava/util/function/Function;)Lcom/mojang/serialization/Codec;", fieldAccess = ["this"])
+    fun <A, U> ignoreMappedAlternativeForPossibleEncoded(codec: Codec<A>, canonical: Codec<A>, alternative: Codec<U>, converter: Function<U, A>): Codec<A> =
+        ignoreAlternativeForPossibleEncoded(codec, canonical, alternative.xmap(converter) { null })
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "RGB_COLOR_CODEC")
@@ -181,7 +209,7 @@ object CodecTransformers {
         override fun <TNode : Any> invoke(result: CompoundTag, input: TNode, ops: DynamicOps<TNode>) {
             val embeddedDecoder = DataObjectDecoding.getEmbeddedNbtDecoder(input) ?: return
             val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return
-            behavior.decodeChildrenForWarnings(embeddedDecoder.branchBehavior) {
+            behavior.decodeWithBehavior(embeddedDecoder.branchBehavior, true) {
                 embeddedDecoder.decoder.decode(ops, input)
             }
         }
