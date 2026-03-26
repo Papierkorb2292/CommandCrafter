@@ -12,32 +12,31 @@ import com.mojang.serialization.JsonOps
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.TagParser
-import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.world.scores.ScoreHolder
-import net.minecraft.world.scores.criteria.ObjectiveCriteria
-import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.ComponentSerialization
 import net.minecraft.network.chat.numbers.NumberFormat
 import net.minecraft.network.chat.numbers.NumberFormatTypes
+import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.stats.Stat
 import net.minecraft.stats.StatType
-import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.ComponentSerialization
-import net.minecraft.resources.Identifier
+import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.Util
 import net.minecraft.world.level.storage.LevelResource
-import net.minecraft.util.ExtraCodecs
+import net.minecraft.world.scores.ScoreHolder
+import net.minecraft.world.scores.criteria.ObjectiveCriteria
+import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.CommandStorageAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ObjectiveAccessor
+import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
 import java.io.StringWriter
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -366,14 +365,13 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     override fun getLoadableStorageNamespaces(params: Unit): CompletableFuture<LoadableStorageNamespaces> {
-        val storagePrefix = "command_storage_"
-        val storageSuffix = ".dat"
+        val storageFile = "command_storage.dat"
 
         val loadedNamespaces = (server.commandStorage as CommandStorageAccessor).namespaces.keys
         val dataDirectory = server.getWorldPath(LevelResource.ROOT).resolve("data").toFile()
         val fileNamespaces = dataDirectory.listFiles { file ->
-            file.isFile && file.name.startsWith(storagePrefix) && file.name.endsWith(storageSuffix);
-        }?.map { it.name.substring(storagePrefix.length, it.name.length - storageSuffix.length) } ?: emptyList()
+            file.isDirectory && file.resolve(storageFile).exists()
+        }?.map { it.name } ?: emptyList()
 
         val loadableNamespaces = fileNamespaces.filter { it !in loadedNamespaces }
         return CompletableFuture.completedFuture(LoadableStorageNamespaces(loadableNamespaces.toTypedArray()))
