@@ -60,7 +60,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         val SELECTOR_TYPE_PREDICATE_TRACKER = ThreadLocal<MutableList<Predicate<Entity>>>()
         val PLAYER_CONSTRUCTOR_LEVEL_OVERRIDE = ThreadLocal<Level>()
 
-        // Applied by CompoundTag.CODEC (TODO) and TagParser.FLATTENED_CODEC
+        // Applied by CompoundTag.CODEC and TagParser.FLATTENED_CODEC
         val EMBEDDED_NBT_DECODER = ThreadLocal<EmbeddedNbtDecoderData<*>>()
 
         private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
