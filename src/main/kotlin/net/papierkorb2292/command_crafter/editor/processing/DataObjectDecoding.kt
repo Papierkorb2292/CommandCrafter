@@ -120,31 +120,33 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             return if(decoderData?.node == node) decoderData else null
         }
 
-        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, parentNodeDecoder: Decoder<(DataObjectDecoding) -> Decoder<Unit>>, branchBehaviorProvider: BranchBehaviorProvider<Any>): Codec<TResult> = object : Codec<TResult> {
+        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, embeddedDecoderProvider: Decoder<out Decoder<Unit>>, branchBehaviorProvider: BranchBehaviorProvider<Any>): Codec<TResult> = object : Codec<TResult> {
             override fun <T: Any> encode(input: TResult, ops: DynamicOps<T>, prefix: T): DataResult<T> =
                 delegate.encode(input, ops, prefix)
 
             override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<TResult, T>> {
-                val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
-                val registries = behavior?.registries
-                    ?: return delegate.decode(ops, input)
-                val parent = behavior.getParent(input)
-                    ?: return delegate.decode(ops, input)
-                val embeddedDecoder = parentNodeDecoder.onlyAnalyzingBehavior().decode(ops, parent).result()
-                    .getOrNull()?.first?.invoke(GET_FOR_REGISTRIES(registries))
+                if(ExtraDecoderBehavior.getCurrentBehavior(ops) == null)
+                    return delegate.decode(ops, input)
+
+                val embeddedDecoder = embeddedDecoderProvider.onlyAnalyzingBehavior().decode(ops, input).result()
+                    .getOrNull()?.first
                     ?: return delegate.decode(ops, input)
                 return decodeWithEmbedding(delegate, ops, input, embeddedDecoder, branchBehaviorProvider)
             }
         }
 
-        fun <TDataObjectRef> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef) -> Decoder<Unit>) = object : Decoder<(DataObjectDecoding) -> Decoder<Unit>> {
+        fun <TDataObjectRef> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef) -> Decoder<Unit>) = object : Decoder<Decoder<Unit>> {
             override fun <T : Any> decode(
                 ops: DynamicOps<T>,
                 input: T,
-            ): DataResult<com.mojang.datafixers.util.Pair<(DataObjectDecoding) -> Decoder<Unit>, T>> =
-                delegate.decode(ops, input).map { pair ->
-                    pair.mapFirst { ref -> { dataObjectDecoding -> decoderConverter(dataObjectDecoding, ref) } }
+            ): DataResult<com.mojang.datafixers.util.Pair<Decoder<Unit>, T>> {
+                val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries ?: return DataResult.error { "data object type decoder needs registries" }
+                return delegate.decode(ops, input).map { pair ->
+                    pair.mapFirst { ref ->
+                        decoderConverter(GET_FOR_REGISTRIES(registries), ref)
+                    }
                 }
+            }
         }
 
         fun <TNode, TResult> decodeWithEmbedding(delegate: Decoder<TResult>, ops: DynamicOps<TNode>, node: TNode, embeddedDecoder: Decoder<*>, branchBehaviorProvider: BranchBehaviorProvider<Any>): DataResult<com.mojang.datafixers.util.Pair<TResult, TNode>> =

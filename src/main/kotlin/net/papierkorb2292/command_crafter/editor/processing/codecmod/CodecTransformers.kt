@@ -223,7 +223,7 @@ object CodecTransformers {
             DataObjectDecoding.convertToDataObjectDecoder(
                 EntityTypePredicate.CODEC.map { it.types },
                 DataObjectDecoding::getConditionDecoderForEntities,
-            ).fieldOf("type").decoder(),
+            ).fieldOf("type").decoder().decodeParent(),
             BranchBehaviorProvider.getForPathLookup(null)
         )
 
@@ -235,7 +235,7 @@ object CodecTransformers {
             DataObjectDecoding.convertToDataObjectDecoder(
                 RegistryCodecs.homogeneousList(Registries.BLOCK),
                 DataObjectDecoding::getConditionDecoderForBlocks,
-            ).fieldOf("blocks").decoder(),
+            ).fieldOf("blocks").decoder().decodeParent(),
             BranchBehaviorProvider.getForPathLookup(null)
         )
     

@@ -45,7 +45,7 @@ fun <F> Decoder<F>.onlyAnalyzingBehavior() = @NoDecoderCallbacks object : Codec<
     ): DataResult<Pair<F, T>> {
         val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
         return if(behavior != null && behavior.nodeAnalyzingBehavior == null)
-            ExtraDecoderBehavior.decodeWithoutBehavior(this@onlyAnalyzingBehavior, ops, input)
+            ExtraDecoderBehavior.decodeWithBehavior(this@onlyAnalyzingBehavior, ops, input, ExtraDecoderContext(behavior))
         else this@onlyAnalyzingBehavior.decode(ops, input)
     }
 
@@ -61,6 +61,17 @@ fun <O, F : Any> Decoder<F>.onlyAnalyzingRecord(field: String): RecordCodecBuild
     this@onlyAnalyzingRecord.onlyAnalyzingBehavior().lenientOptionalFieldOf(field)
 )
 fun <T> MapCodec<T>.forGetterIdent(): RecordCodecBuilder<T, T> = forGetter { it }
+
+fun <T> Decoder<T>.decodeParent() = object : Decoder<T> {
+    override fun <A : Any> decode(
+        ops: DynamicOps<A>,
+        input: A,
+    ): DataResult<Pair<T, A>> {
+        val parent = ExtraDecoderBehavior.getCurrentBehavior(ops)?.getParent(input)
+            ?: return DataResult.error { "Node doesn't have parent" }
+        return this@decodeParent.decode(ops, parent)
+    }
+}
 
 interface BeforeDecodeCallback {
     fun <TNode: Any> invoke(input: TNode, ops: DynamicOps<TNode>)
