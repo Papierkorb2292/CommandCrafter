@@ -49,11 +49,14 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
             null
         }
 
+        var optionsReader = reader
         val hasNbt = reader.canRead() && reader.peek() == '{'
         if(!hasNbt) {
             // Don't read too much, since there might still be other arguments there and analyzer shouldn't skip whitespace that's not part of the node (important for macros)
             // But still try to read in NBT for suggestions and error checking
-            reader.setString(reader.string.substring(0, reader.cursor))
+            optionsReader = optionsReader.copy()
+            optionsReader.toCompleted()
+            optionsReader.setString(reader.string.substring(0, reader.cursor))
         }
 
         val nbtReader = TagParser.create(NbtOps.INSTANCE)
@@ -64,10 +67,10 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         @Suppress("UNCHECKED_CAST")
         (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
         (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
-        val nbt: Tag = nbtReader.parseAsArgument(reader)!!
+        val nbt: Tag = nbtReader.parseAsArgument(optionsReader)!!
         val tree = treeBuilder.build(nbt)
 
-        StringRangeTree.TreeOperations.forNbt(tree, reader)
+        StringRangeTree.TreeOperations.forNbt(tree, optionsReader)
             .withDiagnosticSeverity(DiagnosticSeverity.Error)
             .analyzeFull(result, parameterDecoder)
     }
