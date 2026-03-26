@@ -256,6 +256,10 @@ class AnalyzingResult(
                             }, { insertReplaceEdit ->
                                 insertReplaceEdit.newText = escaper.escape(insertReplaceEdit.newText)
                             })
+                            if(completion.sortText != null)
+                                completion.sortText = escaper.escape(completion.sortText)
+                            if(completion.filterText != null)
+                                completion.filterText = escaper.escape(completion.filterText)
                         }
                         completions
                     }
