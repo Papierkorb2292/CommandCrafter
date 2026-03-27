@@ -1,21 +1,24 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.injector.ModifyReceiver;
+import com.llamalad7.mixinextras.sugar.Cancellable;
+import com.llamalad7.mixinextras.sugar.Local;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Decoder;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ParticleArgument;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.Holder;
+import net.minecraft.core.particles.SimpleParticleType;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
@@ -29,6 +32,10 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.function.Function;
 
 @Mixin(ParticleArgument.class)
 public class ParticleArgumentMixin implements AnalyzingCommandNode {
@@ -53,11 +60,14 @@ public class ParticleArgumentMixin implements AnalyzingCommandNode {
             }
         } catch (CommandSyntaxException ignored) {}
 
+        var optionsReader = reader;
         final var hasNbt = reader.canRead() && reader.peek() == '{';
         if(!hasNbt) {
             // Don't read too much, since there might still be other arguments there and analyzer shouldn't skip whitespace that's not part of the node (important for macros)
             // But still try to read in NBT for suggestions and error checking
-            reader.setString(reader.getString().substring(0, reader.getCursor()));
+            optionsReader = optionsReader.copy();
+            optionsReader.toCompleted();
+            optionsReader.setString(reader.getString().substring(0, reader.getCursor()));
         }
 
         var nbtReader = TagParser.create(NbtOps.INSTANCE);
@@ -65,11 +75,25 @@ public class ParticleArgumentMixin implements AnalyzingCommandNode {
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        var nbt = nbtReader.parseAsArgument(reader);
+        var nbt = nbtReader.parseAsArgument(optionsReader);
         var tree = treeBuilder.build(nbt);
 
         StringRangeTree.TreeOperations.Companion.forNbt(tree, reader)
             .withDiagnosticSeverity(DiagnosticSeverity.Error)
             .analyzeFull(result, hasNbt, parameterDecoder);
+    }
+
+    @ModifyReceiver(
+            method = "readParticle(Lnet/minecraft/nbt/TagParser;Lcom/mojang/brigadier/StringReader;Lnet/minecraft/core/particles/ParticleType;Lnet/minecraft/core/HolderLookup$Provider;)Lnet/minecraft/core/particles/ParticleOptions;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;"
+            )
+    )
+    private static <T> DataResult<T> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<T> original, Function<String, ?> stringEFunction, @Cancellable CallbackInfoReturnable<Object> ci, @Local(argsOnly = true) StringReader reader) {
+        if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
+            ci.setReturnValue(null);
+        }
+        return original;
     }
 }
