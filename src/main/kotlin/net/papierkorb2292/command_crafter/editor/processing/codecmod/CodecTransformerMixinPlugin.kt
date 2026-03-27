@@ -22,10 +22,6 @@ import kotlin.reflect.KClass
  * Applies @[CodecMod] injections by generating mixins at runtime
  */
 class CodecTransformerMixinPlugin : IMixinConfigPlugin {
-    val modifyReturnValueTemplateName = "net/papierkorb2292/command_crafter/codecmod/ModifyReturnValueTemplateMixin.class"
-    val modifyJavaFieldTemplateName = "net/papierkorb2292/command_crafter/codecmod/ModifyJavaFieldTemplateMixin.class"
-    val wrapCodecFieldTemplateName = "net/papierkorb2292/command_crafter/codecmod/WrapCodecFieldTemplateMixin.class"
-
     private val generatedMixinClasses = mutableMapOf<String, ByteArray>()
     private val generatedMixinNames = mutableListOf<String>()
 
@@ -83,7 +79,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
 
                 // Add mixin boilerplate
                 val template = when(codecModData.type) {
-                    CodecModType.MODIFY_JAVA_FIELD -> if(targetsInterface) modifyJavaFieldInterfaceTemplate else modifyJavaFieldTemplate
+                    CodecModType.MODIFY_JAVA_FIELD, CodecModType.WRAP_JAVA_FIELD -> if(targetsInterface) modifyJavaFieldInterfaceTemplate else modifyJavaFieldTemplate
                     CodecModType.MODIFY_RETURN_VALUE -> if(targetsInterface) modifyReturnValueInterfaceTemplate else modifyReturnValueTemplate
                     CodecModType.WRAP_CODEC_FIELD -> if(targetsInterface) wrapCodecFieldInterfaceTemplate else wrapCodecFieldTemplate
                     else -> throw IllegalStateException()
@@ -126,6 +122,23 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         val isStaticField = Bytecode.isStatic(targetClass.fields.find { it.name == codecModData.javaFieldWrite })
                         val targetExpression = if(isStaticField) "field = @(?)" else "?.field = @(?)"
                         updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", targetExpression)
+                        injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
+                    }
+                    CodecModType.WRAP_JAVA_FIELD -> {
+                        if(returnType != argumentTypes[0]) {
+                            throw IllegalArgumentException("Handler does not return same type as first argument at ${transformer.name}::${method.name}")
+                        }
+                        // Find method that reads to the specified field, if none is given
+                        if(codecModData.methodName.isEmpty()) {
+                            val (owner, fieldName) = codecModData.javaFieldRead.split(".")
+                            val foundMethod = targetClass.methods.find { method ->
+                                method.instructions.any { it is FieldInsnNode && it.name == fieldName && it.name == owner && (it.opcode == Opcodes.GETSTATIC) }
+                            } ?: throw IllegalArgumentException("Could not find field read for ${transformer.name}::${method.name}")
+                            codecModData.methodName = foundMethod.name + foundMethod.desc
+                        }
+                        updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
+                        updateAnnotationValue(injectionHandler.invisibleAnnotations, Definition::class, "field", codecModData.javaFieldRead)
+                        updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", "@(field)")
                         injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
                     CodecModType.MODIFY_RETURN_VALUE -> {
@@ -235,6 +248,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                 "targetName" -> data.target = Type.getType(codecMod.values[i+1] as String)
                 "methodName" -> data.methodName = codecMod.values[i+1] as String
                 "javaFieldWrite" -> data.javaFieldWrite = codecMod.values[i+1] as String
+                "javaFieldRead" -> data.javaFieldRead = codecMod.values[i+1] as String
                 "codecField" -> data.codecField = codecMod.values[i+1] as String
                 "includeCodecField" -> data.includeCodecField = codecMod.values[i+1] as Boolean
                 "fieldAccess" -> data.fieldAccess = codecMod.values[i+1] as List<String>
@@ -242,14 +256,17 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         }
         // A valid annotation must have one clear type. methodName is allowed to be optionally specified with the other
         // values to target a specific method instead of finding it automatically.
-        if(data.methodName.isEmpty() && data.javaFieldWrite.isEmpty() && data.codecField.isEmpty()) {
+        if(data.methodName.isEmpty() && data.javaFieldWrite.isEmpty() && data.codecField.isEmpty() && data.javaFieldRead.isEmpty()) {
             throw IllegalArgumentException("CodecMod is missing location at $sourceClass::$sourceMethod")
         }
-        if(data.javaFieldWrite.isNotEmpty() && data.codecField.isNotEmpty()) {
-            throw IllegalArgumentException("CodecMod can't target both java field and codec field at $sourceClass::$sourceMethod")
-        }
+
+        if(listOf(data.javaFieldWrite, data.javaFieldRead, data.codecField).count { it.isNotEmpty() } > 1)
+            throw IllegalArgumentException("CodecMod can't specify multiple target types at $sourceClass::$sourceMethod")
+
         if(data.javaFieldWrite.isNotEmpty())
             data.type = CodecModType.MODIFY_JAVA_FIELD
+        else if(data.javaFieldRead.isNotEmpty())
+            data.type = CodecModType.WRAP_JAVA_FIELD
         else if(data.codecField.isNotEmpty())
             data.type = CodecModType.WRAP_CODEC_FIELD
         else
@@ -300,6 +317,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         var type: CodecModType? = null,
         var methodName: String = "",
         var javaFieldWrite: String = "",
+        var javaFieldRead: String = "",
         var codecField: String = "",
         var includeCodecField: Boolean = false,
         var fieldAccess: List<String> = emptyList(),
@@ -308,6 +326,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
     private enum class CodecModType {
         MODIFY_RETURN_VALUE,
         WRAP_CODEC_FIELD,
-        MODIFY_JAVA_FIELD
+        MODIFY_JAVA_FIELD,
+        WRAP_JAVA_FIELD,
     }
 }

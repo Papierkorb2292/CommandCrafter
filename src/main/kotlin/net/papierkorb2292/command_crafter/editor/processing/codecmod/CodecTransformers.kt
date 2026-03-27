@@ -16,6 +16,7 @@ import net.minecraft.advancements.criterion.NbtPredicate
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryCodecs
+import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.locale.Language
@@ -34,6 +35,7 @@ import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.InclusiveRange
 import net.minecraft.util.StringRepresentable
 import net.minecraft.world.item.DyeColor
+import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.FireworkExplosion
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
@@ -354,4 +356,21 @@ object CodecTransformers {
                 })
             }
         })
+
+    @JvmStatic
+    @CodecMod(target = DataComponents::class, methodName = $$"lambda$static$59", javaFieldRead = "net/minecraft/world/item/component/CustomData.CODEC")
+    fun decodeEmbeddedBucketEntityData(codec: Codec<CustomData>): Codec<CustomData> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(codec, unitDecoder(RecordCodecBuilder.create {
+            it.group( // Use custom codec, because Minecraft is still using CompoundTags instead of ValueInputs
+                Codec.BOOL.lenientOptionalFieldOf("NoAI").forEmptyGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("Silent").forEmptyGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("NoGravity").forEmptyGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("Glowing").forEmptyGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("Invulnerable").forEmptyGetter(),
+                Codec.FLOAT.lenientOptionalFieldOf("Health").forEmptyGetter(),
+                Codec.INT.lenientOptionalFieldOf("Age").forEmptyGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("AgeLocked").forEmptyGetter(),
+                Codec.LONG.lenientOptionalFieldOf("HuntingCooldown").forEmptyGetter(),
+            ).apply(it) { _, _, _, _, _, _, _, _, _ -> }
+        }), BranchBehaviorProvider.Decode)
 }

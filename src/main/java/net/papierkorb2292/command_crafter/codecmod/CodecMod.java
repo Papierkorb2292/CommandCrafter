@@ -32,10 +32,16 @@ public @interface CodecMod {
     String methodName() default "";
 
     /**
-     * The static target field containing a codec.
+     * The target field containing a codec.
      * If specified along with methodName, only field writes within that method will be searched.
      */
     String javaFieldWrite() default "";
+
+    /**
+     * The static target field (and its class) containing a codec.
+     * If specified along with methodName, only field writes within that method will be searched.
+     */
+    String javaFieldRead() default "";
 
     /**
      * The target codec field to wrap (this string is expected to be given to fieldOf() or optionalFieldOf()).

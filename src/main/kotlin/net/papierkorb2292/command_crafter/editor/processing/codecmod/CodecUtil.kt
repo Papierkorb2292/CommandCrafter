@@ -61,6 +61,7 @@ fun <O, F : Any> Decoder<F>.onlyAnalyzingRecord(field: String): RecordCodecBuild
     this@onlyAnalyzingRecord.onlyAnalyzingBehavior().lenientOptionalFieldOf(field)
 )
 fun <T> MapCodec<T>.forGetterIdent(): RecordCodecBuilder<T, T> = forGetter { it }
+fun <O, F : Any> MapCodec<Optional<F>>.forEmptyGetter(): RecordCodecBuilder<O, Optional<F>> = forGetter { Optional.empty() }
 
 fun <T> Decoder<T>.decodeParent() = object : Decoder<T> {
     override fun <A : Any> decode(
@@ -71,6 +72,11 @@ fun <T> Decoder<T>.decodeParent() = object : Decoder<T> {
             ?: return DataResult.error { "Node doesn't have parent" }
         return this@decodeParent.decode(ops, parent)
     }
+}
+
+fun <T> unitDecoder(unit: T) = object : Decoder<T> {
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A) =
+        DataResult.success(Pair(unit, ops.empty()))
 }
 
 interface BeforeDecodeCallback {
