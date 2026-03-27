@@ -513,9 +513,10 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testMalformedPackratSuggestions(context: GameTestHelper) {
+    fun testMalformedItemSuggestions(context: GameTestHelper) {
         val markedLines = """
-            clear @a §nothing[d§oesnt_exist,minecraft:custom_name=§"Blue Stone"§] 
+            clear @a §nothing[§d§oesnt_exist,minecraft:custom_name=§{text:"Blue Stone",,§}§]
+            give @a §something[c§ustom_name={text:"Red Rock",,§}§,§]
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
@@ -531,8 +532,33 @@ object TestCommandCrafter {
         }
 
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[2].absoluteCursor, dummyCompletionContext)!!
-                .get()
+            analyzingResult.getCompletions(markedLocations[4].absoluteCursor, dummyCompletionContext)!!.get()
+                .any { it.label == "!" || it.label == "," },
+            Component.literal("Suggestion leaking into item predicate nbt")
+        )
+        context.assertTrue(
+            analyzingResult.getCompletions(markedLocations[1].absoluteCursor, dummyCompletionContext)!!.get()
+                .any { it.label == "!" },
+            Component.literal("No '!' suggestion in item predicate")
+        )
+        context.assertFalse(
+            analyzingResult.getCompletions(markedLocations[8].absoluteCursor, dummyCompletionContext)!!.get()
+                .any { it.label == "!" || it.label == "," },
+            Component.literal("Suggestion leaking into item argument nbt")
+        )
+        context.assertTrue(
+            analyzingResult.getCompletions(markedLocations[10].absoluteCursor, dummyCompletionContext)!!.get()
+                .any { it.label == "!" },
+            Component.literal("No '!' suggestion in item argument")
+        )
+        context.assertTrue(
+            analyzingResult.getCompletions(markedLocations[6].absoluteCursor, dummyCompletionContext)!!.get()
+                .any { it.label == "minecraft:diamond" },
+            Component.literal("No item suggestion in item argument")
+        )
+
+        context.assertFalse(
+            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "~" },
             Component.literal("Item predicate '~' suggestion after '='")
         )

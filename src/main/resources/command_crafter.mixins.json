@@ -102,6 +102,7 @@
     "editor.processing.MinecraftServerMixin",
     "editor.processing.NbtPathArgumentMixin",
     "editor.processing.ParserBasedArgumentMixin",
+    "editor.processing.ParticleArgumentMixin",
     "editor.processing.PlaceCommandMixin",
     "editor.processing.RecipeCommandMixin",
     "editor.processing.RecipeManagerAccessor",

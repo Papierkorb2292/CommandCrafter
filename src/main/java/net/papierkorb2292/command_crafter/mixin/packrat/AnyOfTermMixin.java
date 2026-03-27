@@ -23,6 +23,15 @@ public class AnyOfTermMixin<S> {
 
     @Shadow @Final private Term<S>[] elements;
 
+    @Inject(
+            method = "parse",
+            at = @At("HEAD")
+    )
+    private void command_crafter$saveMalformedEndCursor(ParseState<S> state, Scope scope, Control control, CallbackInfoReturnable<Boolean> cir, @Share("malformedEndCursor") LocalIntRef malformedEndCursor) {
+        if(state.errorCollector() instanceof MalformedParseErrorList<S> malformedParseErrorList)
+            malformedEndCursor.set(malformedParseErrorList.getLastMalformedEndCursor());
+    }
+
     @WrapOperation(
             method = "parse",
             at = @At(
@@ -47,16 +56,16 @@ public class AnyOfTermMixin<S> {
             method = "parse",
             at = @At("RETURN")
     )
-    private void command_crafter$createBranchesForRestTerms(ParseState<S> state, Scope results, Control cut, CallbackInfoReturnable<Boolean> cir, @Local(ordinal = 0) int startCursor, @Share("elementIndex") LocalIntRef elementIndex) {
+    private void command_crafter$createBranchesForRestTerms(ParseState<S> state, Scope results, Control cut, CallbackInfoReturnable<Boolean> cir, @Local(ordinal = 0) int startCursor, @Share("elementIndex") LocalIntRef elementIndex, @Share("malformedEndCursor") LocalIntRef malformedEndCursor) {
         // Since the term was successful, the following terms are not invoked. However, PackratParserAdditionalArgs should generate branches for them,
         // for example to generate all the command completions. Thus, the following terms are invoked here before continuing.
         var originalCursor = state.mark();
         for(int i = elementIndex.get(); i < elements.length; i++) {
             state.restore(startCursor);
             int prevLastMalformedEndCursor = -1;
-            if(state.errorCollector() instanceof MalformedParseErrorList<S> malformedParseErrorList && malformedParseErrorList.getLastMalformedEndCursor() > startCursor) {
+            if(state.errorCollector() instanceof MalformedParseErrorList<S> malformedParseErrorList) {
                 // Save lastMalformedEndCursor such that it isn't reset, since later terms might be parsed after this
-                prevLastMalformedEndCursor = malformedParseErrorList.swapLastMalformedEndCursor(-1);
+                prevLastMalformedEndCursor = malformedParseErrorList.swapLastMalformedEndCursor(malformedEndCursor.get());
             }
             var missedBranchCallback = PackratParserAdditionalArgs.INSTANCE.branchAllArgs();
             try {

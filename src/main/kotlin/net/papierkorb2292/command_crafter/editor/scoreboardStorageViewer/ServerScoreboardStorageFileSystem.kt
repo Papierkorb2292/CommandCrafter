@@ -359,14 +359,13 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
     }
 
     override fun getLoadableStorageNamespaces(params: Unit): CompletableFuture<LoadableStorageNamespaces> {
-        val storagePrefix = "command_storage_"
-        val storageSuffix = ".dat"
+        val storageFile = "command_storage.dat"
 
         val loadedNamespaces = (server.commandStorage as CommandStorageAccessor).namespaces.keys
         val dataDirectory = server.getWorldPath(LevelResource.ROOT).resolve("data").toFile()
         val fileNamespaces = dataDirectory.listFiles { file ->
-            file.isFile && file.name.startsWith(storagePrefix) && file.name.endsWith(storageSuffix);
-        }?.map { it.name.substring(storagePrefix.length, it.name.length - storageSuffix.length) } ?: emptyList()
+            file.isDirectory && file.resolve(storageFile).exists()
+        }?.map { it.name } ?: emptyList()
 
         val loadableNamespaces = fileNamespaces.filter { it !in loadedNamespaces }
         return CompletableFuture.completedFuture(LoadableStorageNamespaces(loadableNamespaces.toTypedArray()))

@@ -7,13 +7,11 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import kotlin.Unit;
 import net.minecraft.nbt.*;
-import net.minecraft.nbt.EndTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.ParseState;
 import net.minecraft.util.parsing.packrat.commands.TagParseRule;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
+import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
@@ -36,17 +34,16 @@ public class TagParseRuleMixin<T> {
             )
     )
     private T command_crafter$analyzeNbt(TagParser<T> instance, StringReader reader, Operation<T> op, ParseState<StringReader> state) {
-        final var analyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
-        if (analyzingResultArg == null)
+        if (!PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed())
             return op.call(instance, reader);
+        final var semanticAnalyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
         final var nbtReader = TagParser.create(NbtOps.INSTANCE);
-        //noinspection unchecked
-        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input();
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
-        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResultArg.getAnalyzingResult());
+        if(semanticAnalyzingResultArg != null)
+            ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(semanticAnalyzingResultArg.getAnalyzingResult());
         final var startCursor = state.input().getCursor();
         T parsed = null;
         Tag nbt;
@@ -60,16 +57,29 @@ public class TagParseRuleMixin<T> {
             treeBuilder.addNode(EndTag.INSTANCE, new StringRange(startCursor, state.input().getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
-                tree,
-                directiveReader
-        );
+        if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
+            // Check if the nbt was ended correctly (otherwise don't give other suggestions)
+            if (nbt instanceof EndTag)
+                malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
+            else if (nbt instanceof CompoundTag || nbt instanceof CollectionTag) {
+                if (nbt instanceof CompoundTag && reader.peek(-1) != '}') {
+                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
+                } else if (nbt instanceof CollectionTag && reader.peek(-1) != ']') {
+                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
+                } else if (tree.getRanges().values().stream().filter(range -> range.getEnd() == reader.getCursor()).count() > 1) {
+                    // A child compound/list ended here
+                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
+                }
+            }
+        }
         PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {
-            // Instance might have changed in this time
-            var newAnalyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
-            if(newAnalyzingResultArg != null) {
+            var analyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
+            if(analyzingResultArg != null) {
+                //noinspection unchecked
+                var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input();
+                var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(tree, directiveReader);
                 var registryTreeOps = treeOps.withOps(ops);
-                registryTreeOps.analyzeFull(newAnalyzingResultArg.getAnalyzingResult(), decoder);
+                registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), decoder);
             }
             return Unit.INSTANCE;
         });
