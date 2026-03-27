@@ -62,6 +62,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
         // Applied by CompoundTag.CODEC and TagParser.FLATTENED_CODEC
         val EMBEDDED_NBT_DECODER = ThreadLocal<EmbeddedNbtDecoderData<*>>()
+        // Applied by the nbt= selector option
+        val SELECTOR_NBT_DECODER = ThreadLocal<Decoder<*>>()
 
         private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
             enumConstantCodec(DataObjectSourceKind::class.java),
@@ -282,6 +284,13 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     .forEach {
                         analyzeEntity(it!!, valueInput)
                     }
+        }
+
+    fun getConditionDecoderForEntities(entities: Iterable<Entity>): Decoder<Unit> =
+        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
+            for(entity in entities) {
+                analyzeEntity(entity, valueInput)
+            }
         }
 
     private fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {

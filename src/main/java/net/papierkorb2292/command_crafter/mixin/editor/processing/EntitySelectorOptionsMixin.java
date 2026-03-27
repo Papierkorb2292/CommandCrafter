@@ -462,10 +462,12 @@ public class EntitySelectorOptionsMixin {
         ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
         var nbt = nbtReader.parseAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
+        var decoder = getOrNull(DataObjectDecoding.Companion.getSELECTOR_NBT_DECODER());
         StringRangeTree.TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(analyzingResult, null);
+        ).withBranchBehaviorProvider(BranchBehaviorProvider.Companion.getForPathLookup(null))
+                .analyzeFull(analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 
