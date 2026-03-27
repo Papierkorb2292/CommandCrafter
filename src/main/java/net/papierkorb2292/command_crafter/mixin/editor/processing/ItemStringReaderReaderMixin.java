@@ -19,10 +19,7 @@ import com.mojang.serialization.MapCodec;
 import kotlin.Unit;
 import net.minecraft.commands.arguments.item.ItemParser;
 import net.minecraft.core.component.DataComponentType;
-import net.minecraft.nbt.EndTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
+import net.minecraft.nbt.*;
 import net.minecraft.resources.RegistryOps;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
@@ -39,7 +36,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.concurrent.CompletableFuture;
@@ -104,11 +100,9 @@ public class ItemStringReaderReaderMixin {
             )
     )
     private <O, T> O command_crafter$analyzeComponentNbt(TagParser<O> instance, StringReader reader, Operation<O> op, TagParser<O> originalNbtReader, RegistryOps<O> ops, DataComponentType<T> type) {
-        if (command_crafter$analyzingResult == null || type.codec() == null || !(ops.empty() instanceof Tag)) {
+        if(!command_crafter$allowMalformed) {
             return op.call(instance, reader);
         }
-        //noinspection unchecked
-        final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
         final var nbtReader = TagParser.create(NbtOps.INSTANCE);
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         //noinspection unchecked
@@ -123,11 +117,29 @@ public class ItemStringReaderReaderMixin {
             treeBuilder.addNode(nbt, new StringRange(startCursor, reader.getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
-                tree,
-                directiveReader
-        ).withOps(((ItemParserAccessor) this$0).getRegistryOps());
-        treeOps.analyzeFull(command_crafter$analyzingResult, true, type.codec());
+        if(command_crafter$analyzingResult != null) {
+            //noinspection unchecked
+            final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
+            var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
+                    tree,
+                    directiveReader
+            ).withOps(((ItemParserAccessor) this$0).getRegistryOps());
+            treeOps.analyzeFull(command_crafter$analyzingResult, true, type.codec());
+        } else if(!reader.canRead()) {
+            // Check if the nbt was ended correctly (otherwise don't give other suggestions)
+            if(nbt instanceof EndTag)
+                command_crafter$suggestionStartCursor = reader.getCursor();
+            else if(nbt instanceof CompoundTag || nbt instanceof CollectionTag) {
+                if(nbt instanceof CompoundTag && reader.peek(-1) != '}') {
+                    command_crafter$suggestionStartCursor = reader.getCursor();
+                } else if(nbt instanceof CollectionTag && reader.peek(-1) != ']') {
+                    command_crafter$suggestionStartCursor = reader.getCursor();
+                } else if(tree.getRanges().values().stream().filter(range -> range.getEnd() == reader.getCursor()).count() > 1){
+                    // A child compound/list ended here
+                    command_crafter$suggestionStartCursor = reader.getCursor();
+                }
+            }
+        }
         return (O)nbt;
     }
 
@@ -139,10 +151,8 @@ public class ItemStringReaderReaderMixin {
                     remap = false
             )
     )
-    private <T> DataResult<T> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<T> original, Function<String, ?> stringEFunction, @Cancellable CallbackInfo ci) {
-        // Skip components with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyzeComponentNbt
-        // This also makes the analyzer more forgiving
-        if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
+    private <T> DataResult<T> command_crafter$suppressDecoderErrorsForMalformed(DataResult<T> original, Function<String, ?> stringEFunction, @Cancellable CallbackInfo ci) {
+        if(original.isError() && (reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator || command_crafter$allowMalformed)) {
             ci.cancel();
         }
         return original;
@@ -197,34 +207,10 @@ public class ItemStringReaderReaderMixin {
     }
 
     @WrapWithCondition(
-            method = "parse",
+            method = {"parse", "readComponents" },
             at = @At(
-                    value = "INVOKE:FIRST",
+                    value = "INVOKE",
                     target = "Lnet/minecraft/commands/arguments/item/ItemParser$Visitor;visitSuggestions(Ljava/util/function/Function;)V"
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "INVOKE",
-                            target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readItem()V"
-                    )
-            )
-    )
-    private boolean command_crafter$suggestItemsForMalformedId(ItemParser.Visitor instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
-        return !command_crafter$allowMalformed || command_crafter$suggestionStartCursor == -1;
-    }
-
-    @WrapWithCondition(
-            method = "readComponents",
-            at = @At(
-                    value = "INVOKE:FIRST",
-                    target = "Lnet/minecraft/commands/arguments/item/ItemParser$Visitor;visitSuggestions(Ljava/util/function/Function;)V"
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "INVOKE",
-                            target = "Lnet/minecraft/commands/arguments/item/ItemParser$State;readComponentType(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/core/component/DataComponentType;",
-                            ordinal = 1
-                    )
             )
     )
     private boolean command_crafter$suggestComponentsForMalformedComponentNames(ItemParser.Visitor instance, Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
@@ -280,7 +266,7 @@ public class ItemStringReaderReaderMixin {
             method = {
                     "suggestItem",
                     "suggestComponentAssignmentOrRemoval(Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture;",
-                    "suggestComponent"
+                    "suggestComponent(Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture;"
             },
             at = @At("HEAD"),
             argsOnly = true

@@ -473,9 +473,10 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testMalformedPackratSuggestions(context: GameTestHelper) {
+    fun testMalformedItemSuggestions(context: GameTestHelper) {
         val markedLines = """
-            clear @a §nothing[d§oesnt_exist,minecraft:custom_name=§"Blue Stone"§] 
+            clear @a §nothing[§d§oesnt_exist,minecraft:custom_name=§{text:"Blue Stone",,§}§]
+            give @a §something[c§ustom_name={text:"Red Rock",,§}§,§]
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
@@ -492,8 +493,39 @@ object TestCommandCrafter {
         }
 
         context.assertFalse(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[2].absoluteCursor)!!
-                .dataProvider(markedLocations[2].absoluteCursor).get()
+            analyzingResult.getCompletionProviderForCursor(markedLocations[4].absoluteCursor)!!
+                .dataProvider(markedLocations[4].absoluteCursor).get()
+                .any { it.label == "!" || it.label == "," },
+            Component.literal("Suggestion leaking into item predicate nbt")
+        )
+        context.assertTrue(
+            analyzingResult.getCompletionProviderForCursor(markedLocations[1].absoluteCursor)!!
+                .dataProvider(markedLocations[1].absoluteCursor).get()
+                .any { it.label == "!" },
+            Component.literal("No '!' suggestion in item predicate")
+        )
+        context.assertFalse(
+            analyzingResult.getCompletionProviderForCursor(markedLocations[8].absoluteCursor)!!
+                .dataProvider(markedLocations[8].absoluteCursor).get()
+                .any { it.label == "!" || it.label == "," },
+            Component.literal("Suggestion leaking into item argument nbt")
+        )
+        context.assertTrue(
+            analyzingResult.getCompletionProviderForCursor(markedLocations[10].absoluteCursor)!!
+                .dataProvider(markedLocations[10].absoluteCursor).get()
+                .any { it.label == "!" },
+            Component.literal("No '!' suggestion in item argument")
+        )
+        context.assertTrue(
+            analyzingResult.getCompletionProviderForCursor(markedLocations[6].absoluteCursor)!!
+                .dataProvider(markedLocations[6].absoluteCursor).get()
+                .any { it.label == "minecraft:diamond" },
+            Component.literal("No item suggestion in item argument")
+        )
+
+        context.assertFalse(
+            analyzingResult.getCompletionProviderForCursor(markedLocations[3].absoluteCursor)!!
+                .dataProvider(markedLocations[3].absoluteCursor).get()
                 .any { it.label == "~" },
             Component.literal("Item predicate '~' suggestion after '='")
         )
