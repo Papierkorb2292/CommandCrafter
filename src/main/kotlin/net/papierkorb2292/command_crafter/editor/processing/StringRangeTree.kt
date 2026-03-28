@@ -600,12 +600,14 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun <TResult> decodeWithBehavior(
-            branchBehaviorProvider: BranchBehaviorProvider<TNode>,
+            branchBehaviorProviderOverride: BranchBehaviorProvider<TNode>?,
             convertToWarnings: Boolean,
             decodeCallback: () -> TResult
         ): TResult {
+            if(branchBehaviorProviderOverride == null)
+                return decodeCallback()
             val prevBehavior = this.branchBehaviorProvider
-            this.branchBehaviorProvider = branchBehaviorProvider
+            this.branchBehaviorProvider = branchBehaviorProviderOverride
             val result = decodeCallback()
             this.branchBehaviorProvider = prevBehavior
             return result
@@ -919,9 +921,9 @@ class StringRangeTree<TNode: Any>(
             branchBehaviorProvider.onDecodeStart(input)
         }
 
-        override fun <TResult> decodeWithBehavior(branchBehaviorProvider: BranchBehaviorProvider<TNode>, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult {
+        override fun <TResult> decodeWithBehavior(branchBehaviorProviderOverride: BranchBehaviorProvider<TNode>?, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult {
             val prevBehavior = this.branchBehaviorProvider
-            this.branchBehaviorProvider = branchBehaviorProvider
+            this.branchBehaviorProvider = branchBehaviorProviderOverride ?: prevBehavior
             if(!convertToWarnings) {
                 val result = decodeCallback()
                 this.branchBehaviorProvider = prevBehavior

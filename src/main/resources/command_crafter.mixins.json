@@ -61,6 +61,7 @@
     "editor.processing.AdvancementCommandsMixin",
     "editor.processing.ArgumentBuilderMixin",
     "editor.processing.ArgumentTypeInfosMixin",
+    "editor.processing.BeehiveBlockEntityAccessor",
     "editor.processing.BlockAttachedEntityMixin",
     "editor.processing.BlockEntityTypeAccessor",
     "editor.processing.BlockStateParserAccessor",

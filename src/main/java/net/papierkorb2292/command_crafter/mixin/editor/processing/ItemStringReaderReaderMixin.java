@@ -118,11 +118,11 @@ public class ItemStringReaderReaderMixin {
         if(command_crafter$analyzingResult != null) {
             //noinspection unchecked
             final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
-            var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
+            StringRangeTree.TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
-            ).withOps(((ItemParserAccessor) this$0).getRegistryOps());
-            treeOps.analyzeFull(command_crafter$analyzingResult, type.codec());
+            ).withRegistry(directiveReader.getResourceCreator().getRegistries())
+                    .analyzeFull(command_crafter$analyzingResult, type.codec());
         } else if(!reader.canRead()) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
             if(nbt instanceof EndTag)

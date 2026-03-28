@@ -55,6 +55,16 @@ interface ExtraDecoderBehavior<TNode : Any> {
             CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(null) {
                 decoder.decode(ops, input)
             }
+
+        fun <TNode : Any> swapOps(oldOps: DynamicOps<TNode>, newOps: DynamicOps<TNode>, callback: () -> Unit) {
+            val behavior = CURRENT_EXTRA_DECODER_BEHAVIOR.getOrNull()
+            if(behavior?.ops != oldOps) {
+                callback()
+                return
+            }
+            @Suppress("UNCHECKED_CAST")
+            CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(RegisteredBehavior(behavior.callback as ExtraDecoderBehavior<TNode>, newOps), callback)
+        }
     }
 
     val branchBehavior: BranchBehavior
@@ -67,7 +77,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
     fun onDecodeStart(input: TNode) {}
-    fun <TResult> decodeWithBehavior(branchBehaviorProvider: BranchBehaviorProvider<TNode>, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult = decodeCallback()
+    fun <TResult> decodeWithBehavior(branchBehaviorProviderOverride: BranchBehaviorProvider<TNode>?, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult = decodeCallback()
     fun markErrorLateAddition(): LateAdditionRunner = IDENTITY_LATE_ADDITION_RUNNER
 
     fun markCompletelyAccessed(input: TNode) {}

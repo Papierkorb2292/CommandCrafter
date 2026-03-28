@@ -37,6 +37,7 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyAnalyzingBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.withThreadLocal
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
 import net.papierkorb2292.command_crafter.helper.*
@@ -116,13 +117,17 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         fun getForReader(directiveStringReader: DirectiveStringReader<AnalyzingResourceCreator>): DataObjectDecoding {
             return GET_FOR_REGISTRIES(directiveStringReader.resourceCreator.registries)
         }
+        fun getForDecoder(ops: DynamicOps<*>): DataObjectDecoding? {
+            val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries ?: return null
+            return GET_FOR_REGISTRIES(registries)
+        }
 
         fun <TNode> getEmbeddedNbtDecoder(node: TNode): EmbeddedNbtDecoderData<*>? {
             val decoderData = EMBEDDED_NBT_DECODER.getOrNull()
             return if(decoderData?.node == node) decoderData else null
         }
 
-        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, embeddedDecoderProvider: Decoder<out Decoder<Unit>>, branchBehaviorProvider: BranchBehaviorProvider<Any>): Codec<TResult> = object : Codec<TResult> {
+        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, embeddedDecoderProvider: Decoder<out Decoder<*>>, branchBehaviorProviderOverride: BranchBehaviorProvider<Any>?): Codec<TResult> = object : Codec<TResult> {
             override fun <T: Any> encode(input: TResult, ops: DynamicOps<T>, prefix: T): DataResult<T> =
                 delegate.encode(input, ops, prefix)
 
@@ -133,7 +138,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 val embeddedDecoder = embeddedDecoderProvider.onlyAnalyzingBehavior().decode(ops, input).result()
                     .getOrNull()?.first
                     ?: return delegate.decode(ops, input)
-                return decodeWithEmbedding(delegate, ops, input, embeddedDecoder, branchBehaviorProvider)
+                return delegate.withThreadLocal(EMBEDDED_NBT_DECODER, EmbeddedNbtDecoderData(input, embeddedDecoder, branchBehaviorProviderOverride))
+                    .decode(ops, input)
             }
         }
 
@@ -142,25 +148,21 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 ops: DynamicOps<T>,
                 input: T,
             ): DataResult<com.mojang.datafixers.util.Pair<Decoder<Unit>, T>> {
-                val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries ?: return DataResult.error { "data object type decoder needs registries" }
+                val dataObjectDecoding = getForDecoder(ops) ?: return DataResult.error { "missing data object type decoder" }
                 return delegate.decode(ops, input).map { pair ->
                     pair.mapFirst { ref ->
-                        decoderConverter(GET_FOR_REGISTRIES(registries), ref)
+                        decoderConverter(dataObjectDecoding, ref)
                     }
                 }
             }
         }
-
-        fun <TNode, TResult> decodeWithEmbedding(delegate: Decoder<TResult>, ops: DynamicOps<TNode>, node: TNode, embeddedDecoder: Decoder<*>, branchBehaviorProvider: BranchBehaviorProvider<Any>): DataResult<com.mojang.datafixers.util.Pair<TResult, TNode>> =
-            EMBEDDED_NBT_DECODER.runWithValueSwap(EmbeddedNbtDecoderData(node, embeddedDecoder, branchBehaviorProvider)) {
-                delegate.decode(ops, node)
-            }
     }
 
     val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
 
     val dummyEntities: Map<EntityType<*>, Entity>
-    val dummyBlockEntities: Map<Block, BlockEntity>
+    val dummyBlockEntitiesByType: Map<BlockEntityType<*>, BlockEntity>
+    val dummyBlockEntitiesByBlock: Map<Block, BlockEntity>
 
     init {
         val prevOverride = BUILTIN_REGISTRY_OVERRIDE.get()
@@ -169,10 +171,12 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             dummyEntities = registries.lookupOrThrow(Registries.ENTITY_TYPE).entrySet().asSequence()
                 .mapNotNull { createDummyEntity(it.key.identifier(), it.value) }
                 .toMap()
-            dummyBlockEntities = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
+            dummyBlockEntitiesByType = registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).entrySet().asSequence()
                 .mapNotNull { createDummyBlockEntity(it.key.identifier(), it.value) }
-                .flatten()
                 .toMap()
+            dummyBlockEntitiesByBlock = dummyBlockEntitiesByType.entries.flatMap { (type, entity) ->
+                (type as BlockEntityTypeAccessor<*>).validBlocks.map { it to entity }
+            }.toMap()
         } finally {
             if(prevOverride != null)
                 BUILTIN_REGISTRY_OVERRIDE.set(prevOverride)
@@ -225,7 +229,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> {
                 // It is not possible to know which block entity it is. Decoder should try out all blocks
                 DynamicOpsReadView.getReadDecoder(registries) { input ->
-                    for(blockEntity in dummyBlockEntities.values) {
+                    for(blockEntity in dummyBlockEntitiesByType.values) {
                         analyzeBlockEntity(blockEntity, input)
                     }
                 }
@@ -253,7 +257,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     }
 
     fun getDecoderForBlock(block: Block): Decoder<Unit>? {
-        val blockEntity = dummyBlockEntities[block] ?: return null
+        val blockEntity = dummyBlockEntitiesByBlock[block] ?: return null
         return DynamicOpsReadView.getReadDecoder(registries) { input ->
             analyzeBlockEntity(blockEntity, input)
         }
@@ -262,10 +266,10 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     fun getConditionDecoderForBlocks(blocks: HolderSet<Block>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(blocks == null || !blocks.isBound)
-                dummyBlockEntities.values.distinct().forEach { analyzeBlockEntity(it, valueInput) }
+                dummyBlockEntitiesByType.values.forEach { analyzeBlockEntity(it, valueInput) }
             else
                 blocks.stream()
-                    .map { dummyBlockEntities[it.value()] }
+                    .map { dummyBlockEntitiesByBlock[it.value()] }
                     .filter { it != null }
                     .distinct()
                     .forEach {
@@ -290,6 +294,22 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             for(entity in entities) {
                 analyzeEntity(entity, valueInput)
+            }
+        }
+
+    fun <IdType> getDecoderForGenericType(types: Iterable<IdType>): Decoder<Unit> =
+        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
+            for(type in types) {
+                when(type) {
+                    is BlockEntityType<*> -> {
+                        val blockEntity = dummyBlockEntitiesByType[type] ?: continue
+                        analyzeBlockEntity(blockEntity, valueInput)
+                    }
+                    is EntityType<*> -> {
+                        val entity = dummyEntities[type] ?: continue
+                        analyzeEntity(entity, valueInput)
+                    }
+                }
             }
         }
 
@@ -341,12 +361,12 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     }
 
 
-    private fun <T : BlockEntity> createDummyBlockEntity(id: Identifier, blockEntityType: BlockEntityType<T>): Sequence<Pair<Block, BlockEntity>>? {
+    private fun <T : BlockEntity> createDummyBlockEntity(id: Identifier, blockEntityType: BlockEntityType<T>): Pair<BlockEntityType<*>, BlockEntity>? {
         try {
             @Suppress("UNCHECKED_CAST")
             val accessor = blockEntityType as BlockEntityTypeAccessor<T>
             val blockEntity = accessor.factory.create(BlockPos.ZERO, accessor.validBlocks.first().defaultBlockState()) ?: return null
-            return accessor.validBlocks.asSequence().map { it to blockEntity }
+            return blockEntityType to blockEntity
         } catch(e: Throwable) {
             CommandCrafter.LOGGER.warn("Error creating dummy block entity of type $id", e)
             return null
@@ -361,7 +381,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    data class EmbeddedNbtDecoderData<TNode>(val node: TNode, val decoder: Decoder<*>, val branchBehavior: BranchBehaviorProvider<Any>)
+    data class EmbeddedNbtDecoderData<TNode>(val node: TNode, val decoder: Decoder<*>, val branchBehaviorOverride: BranchBehaviorProvider<Any>?)
 
     enum class DataObjectSourceKind {
         ENTITY_SUMMON,

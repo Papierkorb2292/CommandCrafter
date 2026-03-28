@@ -34,10 +34,14 @@ import net.minecraft.util.ARGB
 import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.InclusiveRange
 import net.minecraft.util.StringRepresentable
+import net.minecraft.world.entity.EntityType
 import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.FireworkExplosion
+import net.minecraft.world.item.component.TypedEntityData
+import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
+import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
@@ -47,7 +51,9 @@ import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
+import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.helper.getOrNull
+import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -211,7 +217,7 @@ object CodecTransformers {
         override fun <TNode : Any> invoke(result: CompoundTag, input: TNode, ops: DynamicOps<TNode>) {
             val embeddedDecoder = DataObjectDecoding.getEmbeddedNbtDecoder(input) ?: return
             val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return
-            behavior.decodeWithBehavior(embeddedDecoder.branchBehavior, true) {
+            behavior.decodeWithBehavior(embeddedDecoder.branchBehaviorOverride, true) {
                 embeddedDecoder.decoder.decode(ops, input)
             }
         }
@@ -372,5 +378,47 @@ object CodecTransformers {
                 Codec.BOOL.lenientOptionalFieldOf("AgeLocked").forEmptyGetter(),
                 Codec.LONG.lenientOptionalFieldOf("HuntingCooldown").forEmptyGetter(),
             ).apply(it) { _, _, _, _, _, _, _, _, _ -> }
-        }), BranchBehaviorProvider.Decode)
+        }), null)
+
+    val TYPED_ENTITY_DATA_FIELD_BLACKLIST = ThreadLocal<List<String>>()
+
+    @JvmStatic
+    @CodecMod(target = TypedEntityData::class, methodName = "codec")
+    fun <IdType : Any> decodeEmbeddedTypedEntityData(codec: Codec<TypedEntityData<IdType>>, idCodec: Codec<IdType>): Codec<TypedEntityData<IdType>> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(codec, unitDecoder(@NoDecoderCallbacks object : Decoder<Unit> {
+            override fun <T : Any> decode(
+                ops: DynamicOps<T>,
+                input: T,
+            ): DataResult<Pair<Unit, T>> {
+                val dataObjectDecoding = DataObjectDecoding.getForDecoder(ops)
+                if(dataObjectDecoding != null) {
+                    val candidates = mutableListOf<IdType>()
+                    // Make use of the existing dispatch behavior.
+                    // Ignore id errors, TypedEntityData already returns those
+                    idCodec.partialDispatch(
+                        "id",
+                        { null },
+                        { id ->
+                            candidates += id
+                            DataResult.success(MapCodec.unit(Unit))
+                        }
+                    ).onlyAnalyzingBehavior().decode(ops, input)
+                    val blacklist = (TYPED_ENTITY_DATA_FIELD_BLACKLIST.getOrNull()?.mapTo(mutableSetOf()) {
+                        key -> input to ops.createString(key)
+                    } ?: setOf()) + (input to ops.createString("id"))
+                    val (_, filteredOps) = wrapDynamicOps(ops) { innerOps -> FieldFilteringDynamicOps(innerOps, blacklist) }
+                    ExtraDecoderBehavior.swapOps(ops, filteredOps) {
+                        dataObjectDecoding.getDecoderForGenericType(candidates.filter { it != EntityType.PLAYER })
+                            .decode(filteredOps, input)
+                    }
+                }
+
+                return DataResult.success(Pair(Unit, ops.empty()))
+            }
+        }), null)
+
+    @JvmStatic
+    @CodecMod(target = BeehiveBlockEntity.Occupant::class, codecField = "entity_data")
+    fun applyBeeHiveOccupantDataBlacklist(codec: Codec<TypedEntityData<EntityType<*>>>): Codec<TypedEntityData<EntityType<*>>> =
+        Codec.of(codec, codec.withThreadLocal(TYPED_ENTITY_DATA_FIELD_BLACKLIST, BeehiveBlockEntityAccessor.getIGNORED_BEE_TAGS()))
 }

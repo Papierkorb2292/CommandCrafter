@@ -162,12 +162,14 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
         final var tree = treeBuilder.build(nbt);
 
         final var decoderData = DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue());
-        if (decoderData != null)
-            StringRangeTree.TreeOperations.Companion.forNbt(tree, stringContent.getContent())
+        if (decoderData != null) {
+            final var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(tree, stringContent.getContent())
                     .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                    .withRegistry(extraBehavior.getRegistries())
-                    .withBranchBehaviorProvider(decoderData.getBranchBehavior())
-                    .analyzeFull(analyzingResult.get(), decoderData.getDecoder());
+                    .withRegistry(extraBehavior.getRegistries());
+            if(decoderData.getBranchBehaviorOverride() != null)
+                treeOps.withBranchBehaviorProvider(decoderData.getBranchBehaviorOverride());
+            treeOps.analyzeFull(analyzingResult.get(), decoderData.getDecoder());
+        }
     }
 
     @ModifyReturnValue(

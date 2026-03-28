@@ -5,6 +5,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import java.util.*
 
 fun <T> Codec<T>.beforeDecode(callback: BeforeDecodeCallback) = object : Codec<T> {
@@ -72,6 +73,13 @@ fun <T> Decoder<T>.decodeParent() = object : Decoder<T> {
             ?: return DataResult.error { "Node doesn't have parent" }
         return this@decodeParent.decode(ops, parent)
     }
+}
+
+fun <T, V> Decoder<T>.withThreadLocal(threadLocal: ThreadLocal<V>, value: V): Decoder<T> = object : Decoder<T> {
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> =
+        threadLocal.runWithValueSwap(value) {
+            this@withThreadLocal.decode(ops, input)
+        }
 }
 
 fun <T> unitDecoder(unit: T) = object : Decoder<T> {
