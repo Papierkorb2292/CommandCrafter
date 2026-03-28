@@ -395,12 +395,12 @@ object CodecTransformers {
                     val candidates = mutableListOf<IdType>()
                     // Make use of the existing dispatch behavior.
                     // Ignore id errors, TypedEntityData already returns those
-                    idCodec.partialDispatch(
+                    idCodec.dispatch(
                         "id",
                         { null },
                         { id ->
                             candidates += id
-                            DataResult.success(MapCodec.unit(Unit))
+                            MapCodec.unit(Unit)
                         }
                     ).onlyAnalyzingBehavior().decode(ops, input)
                     val blacklist = (TYPED_ENTITY_DATA_FIELD_BLACKLIST.getOrNull()?.mapTo(mutableSetOf()) {
