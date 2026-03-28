@@ -42,6 +42,7 @@ import net.minecraft.world.item.component.FireworkExplosion
 import net.minecraft.world.item.component.TypedEntityData
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.levelgen.structure.templatesystem.rule.blockentity.AppendStatic
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
@@ -431,6 +432,18 @@ object CodecTransformers {
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
                 BlockState.CODEC.fieldOf("BlockState").decoder().decodeParent().map { it.block },
+                DataObjectDecoding::getDecoderForBlock,
+            ),
+            null
+        )
+
+    @JvmStatic
+    @CodecMod(target = AppendStatic::class, codecField = "data")
+    fun decodeProcessorRuleBlockNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.convertToDataObjectDecoder(
+                BlockState.CODEC.fieldOf("output_state").decoder().decodeParent().decodeParent().map { it.block },
                 DataObjectDecoding::getDecoderForBlock,
             ),
             null
