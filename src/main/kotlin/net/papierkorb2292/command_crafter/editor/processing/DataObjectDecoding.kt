@@ -143,17 +143,17 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             }
         }
 
-        fun <TDataObjectRef> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef) -> Decoder<Unit>) = object : Decoder<Decoder<Unit>> {
+        fun <TDataObjectRef> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef?) -> Decoder<Unit>) = object : Decoder<Decoder<Unit>> {
             override fun <T : Any> decode(
                 ops: DynamicOps<T>,
                 input: T,
             ): DataResult<com.mojang.datafixers.util.Pair<Decoder<Unit>, T>> {
                 val dataObjectDecoding = getForDecoder(ops) ?: return DataResult.error { "missing data object type decoder" }
-                return delegate.decode(ops, input).map { pair ->
+                return DataResult.success(delegate.decode(ops, input).mapOrElse({ pair ->
                     pair.mapFirst { ref ->
                         decoderConverter(dataObjectDecoding, ref)
                     }
-                }
+                }, { com.mojang.datafixers.util.Pair(decoderConverter(dataObjectDecoding, null), ops.empty()) }))
             }
         }
     }

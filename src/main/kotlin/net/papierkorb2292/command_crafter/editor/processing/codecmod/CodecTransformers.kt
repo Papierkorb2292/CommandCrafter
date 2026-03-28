@@ -229,9 +229,9 @@ object CodecTransformers {
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
-                EntityTypePredicate.CODEC.map { it.types },
+                EntityTypePredicate.CODEC.fieldOf("type").decoder().decodeParent().map { it.types },
                 DataObjectDecoding::getConditionDecoderForEntities,
-            ).fieldOf("type").decoder().decodeParent(),
+            ),
             BranchBehaviorProvider.getForPathLookup(null)
         )
 
@@ -241,9 +241,9 @@ object CodecTransformers {
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
-                RegistryCodecs.homogeneousList(Registries.BLOCK),
+                RegistryCodecs.homogeneousList(Registries.BLOCK).fieldOf("blocks").decoder().decodeParent(),
                 DataObjectDecoding::getConditionDecoderForBlocks,
-            ).fieldOf("blocks").decoder().decodeParent(),
+            ),
             BranchBehaviorProvider.getForPathLookup(null)
         )
     
