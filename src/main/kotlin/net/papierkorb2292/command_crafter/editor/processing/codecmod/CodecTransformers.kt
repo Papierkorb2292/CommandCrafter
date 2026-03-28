@@ -35,11 +35,13 @@ import net.minecraft.util.ExtraCodecs
 import net.minecraft.util.InclusiveRange
 import net.minecraft.util.StringRepresentable
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.item.FallingBlockEntity
 import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.FireworkExplosion
 import net.minecraft.world.item.component.TypedEntityData
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
+import net.minecraft.world.level.block.state.BlockState
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
@@ -421,4 +423,16 @@ object CodecTransformers {
     @CodecMod(target = BeehiveBlockEntity.Occupant::class, codecField = "entity_data")
     fun applyBeeHiveOccupantDataBlacklist(codec: Codec<TypedEntityData<EntityType<*>>>): Codec<TypedEntityData<EntityType<*>>> =
         Codec.of(codec, codec.withThreadLocal(TYPED_ENTITY_DATA_FIELD_BLACKLIST, BeehiveBlockEntityAccessor.getIGNORED_BEE_TAGS()))
+
+    @JvmStatic
+    @CodecMod(target = FallingBlockEntity::class, methodName = "readAdditionalSaveData", javaFieldRead = "net/minecraft/nbt/CompoundTag.CODEC")
+    fun decodeEmbeddedFallingBlockNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.convertToDataObjectDecoder(
+                BlockState.CODEC.fieldOf("BlockState").decoder().decodeParent().map { it.block },
+                DataObjectDecoding::getDecoderForBlock,
+            ),
+            null
+        )
 }

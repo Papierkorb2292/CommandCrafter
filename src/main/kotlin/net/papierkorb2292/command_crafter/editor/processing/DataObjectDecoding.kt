@@ -256,10 +256,13 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    fun getDecoderForBlock(block: Block): Decoder<Unit>? {
-        val blockEntity = dummyBlockEntitiesByBlock[block] ?: return null
+    fun getDecoderForBlock(block: Block?): Decoder<Unit> {
         return DynamicOpsReadView.getReadDecoder(registries) { input ->
-            analyzeBlockEntity(blockEntity, input)
+            val blockEntity = dummyBlockEntitiesByBlock[block]
+            if(blockEntity == null)
+                dummyBlockEntitiesByType.values.forEach { analyzeBlockEntity(it, input) }
+            else
+                analyzeBlockEntity(blockEntity, input)
         }
     }
 
