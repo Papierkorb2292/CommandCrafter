@@ -1,6 +1,5 @@
 package org.spongepowered.asm.mixin.transformer;
 
-import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks;
 import net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
@@ -14,6 +13,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
     private final String decoderMethodDesc = "(Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)Lcom/mojang/serialization/DataResult;";
     private final String callbackObjectName = "net/papierkorb2292/command_crafter/editor/processing/PreLaunchDecoderOutputTracker";
     private final String callbackObjectDesc = "L" + callbackObjectName + ";";
+    private final String noDecoderCallbacksDesc = "Lnet/papierkorb2292/command_crafter/codecmod/NoDecoderCallbacks;";
 
     @Override
     String getName() {
@@ -30,14 +30,6 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
         // I *should* check if the class implements `Decoder`, but that doesn't work for inner classes of
         // Mixins, because it's not possible to get a `ClassInfo` for them, so I'll just leave it. Consistency ;)
 
-        // Check for @NoDecoderCallbacks
-        if(classNode.invisibleAnnotations != null) {
-            for (final var annotation : classNode.invisibleAnnotations) {
-                if (annotation.desc.equals(NoDecoderCallbacks.class.descriptorString()))
-                    return false;
-            }
-        }
-
         MethodNode decodeMethod = null;
         for(final var method : classNode.methods) {
             if(method.name.equals(decoderMethodName) && method.desc.equals(decoderMethodDesc) && (method.access & Opcodes.ACC_ABSTRACT) == 0) {
@@ -45,6 +37,15 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                 break;
             }
         }
+
+        // Check for @NoDecoderCallbacks
+        if(classNode.invisibleAnnotations != null) {
+            for (final var annotation : classNode.invisibleAnnotations) {
+                if (annotation.desc.equals(noDecoderCallbacksDesc))
+                    return false;
+            }
+        }
+
         if(decodeMethod == null) return false;
 
         addOnDecodeStartCall(decodeMethod);
