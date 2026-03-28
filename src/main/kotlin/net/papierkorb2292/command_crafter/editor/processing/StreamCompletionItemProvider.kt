@@ -21,7 +21,7 @@ class StreamCompletionItemProvider(
             CompletionItem().also {
                 it.label = completion.label
                 it.filterText = completion.text
-                it.sortText = base.sortText + completion.text
+                it.sortText = base.sortText + completion.label
                 it.kind = kind
                 it.textEdit = base.textEdit.map({ textEdit ->
                     Either.forLeft(TextEdit(textEdit.range, completion.text))
