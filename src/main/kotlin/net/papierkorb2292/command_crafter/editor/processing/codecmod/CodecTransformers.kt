@@ -105,9 +105,9 @@ object CodecTransformers {
     fun addRGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(
         codec.withJsonEncodeAlternative(ExtraCodecs.VECTOR3F.comap {
             Vector3f(
-                ARGB.redFloat(it),
-                ARGB.greenFloat(it),
-                ARGB.blueFloat(it)
+                PackedEncoderColorInfo.roundColorChannel(ARGB.redFloat(it)),
+                PackedEncoderColorInfo.roundColorChannel(ARGB.greenFloat(it)),
+                PackedEncoderColorInfo.roundColorChannel(ARGB.blueFloat(it))
             )
         }), // Because JSON doesn't support hex
         false,
@@ -121,10 +121,10 @@ object CodecTransformers {
     fun addARGBColorInfo(codec: Codec<Int>): Codec<Int> = PackedEncoderColorInfo.wrapCodec(
         codec.withJsonEncodeAlternative(ExtraCodecs.VECTOR4F.comap {
             Vector4f(
-                ARGB.redFloat(it),
-                ARGB.greenFloat(it),
-                ARGB.blueFloat(it),
-                ARGB.alphaFloat(it)
+                PackedEncoderColorInfo.roundColorChannel(ARGB.redFloat(it)),
+                PackedEncoderColorInfo.roundColorChannel(ARGB.greenFloat(it)),
+                PackedEncoderColorInfo.roundColorChannel(ARGB.blueFloat(it)),
+                PackedEncoderColorInfo.roundColorChannel(ARGB.alphaFloat(it))
             )
         }), // Because JSON doesn't support hex
         true,

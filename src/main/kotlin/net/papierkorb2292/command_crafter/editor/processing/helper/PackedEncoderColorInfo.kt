@@ -5,6 +5,7 @@ import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.Encoder
 import net.minecraft.nbt.Tag
 import net.minecraft.util.ARGB
+import net.minecraft.util.Mth
 import net.papierkorb2292.command_crafter.editor.processing.CodecAnalyzingWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
@@ -128,6 +129,8 @@ class PackedEncoderColorInfo<TNode, TColor>(
             out[1] = 500 * (f(x / d65ReferenceX) - fY)
             out[2] = 200 * (fY - f(z / d65ReferenceZ))
         }
+
+        fun roundColorChannel(f: Float): Float = Mth.ceil(f * 500) / 500f
     }
 
     override val color = Color(
