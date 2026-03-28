@@ -37,6 +37,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                 break;
             }
         }
+        if(decodeMethod == null) return false;
 
         // Check for @NoDecoderCallbacks
         if(classNode.invisibleAnnotations != null) {
@@ -46,7 +47,6 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
             }
         }
 
-        if(decodeMethod == null) return false;
 
         addOnDecodeStartCall(decodeMethod);
         addOnDecodedCalls(decodeMethod);
