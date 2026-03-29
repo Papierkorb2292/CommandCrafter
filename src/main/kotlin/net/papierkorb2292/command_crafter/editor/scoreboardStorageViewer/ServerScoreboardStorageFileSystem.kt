@@ -5,6 +5,7 @@ import com.google.common.io.ByteStreams
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.stream.JsonWriter
+import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
@@ -13,6 +14,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.data.DataProvider
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
@@ -25,14 +27,17 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.stats.Stat
 import net.minecraft.stats.StatType
 import net.minecraft.util.ExtraCodecs
+import net.minecraft.util.GsonHelper
+import net.minecraft.util.StringRepresentable
 import net.minecraft.util.Util
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.scores.ScoreHolder
 import net.minecraft.world.scores.criteria.ObjectiveCriteria
 import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
 import net.papierkorb2292.command_crafter.editor.EditorURI
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
+import net.papierkorb2292.command_crafter.helper.StringIdentifiableUnit
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.CommandStorageAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ObjectiveAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.scoreboardStorageViewer.ScoreboardAccessor
@@ -42,7 +47,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.function.Function
 import java.util.regex.Pattern
 import java.util.stream.Stream
-import kotlin.jvm.optionals.getOrNull
+import kotlin.jvm.optionals.getOrElse
 
 class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : ScoreboardStorageFileSystem {
     companion object {
@@ -56,63 +61,35 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
         val createdFileSystems: MutableMap<ServerGamePacketListenerImpl, MutableMap<UUID, ServerScoreboardStorageFileSystem>> = mutableMapOf()
 
-        private val CRITERION_CODEC = object : Codec<ObjectiveCriteria> {
-            override fun <T : Any?> encode(input: ObjectiveCriteria, ops: DynamicOps<T>, prefix: T)
-                = DataResult.success(ops.createString(input.name))
-
-            override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<ObjectiveCriteria, T>> {
-                @Suppress("UNCHECKED_CAST")
-                ExtraDecoderBehavior.getCurrentBehavior(ops)?.notePossibleValues(input,  {
-                    Stream.concat(
-                        ObjectiveCriteria.getCustomCriteriaNames().stream(),
-                        BuiltInRegistries.STAT_TYPE.stream().flatMap { getStatNames(it) }
-                    ).map { ExtraDecoderBehavior.PossibleValue(ops.createString(it)) }
-                })
-                return ops.getStringValue(input).flatMap {  criterionName ->
-                    ObjectiveCriteria.byName(criterionName).map {
-                        DataResult.success(com.mojang.datafixers.util.Pair(it, ops.empty()))
-                    }.orElse(DataResult.error { "Unknown criterion '$criterionName'" })
-                }
-            }
+        private val CRITERION_CODEC = CodecSuggestionWrapper(Codec.STRING.flatXmap(
+            {  criterionName ->
+                ObjectiveCriteria.byName(criterionName).map(DataResult<ObjectiveCriteria>::success)
+                    .orElse(DataResult.error { "Unknown criterion '$criterionName'" })
+            },
+            { DataResult.success(it.name) }
+        ), object : CodecSuggestionWrapper.SuggestionsProvider {
+            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
+                Stream.concat(
+                    ObjectiveCriteria.getCustomCriteriaNames().stream(),
+                    BuiltInRegistries.STAT_TYPE.stream().flatMap { getStatNames(it) }
+                ).map(ops::createString)
 
             private fun <T: Any> getStatNames(statType: StatType<T>): Stream<String> =
                 statType.registry.stream().map { Stat.buildName(statType, it) }
-        }
+        })
 
-        // Puts 'type' first in the map and allows 'default' type
-        private val NUMBER_FORMAT_CODEC = object : Codec<Optional<NumberFormat>> {
-            private val DEFAULT_TYPE = "default"
-            override fun <T : Any?> encode(input: Optional<NumberFormat>, ops: DynamicOps<T>, prefix: T): DataResult<T> {
-                if(input.isEmpty)
-                    return ops.mergeToMap(prefix, ops.createString("type"), ops.createString(DEFAULT_TYPE))
-                return NumberFormatTypes.CODEC.encode(input.get(), ops, prefix).flatMap { encoded ->
-                    val encodedMap = ops.getMap(encoded).result().get()
-                    val mapBuilder = ops.mapBuilder()
-                    // Add type first
-                    mapBuilder.add("type", encodedMap.get("type"))
-                    // Add rest
-                    for(entry in encodedMap.entries()) {
-                        if(ops.getStringValue(entry.first).result().get() != "type")
-                            mapBuilder.add(entry.first, entry.second)
-                    }
-                    mapBuilder.build(ops.empty())
-                }
+        private val DEFAULT_NUMBER_FORMAT = StringIdentifiableUnit("default")
+        private val NUMBER_FORMAT_CODEC: Codec<Optional<NumberFormat>> = Codec.either(
+            NumberFormatTypes.CODEC,
+            StringRepresentable.fromValues { arrayOf(DEFAULT_NUMBER_FORMAT) }
+                .fieldOf("type").codec()
+        ).xmap(
+            { either -> either.map(Optional<NumberFormat>::of) { Optional.empty() } },
+            { optional ->
+                optional.map<Either<NumberFormat, StringIdentifiableUnit>>(Either<*, *>::left)
+                    .getOrElse { Either.right(DEFAULT_NUMBER_FORMAT) }
             }
-
-            override fun <T: Any> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<Optional<NumberFormat>, T>> {
-                val numberFormat = NumberFormatTypes.CODEC.decode(ops, input)
-                    .map { pair -> pair.mapFirst { Optional.of(it) } }
-                val type = ops.getMap(input).result().getOrNull()?.get("type")
-                    ?: return numberFormat
-                ExtraDecoderBehavior.getCurrentBehavior(ops)?.notePossibleValues(type, {
-                    Stream.of(ExtraDecoderBehavior.PossibleValue(ops.createString(DEFAULT_TYPE)))
-                })
-                val parsedType = ops.getStringValue(type).result().getOrNull()
-                if(parsedType == DEFAULT_TYPE)
-                    return DataResult.success(com.mojang.datafixers.util.Pair(Optional.empty(), input))
-                return numberFormat
-            }
-        }
+        )
 
         private val OBJECTIVE_DATA_CODEC: Codec<ObjectiveData> =
             RecordCodecBuilder.create {
@@ -422,7 +399,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
                 val stringWriter = StringWriter()
                 val jsonWriter = JsonWriter(stringWriter)
                 jsonWriter.setIndent("  ")
-                GSON.toJson(json, jsonWriter)
+                GsonHelper.writeValue(jsonWriter, json, DataProvider.KEY_COMPARATOR) // Puts 'type' at the beginning of an object
                 FileSystemResult(stringWriter.toString().encodeToByteArray())
             }
             Directory.STORAGES -> {
