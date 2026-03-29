@@ -241,8 +241,12 @@ object CodecTransformers {
     @CodecMod(target = CompoundTag::class, javaFieldWrite = "CODEC")
     fun decodeEmbeddedNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> = codec.afterDecode(object : AfterDecodeCallback<CompoundTag> {
         override fun <TNode : Any> invoke(result: CompoundTag, input: TNode, ops: DynamicOps<TNode>) {
-            val embeddedDecoder = DataObjectDecoding.getEmbeddedNbtDecoder(input) ?: return
             val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return
+            val embeddedDecoder = DataObjectDecoding.getEmbeddedNbtDecoder(input)
+            if(embeddedDecoder == null) {
+                behavior.markCompletelyAccessed(input)
+                return
+            }
             behavior.decodeWithBehavior(embeddedDecoder.branchBehaviorOverride, true) {
                 embeddedDecoder.decoder.decode(ops, input)
             }
