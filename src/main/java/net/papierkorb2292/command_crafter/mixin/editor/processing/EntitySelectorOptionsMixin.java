@@ -467,6 +467,7 @@ public class EntitySelectorOptionsMixin {
                 tree,
                 directiveReader
         ).withBranchBehaviorProvider(BranchBehaviorProvider.Companion.getForPathLookup(null))
+                .withRegistry(directiveReader.getResourceCreator().getRegistries())
                 .analyzeFull(analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }

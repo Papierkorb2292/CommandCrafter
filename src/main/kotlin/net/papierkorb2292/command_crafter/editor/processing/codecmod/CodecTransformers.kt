@@ -26,6 +26,7 @@ import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryOps
 import net.minecraft.resources.ResourceKey
+import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.pack.PackFormat
 import net.minecraft.tags.TagEntry
@@ -434,6 +435,15 @@ object CodecTransformers {
                 BlockState.CODEC.fieldOf("BlockState").decoder().decodeParent().map { it.block },
                 DataObjectDecoding::getDecoderForBlock,
             ),
+            null
+        )
+
+    @JvmStatic
+    @CodecMod(target = ServerPlayer::class, methodName = "readAdditionalSaveData", javaFieldRead = "net/minecraft/nbt/CompoundTag.CODEC")
+    fun decodeEmbeddedPlayerShoulderEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
             null
         )
 

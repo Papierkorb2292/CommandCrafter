@@ -37,6 +37,7 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyAnalyzingBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.unitDecoder
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.withThreadLocal
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
@@ -156,6 +157,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 }, { com.mojang.datafixers.util.Pair(decoderConverter(dataObjectDecoding, null), ops.empty()) }))
             }
         }
+
+        fun createDataObjectDecoder(decoderSupplier: (DataObjectDecoding) -> Decoder<Unit>): Decoder<Decoder<Unit>> =
+            convertToDataObjectDecoder(unitDecoder(Unit)) { dataObjectDecoding, _ -> decoderSupplier(dataObjectDecoding) }
     }
 
     val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
@@ -314,6 +318,18 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
                 }
             }
+        }
+
+    fun getDispatchingEntityDecoder(): Decoder<Unit> =
+        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
+            valueInput.alwaysReturnEmpty = false
+            val id = valueInput.read("id", EntityType.CODEC).getOrNull()
+            valueInput.alwaysReturnEmpty = true
+            val entity = dummyEntities[id]
+            if(entity == null)
+                dummyEntities.values.forEach { analyzeEntity(it, valueInput) }
+            else
+                analyzeEntity(entity, valueInput)
         }
 
     private fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
