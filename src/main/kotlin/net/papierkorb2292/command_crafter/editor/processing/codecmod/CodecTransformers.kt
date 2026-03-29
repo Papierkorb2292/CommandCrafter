@@ -315,7 +315,8 @@ object CodecTransformers {
         val formatSuggestingCodec = CodecSuggestionWrapper.simple(PackFormat.BOTTOM_CODEC, object : SuggestionsProvider {
             override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                 val currentVersion = SharedConstants.getCurrentVersion().packVersion(type)
-                return PackFormat.BOTTOM_CODEC.encode(currentVersion, ops, ops.empty()).result().stream()
+                // Use TOP_CODEC, because it'll always encode the format as a list
+                return PackFormat.TOP_CODEC.encode(currentVersion, ops, ops.empty()).result().stream()
             }
 
             override fun <T : Any> suggestionModifier(
