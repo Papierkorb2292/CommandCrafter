@@ -52,7 +52,7 @@ object ClientCodecTransformers {
     fun suggestAtlasSpriteNames(codec: MapCodec<Identifier>): MapCodec<Identifier> {
         return RecordCodecBuilder.mapCodec { instance ->
             instance.group(
-                CodecSuggestionWrapper(Identifier.CODEC, object : SuggestionsProvider {
+                CodecSuggestionWrapper.simple(Identifier.CODEC, object : SuggestionsProvider {
                     override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                         val atlasSuggestions = ArrayList<T>()
                         Minecraft.getInstance().atlasManager.forEach { id, _ ->
@@ -65,7 +65,7 @@ object ClientCodecTransformers {
                 codec.forGetterIdent(),
             ).apply(instance) { atlas, sprite, result ->
                 if(sprite.isEmpty) return@apply result
-                CodecSuggestionWrapper(Codec.STRING, object : SuggestionsProvider {
+                CodecSuggestionWrapper.simple(Codec.STRING, object : SuggestionsProvider {
                     override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                         var atlasCandidates: Stream<TextureAtlas>? = null
                         atlas.ifPresent { atlasId ->

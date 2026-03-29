@@ -46,7 +46,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
                     preferHex
                 )
             }
-            return CodecSuggestionWrapper(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
+            return CodecSuggestionWrapper.simple(withColorInfo, object : CodecSuggestionWrapper.SuggestionsProvider {
                 override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                     var colors = additionalSuggestions()
                     // Suggest white so the user sees that they can input a color

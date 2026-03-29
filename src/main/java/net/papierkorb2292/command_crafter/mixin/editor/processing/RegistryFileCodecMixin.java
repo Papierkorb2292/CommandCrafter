@@ -42,7 +42,7 @@ public class RegistryFileCodecMixin<E> {
             remap = false
     )
     private Codec<?> command_crafter$addRegistryIdSuggestions(Codec<?> identifierCodec) {
-        return new CodecSuggestionWrapper<>(identifierCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
+        return CodecSuggestionWrapper.Companion.simple(identifierCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
             @NotNull
             @Override
             public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {

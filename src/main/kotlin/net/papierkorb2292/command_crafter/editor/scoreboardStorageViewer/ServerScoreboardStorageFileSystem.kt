@@ -61,7 +61,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
 
         val createdFileSystems: MutableMap<ServerGamePacketListenerImpl, MutableMap<UUID, ServerScoreboardStorageFileSystem>> = mutableMapOf()
 
-        private val CRITERION_CODEC = CodecSuggestionWrapper(Codec.STRING.flatXmap(
+        private val CRITERION_CODEC = CodecSuggestionWrapper.simple(Codec.STRING.flatXmap(
             {  criterionName ->
                 ObjectiveCriteria.byName(criterionName).map(DataResult<ObjectiveCriteria>::success)
                     .orElse(DataResult.error { "Unknown criterion '$criterionName'" })

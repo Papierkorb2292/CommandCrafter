@@ -51,6 +51,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeCont
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
+import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.ContextSuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
@@ -73,7 +74,7 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs.LateBoundIdMapper::class, methodName = "codec", fieldAccess = ["idToValue"])
-    fun <T, I> addIdMapperSuggestions(codec: Codec<T>, idToValue: BiMap<I, *>, idCodec: Codec<I>): Codec<T> = CodecSuggestionWrapper(codec, object : CodecSuggestionWrapper.SuggestionsProvider {
+    fun <T, I> addIdMapperSuggestions(codec: Codec<T>, idToValue: BiMap<I, *>, idCodec: Codec<I>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
             idToValue.keys.stream().map { idCodec.encodeStart(ops, it).getOrThrow() }
     })
@@ -177,7 +178,7 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(targetName = $$"Lnet/minecraft/core/component/DataComponentPatch$PatchKey;", javaFieldWrite = "CODEC")
-    fun <T> addComponentKeySuggestions(codec: Codec<T>): Codec<T> = CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+    fun <T> addComponentKeySuggestions(codec: Codec<T>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
             val ids = BuiltInRegistries.DATA_COMPONENT_TYPE.keySet()
             return Stream.concat(
@@ -191,17 +192,12 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = Registry::class, methodName = "referenceHolderWithLifecycle", fieldAccess = ["this"])
-    fun <T> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> = Codec.of(codec, object : Decoder<T> {
-        override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> {
-            val blacklist = REGISTRY_SUGGESTIONS_BLACKLIST.getOrNull()
-            return CodecSuggestionWrapper(codec, object : SuggestionsProvider {
-                override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
-                    if(blacklist == null) registry.keys(ops)
-                    else registry.entrySet().stream().filter { it.value !in blacklist }.map { ops.createString(it.key.identifier().toString()) }
-
-            }).decode(ops, input)
-        }
-    })
+    fun <T> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> =
+        CodecSuggestionWrapper.withThreadLocal(codec, REGISTRY_SUGGESTIONS_BLACKLIST, object : ContextSuggestionsProvider<Set<Any>?> {
+            override fun <T: Any> getSuggestions(ops: DynamicOps<T>, context: Set<Any>?): Stream<T> =
+                if(context == null) registry.keys(ops)
+                else registry.entrySet().stream().filter { it.value !in context }.map { ops.createString(it.key.identifier().toString()) }
+        })
 
     @JvmStatic
     @CodecMod(target = ResourceKey::class, methodName = "codec")
@@ -209,7 +205,7 @@ object CodecTransformers {
         override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<ResourceKey<T>, A>> {
             val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries
                 ?: return codec.decode(ops, input)
-            return CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+            return CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
                 override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
                     registries.lookup(registryKey).map { it.keys(ops) }.getOrDefault(Stream.empty())
 
@@ -233,7 +229,7 @@ object CodecTransformers {
                 { DyeColor.entries as List<T> }
             )
         }
-        return CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+        return CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
             // Technically should be applying name transformer, but I don't think anybody is relying on that since
             // it's not even encoded correctly
             override fun <T : Any> getSuggestions(ops: DynamicOps<T>) =
@@ -280,7 +276,7 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "codec")
     fun <T: Any> addTagKeySuggestions(codec: Codec<TagKey<T>>, resourceKey: ResourceKey<out Registry<T>>): Codec<TagKey<T>> =
-        CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+        CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
             override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                 val owner = (ops as RegistryOps<*>).owner(resourceKey).getOrNull()
                 return (owner as? HolderLookup<*>)?.listTagIds()
@@ -291,7 +287,7 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "hashedCodec")
     fun <T: Any> addHashedTagKeySuggestions(codec: Codec<TagKey<T>>, resourceKey: ResourceKey<out Registry<T>>): Codec<TagKey<T>> =
-        CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+        CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
             override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                 val owner = (ops as RegistryOps<*>).owner(resourceKey).getOrNull()
                 return (owner as? HolderLookup<*>)?.listTagIds()
@@ -316,7 +312,7 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = PackFormat::class, methodName = "packCodec")
     fun suggestCurrentPackFormat(codec: MapCodec<InclusiveRange<PackFormat>>, type: PackType): MapCodec<InclusiveRange<PackFormat>> {
-        val formatSuggestingCodec = CodecSuggestionWrapper(PackFormat.BOTTOM_CODEC, object : SuggestionsProvider {
+        val formatSuggestingCodec = CodecSuggestionWrapper.simple(PackFormat.BOTTOM_CODEC, object : SuggestionsProvider {
             override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                 val currentVersion = SharedConstants.getCurrentVersion().packVersion(type)
                 return PackFormat.BOTTOM_CODEC.encode(currentVersion, ops, ops.empty()).result().stream()
@@ -378,18 +374,15 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "TAG_OR_ELEMENT_ID")
     fun suggestTagEntryNames(codec: Codec<ExtraCodecs.TagOrElementLocation>): Codec<ExtraCodecs.TagOrElementLocation> =
-        codec.beforeDecode(object : BeforeDecodeCallback {
-            override fun <TNode: Any> invoke(input: TNode, ops: DynamicOps<TNode>) {
-                val registry = CURRENT_TAG_ANALYZING_REGISTRY.getOrNull() ?: return
-                @Suppress("UNCHECKED_CAST")
-                ExtraDecoderBehavior.getCurrentBehavior(ops)?.notePossibleValues(input, {
-                    Stream.concat(
-                        registry.listElementIds()
-                            .map { key -> ops.createString(key!!.identifier().toString()) },
-                        registry.listTagIds()
-                            .map { key -> ops.createString("#" + key!!.location().toString()) }
-                    ).map(ExtraDecoderBehavior<TNode>::PossibleValue)
-                })
+        CodecSuggestionWrapper.withThreadLocal(codec, CURRENT_TAG_ANALYZING_REGISTRY, object : ContextSuggestionsProvider<HolderLookup.RegistryLookup<*>?> {
+            override fun <T : Any> getSuggestions(ops: DynamicOps<T>, context: HolderLookup.RegistryLookup<*>?): Stream<T> {
+                if(context == null) return Stream.empty()
+                return Stream.concat(
+                    context.listElementIds()
+                        .map { key -> ops.createString(key!!.identifier().toString()) },
+                    context.listTagIds()
+                        .map { key -> ops.createString("#" + key!!.location().toString()) }
+                )
             }
         })
 
