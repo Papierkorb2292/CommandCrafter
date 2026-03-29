@@ -65,6 +65,7 @@ import org.joml.Vector4f
 import java.util.*
 import java.util.function.Function
 import java.util.stream.Stream
+import kotlin.jvm.optionals.getOrDefault
 import kotlin.jvm.optionals.getOrNull
 
 @Suppress("unused")
@@ -197,6 +198,20 @@ object CodecTransformers {
                 override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
                     if(blacklist == null) registry.keys(ops)
                     else registry.entrySet().stream().filter { it.value !in blacklist }.map { ops.createString(it.key.identifier().toString()) }
+
+            }).decode(ops, input)
+        }
+    })
+
+    @JvmStatic
+    @CodecMod(target = ResourceKey::class, methodName = "codec")
+    fun <T : Any> addResourceKeySuggestions(codec: Codec<ResourceKey<T>>, registryKey: ResourceKey<out Registry<T>>): Codec<ResourceKey<T>> = Codec.of(codec, object : Decoder<ResourceKey<T>> {
+        override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<ResourceKey<T>, A>> {
+            val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries
+                ?: return codec.decode(ops, input)
+            return CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+                override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
+                    registries.lookup(registryKey).map { it.keys(ops) }.getOrDefault(Stream.empty())
 
             }).decode(ops, input)
         }
