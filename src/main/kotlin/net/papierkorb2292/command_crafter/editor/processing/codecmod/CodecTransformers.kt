@@ -41,6 +41,7 @@ import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.FireworkExplosion
 import net.minecraft.world.item.component.TypedEntityData
+import net.minecraft.world.level.SpawnData
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.levelgen.structure.templatesystem.rule.blockentity.AppendStatic
@@ -441,6 +442,15 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = ServerPlayer::class, methodName = "readAdditionalSaveData", javaFieldRead = "net/minecraft/nbt/CompoundTag.CODEC")
     fun decodeEmbeddedPlayerShoulderEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
+            null
+        )
+
+    @JvmStatic
+    @CodecMod(target = SpawnData::class, codecField = "entity")
+    fun decodeEmbeddedSpawnDataEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> =
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
