@@ -186,10 +186,20 @@ object CodecTransformers {
         }
     })
 
+    val REGISTRY_SUGGESTIONS_BLACKLIST = ThreadLocal<Set<Any>>()
+
     @JvmStatic
     @CodecMod(target = Registry::class, methodName = "referenceHolderWithLifecycle", fieldAccess = ["this"])
-    fun <T> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> = CodecSuggestionWrapper(codec, object : SuggestionsProvider {
-        override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> = registry.keys(ops)
+    fun <T> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> = Codec.of(codec, object : Decoder<T> {
+        override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> {
+            val blacklist = REGISTRY_SUGGESTIONS_BLACKLIST.getOrNull()
+            return CodecSuggestionWrapper(codec, object : SuggestionsProvider {
+                override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
+                    if(blacklist == null) registry.keys(ops)
+                    else registry.entrySet().stream().filter { it.value !in blacklist }.map { ops.createString(it.key.identifier().toString()) }
+
+            }).decode(ops, input)
+        }
     })
 
     @JvmStatic
@@ -398,9 +408,11 @@ object CodecTransformers {
                 val dataObjectDecoding = DataObjectDecoding.getForDecoder(ops)
                 if(dataObjectDecoding != null) {
                     val candidates = mutableListOf<IdType>()
+                    @Suppress("UNCHECKED_CAST")
+                    val nonPlayerIdCodec = if(idCodec == EntityType.CODEC) DataObjectDecoding.NON_PLAYER_ENTITY_TYPE_CODEC as Codec<IdType> else idCodec
                     // Make use of the existing dispatch behavior.
                     // Ignore id errors, TypedEntityData already returns those
-                    idCodec.dispatch(
+                    nonPlayerIdCodec.dispatch(
                         "id",
                         { null },
                         { id ->
@@ -413,7 +425,7 @@ object CodecTransformers {
                     } ?: setOf()) + (input to ops.createString("id"))
                     val (_, filteredOps) = wrapDynamicOps(ops) { innerOps -> FieldFilteringDynamicOps(innerOps, blacklist) }
                     ExtraDecoderBehavior.swapOps(ops, filteredOps) {
-                        dataObjectDecoding.getDecoderForGenericType(candidates.filter { it != EntityType.PLAYER })
+                        dataObjectDecoding.getDecoderForGenericType(candidates)
                             .decode(filteredOps, input)
                     }
                 }

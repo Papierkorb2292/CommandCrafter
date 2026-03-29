@@ -35,10 +35,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType
 import net.minecraft.world.level.storage.ValueInput
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.Util
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyAnalyzingBehavior
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.unitDecoder
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.withThreadLocal
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
 import net.papierkorb2292.command_crafter.helper.*
@@ -54,6 +51,11 @@ import kotlin.jvm.optionals.getOrNull
 class DataObjectDecoding(private val registries: RegistryAccess) {
     companion object {
         val GET_FOR_REGISTRIES = ::DataObjectDecoding.memoizeLast()
+
+        val NON_PLAYER_ENTITY_TYPE_CODEC: Codec<EntityType<*>> = Codec.of(
+            EntityType.CODEC,
+            EntityType.CODEC.withThreadLocal(CodecTransformers.REGISTRY_SUGGESTIONS_BLACKLIST, setOf(EntityType.PLAYER))
+        )
 
         // Used to replace components in Holder.Reference.components so default components can be accessed outside a world,
         // even when the code accesses the builtin registries directly (for example ItemStack constructors)
@@ -323,7 +325,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     fun getDispatchingEntityDecoder(): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             valueInput.alwaysReturnEmpty = false
-            val id = valueInput.read("id", EntityType.CODEC).getOrNull()
+            val id = valueInput.read("id", NON_PLAYER_ENTITY_TYPE_CODEC).getOrNull()
             valueInput.alwaysReturnEmpty = true
             val entity = dummyEntities[id]
             if(entity == null)
