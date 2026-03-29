@@ -2,12 +2,10 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.authlib.GameProfile
 import com.mojang.brigadier.context.CommandContext
-import com.mojang.serialization.Codec
-import com.mojang.serialization.DataResult
-import com.mojang.serialization.Decoder
-import com.mojang.serialization.DynamicOps
+import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
+import net.minecraft.advancements.criterion.NbtPredicate
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceArgument
@@ -201,14 +199,14 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                         dataObjectSource.argumentName
                     ).value()] ?: return null
                     DynamicOpsReadView.getReadDecoder(registries) { input ->
-                        analyzeEntity(entity, input)
+                        analyzeEntity(entity, input, true)
                     }
                 } catch(_: IllegalArgumentException) {
                     // No entity argument found, maybe it's macro. Decoder should try out all entities
                     DynamicOpsReadView.getReadDecoder(registries) { input ->
                         for(entity in dummyEntities.values) {
                             if(entity !is ServerPlayer)
-                                analyzeEntity(entity, input)
+                                analyzeEntity(entity, input, true)
                         }
                     }
                 }
@@ -228,7 +226,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 }
                 DynamicOpsReadView.getReadDecoder(registries) { input ->
                     for(entity in validEntities) {
-                        analyzeEntity(entity, input)
+                        analyzeEntity(entity, input, false)
                     }
                 }
             }
@@ -289,20 +287,20 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     fun getConditionDecoderForEntities(entityTypes: HolderSet<EntityType<*>>?): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             if(entityTypes == null || !entityTypes.isBound)
-                dummyEntities.values.forEach { analyzeEntity(it, valueInput) }
+                dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
             else
                 entityTypes.stream()
                     .map { dummyEntities[it.value()] }
                     .filter { it != null }
                     .forEach {
-                        analyzeEntity(it!!, valueInput)
+                        analyzeEntity(it!!, valueInput, true)
                     }
         }
 
     fun getConditionDecoderForEntities(entities: Iterable<Entity>): Decoder<Unit> =
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             for(entity in entities) {
-                analyzeEntity(entity, valueInput)
+                analyzeEntity(entity, valueInput, true)
             }
         }
 
@@ -316,7 +314,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
                     is EntityType<*> -> {
                         val entity = dummyEntities[type] ?: continue
-                        analyzeEntity(entity, valueInput)
+                        analyzeEntity(entity, valueInput, true)
                     }
                 }
             }
@@ -329,9 +327,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             valueInput.alwaysReturnEmpty = true
             val entity = dummyEntities[id]
             if(entity == null)
-                dummyEntities.values.forEach { analyzeEntity(it, valueInput) }
+                dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
             else
-                analyzeEntity(entity, valueInput)
+                analyzeEntity(entity, valueInput, true)
         }
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
@@ -342,12 +340,16 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    fun analyzeEntity(entity: Entity, valueInput: ValueInput) {
+    private val passengersCodec = Codec.of(MapCodec.unit(Unit).codec(), getDispatchingEntityDecoder()).listOf()
+
+    fun analyzeEntity(entity: Entity, valueInput: ValueInput, includePassengers: Boolean) {
         if(entity.type in entitiesWithError)
             return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
         try {
             if(entity is ServerPlayer)
-                valueInput.read("SelectedItem", ItemStack.CODEC)
+                valueInput.read(NbtPredicate.SELECTED_ITEM_TAG, ItemStack.CODEC)
+            if(includePassengers)
+                valueInput.read(Entity.TAG_PASSENGERS, passengersCodec)
             entity.load(valueInput)
         } catch(e: Throwable) {
             entitiesWithError += entity.type

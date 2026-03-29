@@ -61,7 +61,6 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
 
     @Suppress("UNCHECKED_CAST")
     @Deprecated("Deprecated in Java")
-    //TODO: Passengers, Root Vehicle, TypedEntityData?
     override fun <T: Any> read(mapCodec: MapCodec<T>) =
         readMapCodecCache.getOrPut(mapCodec) {
             lateAdditionRunner.acceptLateAddition {

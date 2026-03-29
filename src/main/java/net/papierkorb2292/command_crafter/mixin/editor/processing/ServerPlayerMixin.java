@@ -176,7 +176,7 @@ public abstract class ServerPlayerMixin extends Avatar {
             enderPearlInput.read(ENDER_PEARL_DIMENSION_TAG, Level.RESOURCE_KEY_CODEC);
             enderPearlInput.read("id", command_crafter$enderPearlIdCodec);
             if(enderPearl != null)
-                dataObjectDecoding.analyzeEntity(enderPearl, enderPearlInput);
+                dataObjectDecoding.analyzeEntity(enderPearl, enderPearlInput, true);
         }
 
         final var rootVehicleCodec = RecordCodecBuilder.create(instance ->
