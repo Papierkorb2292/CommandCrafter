@@ -886,6 +886,7 @@ class StringRangeTree<TNode: Any>(
     ) : ExtraDecoderBehavior<TNode> {
         private var stack = ArrayList<ErrorStackEntry<TNode>>(16)
         private val lateAdditionMergers = ArrayList<() -> Unit>()
+        private val completelyAccessedNodes = Collections.newSetFromMap<TNode>(IdentityHashMap())
         init {
             stack.add(ErrorStackEntry(root))
         }
@@ -987,6 +988,10 @@ class StringRangeTree<TNode: Any>(
             }
         }
 
+        override fun markCompletelyAccessed(input: TNode) {
+            completelyAccessedNodes += input
+        }
+
         override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
             get() = branchBehaviorProvider.getBranchBehavior(false)
 
@@ -1016,6 +1021,8 @@ class StringRangeTree<TNode: Any>(
         }
         
         private fun addMapUnknownKeyDiagnostics(map: TNode, nodeDiagnostics: NodeDiagnostics) {
+            if(map in completelyAccessedNodes)
+                return
             val mapKeys = mapKeyRanges[map] ?: return
             val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toSet() ?: emptySet() // Convert to set so we don't use IdentityHashMap
             for((key, range) in mapKeys) {
