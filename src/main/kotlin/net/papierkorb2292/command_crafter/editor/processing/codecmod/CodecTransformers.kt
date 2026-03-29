@@ -450,12 +450,19 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = SpawnData::class, codecField = "entity")
-    fun decodeEmbeddedSpawnDataEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> =
-        DataObjectDecoding.wrapWithEmbeddedDecoder(
+    fun decodeEmbeddedSpawnDataEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> = Codec.of(codec, object : Decoder<CompoundTag> {
+        private val analyzingDelegate = DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
             null
-        )
+        ).map { CompoundTag() } // Suppress log error for invalid id fields by replacing result with empty compound
+
+        override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<CompoundTag, T>> {
+            val isAnalyzing = ExtraDecoderBehavior.getCurrentBehavior(ops) != null
+            if(!isAnalyzing) return codec.decode(ops, input)
+            return analyzingDelegate.decode(ops, input)
+        }
+    })
 
     @JvmStatic
     @CodecMod(target = AppendStatic::class, codecField = "data")
