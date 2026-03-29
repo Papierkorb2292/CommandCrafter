@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
+import com.mojang.serialization.Codec;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.server.level.ServerLevel;
@@ -14,19 +15,25 @@ import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.TextFilter;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.stats.ServerStatsCounter;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
 import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.DynamicOpsReadView;
 import net.papierkorb2292.command_crafter.helper.DummyWorld;
+import net.papierkorb2292.command_crafter.helper.StringIdentifiableUnit;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
@@ -36,6 +43,14 @@ public abstract class ServerPlayerMixin extends Avatar {
     @Shadow
     @Final
     private MinecraftServer server;
+
+    @Shadow
+    @Final
+    public static String ENDER_PEARLS_TAG;
+
+    @Shadow
+    @Final
+    public static String ENDER_PEARL_DIMENSION_TAG;
 
     protected ServerPlayerMixin(EntityType<? extends LivingEntity> type, Level level) {
         super(type, level);
@@ -138,5 +153,25 @@ public abstract class ServerPlayerMixin extends Avatar {
     private ServerLevel command_crafter$allowDummyWorld(Operation<ServerLevel> op) {
         //noinspection resource
         return super.level() instanceof DummyWorld ? null : op.call();
+    }
+
+    private final Codec<?> command_crafter$enderPearlIdCodec = StringRepresentable.fromValues(() -> new StringRepresentable[] { new StringIdentifiableUnit("minecraft:ender_pearl") });
+
+    @Inject(
+            method = "readAdditionalSaveData",
+            at = @At("TAIL")
+    )
+    private void command_crafter$analyzeEnderPearlData(ValueInput input, CallbackInfo ci) {
+        if(!(super.level() instanceof DummyWorld) || !(input instanceof DynamicOpsReadView<?> dynamicOpsReadView)) return;
+        final var enderPearls = input.childrenListOrEmpty(ENDER_PEARLS_TAG);
+        final var dataObjectDecoding = DataObjectDecoding.Companion.getForDecoder(dynamicOpsReadView.getDynamic().getOps());
+        if(dataObjectDecoding == null) return;
+        final var enderPearl = dataObjectDecoding.getDummyEntities().get(EntityType.ENDER_PEARL);
+        for(final var enderPearlInput : enderPearls) {
+            enderPearlInput.read(ENDER_PEARL_DIMENSION_TAG, Level.RESOURCE_KEY_CODEC);
+            enderPearlInput.read("id", command_crafter$enderPearlIdCodec);
+            if(enderPearl != null)
+                dataObjectDecoding.analyzeEntity(enderPearl, enderPearlInput);
+        }
     }
 }

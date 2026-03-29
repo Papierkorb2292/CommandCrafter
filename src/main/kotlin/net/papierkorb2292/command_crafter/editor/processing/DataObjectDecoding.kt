@@ -334,7 +334,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 analyzeEntity(entity, valueInput)
         }
 
-    private fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
+    fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
         try {
             blockEntity.loadWithComponents(valueInput)
         } catch(e: Throwable) {
@@ -342,7 +342,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    private fun analyzeEntity(entity: Entity, valueInput: ValueInput) {
+    fun analyzeEntity(entity: Entity, valueInput: ValueInput) {
         if(entity.type in entitiesWithError)
             return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
         try {
