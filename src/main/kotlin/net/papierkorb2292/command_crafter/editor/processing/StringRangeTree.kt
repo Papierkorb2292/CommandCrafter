@@ -43,6 +43,7 @@ import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.contains
 import kotlin.collections.emptyList
+import kotlin.collections.emptySet
 import kotlin.collections.firstOrNull
 import kotlin.collections.flatMap
 import kotlin.collections.forEach
@@ -64,6 +65,7 @@ import kotlin.collections.reversed
 import kotlin.collections.set
 import kotlin.collections.sumOf
 import kotlin.collections.toMutableList
+import kotlin.collections.toSet
 import kotlin.collections.withIndex
 import kotlin.math.min
 
@@ -1008,7 +1010,24 @@ class StringRangeTree<TNode: Any>(
         fun generateDiagnostics(fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
             for(i in lateAdditionMergers.lastIndex downTo 0)
                 lateAdditionMergers[i].invoke()
-            return stack.last().getAllDiagnostics().build(fileMappingInfo, severity)
+            val nodeDiagnostics = stack.last().getAllDiagnostics()
+            addMapUnknownKeyDiagnostics(root, nodeDiagnostics)
+            return nodeDiagnostics.build(fileMappingInfo, severity)
+        }
+        
+        private fun addMapUnknownKeyDiagnostics(map: TNode, nodeDiagnostics: NodeDiagnostics) {
+            val mapKeys = mapKeyRanges[map] ?: return
+            val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toSet() ?: emptySet() // Convert to set so we don't use IdentityHashMap
+            for((key, range) in mapKeys) {
+                // Key must exist (snbt grammar might add unknown keys)
+                accessedKeysWatcherDynamicOps.getGeneric(map, key).result().ifPresent { child ->
+                    if(key in accessed) {
+                        addMapUnknownKeyDiagnostics(child, nodeDiagnostics)
+                    } else {
+                        nodeDiagnostics.warnings += range to "Unused key $key"
+                    }
+                }
+            }
         }
 
         inner class PathErrorSuppressingDynamicOps(override val delegate: DynamicOps<TNode>): DelegatingDynamicOps<TNode> {
