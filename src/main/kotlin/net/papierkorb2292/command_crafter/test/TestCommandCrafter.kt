@@ -595,15 +595,17 @@ object TestCommandCrafter {
     fun testDecoderErrorTracking(context: GameTestHelper) {
         val markedLines = """
             execute if predicate {condition:"location_check",predicate:{block:{blocks:"chest",nbt:"{§"}}}
-            tellraw @s {atlas:§2,sprite:""}
+            give @a[nbt={RootVehicle:{Entity:{NoAI:§""}},equipment:{chest:{components:{"minecraft:custom_data":{my_val:true}}}}}] \
+                minecraft:diamond[custom_name=§{color:"blue"}]
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
         val analyzingResult = analyseCommand(context, processedLines)
 
-        context.assertValueEqual(2, analyzingResult.diagnostics.size, "Diagnostics count")
+        context.assertValueEqual(3, analyzingResult.diagnostics.size, "Diagnostics count")
         context.assertValueEqual(markedLocations[0].position, analyzingResult.diagnostics[0].range.start, "First diagnostic start")
         context.assertValueEqual(markedLocations[1].position, analyzingResult.diagnostics[1].range.start, "Second diagnostic start")
+        context.assertValueEqual(markedLocations[2].position, analyzingResult.diagnostics[2].range.start, "Third diagnostic start")
 
         context.succeed()
     }

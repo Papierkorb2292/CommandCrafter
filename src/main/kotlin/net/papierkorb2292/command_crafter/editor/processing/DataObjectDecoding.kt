@@ -321,16 +321,18 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
 
     fun getDispatchingEntityDecoder(): Decoder<Unit> =
-        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
-            valueInput.alwaysReturnEmpty = false
-            val id = valueInput.read("id", NON_PLAYER_ENTITY_TYPE_CODEC).getOrNull()
-            valueInput.alwaysReturnEmpty = true
-            val entity = dummyEntities[id]
-            if(entity == null)
-                dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
-            else
-                analyzeEntity(entity, valueInput, true)
-        }
+        DynamicOpsReadView.getReadDecoder(registries, ::readDispatchingEntity)
+
+    fun readDispatchingEntity(valueInput: DynamicOpsReadView<*>) {
+        valueInput.alwaysReturnEmpty = false
+        val id = valueInput.read("id", NON_PLAYER_ENTITY_TYPE_CODEC).getOrNull()
+        valueInput.alwaysReturnEmpty = true
+        val entity = dummyEntities[id]
+        if(entity == null)
+            dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
+        else
+            analyzeEntity(entity, valueInput, true)
+    }
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
         try {
@@ -342,14 +344,17 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     private val passengersCodec = Codec.of(MapCodec.unit(Unit).codec(), getDispatchingEntityDecoder()).listOf()
 
-    fun analyzeEntity(entity: Entity, valueInput: ValueInput, includePassengers: Boolean) {
+    fun analyzeEntity(entity: Entity, valueInput: DynamicOpsReadView<*>, includePassengers: Boolean) {
         if(entity.type in entitiesWithError)
             return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
         try {
             if(entity is ServerPlayer)
                 valueInput.read(NbtPredicate.SELECTED_ITEM_TAG, ItemStack.CODEC)
-            if(includePassengers)
-                valueInput.read(Entity.TAG_PASSENGERS, passengersCodec)
+            if(includePassengers) {
+                valueInput.childrenListOrEmpty(Entity.TAG_PASSENGERS).forEach {
+                    readDispatchingEntity(it as DynamicOpsReadView<*>)
+                }
+            }
             entity.load(valueInput)
         } catch(e: Throwable) {
             entitiesWithError += entity.type

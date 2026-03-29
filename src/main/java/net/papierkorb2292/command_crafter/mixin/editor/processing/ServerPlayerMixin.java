@@ -7,9 +7,6 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-import kotlin.Unit;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerAdvancements;
@@ -29,7 +26,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.DynamicOpsReadView;
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.CodecUtilKt;
 import net.papierkorb2292.command_crafter.helper.DummyWorld;
 import net.papierkorb2292.command_crafter.helper.StringIdentifiableUnit;
 import org.spongepowered.asm.mixin.Final;
@@ -176,17 +172,11 @@ public abstract class ServerPlayerMixin extends Avatar {
             enderPearlInput.read(ENDER_PEARL_DIMENSION_TAG, Level.RESOURCE_KEY_CODEC);
             enderPearlInput.read("id", command_crafter$enderPearlIdCodec);
             if(enderPearl != null)
-                dataObjectDecoding.analyzeEntity(enderPearl, enderPearlInput, true);
+                dataObjectDecoding.analyzeEntity(enderPearl, (DynamicOpsReadView<?>) enderPearlInput, true);
         }
 
-        final var rootVehicleCodec = RecordCodecBuilder.create(instance ->
-            instance.group(
-                    CodecUtilKt.forEmptyGetter(UUIDUtil.CODEC.lenientOptionalFieldOf("Attach")),
-                    CodecUtilKt.forEmptyGetter(Codec.of(
-                            MapCodec.unit(Unit.INSTANCE).codec(),
-                            dataObjectDecoding.getDispatchingEntityDecoder()).lenientOptionalFieldOf("Entity")
-                    )
-            ).apply(instance, (_, _) -> Unit.INSTANCE));
-        input.read("RootVehicle", rootVehicleCodec);
+        final var rootVehicleInput = input.childOrEmpty("RootVehicle");
+        rootVehicleInput.read("Attach", UUIDUtil.CODEC);
+        rootVehicleInput.child("Entity").ifPresent(entityInput -> dataObjectDecoding.readDispatchingEntity((DynamicOpsReadView<?>)entityInput));
     }
 }
