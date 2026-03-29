@@ -12,14 +12,16 @@ class PrimitiveCodecSuggestionWrapper<A>(private val delegate: PrimitiveCodec<A>
         input: T?,
     ): DataResult<A> {
         if(input == null) return delegate.read(ops, null)
-        ExtraDecoderBehavior.getCurrentBehavior(ops)?.let { extraBehavior ->
-            extraBehavior.notePossibleValues(input, {
-                suggestionsProvider.getSuggestions(ops).map {
-                    suggestionsProvider.suggestionModifier(ExtraDecoderBehavior.PossibleValue(it), ops)
-                }
-            })
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
+        extraBehavior?.notePossibleValues(input, {
+            suggestionsProvider.getSuggestions(ops).map {
+                suggestionsProvider.suggestionModifier(ExtraDecoderBehavior.PossibleValue(it), ops)
+            }
+        })
+        val analyzingBehavior = extraBehavior?.nodeAnalyzingBehavior ?: return delegate.read(ops, input)
+        return analyzingBehavior.decodeWithoutStringSuggestion {
+            delegate.read(ops, input)
         }
-        return delegate.read(ops, input)
     }
 
     override fun <T> write(ops: DynamicOps<T>, value: A): T =

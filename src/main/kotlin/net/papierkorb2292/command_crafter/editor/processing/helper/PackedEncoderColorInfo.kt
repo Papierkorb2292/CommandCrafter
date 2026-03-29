@@ -74,7 +74,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
                         }
                     }
                 }
-            })
+            }, true)
         }
 
         fun colorToHex(color: Int, hasAlpha: Boolean): String {

@@ -375,6 +375,8 @@ class StringRangeTree<TNode: Any>(
         internal val nodePotentialAnalyzingResult = IdentityHashMap<TNode, MutableCollection<NodeAnalyzingResult>>()
         internal val nodeActualAnalyzingResult = IdentityHashMap<TNode, kotlin.Pair<Int, NodeAnalyzingResult?>>()
 
+        private var suggestEmptyString = true
+
         fun getNodeStartSuggestions(node: TNode) =
             nodeStartSuggestions.computeIfAbsent(node) { mutableSetOf() }
 
@@ -507,7 +509,8 @@ class StringRangeTree<TNode: Any>(
         }
 
         override fun getStringValue(input: TNode): DataResult<String> {
-            getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createString(""))) }
+            if(suggestEmptyString)
+                getNodeStartSuggestions(input).add { Stream.of(ExtraDecoderBehavior.PossibleValue(delegate.createString(""))) }
             return delegate.getStringValue(input)
         }
 
@@ -610,6 +613,14 @@ class StringRangeTree<TNode: Any>(
             this.branchBehaviorProvider = branchBehaviorProviderOverride
             val result = decodeCallback()
             this.branchBehaviorProvider = prevBehavior
+            return result
+        }
+
+        override fun <TResult> decodeWithoutStringSuggestion(decodeCallback: () -> TResult): TResult {
+            val prevSuggestEmptyString = suggestEmptyString
+            suggestEmptyString = false
+            val result = decodeCallback()
+            suggestEmptyString = prevSuggestEmptyString
             return result
         }
 

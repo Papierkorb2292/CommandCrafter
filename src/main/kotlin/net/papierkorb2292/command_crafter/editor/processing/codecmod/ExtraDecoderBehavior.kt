@@ -98,6 +98,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
         fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult
         fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult
         fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null)
+        fun <TResult> decodeWithoutStringSuggestion(decodeCallback: () -> TResult): TResult = decodeCallback()
     }
 
     data class PossibleValue<out TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val preferHex: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {
