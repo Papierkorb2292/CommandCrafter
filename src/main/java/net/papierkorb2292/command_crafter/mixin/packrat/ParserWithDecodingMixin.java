@@ -11,9 +11,9 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.EndTag;
 import net.minecraft.core.Holder;
+import net.minecraft.nbt.EndTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.util.parsing.packrat.commands.CommandArgumentParser;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
@@ -84,7 +84,8 @@ public class ParserWithDecodingMixin<T> {
             StringRangeTree.TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
-            ).analyzeFull(analyzingResult, val$codec);
+            ).withRegistry(((AnalyzingResourceCreator)directiveReader.getResourceCreator()).getRegistries())
+                    .analyzeFull(analyzingResult, val$codec);
         } finally {
             analyzingResultThreadLocal.set(analyzingResultArg);
         }

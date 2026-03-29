@@ -71,6 +71,7 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         val tree = treeBuilder.build(nbt)
 
         StringRangeTree.TreeOperations.forNbt(tree, optionsReader)
+            .withRegistry(reader.resourceCreator.registries)
             .withDiagnosticSeverity(DiagnosticSeverity.Error)
             .analyzeFull(result, parameterDecoder)
     }
