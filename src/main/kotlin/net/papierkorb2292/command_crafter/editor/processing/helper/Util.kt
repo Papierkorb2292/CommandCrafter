@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.serialization.DynamicOps
+import net.fabricmc.fabric.api.tag.convention.v2.TagUtil
 import net.minecraft.resources.RegistryOps
 import net.minecraft.util.parsing.packrat.Atom
 import net.minecraft.util.parsing.packrat.Dictionary
@@ -169,8 +170,10 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
     }
 }
 
+data class MatchingSuggestion(val suggestion: Suggestion, val sortText: String, val filterText: String)
+
 fun completionItemsToSuggestions(completionItems: List<CompletionItem>, reader: DirectiveStringReader<*>, cursor: Int): Suggestions {
-    val suggestions = mutableListOf<Suggestion>()
+    val suggestions = mutableListOf<MatchingSuggestion>()
     for(completionItem in completionItems) {
         val range = completionItem.textEdit?.map({ it.range }, { it.replace })?.let { lspRange ->
             StringRange(
@@ -180,37 +183,67 @@ fun completionItemsToSuggestions(completionItems: List<CompletionItem>, reader: 
         } ?: StringRange.at(cursor)
         val text = completionItem.textEdit?.map( { it.newText}, { it.newText })
             ?: if(completionItem.insertText.isNullOrEmpty()) completionItem.label else completionItem.insertText
-        suggestions += Suggestion(range, text, if(completionItem.detail != null) completionItem::getDetail else null)
+        val sortText = if(completionItem.sortText.isNullOrEmpty()) completionItem.label else completionItem.sortText
+        val filterText = if(completionItem.filterText.isNullOrEmpty()) completionItem.label else completionItem.filterText
+        suggestions += MatchingSuggestion(
+            Suggestion(range, text, if(completionItem.detail != null) completionItem::getDetail else null),
+            sortText,
+            filterText
+        )
     }
     fuzzyMatchSuggestions(suggestions, reader.string, cursor)
     // Range is only used to determine the display position for the suggestions
-    return Suggestions(StringRange.at(suggestions.minOf { it.range.start }), suggestions)
+    return Suggestions(StringRange.at(suggestions.minOf { it.suggestion.range.start }), suggestions.map { it.suggestion })
 }
 
 /**
- * Filters and sorts the suggestions depending on how well they match the corresponding location in the input.
+ * Filters and sorts the suggestions depending on how well their associated sort string matches the corresponding location in the input.
  * Only takes into account alphanumeric chars in the input. Other characters like " are ignored.
  */
-fun fuzzyMatchSuggestions(suggestions: MutableList<Suggestion>, input: String, cursor: Int) {
-    val ratedSuggestions = suggestions.associateWith { suggestion ->
+fun fuzzyMatchSuggestions(suggestions: MutableList<MatchingSuggestion>, input: String, cursor: Int) {
+    val ratedSuggestions = suggestions.associateWith { (suggestion, _, filterText) ->
         var indexSum = 0
-        val insertReader = StringReader(suggestion.text)
+        val filterReader = StringReader(filterText)
         for(c in input.subSequence(suggestion.range.start, min(suggestion.range.end, cursor))) {
             if(!c.isLetterOrDigit())
                 continue
             // Search for the next character. If it's the first character in the range (indexSum == 0), it has to be at the beginning of a word
-            while(insertReader.canRead() && (insertReader.peek() != c || indexSum == 0 && insertReader.cursor > 0 && insertReader.peek(-1).isLetterOrDigit() )) {
-                insertReader.skip()
+            while(filterReader.canRead() && (filterReader.peek() != c || indexSum == 0 && filterReader.cursor > 0 && filterReader.peek(-1).isLetterOrDigit() )) {
+                filterReader.skip()
             }
-            if(!insertReader.canRead())
+            if(!filterReader.canRead())
                 return@associateWith null // There is a character that the suggestion doesn't contain, so filter the suggestion out
-            insertReader.skip() // Skips the matched character
-            indexSum += insertReader.cursor
+            filterReader.skip() // Skips the matched character
+            indexSum += filterReader.cursor
         }
         indexSum
     }
     suggestions.removeIf { ratedSuggestions[it] == null }
-    suggestions.sortBy { ratedSuggestions[it] }
+    suggestions.sortWith(Comparator.comparing<MatchingSuggestion, Int> { ratedSuggestions[it]!! }.thenComparing { it.sortText })
+}
+
+// Check label of completions to determine whether it is a tag from the mod loader.
+// In that case, let the editor prioritize other suggestions over the tag.
+// Not the cleanest solution, but better than having to go through all the places that suggest tags
+fun sortCommonTagCompletionsAtEnd(completions: List<CompletionItem>) {
+    val sortPrefix = '~' // '~' is almost at the end of the ASCII range
+    // Add _some_ amount of spaces to the filter after : for mod loader tags
+    // such that even when inputting a word that appears in the path, the editor
+    // searches other namespaces first. (The namespace of the mod loader tags is so short,
+    // it would otherwise often show up as the top result even when there are better
+    // results from other namespaces, like when searching for "sand")
+    // Exact amount of spaces doesn't matter, this seems to work well
+    val filterPrefix = " ".repeat(15)
+    val commonTagPrefix = '#' + TagUtil.C_TAG_NAMESPACE + ':'
+    for(completion in completions) {
+        val stringOffset = if(completion.label.getOrNull(0) == '"') 1 else 0
+        if(completion.label.startsWith(commonTagPrefix, stringOffset)) {
+            completion.sortText = sortPrefix + (completion.sortText ?: completion.label)
+            val filterText = completion.filterText ?: completion.label
+            // Insert spaces after :
+            completion.filterText = StringBuilder(filterText).insert(stringOffset + commonTagPrefix.length, filterPrefix).toString()
+        }
+    }
 }
 
 fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCursor: Int): SplitProcessedInputCursorMapper {

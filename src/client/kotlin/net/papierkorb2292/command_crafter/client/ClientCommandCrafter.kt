@@ -41,6 +41,7 @@ import net.papierkorb2292.command_crafter.editor.processing.command_arguments.Co
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.completionItemsToSuggestions
+import net.papierkorb2292.command_crafter.editor.processing.helper.sortCommonTagCompletionsAtEnd
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
@@ -192,6 +193,7 @@ object ClientCommandCrafter : ClientModInitializer {
 
         val completionsFuture = analyzingResult.getCompletions(cursor, null) ?: return emptySuggestions
         return completionsFuture.thenApply { completionItems ->
+            sortCommonTagCompletionsAtEnd(completionItems)
             completionItemsToSuggestions(completionItems, directiveReader, cursor)
         }
     }

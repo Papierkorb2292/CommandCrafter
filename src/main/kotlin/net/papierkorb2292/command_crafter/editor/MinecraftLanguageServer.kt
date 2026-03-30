@@ -4,7 +4,6 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.fabricmc.fabric.api.tag.convention.v2.TagUtil
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
@@ -12,10 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
-import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
-import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
@@ -309,30 +305,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 completionItem
                             }
                         )
-                    }
-                }
-            }
-
-            // Check label of completions to determine whether it is a tag from the mod loader.
-            // In that case, let the editor prioritize other suggestions over the tag.
-            // Not the cleanest solution, but better than having to go through all the places that suggest tags
-            private fun sortCommonTagCompletionsAtEnd(completions: List<CompletionItem>) {
-                val sortPrefix = '~' // '~' is almost at the end of the ASCII range
-                // Add _some_ amount of spaces to the filter after : for mod loader tags
-                // such that even when inputting a word that appears in the path, the editor
-                // searches other namespaces first. (The namespace of the mod loader tags is so short,
-                // it would otherwise often show up as the top result even when there are better
-                // results from other namespaces, like when searching for "sand")
-                // Exact amount of spaces doesn't matter, this seems to work well
-                val filterPrefix = " ".repeat(15)
-                val commonTagPrefix = '#' + TagUtil.C_TAG_NAMESPACE + ':'
-                for(completion in completions) {
-                    val stringOffset = if(completion.label.getOrNull(0) == '"') 1 else 0
-                    if(completion.label.startsWith(commonTagPrefix, stringOffset)) {
-                        completion.sortText = sortPrefix + (completion.sortText ?: completion.label)
-                        val filterText = completion.filterText ?: completion.label
-                        // Insert spaces after :
-                        completion.filterText = StringBuilder(filterText).insert(stringOffset + commonTagPrefix.length, filterPrefix).toString()
                     }
                 }
             }
