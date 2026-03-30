@@ -13,12 +13,13 @@ import net.minecraft.nbt.TagParser
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.DiagnosticSeverity
 
@@ -70,7 +71,7 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         val nbt: Tag = nbtReader.parseAsArgument(optionsReader)!!
         val tree = treeBuilder.build(nbt)
 
-        StringRangeTree.TreeOperations.forNbt(tree, optionsReader)
+        TreeOperations.forNbt(tree, optionsReader)
             .withRegistry(reader.resourceCreator.registries)
             .withDiagnosticSeverity(DiagnosticSeverity.Error)
             .analyzeFull(result, parameterDecoder)

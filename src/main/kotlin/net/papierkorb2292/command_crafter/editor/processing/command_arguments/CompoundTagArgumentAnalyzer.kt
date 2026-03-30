@@ -10,8 +10,9 @@ import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.DiagnosticSeverity
 
@@ -38,7 +39,7 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`() ?: return
         val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader)
 
-        StringRangeTree.TreeOperations.forNbt(
+        TreeOperations.forNbt(
             tree,
             reader
         ).withDiagnosticSeverity(DiagnosticSeverity.Warning)

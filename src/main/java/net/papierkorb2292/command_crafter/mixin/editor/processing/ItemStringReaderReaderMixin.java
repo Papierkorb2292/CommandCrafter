@@ -23,9 +23,10 @@ import net.minecraft.nbt.*;
 import net.minecraft.resources.RegistryOps;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.*;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -118,7 +119,7 @@ public class ItemStringReaderReaderMixin {
         if(command_crafter$analyzingResult != null) {
             //noinspection unchecked
             final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
-            StringRangeTree.TreeOperations.Companion.forNbt(
+            TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
             ).withRegistry(directiveReader.getResourceCreator().getRegistries())

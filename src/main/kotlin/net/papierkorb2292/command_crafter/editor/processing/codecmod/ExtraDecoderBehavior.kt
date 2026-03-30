@@ -4,9 +4,9 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import org.eclipse.lsp4j.CompletionItem
@@ -93,7 +93,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
         get() = true
 
     interface NodeAnalyzingBehavior<in TNode : Any> {
-        val stringContentGetter: StringRangeTree.StringContentGetter<in TNode>
+        val stringContentGetter: StringContent.StringContentGetter<in TNode>
         val tree: StringRangeTree<in TNode>
         fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult
         fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult

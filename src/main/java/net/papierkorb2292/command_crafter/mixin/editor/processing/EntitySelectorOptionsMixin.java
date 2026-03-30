@@ -25,6 +25,8 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.helper.AnalyzedRegistryEntryList;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
@@ -463,7 +465,7 @@ public class EntitySelectorOptionsMixin {
         var nbt = nbtReader.parseAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
         var decoder = getOrNull(DataObjectDecoding.Companion.getSELECTOR_NBT_DECODER());
-        StringRangeTree.TreeOperations.Companion.forNbt(
+        TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
         ).withBranchBehaviorProvider(BranchBehaviorProvider.Companion.getForPathLookup(null))

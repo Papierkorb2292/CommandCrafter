@@ -19,7 +19,7 @@ import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.TagFinalEntriesValueGetter;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonReader;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonReader;
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness;

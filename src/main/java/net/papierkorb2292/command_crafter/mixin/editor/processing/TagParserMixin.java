@@ -20,9 +20,11 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
 import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
 import net.papierkorb2292.command_crafter.editor.processing.helper.*;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.Range;
@@ -131,12 +133,12 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             method = "lambda$static$0",
             at = @At("HEAD")
     )
-    private static void command_crafter$analyzeFlattenedNbt(String input, CallbackInfoReturnable<DataResult<CompoundTag>> cir, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContentRef) {
+    private static void command_crafter$analyzeFlattenedNbt(String input, CallbackInfoReturnable<DataResult<CompoundTag>> cir, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringContent> stringContentRef) {
         final var dynamic = command_crafter$flattenedCodecInput.get();
         command_crafter$analyzeFlattenedNbtGeneric(dynamic, analyzingResult, stringContentRef);
     }
 
-    private static <T> void command_crafter$analyzeFlattenedNbtGeneric(Dynamic<T> dynamic, LocalRef<AnalyzingResult> analyzingResult, LocalRef<StringRangeTree.StringContent> stringContentRef) {
+    private static <T> void command_crafter$analyzeFlattenedNbtGeneric(Dynamic<T> dynamic, LocalRef<AnalyzingResult> analyzingResult, LocalRef<StringContent> stringContentRef) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(dynamic.getOps());
         if(extraBehavior == null || extraBehavior.getNodeAnalyzingBehavior() == null)
             return;
@@ -163,7 +165,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
 
         final var decoderData = DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue());
         if (decoderData != null) {
-            var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(tree, stringContent.getContent())
+            var treeOps = TreeOperations.Companion.forNbt(tree, stringContent.getContent())
                     .withDiagnosticSeverity(DiagnosticSeverity.Warning)
                     .withRegistry(extraBehavior.getRegistries());
             if(decoderData.getBranchBehaviorOverride() != null)
@@ -177,13 +179,13 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             at = @At("RETURN:FIRST"),
             remap = false
     )
-    private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContent) {
+    private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResult, @Share("stringContent") LocalRef<StringContent> stringContent) {
         final var dynamic = command_crafter$flattenedCodecInput.get();
         command_crafter$finishFlattenedCodecAnalyzingResultGeneric(dynamic, result.isSuccess() ? Integer.MAX_VALUE : s.length(), analyzingResult, stringContent);
         return result;
     }
 
-    private static <T> void command_crafter$finishFlattenedCodecAnalyzingResultGeneric(Dynamic<T> dynamic, int cursor, LocalRef<AnalyzingResult> analyzingResult, LocalRef<StringRangeTree.StringContent> stringContent) {
+    private static <T> void command_crafter$finishFlattenedCodecAnalyzingResultGeneric(Dynamic<T> dynamic, int cursor, LocalRef<AnalyzingResult> analyzingResult, LocalRef<StringContent> stringContent) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(dynamic.getOps());
         if(extraBehavior != null && extraBehavior.getNodeAnalyzingBehavior() != null) {
             extraBehavior.getNodeAnalyzingBehavior().finishNodeAnalyzingResultOverlay(
@@ -200,13 +202,13 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             at = @At("RETURN:LAST"),
             remap = false
     )
-    private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResultRef, @Share("stringContent") LocalRef<StringRangeTree.StringContent> stringContent) {
+    private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception, @Share("analyzingResult") LocalRef<AnalyzingResult> analyzingResultRef, @Share("stringContent") LocalRef<StringContent> stringContent) {
         final var dynamic = command_crafter$flattenedCodecInput.get();
         command_crafter$markFlattenedCodecSyntaxErrorGeneric(dynamic, s, exception, analyzingResultRef, stringContent);
         return result;
     }
 
-    private static <T> void command_crafter$markFlattenedCodecSyntaxErrorGeneric(Dynamic<T> dynamic, String s, CommandSyntaxException exception, LocalRef<AnalyzingResult> analyzingResultRef, LocalRef<StringRangeTree.StringContent> stringContent) {
+    private static <T> void command_crafter$markFlattenedCodecSyntaxErrorGeneric(Dynamic<T> dynamic, String s, CommandSyntaxException exception, LocalRef<AnalyzingResult> analyzingResultRef, LocalRef<StringContent> stringContent) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(dynamic.getOps());
         if(extraBehavior == null)
             return;

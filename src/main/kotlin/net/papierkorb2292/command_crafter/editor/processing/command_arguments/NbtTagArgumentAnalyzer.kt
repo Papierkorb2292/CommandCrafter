@@ -8,11 +8,12 @@ import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
 class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
@@ -35,7 +36,7 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
         (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
         val nbt = nbtReader.parseAsArgument(reader)
         val tree: StringRangeTree<Tag> = treeBuilder.build(nbt)
-        StringRangeTree.TreeOperations.forNbt(
+        TreeOperations.forNbt(
             tree,
             reader
         ).analyzeFull(result)

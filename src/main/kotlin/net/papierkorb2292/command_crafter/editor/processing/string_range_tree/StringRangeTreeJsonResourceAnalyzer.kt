@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.Decoder
@@ -9,6 +9,9 @@ import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -33,7 +36,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         } else null
         val analyzingResult = if(tagRegistry != null) {
             CURRENT_TAG_ANALYZING_REGISTRY.runWithValue(tagRegistry) {
-                Companion.analyze(file, languageServer, fileDecoder)
+                analyze(file, languageServer, fileDecoder)
             }
         } else Companion.analyze(file, languageServer, fileDecoder)
         return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(
@@ -63,8 +66,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
-            DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
-                StringRangeTree.TreeOperations.forJson(
+            DataObjectDecoding.Companion.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
+                TreeOperations.forJson(
                     parsedStringRangeTree,
                     concatenatedLines
                 ).withRegistry(languageServer.dynamicRegistryManager)

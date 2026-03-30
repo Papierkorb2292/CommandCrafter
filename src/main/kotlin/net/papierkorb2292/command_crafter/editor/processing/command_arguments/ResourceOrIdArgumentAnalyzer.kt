@@ -14,9 +14,9 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer.analyzeForId
 import net.papierkorb2292.command_crafter.editor.processing.NbtSuggestionResolver
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.PartialBuilder
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.TreeOperations
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree.PartialBuilder
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.StringRangeTreeBranchingArgument

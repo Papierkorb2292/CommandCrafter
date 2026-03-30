@@ -6,7 +6,7 @@ import net.papierkorb2292.command_crafter.editor.FeatureConfig
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
@@ -221,7 +221,7 @@ class AnalyzingResult(
         )
     }
 
-    fun withStringEscaperActual(escaper: StringRangeTree.StringEscaper): AnalyzingResult {
+    fun withStringEscaperActual(escaper: StringEscaper): AnalyzingResult {
         return AnalyzingResult(
             mappingInfo,
             semanticTokens,
@@ -235,7 +235,7 @@ class AnalyzingResult(
         )
     }
 
-    fun withStringEscaperPotential(escaper: StringRangeTree.StringEscaper): AnalyzingResult {
+    fun withStringEscaperPotential(escaper: StringEscaper): AnalyzingResult {
         return AnalyzingResult(
             mappingInfo,
             semanticTokens,

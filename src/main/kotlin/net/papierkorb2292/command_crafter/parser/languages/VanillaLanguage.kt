@@ -58,6 +58,9 @@ import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -1450,7 +1453,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 treeBuilder.addNode(tree.root, StringRange(rootRange.start - 1, rootRange.end), rootRange.start - 1)
                 tree = treeBuilder.build(nbt)
             }
-            StringRangeTree.TreeOperations.forNbt(tree, malformedReader)
+            TreeOperations.forNbt(tree, malformedReader)
                 // Don't escape 'this' string for function references, '![]' for registry tags and remove empty string completion
                 .withSuggestionResolver(NbtSuggestionResolver(malformedReader) { it.value != "this" && it.value != "![]" && it.value.isNotEmpty() })
                 .analyzeFull(analyzingResult, contentDecoder = decoder)

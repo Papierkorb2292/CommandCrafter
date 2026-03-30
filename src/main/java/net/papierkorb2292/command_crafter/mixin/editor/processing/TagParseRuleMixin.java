@@ -12,11 +12,12 @@ import net.minecraft.util.parsing.packrat.commands.TagParseRule;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -77,7 +78,7 @@ public class TagParseRuleMixin<T> {
             if(analyzingResultArg != null) {
                 //noinspection unchecked
                 var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input();
-                var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(tree, directiveReader)
+                var treeOps = TreeOperations.Companion.forNbt(tree, directiveReader)
                         .withRegistry(directiveReader.getResourceCreator().getRegistries());
                 var registryTreeOps = treeOps.withOps(ops);
                 registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), decoder);

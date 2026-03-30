@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.google.gson.*
 import com.google.gson.internal.LazilyParsedNumber
@@ -6,6 +6,7 @@ import com.google.gson.internal.Streams
 import com.google.gson.stream.JsonWriter
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.StreamCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
 import net.papierkorb2292.command_crafter.editor.processing.helper.filterCompletionTrigger
@@ -276,7 +277,12 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             val replaceEnd = tree.ranges[node]!!.end
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
-                StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Value) {
+                StreamCompletionItemProvider(
+                    suggestionRange.end,
+                    { replaceEnd },
+                    mappingInfo,
+                    CompletionItemKind.Value
+                ) {
                     suggestionProviders.stream().flatMap { it.getValue() }.distinct().map { suggestion ->
                         val stringWriter = StringWriter()
                         val jsonWriter = JsonWriter(stringWriter)
@@ -306,7 +312,12 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
             val replaceEnd = keyEndParser(suggestionRange)
             return StringRangeTree.ResolvedSuggestion(
                 replaceEnd,
-                StreamCompletionItemProvider(suggestionRange.end, { replaceEnd }, mappingInfo, CompletionItemKind.Property) {
+                StreamCompletionItemProvider(
+                    suggestionRange.end,
+                    { replaceEnd },
+                    mappingInfo,
+                    CompletionItemKind.Property
+                ) {
                     val existingKeys = tree.mapKeyRanges.getOrElse(map, ::emptyList).asSequence()
                         .filter { it.second.start != suggestionRange.end } // Allow suggesting the key that the cursor is at
                         .map { it.first }
@@ -324,8 +335,8 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }
     }
 
-    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): StringRangeTree.StringContentGetter<JsonElement> {
-        override fun getStringContent(node: JsonElement): StringRangeTree.StringContent? {
+    class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): StringContent.StringContentGetter<JsonElement> {
+        override fun getStringContent(node: JsonElement): StringContent? {
             if(node !is JsonPrimitive || !node.isString)
                 return null
             val range = tree.ranges[node]!!
@@ -340,10 +351,10 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         input.substring(range.start + 1, range.end)
                 else
                     input.substring(range.start, range.end)
-            return StringRangeTree.StringContent(
+            return StringContent(
                 node.asString,
                 createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
-                if(isQuoted) StringRangeTree.StringEscaper.escapeForQuotes(firstChar.toString()) else StringRangeTree.StringEscaper.Identity
+                if(isQuoted) StringEscaper.escapeForQuotes(firstChar.toString()) else StringEscaper.Identity
             )
         }
     }

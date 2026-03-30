@@ -3,9 +3,12 @@ package net.papierkorb2292.command_crafter.editor.processing
 import net.minecraft.nbt.StringTag
 import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 
-class NbtStringContentGetter(val tree: StringRangeTree<Tag>, val input: String): StringRangeTree.StringContentGetter<Tag> {
-    override fun getStringContent(node: Tag): StringRangeTree.StringContent? {
+class NbtStringContentGetter(val tree: StringRangeTree<Tag>, val input: String): StringContent.StringContentGetter<Tag> {
+    override fun getStringContent(node: Tag): StringContent? {
         if(node !is StringTag)
             return null
         val range = tree.ranges[node]!!
@@ -20,10 +23,10 @@ class NbtStringContentGetter(val tree: StringRangeTree<Tag>, val input: String):
                     input.substring(range.start + 1, range.end)
             } else
                 input.substring(range.start, range.end)
-        return StringRangeTree.StringContent(
+        return StringContent(
             node.value,
             createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
-            if(isQuoted) StringRangeTree.StringEscaper.escapeForQuotes(firstChar.toString()) else StringRangeTree.StringEscaper.Identity
+            if(isQuoted) StringEscaper.escapeForQuotes(firstChar.toString()) else StringEscaper.Identity
         )
     }
 }

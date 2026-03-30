@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.serialization.JsonOps;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -24,7 +24,7 @@ public class JsonOpsMixin {
             remap = false
     )
     private static boolean command_crafter$allowJsonNullForStringRangeTree(Object element, Operation<Boolean> op) {
-        final var isAnalyzingDecoder = getOrNull(StringRangeTree.TreeOperations.Companion.getIS_ANALYZING_DECODER());
+        final var isAnalyzingDecoder = getOrNull(TreeOperations.Companion.getIS_ANALYZING_DECODER());
         if(isAnalyzingDecoder != null && isAnalyzingDecoder)
             return false;
         return op.call(element);

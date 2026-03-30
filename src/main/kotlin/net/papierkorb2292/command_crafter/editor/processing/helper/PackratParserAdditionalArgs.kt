@@ -7,7 +7,7 @@ import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.nbt.Tag
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 

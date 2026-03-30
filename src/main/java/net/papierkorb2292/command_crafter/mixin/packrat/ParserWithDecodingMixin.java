@@ -17,8 +17,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.util.parsing.packrat.commands.CommandArgumentParser;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -81,7 +82,7 @@ public class ParserWithDecodingMixin<T> {
             }
 
             var tree = treeBuilder.build(nbt);
-            StringRangeTree.TreeOperations.Companion.forNbt(
+            TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
             ).withRegistry(((AnalyzingResourceCreator)directiveReader.getResourceCreator()).getRegistries())
