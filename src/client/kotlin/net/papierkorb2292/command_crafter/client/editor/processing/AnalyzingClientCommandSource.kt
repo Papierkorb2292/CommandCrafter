@@ -18,7 +18,6 @@ import net.minecraft.world.flag.FeatureFlagSet
 import net.minecraft.world.level.Level
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -32,7 +31,7 @@ import java.util.stream.Stream
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientSuggestionProvider,
     private val hasNetworkHandler: Boolean,
-    private val languageServer: MinecraftLanguageServer,
+    private val registries: RegistryAccess,
 ) : SharedSuggestionProvider, PermissionSetSupplier {
 
     var fullInput: DirectiveStringReader<AnalyzingResourceCreator>? = null
@@ -46,7 +45,7 @@ class AnalyzingClientCommandSource(
         fun setupCompletionContextSetter() {
             VanillaLanguage.completionCommandSourceProvider = { source, fullInput, context ->
                 if(source is AnalyzingClientCommandSource) {
-                    AnalyzingClientCommandSource(source.clientCommandSource, source.hasNetworkHandler, source.languageServer).apply {
+                    AnalyzingClientCommandSource(source.clientCommandSource, source.hasNetworkHandler, source.registries).apply {
                         this.fullInput = fullInput
                         this.completionContext = context
                     }
@@ -55,11 +54,11 @@ class AnalyzingClientCommandSource(
         }
     }
 
-    constructor(minecraftClient: Minecraft, languageServer: MinecraftLanguageServer): this(
+    constructor(minecraftClient: Minecraft, registries: RegistryAccess): this(
         minecraftClient.connection?.suggestionsProvider
             ?: ClientSuggestionProvider(Util.nullIsFine<ClientPacketListener>(null), minecraftClient, PermissionSet.ALL_PERMISSIONS),
         minecraftClient.connection != null,
-        languageServer
+        registries,
     )
 
     override fun getOnlinePlayerNames(): Collection<String> =
@@ -74,7 +73,7 @@ class AnalyzingClientCommandSource(
     // Note: There are some 'registries' parsed by LoadedClientsideRegistries that are not synced
     // when connecting to a server. Advancements and recipes will be in registryAccess() only if the player is not connected
     // to a server with CommandCrafter.
-    override fun registryAccess(): RegistryAccess = languageServer.dynamicRegistryManager
+    override fun registryAccess(): RegistryAccess = registries
     override fun enabledFeatures(): FeatureFlagSet =
         if(hasNetworkHandler) clientCommandSource.enabledFeatures() else ClientCommandCrafter.defaultFeatureSet
 

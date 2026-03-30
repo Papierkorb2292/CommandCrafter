@@ -12,6 +12,7 @@ import kotlin.io.path.writer
 
 class CommandCrafterConfig private constructor(
     servicesPort: Int,
+    addIngameSuggestions: Boolean,
     val runDedicatedServerServices: Boolean,
     val configPath: Path
 ) {
@@ -21,6 +22,11 @@ class CommandCrafterConfig private constructor(
             saveToFile()
             servicesPortChangedListeners.forEach { it(value) }
         }
+    var addIngameSuggestions = addIngameSuggestions
+        set(value) {
+            field = value
+            saveToFile()
+        }
 
     private val servicesPortChangedListeners = mutableListOf<(Int) -> Unit>()
 
@@ -29,11 +35,14 @@ class CommandCrafterConfig private constructor(
 
         val SERVICES_PORT_NAME = "services-port"
         private val DEFAULT_SERVICES_PORT = 52853
+        val ADD_INGAME_SUGGEESTIONS_NAME = "add-ingame-suggestions"
+        private val DEFAULT_ADD_INGAME_SUGGESTIONS = true
         val RUN_DEDICATED_SERVER_SERVICES_NAME = "run-dedicated-server-services"
         private val DEFAULT_RUN_DEDICATED_SERVER_SERVICES = false
 
         private val CONFIG_DEFAULTS = Properties().apply {
             setProperty(SERVICES_PORT_NAME, DEFAULT_SERVICES_PORT.toString())
+            setProperty(ADD_INGAME_SUGGEESTIONS_NAME, DEFAULT_ADD_INGAME_SUGGESTIONS.toString())
             setProperty(RUN_DEDICATED_SERVER_SERVICES_NAME, DEFAULT_RUN_DEDICATED_SERVER_SERVICES.toString())
         }
 
@@ -48,7 +57,12 @@ class CommandCrafterConfig private constructor(
                 runServersideServices = DEFAULT_RUN_DEDICATED_SERVER_SERVICES
                 CommandCrafter.LOGGER.warn("Encountered invalid run-serverside-services value in config file, using default value $DEFAULT_RUN_DEDICATED_SERVER_SERVICES")
             }
-            val config = CommandCrafterConfig(servicesPort, runServersideServices, configPath)
+            var addIngameSuggestions = properties.getProperty(ADD_INGAME_SUGGEESTIONS_NAME).toBooleanStrictOrNull()
+            if(addIngameSuggestions == null) {
+                addIngameSuggestions = DEFAULT_ADD_INGAME_SUGGESTIONS
+                CommandCrafter.LOGGER.warn("Encountered invalid add-ingame-suggestion value in config file, using default value $DEFAULT_ADD_INGAME_SUGGESTIONS")
+            }
+            val config = CommandCrafterConfig(servicesPort, addIngameSuggestions, runServersideServices, configPath)
             if(configVersion != CommandCrafter.VERSION) {
                 CommandCrafter.LOGGER.info("Updating old config file to new version: ${CommandCrafter.VERSION}")
                 config.saveToFile()
@@ -59,7 +73,7 @@ class CommandCrafterConfig private constructor(
         fun fromFile(configPath: Path): CommandCrafterConfig {
             val properties = Properties(CONFIG_DEFAULTS)
             if(configPath.notExists()) {
-                val config = CommandCrafterConfig(DEFAULT_SERVICES_PORT, DEFAULT_RUN_DEDICATED_SERVER_SERVICES, configPath)
+                val config = CommandCrafterConfig(DEFAULT_SERVICES_PORT, DEFAULT_ADD_INGAME_SUGGESTIONS, DEFAULT_RUN_DEDICATED_SERVER_SERVICES, configPath)
                 config.saveToFile()
                 return config
             }
@@ -91,6 +105,9 @@ class CommandCrafterConfig private constructor(
             properties.setProperty(SERVICES_PORT_NAME, servicesPort.toString())
             if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
                 properties.setProperty(RUN_DEDICATED_SERVER_SERVICES_NAME, runDedicatedServerServices.toString())
+            }
+            if(FabricLoader.getInstance().environmentType == EnvType.CLIENT) {
+                properties.setProperty(ADD_INGAME_SUGGEESTIONS_NAME, addIngameSuggestions.toString())
             }
             properties.store(writer, "CommandCrafter Config")
         } catch(e: IOException) {

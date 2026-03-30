@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.ParsedCommandNode
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
@@ -42,6 +44,25 @@ fun limitCommandTreeForSource(commandManager: Commands, source: CommandSourceSta
 }
 
 fun <S> CommandNode<S>.resolveRedirect(): CommandNode<S> = redirect ?: this
+
+fun <S> CommandContext<S>.getContextAtCursor(cursor: Int): CommandContext<S>? {
+    var context: CommandContext<S>? = this
+    while(context != null) {
+        if(context.nodes.isNotEmpty()) {
+            if(cursor <= context.range.end + (context.nodes.last() as CursorOffsetContainer).getCursorOffset()) {
+                // Found the right context
+                return context
+            }
+        }
+        context = context.child
+    }
+    return null
+}
+
+fun <S> CommandContext<S>.getNodeAtCursor(cursor: Int): ParsedCommandNode<S>? =
+    nodes.firstOrNull { node ->
+        cursor <= node.range.end + (node as CursorOffsetContainer).getCursorOffset()
+    }
 
 fun <S> CommandContextBuilder<S>.getLastNodeWithRedirects(): CommandNode<S> {
     val lastChild = this.lastChild

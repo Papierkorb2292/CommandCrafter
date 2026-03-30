@@ -43,7 +43,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.variables.*
 import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
+import net.papierkorb2292.command_crafter.parser.helper.getContextAtCursor
 import net.papierkorb2292.command_crafter.parser.helper.getCursorOffset
+import net.papierkorb2292.command_crafter.parser.helper.getNodeAtCursor
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -508,19 +510,8 @@ fun interface NodeEvaluator {
         ) = object : EvaluationProvider {
             override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
                 // Get the node at the cursor
-                var context: CommandContext<CommandSourceStack>? = command
-                while(context != null) {
-                    if(context.nodes.isNotEmpty()) {
-                        if(cursor <= context.range.end + (context.nodes.last() as CursorOffsetContainer).getCursorOffset()) {
-                            // Found the right context
-                            break
-                        }
-                    }
-                    context = context.child
-                }
-                val node = context?.nodes?.firstOrNull { node ->
-                    cursor <= node.range.end + (node as CursorOffsetContainer).getCursorOffset()
-                }?.node ?: return CompletableFuture.completedFuture(null)
+                val context = command.getContextAtCursor(cursor)
+                val node = context?.getNodeAtCursor(cursor)?.node ?: return CompletableFuture.completedFuture(null)
                 val contextWithSource = context.copyFor(source)
                 val nodeEvaluator = getNodeEvaluator(node, contextWithSource)
                     .withAlternativeForNull(getExecuteConditionEvaluationProvider(contextWithSource, mapper))

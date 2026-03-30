@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
+import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.serialization.DynamicOps
 import net.minecraft.resources.RegistryOps
 import net.minecraft.util.parsing.packrat.Atom
@@ -16,6 +18,7 @@ import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCurso
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.*
+import kotlin.math.min
 
 fun Position.advance() = advance(1)
 fun Position.advance(amount: Int) = Position(line, character + amount)
@@ -164,6 +167,50 @@ fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceC
             TextEdit(insertRange, text)
         )
     }
+}
+
+fun completionItemsToSuggestions(completionItems: List<CompletionItem>, reader: DirectiveStringReader<*>, cursor: Int): Suggestions {
+    val suggestions = mutableListOf<Suggestion>()
+    for(completionItem in completionItems) {
+        val range = completionItem.textEdit?.map({ it.range }, { it.replace })?.let { lspRange ->
+            StringRange(
+                AnalyzingResult.getCursorFromPosition(lspRange.start, reader.fileMappingInfo),
+                AnalyzingResult.getCursorFromPosition(lspRange.end, reader.fileMappingInfo)
+            )
+        } ?: StringRange.at(cursor)
+        val text = completionItem.textEdit?.map( { it.newText}, { it.newText })
+            ?: if(completionItem.insertText.isNullOrEmpty()) completionItem.label else completionItem.insertText
+        suggestions += Suggestion(range, text, if(completionItem.detail != null) completionItem::getDetail else null)
+    }
+    fuzzyMatchSuggestions(suggestions, reader.string, cursor)
+    // Range is only used to determine the display position for the suggestions
+    return Suggestions(StringRange.at(suggestions.minOf { it.range.start }), suggestions)
+}
+
+/**
+ * Filters and sorts the suggestions depending on how well they match the corresponding location in the input.
+ * Only takes into account alphanumeric chars in the input. Other characters like " are ignored.
+ */
+fun fuzzyMatchSuggestions(suggestions: MutableList<Suggestion>, input: String, cursor: Int) {
+    val ratedSuggestions = suggestions.associateWith { suggestion ->
+        var indexSum = 0
+        val insertReader = StringReader(suggestion.text)
+        for(c in input.subSequence(suggestion.range.start, min(suggestion.range.end, cursor))) {
+            if(!c.isLetterOrDigit())
+                continue
+            // Search for the next character. If it's the first character in the range (indexSum == 0), it has to be at the beginning of a word
+            while(insertReader.canRead() && (insertReader.peek() != c || indexSum == 0 && insertReader.cursor > 0 && insertReader.peek(-1).isLetterOrDigit() )) {
+                insertReader.skip()
+            }
+            if(!insertReader.canRead())
+                return@associateWith null // There is a character that the suggestion doesn't contain, so filter the suggestion out
+            insertReader.skip() // Skips the matched character
+            indexSum += insertReader.cursor
+        }
+        indexSum
+    }
+    suggestions.removeIf { ratedSuggestions[it] == null }
+    suggestions.sortBy { ratedSuggestions[it] }
 }
 
 fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCursor: Int): SplitProcessedInputCursorMapper {

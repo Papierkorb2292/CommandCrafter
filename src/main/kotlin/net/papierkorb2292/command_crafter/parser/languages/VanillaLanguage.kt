@@ -813,19 +813,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    fun <TArgumentType: ArgumentType<*>> callArgumentAnalyzerUnchecked(
-        analyzer: CommandArgumentAnalyzerService<TArgumentType>,
-        context: CommandContext<SharedSuggestionProvider>,
-        type: ArgumentType<*>,
-        range: StringRange,
-        name: String,
-        reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        result: AnalyzingResult,
-    ) {
-        @Suppress("UNCHECKED_CAST")
-        analyzer.analyze(context, type as TArgumentType, range, name, reader, result)
-    }
-
 
     private fun addNodeSuggestions(
         parentNode: ParsedCommandNode<SharedSuggestionProvider>,
@@ -1119,6 +1106,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         fun isReaderInlineResources(reader: ImmutableStringReader): Boolean {
             return reader is DirectiveStringReader<*> && reader.currentLanguage is VanillaLanguage && (reader.currentLanguage as VanillaLanguage).inlineResources
+        }
+
+        fun <TArgumentType: ArgumentType<*>> callArgumentAnalyzerUnchecked(
+            analyzer: CommandArgumentAnalyzerService<TArgumentType>,
+            context: CommandContext<SharedSuggestionProvider>,
+            type: ArgumentType<*>,
+            range: StringRange,
+            name: String,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            result: AnalyzingResult,
+        ) {
+            @Suppress("UNCHECKED_CAST")
+            analyzer.analyze(context, type as TArgumentType, range, name, reader, result)
         }
 
         private val tagEntryListCodec = TagEntry.CODEC.listOf()
