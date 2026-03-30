@@ -111,7 +111,10 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                     .map { it.first }
                     .toSet()
                 suggestionProviders.stream().flatMap { it.getValue() }.distinct()
-                    .filter { it.element !in existingKeys }
+                    .filter {
+                        it.element !in existingKeys &&
+                                !(it.element is StringTag && it.element.value.isEmpty()) // Don't suggest empty strings as keys, because the parser doesn't accept them
+                    }
                     .map { suggestion ->
                         val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
                         // Similar to StringNbtWriter.escapeName
