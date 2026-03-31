@@ -42,6 +42,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmitti
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ScoreboardFileAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult

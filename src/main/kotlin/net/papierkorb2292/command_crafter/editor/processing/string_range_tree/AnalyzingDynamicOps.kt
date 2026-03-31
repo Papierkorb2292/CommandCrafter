@@ -6,9 +6,7 @@ import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.MapLike
 import net.minecraft.core.RegistryAccess
-import net.papierkorb2292.command_crafter.editor.processing.AccessedKeysWatcherDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
-import net.papierkorb2292.command_crafter.editor.processing.DelegatingDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps

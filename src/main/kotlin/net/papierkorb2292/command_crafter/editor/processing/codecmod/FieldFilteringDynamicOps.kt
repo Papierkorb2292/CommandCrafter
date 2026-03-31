@@ -4,7 +4,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.MapLike
-import net.papierkorb2292.command_crafter.editor.processing.DelegatingDynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DelegatingDynamicOps
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.stream.Stream

@@ -1,11 +1,8 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import net.minecraft.nbt.StringTag
 import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.processing.helper.createCursorMapperForEscapedCharacters
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 
 class NbtStringContentGetter(val tree: StringRangeTree<Tag>, val input: String): StringContent.StringContentGetter<Tag> {
     override fun getStringContent(node: Tag): StringContent? {

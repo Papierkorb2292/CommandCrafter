@@ -4,7 +4,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
-import net.papierkorb2292.command_crafter.editor.processing.AccessedKeysWatcherDynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.AccessedKeysWatcherDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode

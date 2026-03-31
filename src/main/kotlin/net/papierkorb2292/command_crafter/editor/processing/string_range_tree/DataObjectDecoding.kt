@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.authlib.GameProfile
 import com.mojang.brigadier.context.CommandContext
@@ -33,6 +33,9 @@ import net.minecraft.world.level.block.entity.BlockEntityType
 import net.minecraft.world.level.storage.ValueInput
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.Util
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
@@ -44,6 +47,7 @@ import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import java.util.*
 import java.util.function.Predicate
+import kotlin.collections.get
 import kotlin.jvm.optionals.getOrNull
 
 class DataObjectDecoding(private val registries: RegistryAccess) {
@@ -85,7 +89,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         private val entitiesWithError = mutableSetOf<EntityType<*>>()
 
         fun registerAdditionalDataTypes() {
-            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
+            ArgumentTypeAdditionalDataSerializer.Companion.registerAdditionalDataType(
                 Identifier.fromNamespaceAndPath("command_crafter", "data_object_source"),
                 { argumentType ->
                     if(argumentType is DataObjectSourceContainer) {
@@ -99,7 +103,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     } else false
                 }, DATA_OBJECT_SOURCE_PACKET_CODEC.cast(), DATA_OBJECT_SOURCE_CODEC
             )
-            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
+            ArgumentTypeAdditionalDataSerializer.Companion.registerAdditionalDataType(
                 Identifier.fromNamespaceAndPath("command_crafter", "non_player_selector"),
                 { argumentType ->
                     if(argumentType is IsNonPlayerSelector) {
@@ -404,8 +408,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String) {
         fun getNBTBranchBehavior(): BranchBehaviorProvider<Tag> = when(kind) {
             DataObjectSourceKind.ENTITY_SUMMON -> BranchBehaviorProvider.Decode
-            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
-            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
+            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.Companion.getNBTMerge()
+            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.Companion.getNBTMerge()
         }
     }
 

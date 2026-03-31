@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType

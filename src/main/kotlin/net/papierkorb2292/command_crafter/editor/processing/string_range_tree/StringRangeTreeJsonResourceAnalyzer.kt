@@ -9,7 +9,6 @@ import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult

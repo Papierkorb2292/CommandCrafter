@@ -1,9 +1,9 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.serialization.DataResult
 import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.ParentLinks
 
 /**
  * Only calls the delegate for the start and result of the first decoder that a node is passed.

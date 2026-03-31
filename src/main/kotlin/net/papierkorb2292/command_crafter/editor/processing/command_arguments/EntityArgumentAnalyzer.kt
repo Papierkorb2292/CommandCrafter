@@ -9,7 +9,7 @@ import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.player.Player
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer

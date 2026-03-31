@@ -26,6 +26,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;

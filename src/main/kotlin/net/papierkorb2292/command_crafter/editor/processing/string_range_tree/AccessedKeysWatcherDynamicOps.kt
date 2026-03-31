@@ -1,11 +1,10 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.MapLike
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.ParentLinks
 import java.util.*
 import java.util.function.BiConsumer
 import java.util.function.Consumer

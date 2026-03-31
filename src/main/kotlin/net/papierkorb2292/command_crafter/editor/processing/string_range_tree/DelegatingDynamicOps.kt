@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*

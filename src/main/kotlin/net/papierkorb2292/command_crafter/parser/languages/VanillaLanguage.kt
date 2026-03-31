@@ -58,6 +58,7 @@ import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations

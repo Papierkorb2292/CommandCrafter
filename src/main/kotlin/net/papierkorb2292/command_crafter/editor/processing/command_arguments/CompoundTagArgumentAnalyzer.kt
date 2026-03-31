@@ -9,7 +9,7 @@ import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations

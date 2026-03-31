@@ -1,10 +1,11 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
 import java.util.function.Consumer
 
-class ListPlaceholderRemovingDynamicOps<T>(private val placeholders: Set<T>, override val delegate: DynamicOps<T>): DelegatingDynamicOps<T> {
+class ListPlaceholderRemovingDynamicOps<T>(private val placeholders: Set<T>, override val delegate: DynamicOps<T>):
+    DelegatingDynamicOps<T> {
     override fun getList(input: T): DataResult<Consumer<Consumer<T>>> {
         return delegate.getList(input).map { list ->
             Consumer { visitor ->

@@ -12,7 +12,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryFileCodec
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer.analyzeForId
-import net.papierkorb2292.command_crafter.editor.processing.NbtSuggestionResolver
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree.PartialBuilder

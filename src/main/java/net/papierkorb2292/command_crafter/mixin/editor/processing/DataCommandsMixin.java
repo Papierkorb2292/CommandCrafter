@@ -7,7 +7,7 @@ import net.minecraft.commands.arguments.CompoundTagArgument;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.server.commands.data.DataCommands;
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

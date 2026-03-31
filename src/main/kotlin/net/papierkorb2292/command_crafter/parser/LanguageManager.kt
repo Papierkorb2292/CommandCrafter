@@ -32,6 +32,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations.Companion.forNbt
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
@@ -429,7 +430,13 @@ object LanguageManager {
                     treeBuilder.build(nbt),
                     allowMalformedReader
                 )
-                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.value.any { c -> !StringReader.isAllowedInUnquotedString(c) } })
+                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) {
+                        it.value.any { c ->
+                            !StringReader.isAllowedInUnquotedString(
+                                c
+                            )
+                        }
+                    })
                     .analyzeFull(analyzingResult, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()

@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.processing
+package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
@@ -7,10 +7,10 @@ import net.minecraft.util.parsing.packrat.Atom
 import net.minecraft.util.parsing.packrat.ErrorCollector
 import net.minecraft.util.parsing.packrat.commands.Grammar
 import net.minecraft.util.parsing.packrat.commands.StringReaderParserState
+import net.papierkorb2292.command_crafter.editor.processing.StreamCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.getSymbolByName
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -73,7 +73,10 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
                             }.toString()
                         } else if(suggestion.preferHex && suggestion.element is IntTag) {
                             "0x" + suggestion.element.value.toUInt().toString(16).uppercase()
-                        } else if(node != tree.root || suggestion.element !is StringTag || quoteRootStringPredicate?.invoke(suggestion.element) ?: true)
+                        } else if(node != tree.root || suggestion.element !is StringTag || quoteRootStringPredicate?.invoke(
+                                suggestion.element
+                            ) ?: true
+                        )
                             suggestion.element.toString()
                         else
                             suggestion.element.value

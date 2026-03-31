@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.ResourceKey;
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

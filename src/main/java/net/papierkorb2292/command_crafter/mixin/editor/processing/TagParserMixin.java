@@ -19,7 +19,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
-import net.papierkorb2292.command_crafter.editor.processing.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
