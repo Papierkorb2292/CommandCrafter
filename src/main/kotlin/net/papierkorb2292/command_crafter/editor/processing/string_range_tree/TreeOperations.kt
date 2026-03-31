@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.google.gson.JsonElement
 import com.mojang.serialization.Decoder
+import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.JsonOps
 import net.minecraft.core.RegistryAccess
@@ -90,18 +91,15 @@ data class TreeOperations<TNode: Any>(
     }
 
     fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
-        val (accessedKeysWatcher, ops) = wrapDynamicOps(
-            registryAccess?.createSerializationContext(ops) ?: ops,
-            ::AccessedKeysWatcherDynamicOps
-        )
+        val registryOps = registryAccess?.createSerializationContext(ops) ?: ops
+        val (accessedKeysWatcher, ops) = wrapDynamicOps(registryOps, ::AccessedKeysWatcherDynamicOps)
         val (_, filteredOps) = wrapDynamicOps(ops) {
             ListPlaceholderRemovingDynamicOps(
                 stringRangeTree.placeholderNodes,
                 it
             )
         }
-        val errorCallback =
-            LeafErrorDecoderCallback(stringRangeTree, accessedKeysWatcher, branchBehaviorProvider, registryAccess)
+        val errorCallback = LeafErrorDecoderCallback(Dynamic(registryOps, stringRangeTree.root), stringRangeTree, accessedKeysWatcher, branchBehaviorProvider, registryAccess)
         val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
         IS_ANALYZING_DECODER.runWithValueSwap(true) {
             ExtraDecoderBehavior.Companion.decodeWithBehavior(

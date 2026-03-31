@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.brigadier.context.StringRange
+import com.mojang.serialization.Dynamic
+import com.mojang.serialization.DynamicOps
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
 import net.papierkorb2292.command_crafter.editor.processing.AccessedKeysWatcherDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
@@ -11,9 +13,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.compareToExcl
 import net.papierkorb2292.command_crafter.helper.appendNullable
 import net.papierkorb2292.command_crafter.helper.concatNullable
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Range
 import java.util.*
 import kotlin.collections.ArrayDeque
 import kotlin.collections.ArrayList
@@ -21,7 +20,6 @@ import kotlin.collections.Collection
 import kotlin.collections.List
 import kotlin.collections.Map
 import kotlin.collections.MutableCollection
-import kotlin.collections.MutableList
 import kotlin.collections.MutableMap
 import kotlin.collections.Set
 import kotlin.collections.associateTo
@@ -29,21 +27,18 @@ import kotlin.collections.contains
 import kotlin.collections.emptyList
 import kotlin.collections.flatMap
 import kotlin.collections.forEach
+import kotlin.collections.get
 import kotlin.collections.isNotEmpty
 import kotlin.collections.last
 import kotlin.collections.listOf
 import kotlin.collections.map
 import kotlin.collections.mapIndexed
-import kotlin.collections.mapNotNull
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
 import kotlin.collections.mutableSetOf
-import kotlin.collections.plus
 import kotlin.collections.plusAssign
 import kotlin.collections.reversed
 import kotlin.collections.set
-import kotlin.collections.sumOf
-import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
 
@@ -209,8 +204,12 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    fun getParent(child: TNode, accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>? = null): TNode? =
-        parentNodes[child] ?: accessedKeysWatcher?.keyToMap[child]
+    fun getParentLinks(ops: DynamicOps<TNode>) = object : ParentLinks {
+        override fun getParent(node: Any): Dynamic<*>? {
+            val parent = parentNodes[node] ?: return null
+            return Dynamic(ops, parent)
+        }
+    }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
 

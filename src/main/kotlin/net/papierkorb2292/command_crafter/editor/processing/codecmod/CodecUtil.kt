@@ -69,9 +69,9 @@ fun <T> Decoder<T>.decodeParent() = object : Decoder<T> {
         ops: DynamicOps<A>,
         input: A,
     ): DataResult<Pair<T, A>> {
-        val parent = ExtraDecoderBehavior.getCurrentBehavior(ops)?.getParent(input)
+        val parent = ExtraDecoderBehavior.getCurrentBehavior(ops)?.parentLinks?.getParent(input)
             ?: return DataResult.error { "Node doesn't have parent" }
-        return this@decodeParent.decode(ops, parent)
+        return parent.decode(this@decodeParent).map { it.mapSecond { ops.empty() } }
     }
 }
 

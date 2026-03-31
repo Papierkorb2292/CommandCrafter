@@ -2,8 +2,10 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.DataResult
+import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.MapLike
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.ParentLinks
 import java.util.*
 import java.util.function.BiConsumer
 import java.util.function.Consumer
@@ -65,5 +67,12 @@ class AccessedKeysWatcherDynamicOps<T>(override val delegate: DynamicOps<T>): De
     override fun getGeneric(input: T, key: T): DataResult<T> {
         addAccessedKey(input, key)
         return delegate.getGeneric(input, key)
+    }
+
+    fun getParentLinks(ops: DynamicOps<T>) = object : ParentLinks {
+        override fun getParent(node: Any): Dynamic<*>? {
+            val map = keyToMap[node as Any?]
+            return if(map != null) Dynamic(ops, map) else null
+        }
     }
 }

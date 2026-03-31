@@ -34,7 +34,10 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     override var tree = tree
         private set
 
-    internal var accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>? = null
+    override var parentLinks: ParentLinks? = null
+        private set
+    var accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>? = null
+        private set
 
     companion object {
         private const val EMPTY_MAP_PLACEHOLDER_KEY = "command_crafter:empty_map_placeholder"
@@ -65,6 +68,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                 ::AccessedKeysWatcherDynamicOps
             )
             analyzingOps.accessedKeysWatcher = accessedKeysWatcher
+            analyzingOps.parentLinks = treeOperations.stringRangeTree.getParentLinks(delegate).withFallback(accessedKeysWatcher.getParentLinks(delegate))
             return analyzingOps to wrappedAccessedKeysWatcherOps
         }
     }
@@ -351,8 +355,6 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
 
     override val decodeNonCanonical: Boolean
         get() = branchBehaviorProvider.shouldDecodeNonCanonical()
-
-    override fun getParent(child: TNode): TNode? = tree.getParent(child, accessedKeysWatcher)
 
     data class NodeAnalyzingResult(val analyzingResult: AnalyzingResult, val escaper: StringEscaper? = null) {
         companion object {

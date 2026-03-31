@@ -5,6 +5,7 @@ import com.mojang.serialization.*
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.ParentLinks
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -73,6 +74,9 @@ interface ExtraDecoderBehavior<TNode : Any> {
     val registries: RegistryAccess?
         get() = null
 
+    val parentLinks: ParentLinks?
+        get() = null
+
     fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {}
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
@@ -83,8 +87,6 @@ interface ExtraDecoderBehavior<TNode : Any> {
     fun markCompletelyAccessed(input: TNode) {}
 
     fun notePossibleValues(input: TNode, provider: PossibleValue.Provider<TNode>, shouldSuggest: Boolean = true) {}
-
-    fun getParent(child: TNode): TNode? = null
 
     val nodeAnalyzingBehavior: NodeAnalyzingBehavior<TNode>?
         get() = null

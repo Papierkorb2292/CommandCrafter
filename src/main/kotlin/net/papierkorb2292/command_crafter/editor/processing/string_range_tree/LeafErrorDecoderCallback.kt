@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.DataResult
+import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.processing.AccessedKeysWatcherDynamicOps
@@ -22,6 +23,7 @@ import java.util.*
  * to only the nodes with errors. In other words, errors from a node are ignored if its children already have errors.
  */
 class LeafErrorDecoderCallback<TNode : Any>(
+    private val root: Dynamic<TNode>,
     private val stringRangeTree: StringRangeTree<TNode>,
     private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
@@ -31,7 +33,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
     private val lateAdditionMergers = ArrayList<() -> Unit>()
     private val completelyAccessedNodes = Collections.newSetFromMap<TNode>(IdentityHashMap())
     init {
-        stack.add(ErrorStackEntry(stringRangeTree.root))
+        stack.add(ErrorStackEntry(root.value))
     }
     private fun getNodeRange(node: TNode): StringRange? {
         stringRangeTree.ranges[node]?.let {
@@ -108,7 +110,8 @@ class LeafErrorDecoderCallback<TNode : Any>(
         return result
     }
 
-    override fun getParent(child: TNode): TNode? = stringRangeTree.getParent(child, accessedKeysWatcherDynamicOps)
+    override val parentLinks: ParentLinks =
+        stringRangeTree.getParentLinks(root.ops).withFallback(accessedKeysWatcherDynamicOps.getParentLinks(root.ops))
 
     override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
         val stackCopy = ArrayList(stack)
@@ -159,7 +162,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
         for(i in lateAdditionMergers.lastIndex downTo 0)
             lateAdditionMergers[i].invoke()
         val nodeDiagnostics = stack.last().getAllDiagnostics()
-        addMapUnknownKeyDiagnostics(stringRangeTree.root, nodeDiagnostics)
+        addMapUnknownKeyDiagnostics(root.value, nodeDiagnostics)
         return nodeDiagnostics.build(fileMappingInfo, severity)
     }
 
