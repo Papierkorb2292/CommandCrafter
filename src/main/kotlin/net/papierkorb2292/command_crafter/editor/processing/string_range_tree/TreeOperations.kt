@@ -8,7 +8,7 @@ import com.mojang.serialization.JsonOps
 import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
-import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
@@ -109,6 +109,10 @@ data class TreeOperations<TNode: Any>(
                 FirstDecoderExtraBehavior(errorCallback)
             )
         }
-        analyzingResult.diagnostics += errorCallback.generateDiagnostics(analyzingResult.mappingInfo, severity)
+        analyzingResult.diagnostics += errorCallback.generateDiagnostics(
+            { stringRangeTree.getErrorRangeOrThrow(it, accessedKeysWatcher) },
+            analyzingResult.mappingInfo,
+            severity
+        )
     }
 }

@@ -4,7 +4,6 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.AccessedKeysWatcherDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
@@ -25,6 +24,7 @@ import kotlin.collections.Set
 import kotlin.collections.associateTo
 import kotlin.collections.contains
 import kotlin.collections.emptyList
+import kotlin.collections.firstOrNull
 import kotlin.collections.flatMap
 import kotlin.collections.forEach
 import kotlin.collections.get
@@ -209,6 +209,19 @@ class StringRangeTree<TNode: Any>(
             val parent = parentNodes[node] ?: return null
             return Dynamic(ops, parent)
         }
+    }
+
+    fun getErrorRangeOrThrow(node: TNode, accessedKeys: AccessedKeysWatcherDynamicOps<TNode>): StringRange {
+        val nodeRange = ranges[node]
+        if(nodeRange != null)
+            return nodeRange
+        val map = accessedKeys.keyToMap[node]
+        if(map != null) {
+            val keyRange = mapKeyRanges[map]?.firstOrNull { it.first == node }?.second
+            if(keyRange != null)
+                return keyRange
+        }
+        throw IllegalStateException("No tree range found for node or key $node")
     }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
