@@ -143,11 +143,14 @@ class LeafErrorDecoderCallback<TNode : Any>(
         next.offerChild(popped.node, popped.getAllDiagnostics())
     }
 
+    fun processUnknownKeys() {
+        addMapUnknownKeyDiagnostics(root.value, stack.last().getAllDiagnostics())
+    }
+
     fun generateDiagnostics(ranges: NodeErrorRangeProvider<TNode>, fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
         for(i in lateAdditionMergers.lastIndex downTo 0)
             lateAdditionMergers[i].invoke()
         val nodeDiagnostics = stack.last().getAllDiagnostics()
-        addMapUnknownKeyDiagnostics(root.value, nodeDiagnostics)
         return nodeDiagnostics.build(ranges, fileMappingInfo, severity)
     }
 
@@ -266,7 +269,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
             fun createDiagnostic(ranges: NodeErrorRangeProvider<TNode>, fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity): Diagnostic? {
                 if(message == null)
                     return null
-                val stringRange = ranges.getErrorRange(node)
+                val stringRange = ranges.getErrorRange(node) ?: return null
                 return Diagnostic().also {
                     it.range = Range(
                         AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(stringRange.start + fileMappingInfo.readSkippingChars), fileMappingInfo),
@@ -280,6 +283,6 @@ class LeafErrorDecoderCallback<TNode : Any>(
     }
 
     fun interface NodeErrorRangeProvider<TNode> {
-        fun getErrorRange(node: TNode): StringRange
+        fun getErrorRange(node: TNode): StringRange?
     }
 }

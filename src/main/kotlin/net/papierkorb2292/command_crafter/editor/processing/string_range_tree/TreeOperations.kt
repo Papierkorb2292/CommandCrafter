@@ -115,8 +115,9 @@ data class TreeOperations<TNode: Any>(
                 FirstDecoderExtraBehavior(errorCallback)
             )
         }
+        errorCallback.processUnknownKeys()
         analyzingResult.diagnostics += errorCallback.generateDiagnostics(
-            { stringRangeTree.getErrorRangeOrThrow(it, accessedKeysWatcher) },
+            { stringRangeTree.getNodeOrKeyRange(it, accessedKeysWatcher) },
             analyzingResult.mappingInfo,
             severity
         )

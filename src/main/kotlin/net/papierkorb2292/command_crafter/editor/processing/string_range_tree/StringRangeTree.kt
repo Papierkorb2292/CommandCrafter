@@ -211,7 +211,7 @@ class StringRangeTree<TNode: Any>(
         }
     }
 
-    fun getErrorRangeOrThrow(node: TNode, accessedKeys: AccessedKeysWatcherDynamicOps<TNode>): StringRange {
+    fun getNodeOrKeyRange(node: TNode, accessedKeys: AccessedKeysWatcherDynamicOps<TNode>): StringRange? {
         val nodeRange = ranges[node]
         if(nodeRange != null)
             return nodeRange
@@ -221,7 +221,7 @@ class StringRangeTree<TNode: Any>(
             if(keyRange != null)
                 return keyRange
         }
-        throw IllegalStateException("No tree range found for node or key $node")
+        return null
     }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
