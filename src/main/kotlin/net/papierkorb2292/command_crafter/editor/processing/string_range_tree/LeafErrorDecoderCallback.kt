@@ -13,6 +13,7 @@ import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.Range
 import java.util.*
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * A decoder  callback that tracks all errors and the range of the input that caused them.
@@ -22,7 +23,7 @@ import java.util.*
  */
 class LeafErrorDecoderCallback<TNode : Any>(
     private val root: Dynamic<TNode>,
-    private val stringRangeTree: StringRangeTree<TNode>,
+    override val parentLinks: ParentLinks,
     private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val registries: RegistryAccess?
@@ -97,9 +98,6 @@ class LeafErrorDecoderCallback<TNode : Any>(
         return result
     }
 
-    override val parentLinks: ParentLinks =
-        stringRangeTree.getParentLinks(root.ops).withFallback(accessedKeysWatcherDynamicOps.getParentLinks(root.ops))
-
     override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
         val stackCopy = ArrayList(stack)
         stack.last().hasLateAddition = true
@@ -156,17 +154,16 @@ class LeafErrorDecoderCallback<TNode : Any>(
     private fun addMapUnknownKeyDiagnostics(map: TNode, nodeDiagnostics: NodeDiagnostics<TNode>) {
         if(map in completelyAccessedNodes)
             return
-        val mapKeys = stringRangeTree.mapKeyRanges[map] ?: return
-        val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toSet() ?: emptySet() // Convert to set so we don't use IdentityHashMap
-        for((key, _) in mapKeys) {
-            // Key must exist (snbt grammar might add unknown keys)
-            accessedKeysWatcherDynamicOps.getGeneric(map, key).result().ifPresent { child ->
-                if(key in accessed) {
-                    addMapUnknownKeyDiagnostics(child, nodeDiagnostics)
-                } else {
-                    nodeDiagnostics.warnings += NodeDiagnostics.Entry("Unused key $key", key, 0) // Depth doesn't matter here
-                }
+        val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toSet() ?: emptySet() // Convert to set so we don't use IdentityHashMap and so it's not modified
+        root.ops.getMapEntries(map).result().getOrNull()?.accept { key, child ->
+            if(key in accessed) {
+                addMapUnknownKeyDiagnostics(child, nodeDiagnostics)
+            } else {
+                nodeDiagnostics.warnings += NodeDiagnostics.Entry("Unused key $key", key, 0) // Depth doesn't matter here
             }
+        }
+        root.ops.getList(map).result().getOrNull()?.accept { child ->
+            addMapUnknownKeyDiagnostics(child, nodeDiagnostics)
         }
     }
 

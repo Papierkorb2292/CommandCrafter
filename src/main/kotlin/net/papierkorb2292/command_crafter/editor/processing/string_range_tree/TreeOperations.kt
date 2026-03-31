@@ -99,7 +99,13 @@ data class TreeOperations<TNode: Any>(
                 it
             )
         }
-        val errorCallback = LeafErrorDecoderCallback(Dynamic(registryOps, stringRangeTree.root), stringRangeTree, accessedKeysWatcher, branchBehaviorProvider, registryAccess)
+        val errorCallback = LeafErrorDecoderCallback(
+            Dynamic(registryOps, stringRangeTree.root),
+            stringRangeTree.getParentLinks(ops).withFallback(accessedKeysWatcher.getParentLinks(ops)),
+            accessedKeysWatcher,
+            branchBehaviorProvider,
+            registryAccess
+        )
         val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
         IS_ANALYZING_DECODER.runWithValueSwap(true) {
             ExtraDecoderBehavior.Companion.decodeWithBehavior(
