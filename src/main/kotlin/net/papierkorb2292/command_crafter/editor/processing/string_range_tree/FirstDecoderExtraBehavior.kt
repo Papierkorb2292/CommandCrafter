@@ -68,4 +68,7 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
 
     override val parentLinks: ParentLinks?
         get() = delegate.parentLinks
+
+    override val decodeNonCanonical: Boolean
+        get() = delegate.decodeNonCanonical
 }
