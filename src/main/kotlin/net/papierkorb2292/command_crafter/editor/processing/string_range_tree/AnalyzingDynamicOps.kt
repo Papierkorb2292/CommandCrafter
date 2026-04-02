@@ -324,14 +324,12 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     }
 
     override fun <TResult> decodeWithBehavior(
-        branchBehaviorProviderOverride: BranchBehaviorProvider<TNode>?,
+        branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier,
         convertToWarnings: Boolean,
         decodeCallback: () -> TResult
     ): TResult {
-        if(branchBehaviorProviderOverride == null)
-            return decodeCallback()
         val prevBehavior = this.branchBehaviorProvider
-        this.branchBehaviorProvider = branchBehaviorProviderOverride
+        this.branchBehaviorProvider = branchBehaviorModifier.apply(prevBehavior)
         val result = decodeCallback()
         this.branchBehaviorProvider = prevBehavior
         return result
@@ -350,9 +348,6 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
 
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
         get() = branchBehaviorProvider.getBranchBehavior(true)
-
-    override val decodeNonCanonical: Boolean
-        get() = branchBehaviorProvider.shouldDecodeNonCanonical()
 
     data class NodeAnalyzingResult(val analyzingResult: AnalyzingResult, val escaper: StringEscaper? = null) {
         companion object {

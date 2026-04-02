@@ -135,7 +135,7 @@ fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
         if(input == ops.empty()) {
             // Add suggestions from other codec
             val branchBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)?.branchBehavior
-            if(branchBehavior != null && branchBehavior != ExtraDecoderBehavior.BranchBehavior.SHORT_CIRCUIT)
+            if(branchBehavior != null && !branchBehavior.isShortCircuit())
                 this@orEmpty.decode(ops, input)
 
             return DataResult.success(Pair.of(defaultValue, ops.emptyList()))

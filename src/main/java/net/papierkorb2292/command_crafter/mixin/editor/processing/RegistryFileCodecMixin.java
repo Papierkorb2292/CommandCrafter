@@ -67,7 +67,7 @@ public class RegistryFileCodecMixin<E> {
     )
     private <T> void command_crafter$suggestEntryCodecWhenIdWasFound(DynamicOps<T> ops, T input, CallbackInfoReturnable<DataResult<Pair<Holder<E>, T>>> cir) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);
-        if(extraBehavior != null && extraBehavior.getBranchBehavior() != ExtraDecoderBehavior.BranchBehavior.SHORT_CIRCUIT)
+        if(extraBehavior != null && !extraBehavior.getBranchBehavior().isShortCircuit())
             elementCodec.decode(ops, input);
     }
 }

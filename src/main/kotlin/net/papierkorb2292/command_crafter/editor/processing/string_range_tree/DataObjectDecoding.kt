@@ -47,7 +47,6 @@ import net.papierkorb2292.command_crafter.networking.enumConstantCodec
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import java.util.*
 import java.util.function.Predicate
-import kotlin.collections.get
 import kotlin.jvm.optionals.getOrNull
 
 class DataObjectDecoding(private val registries: RegistryAccess) {
@@ -132,7 +131,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             return if(decoderData?.node == node) decoderData else null
         }
 
-        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, embeddedDecoderProvider: Decoder<out Decoder<*>>, branchBehaviorProviderOverride: BranchBehaviorProvider<Any>?): Codec<TResult> = object : Codec<TResult> {
+        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, embeddedDecoderProvider: Decoder<out Decoder<*>>, branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier = BranchBehaviorProvider.DEFAULT_BEHAVIOR_MODIFIER): Codec<TResult> = object : Codec<TResult> {
             override fun <T: Any> encode(input: TResult, ops: DynamicOps<T>, prefix: T): DataResult<T> =
                 delegate.encode(input, ops, prefix)
 
@@ -143,7 +142,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 val embeddedDecoder = embeddedDecoderProvider.onlyAnalyzingBehavior().decode(ops, input).result()
                     .getOrNull()?.first
                     ?: return delegate.decode(ops, input)
-                return delegate.withThreadLocal(EMBEDDED_NBT_DECODER, EmbeddedNbtDecoderData(input, embeddedDecoder, branchBehaviorProviderOverride))
+                return delegate.withThreadLocal(EMBEDDED_NBT_DECODER, EmbeddedNbtDecoderData(input, embeddedDecoder, branchBehaviorModifier))
                     .decode(ops, input)
             }
         }
@@ -413,7 +412,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    data class EmbeddedNbtDecoderData<TNode>(val node: TNode, val decoder: Decoder<*>, val branchBehaviorOverride: BranchBehaviorProvider<Any>?)
+    data class EmbeddedNbtDecoderData<TNode>(val node: TNode, val decoder: Decoder<*>, val branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier)
 
     enum class DataObjectSourceKind {
         ENTITY_SUMMON,

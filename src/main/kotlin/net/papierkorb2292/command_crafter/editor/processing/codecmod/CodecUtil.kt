@@ -5,6 +5,7 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import java.util.*
 
@@ -37,6 +38,25 @@ fun <T> Codec<T>.withJsonEncodeAlternative(jsonEncoder: Encoder<T>) = object : C
 
     override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> =
         this@withJsonEncodeAlternative.decode(ops, input)
+}
+
+fun <T> Codec<T>.nonCanonical(): Codec<T> = object : Codec<T> {
+    override fun <A : Any> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
+        this@nonCanonical.encode(input, ops, prefix)
+
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> {
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
+        val nonCanonicalBehavior = extraBehavior?.branchBehavior?.nonCanonicalBehavior
+            ?: return this@nonCanonical.decode(ops, input)
+        return when(nonCanonicalBehavior) {
+            ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE -> DataResult.error { "Non-canonical value not allowed here" }
+            ExtraDecoderBehavior.NonCanonicalBehavior.KEEP_BRANCH_BEHAVIOR -> this@nonCanonical.decode(ops, input)
+            ExtraDecoderBehavior.NonCanonicalBehavior.DROP_DOWN_TO_DECODE ->
+                extraBehavior.decodeWithBehavior(BranchBehaviorProvider.DROP_TO_DECODE_BEHAVIOR_MODIFIER, false) {
+                    this@nonCanonical.decode(ops, input)
+                }
+        }
+    }
 }
 
 fun <F> Decoder<F>.onlyAnalyzingBehavior() = @NoDecoderCallbacks object : Codec<F> {

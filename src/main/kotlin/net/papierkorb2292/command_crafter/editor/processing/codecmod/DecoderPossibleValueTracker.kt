@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 class DecoderPossibleValueTracker<TNode : Any> : ExtraDecoderBehavior<TNode> {
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
-        get() = ExtraDecoderBehavior.BranchBehavior.ALL_POSSIBLE_ENCODED
+        get() = ExtraDecoderBehavior.BranchBehavior.forAllPossibleEncoded(ExtraDecoderBehavior.NonCanonicalBehavior.KEEP_BRANCH_BEHAVIOR)
 
     val possibleValues = mutableMapOf<TNode, MutableList<TNode>>()
 

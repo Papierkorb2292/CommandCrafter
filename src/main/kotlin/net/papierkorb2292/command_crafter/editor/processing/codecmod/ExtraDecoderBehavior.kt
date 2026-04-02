@@ -69,7 +69,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
     }
 
     val branchBehavior: BranchBehavior
-        get() = BranchBehavior.SHORT_CIRCUIT
+        get() = BranchBehavior.forType(BranchBehaviorType.SHORT_CIRCUIT)
 
     val registries: RegistryAccess?
         get() = null
@@ -81,7 +81,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
     fun onDecodeStart(input: TNode) {}
-    fun <TResult> decodeWithBehavior(branchBehaviorProviderOverride: BranchBehaviorProvider<TNode>?, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult = decodeCallback()
+    fun <TResult> decodeWithBehavior(branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult = decodeCallback()
     fun markErrorLateAddition(): LateAdditionRunner = IDENTITY_LATE_ADDITION_RUNNER
 
     fun markCompletelyAccessed(input: TNode) {}
@@ -90,9 +90,6 @@ interface ExtraDecoderBehavior<TNode : Any> {
 
     val nodeAnalyzingBehavior: NodeAnalyzingBehavior<TNode>?
         get() = null
-
-    val decodeNonCanonical: Boolean
-        get() = true
 
     interface NodeAnalyzingBehavior<in TNode : Any> {
         val stringContentGetter: StringContent.StringContentGetter<in TNode>
@@ -115,7 +112,19 @@ interface ExtraDecoderBehavior<TNode : Any> {
 
     data class RegisteredBehavior<TNode : Any>(val callback: ExtraDecoderBehavior<TNode>, val ops: DynamicOps<TNode>) {}
 
-    enum class BranchBehavior {
+    class BranchBehavior private constructor(val type: BranchBehaviorType, val nonCanonicalBehavior: NonCanonicalBehavior) {
+        companion object {
+            // SHORT_CIRCUIT and ALL_POSSIBLE_DECODED only allow NonCanonicalBehavior.KEEP_BRANCH_BEHAVIOR, because that's the behavior used for decoding
+            fun forType(type: BranchBehaviorType) = BranchBehavior(type, NonCanonicalBehavior.KEEP_BRANCH_BEHAVIOR)
+            fun forAllPossibleEncoded(nonCanonicalBehavior: NonCanonicalBehavior) = BranchBehavior(BranchBehaviorType.ALL_POSSIBLE_ENCODED, nonCanonicalBehavior)
+        }
+
+        fun isShortCircuit() = type == BranchBehaviorType.SHORT_CIRCUIT
+        fun isAllPossibleDecoded() = type == BranchBehaviorType.ALL_POSSIBLE_DECODED
+        fun isAllPossibleEncoded() = type == BranchBehaviorType.ALL_POSSIBLE_ENCODED
+    }
+
+    enum class BranchBehaviorType {
         /**
          * The vanilla behavior, using the first successful value
          */
@@ -132,6 +141,22 @@ interface ExtraDecoderBehavior<TNode : Any> {
          * Additionally, map errors like missing keys are ignored.
          */
         ALL_POSSIBLE_ENCODED
+    }
+
+    enum class NonCanonicalBehavior {
+        /**
+         * Used inside nbt conditions / nbt paths, since Minecraft won't encode non-canonical values
+         */
+        IGNORE,
+        /**
+         * Used inside merge, where non-canonical values can be set, but there won't be anything to merge them with
+         */
+        DROP_DOWN_TO_DECODE,
+        /**
+         * Used when decoding data and inside custom data, which will stay untouched by the game, so accessing and merging is allowed. Treats non-canonical values
+         * no different to canonical values.
+         */
+        KEEP_BRANCH_BEHAVIOR
     }
 
     interface LateAdditionRunner {

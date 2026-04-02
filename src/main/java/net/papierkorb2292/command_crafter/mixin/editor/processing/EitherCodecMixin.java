@@ -29,7 +29,7 @@ public class EitherCodecMixin<F, S> {
     )
     private <T> void command_crafter$suggestSecondCodecWhenFirstWasSuccessful(DynamicOps<T> ops, T input, CallbackInfoReturnable<DataResult<Pair<Either<F, S>, T>>> cir) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);
-        if(extraBehavior != null && extraBehavior.getBranchBehavior() != ExtraDecoderBehavior.BranchBehavior.SHORT_CIRCUIT)
+        if(extraBehavior != null && !extraBehavior.getBranchBehavior().isShortCircuit())
             second.decode(ops, input);
     }
 }

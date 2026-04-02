@@ -19,6 +19,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
@@ -167,9 +168,8 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
         if (decoderData != null) {
             var treeOps = TreeOperations.Companion.forNbt(tree, stringContent.getContent())
                     .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                    .withRegistry(extraBehavior.getRegistries());
-            if(decoderData.getBranchBehaviorOverride() != null)
-                treeOps = treeOps.withBranchBehaviorProvider(decoderData.getBranchBehaviorOverride());
+                    .withRegistry(extraBehavior.getRegistries())
+                    .withBranchBehaviorProvider(decoderData.getBranchBehaviorModifier().apply(BranchBehaviorProvider.Decode.INSTANCE));
             treeOps.analyzeFull(analyzingResult.get(), decoderData.getDecoder());
         }
     }

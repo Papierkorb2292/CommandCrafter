@@ -40,7 +40,7 @@ public class KeyDispatchCodecMixin<K, V> {
         if(!typeResult.isError())
             return result;
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);
-        if(extraBehavior == null || extraBehavior.getBranchBehavior() != ExtraDecoderBehavior.BranchBehavior.ALL_POSSIBLE_ENCODED)
+        if(extraBehavior == null || !extraBehavior.getBranchBehavior().isAllPossibleEncoded())
             return result;
 
         final var possibleKeyTracker = new DecoderPossibleValueTracker<T>();

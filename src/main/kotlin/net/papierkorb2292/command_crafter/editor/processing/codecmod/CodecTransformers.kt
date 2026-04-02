@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 import com.google.common.collect.BiMap
-import com.mojang.datafixers.util.Either
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.PrimitiveCodec
@@ -53,18 +52,17 @@ import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvid
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.ContextSuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
-import java.util.function.Function
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrDefault
 import kotlin.jvm.optionals.getOrNull
@@ -72,40 +70,14 @@ import kotlin.jvm.optionals.getOrNull
 @Suppress("unused")
 object CodecTransformers {
 
+    // TODO: Make id namespace canonical
+
     @JvmStatic
     @CodecMod(target = ExtraCodecs.LateBoundIdMapper::class, methodName = "codec", fieldAccess = ["idToValue"])
     fun <T, I> addIdMapperSuggestions(codec: Codec<T>, idToValue: BiMap<I, *>, idCodec: Codec<I>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
             idToValue.keys.stream().map { idCodec.encodeStart(ops, it).getOrThrow() }
     })
-
-    @JvmStatic
-    @CodecMod(target = Codec::class, methodName = "withAlternative(Lcom/mojang/serialization/Codec;)Lcom/mojang/serialization/Codec;", fieldAccess = ["this"])
-    fun <A> ignoreAlternativeForPossibleEncoded(codec: Codec<A>, canonical: Codec<A>, alternative: Codec<A>): Codec<A> = Codec.of(codec, object : Decoder<A> {
-        override fun <T : Any> decode(
-            ops: DynamicOps<T>,
-            input: T,
-        ): DataResult<Pair<A, T>> {
-            val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
-                ?: return codec.decode(ops, input)
-            if(!extraBehavior.decodeNonCanonical)
-                return canonical.decode(ops, input)
-            // Use BranchBehaviorProvider.Decode for alternative, because there is nothing it could be merged with
-            return Codec.either(canonical, Codec.of(canonical, object : Decoder<A> {
-                override fun <T : Any> decode(
-                    ops: DynamicOps<T>,
-                    input: T,
-                ): DataResult<Pair<A, T>> = extraBehavior.decodeWithBehavior(BranchBehaviorProvider.Decode, false) {
-                    alternative.decode(ops, input)
-                }
-            })).map(Either<*, *>::unwrap).decode(ops, input)
-        }
-    })
-
-    @JvmStatic
-    @CodecMod(target = Codec::class, methodName = "withAlternative(Lcom/mojang/serialization/Codec;Ljava/util/function/Function;)Lcom/mojang/serialization/Codec;", fieldAccess = ["this"])
-    fun <A, U> ignoreMappedAlternativeForPossibleEncoded(codec: Codec<A>, canonical: Codec<A>, alternative: Codec<U>, converter: Function<U, A>): Codec<A> =
-        ignoreAlternativeForPossibleEncoded(codec, canonical, alternative.xmap(converter) { null })
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "RGB_COLOR_CODEC")
@@ -247,7 +219,7 @@ object CodecTransformers {
                 behavior.markCompletelyAccessed(input)
                 return
             }
-            behavior.decodeWithBehavior(embeddedDecoder.branchBehaviorOverride, true) {
+            behavior.decodeWithBehavior(embeddedDecoder.branchBehaviorModifier, true) {
                 embeddedDecoder.decoder.decode(ops, input)
             }
         }
@@ -262,7 +234,7 @@ object CodecTransformers {
                 EntityTypePredicate.CODEC.fieldOf("type").decoder().decodeParent().map { it.types },
                 DataObjectDecoding::getConditionDecoderForEntities,
             ),
-            BranchBehaviorProvider.getForPathLookup(null)
+            BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
         )
 
     @JvmStatic
@@ -274,7 +246,7 @@ object CodecTransformers {
                 RegistryCodecs.homogeneousList(Registries.BLOCK).fieldOf("blocks").decoder().decodeParent(),
                 DataObjectDecoding::getConditionDecoderForBlocks,
             ),
-            BranchBehaviorProvider.getForPathLookup(null)
+            BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
         )
     
     @JvmStatic
@@ -406,7 +378,7 @@ object CodecTransformers {
                 Codec.BOOL.lenientOptionalFieldOf("AgeLocked").forEmptyGetter(),
                 Codec.LONG.lenientOptionalFieldOf("HuntingCooldown").forEmptyGetter(),
             ).apply(it) { _, _, _, _, _, _, _, _, _ -> }
-        }), null)
+        }))
 
     val TYPED_ENTITY_DATA_FIELD_BLACKLIST = ThreadLocal<List<String>>()
 
@@ -432,7 +404,7 @@ object CodecTransformers {
                             candidates += id
                             MapCodec.unit(Unit)
                         }
-                    ).onlyAnalyzingBehavior().decode(ops, input)
+                    ).onlyAnalyzingBehavior().decode(ops, input) //TODO: Make namespace canonical
                     val blacklist = (TYPED_ENTITY_DATA_FIELD_BLACKLIST.getOrNull()?.mapTo(mutableSetOf()) {
                         key -> input to ops.createString(key)
                     } ?: setOf()) + (input to ops.createString("id"))
@@ -445,7 +417,7 @@ object CodecTransformers {
 
                 return DataResult.success(Pair(Unit, ops.empty()))
             }
-        }), null)
+        }), BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER)
 
     @JvmStatic
     @CodecMod(target = BeehiveBlockEntity.Occupant::class, codecField = "entity_data")
@@ -461,7 +433,7 @@ object CodecTransformers {
                 BlockState.CODEC.fieldOf("BlockState").decoder().decodeParent().map { it.block },
                 DataObjectDecoding::getDecoderForBlock,
             ),
-            null
+            BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER
         )
 
     @JvmStatic
@@ -470,16 +442,17 @@ object CodecTransformers {
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
-            null
+            BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER
         )
 
     @JvmStatic
     @CodecMod(target = SpawnData::class, codecField = "entity")
     fun decodeEmbeddedSpawnDataEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> = Codec.of(codec, object : Decoder<CompoundTag> {
+        //TODO: Make id namespace canonical
         private val analyzingDelegate = DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
-            null
+            BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER
         ).map { CompoundTag() } // Suppress log error for invalid id fields by replacing result with empty compound
 
         override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<CompoundTag, T>> {
@@ -497,7 +470,6 @@ object CodecTransformers {
             DataObjectDecoding.convertToDataObjectDecoder(
                 BlockState.CODEC.fieldOf("output_state").decoder().decodeParent().decodeParent().map { it.block },
                 DataObjectDecoding::getDecoderForBlock,
-            ),
-            null
+            )
         )
 }

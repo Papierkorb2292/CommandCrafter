@@ -68,9 +68,9 @@ class LeafErrorDecoderCallback<TNode : Any>(
         branchBehaviorProvider.onDecodeStart(input)
     }
 
-    override fun <TResult> decodeWithBehavior(branchBehaviorProviderOverride: BranchBehaviorProvider<TNode>?, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult {
+    override fun <TResult> decodeWithBehavior(branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult {
         val prevBehavior = this.branchBehaviorProvider
-        this.branchBehaviorProvider = branchBehaviorProviderOverride ?: prevBehavior
+        this.branchBehaviorProvider = branchBehaviorModifier.apply(prevBehavior)
         if(!convertToWarnings) {
             val result = decodeCallback()
             this.branchBehaviorProvider = prevBehavior
@@ -126,9 +126,6 @@ class LeafErrorDecoderCallback<TNode : Any>(
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
         get() = branchBehaviorProvider.getBranchBehavior(false)
 
-    override val decodeNonCanonical: Boolean
-        get() = branchBehaviorProvider.shouldDecodeNonCanonical()
-
     private fun pushStack(node: TNode) {
         stack += ErrorStackEntry(node, stack.last().depth + 1)
     }
@@ -174,7 +171,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
         DelegatingDynamicOps<TNode> {
         fun <TResult> onNodeAccess(input: TNode, dataResult: DataResult<TResult>): DataResult<TResult> {
             // Don't show errors for missing keys or invalid list lengths when Minecraft doesn't actually enforce it (like in a path or for a merge)
-            if(dataResult.isSuccess && branchBehavior == ExtraDecoderBehavior.BranchBehavior.ALL_POSSIBLE_ENCODED && input == stack.last().node) {
+            if(dataResult.isSuccess && branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
                 stack.last().ignoreErrors = true
             }
             return dataResult
