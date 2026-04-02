@@ -339,7 +339,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
         try {
-            blockEntity.loadWithComponents(valueInput)
+            synchronized(blockEntity) {
+                blockEntity.loadWithComponents(valueInput)
+            }
         } catch(e: Throwable) {
             CommandCrafter.LOGGER.error("Error analyzing block entity nbt for type ${registries.lookupOrThrow(Registries.BLOCK_ENTITY_TYPE).getKey(blockEntity.type)}", e)
         }
@@ -358,7 +360,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     readDispatchingEntity(it as DynamicOpsReadView<*>)
                 }
             }
-            entity.load(valueInput)
+            synchronized(entity) {
+                entity.load(valueInput)
+            }
         } catch(e: Throwable) {
             entitiesWithError += entity.type
             CommandCrafter.LOGGER.error("Error analyzing entity nbt for type ${registries.lookupOrThrow(Registries.ENTITY_TYPE).getKey(entity.type)}. Entity will be ignored in the future.", e)
