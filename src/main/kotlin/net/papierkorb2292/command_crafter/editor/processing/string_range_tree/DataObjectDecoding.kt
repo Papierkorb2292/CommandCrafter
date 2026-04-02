@@ -339,7 +339,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
         try {
-            synchronized(blockEntity) {
+            synchronized(this) {
                 blockEntity.loadWithComponents(valueInput)
             }
         } catch(e: Throwable) {
@@ -360,7 +360,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     readDispatchingEntity(it as DynamicOpsReadView<*>)
                 }
             }
-            synchronized(entity) {
+            synchronized(this) {
                 entity.load(valueInput)
             }
         } catch(e: Throwable) {
