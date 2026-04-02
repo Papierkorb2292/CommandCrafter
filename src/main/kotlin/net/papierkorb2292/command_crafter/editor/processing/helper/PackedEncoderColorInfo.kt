@@ -9,6 +9,7 @@ import net.minecraft.util.Mth
 import net.papierkorb2292.command_crafter.editor.processing.CodecAnalyzingWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.customEncode
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.stream.Stream
@@ -53,7 +54,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
                     val white = fromPacked(if(hasAlpha) -1 else 0xFFFFFF)
                     if(white !in colors)
                         colors = colors + white
-                    return colors.stream().map { delegate.encodeStart(ops, it).orThrow }
+                    return colors.stream().map { delegate.customEncode(ops, it).orThrow }
                 }
 
                 override fun <T: Any> suggestionModifier(
@@ -148,7 +149,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
             params.color.blue.toFloat()
         )
         val colorValue = fromPacked(packed)
-        val encoded = encoder.encodeStart(ops, colorValue).result().orElse(null) ?: return emptyList()
+        val encoded = encoder.customEncode(ops, colorValue).result().orElse(null) ?: return emptyList()
         val number = ops.getNumberValue(encoded).result().getOrNull()
         val defaultLabel = if(preferHex && number is Int) "0x" + colorToHex(number, hasAlpha) else encoded.toString()
         val serialized = if(encoded is Tag) defaultLabel else encoded.toString() // Allow hexadecimal in SNBT

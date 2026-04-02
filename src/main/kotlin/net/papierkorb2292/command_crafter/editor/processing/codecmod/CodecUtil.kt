@@ -6,9 +6,16 @@ import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
+
+val IS_CUSTOM_ENCODE = ThreadLocal<Boolean>()
+
+fun <T, A> Encoder<T>.customEncode(ops: DynamicOps<A>, input: T): DataResult<A> = IS_CUSTOM_ENCODE.runWithValueSwap(true) {
+    encodeStart(ops, input)
+}
 
 fun <T> Codec<T>.beforeDecode(callback: BeforeDecodeCallback) = object : Codec<T> {
     override fun <A> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
@@ -33,7 +40,7 @@ fun <T> Codec<T>.afterDecode(callback: AfterDecodeCallback<T>) = object : Codec<
 
 fun <T> Codec<T>.withJsonEncodeAlternative(jsonEncoder: Encoder<T>) = object : Codec<T> {
     override fun <A : Any> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
-        if(prefix is JsonElement)
+        if(prefix is JsonElement && IS_CUSTOM_ENCODE.getOrNull() == true)
             jsonEncoder.encode(input, ops, prefix)
         else this@withJsonEncodeAlternative.encode(input, ops, prefix)
 
