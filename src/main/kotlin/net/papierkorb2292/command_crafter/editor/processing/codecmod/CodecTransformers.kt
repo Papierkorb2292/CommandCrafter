@@ -70,7 +70,25 @@ import kotlin.jvm.optionals.getOrNull
 @Suppress("unused")
 object CodecTransformers {
 
-    // TODO: Make id namespace canonical
+    val EXTRA_CANONICAL_ID = ThreadLocal<Any>()
+
+    @JvmStatic
+    @CodecMod(target = Identifier::class, javaFieldRead = "com/mojang/serialization/Codec.STRING")
+    fun checkForCanonicalId(codec: PrimitiveCodec<String>): PrimitiveCodec<String> = object : PrimitiveCodec<String> {
+        override fun <T : Any> write(ops: DynamicOps<T>, value: String): T =
+            codec.write(ops, value)
+
+        override fun <T : Any> read(ops: DynamicOps<T>, input: T): DataResult<String> {
+            val nonCanonicalBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)?.branchBehavior?.nonCanonicalBehavior
+            val stringResult = codec.read(ops, input)
+            if(nonCanonicalBehavior != ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE && input != EXTRA_CANONICAL_ID.getOrNull())
+                return stringResult
+            return stringResult.flatMap { string ->
+                if(string.isNotEmpty() && ':' in string.subSequence(1, string.length)) DataResult.success(string) // If there is a colon, and it isn't at the first position, there's a namespace
+                else DataResult.error { "Canonical id requires a namespace here" }
+            }
+        }
+    }
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs.LateBoundIdMapper::class, methodName = "codec", fieldAccess = ["idToValue"])
@@ -396,15 +414,18 @@ object CodecTransformers {
                     @Suppress("UNCHECKED_CAST")
                     val nonPlayerIdCodec = if(idCodec == EntityType.CODEC) DataObjectDecoding.NON_PLAYER_ENTITY_TYPE_CODEC as Codec<IdType> else idCodec
                     // Make use of the existing dispatch behavior.
-                    // Ignore id errors, TypedEntityData already returns those
-                    nonPlayerIdCodec.dispatch(
+                    var idDispatcher = nonPlayerIdCodec.dispatch(
                         "id",
                         { null },
                         { id ->
                             candidates += id
                             MapCodec.unit(Unit)
                         }
-                    ).onlyAnalyzingBehavior().decode(ops, input) //TODO: Make namespace canonical
+                    )
+                    // Add error for missing namespace only when required
+                    if(EXTRA_CANONICAL_ID.getOrNull() == null)
+                        idDispatcher = idDispatcher.onlyAnalyzingBehavior()
+                    idDispatcher.decode(ops, input)
                     val blacklist = (TYPED_ENTITY_DATA_FIELD_BLACKLIST.getOrNull()?.mapTo(mutableSetOf()) {
                         key -> input to ops.createString(key)
                     } ?: setOf()) + (input to ops.createString("id"))
@@ -417,7 +438,7 @@ object CodecTransformers {
 
                 return DataResult.success(Pair(Unit, ops.empty()))
             }
-        }), BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER)
+        }), BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER).markEncodedId("id")
 
     @JvmStatic
     @CodecMod(target = BeehiveBlockEntity.Occupant::class, codecField = "entity_data")
@@ -448,12 +469,11 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = SpawnData::class, codecField = "entity")
     fun decodeEmbeddedSpawnDataEntityNbt(codec: Codec<CompoundTag>): Codec<CompoundTag> = Codec.of(codec, object : Decoder<CompoundTag> {
-        //TODO: Make id namespace canonical
         private val analyzingDelegate = DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.createDataObjectDecoder(DataObjectDecoding::getDispatchingEntityDecoder),
             BranchBehaviorProvider.WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER
-        ).map { CompoundTag() } // Suppress log error for invalid id fields by replacing result with empty compound
+        ).markEncodedId("id").map { CompoundTag() } // Suppress log error for invalid id fields by replacing result with empty compound
 
         override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<CompoundTag, T>> {
             val isAnalyzing = ExtraDecoderBehavior.getCurrentBehavior(ops) != null

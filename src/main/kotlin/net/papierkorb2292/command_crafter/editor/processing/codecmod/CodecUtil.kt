@@ -8,6 +8,7 @@ import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import java.util.*
+import kotlin.jvm.optionals.getOrNull
 
 fun <T> Codec<T>.beforeDecode(callback: BeforeDecodeCallback) = object : Codec<T> {
     override fun <A> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
@@ -57,6 +58,23 @@ fun <T> Codec<T>.nonCanonical(): Codec<T> = object : Codec<T> {
                 }
         }
     }
+}
+
+fun <T> Codec<T>.markEncodedId(fieldName: String): Codec<T> = object : Codec<T> {
+    override fun <A : Any> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
+        this@markEncodedId.encode(input, ops, prefix)
+
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> {
+        val nonCanonicalBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)?.branchBehavior?.nonCanonicalBehavior
+        if(nonCanonicalBehavior == ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE) {
+            val id = ops.get(input, fieldName).result().getOrNull()
+            return CodecTransformers.EXTRA_CANONICAL_ID.runWithValueSwap(id) {
+                this@markEncodedId.decode(ops, input)
+            }
+        }
+        return this@markEncodedId.decode(ops, input)
+    }
+
 }
 
 fun <F> Decoder<F>.onlyAnalyzingBehavior() = @NoDecoderCallbacks object : Codec<F> {

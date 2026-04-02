@@ -132,7 +132,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                         if(codecModData.methodName.isEmpty()) {
                             val (owner, fieldName) = codecModData.javaFieldRead.split(".")
                             val foundMethod = targetClass.methods.find { method ->
-                                method.instructions.any { it is FieldInsnNode && it.name == fieldName && it.name == owner && (it.opcode == Opcodes.GETSTATIC) }
+                                method.instructions.any { it is FieldInsnNode && it.name == fieldName && it.owner == owner && (it.opcode == Opcodes.GETSTATIC) }
                             } ?: throw IllegalArgumentException("Could not find field read for ${transformer.name}::${method.name}")
                             codecModData.methodName = foundMethod.name + foundMethod.desc
                         }
