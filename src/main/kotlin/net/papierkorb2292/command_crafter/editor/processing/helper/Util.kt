@@ -201,6 +201,13 @@ fun completionItemsToSuggestions(completionItems: List<CompletionItem>, reader: 
  * Only takes into account alphanumeric chars in the input. Other characters like " are ignored.
  */
 fun fuzzyMatchSuggestions(suggestions: MutableList<MatchingSuggestion>, input: String, cursor: Int) {
+    fun isBeginningOfWord(reader: StringReader): Boolean {
+        if(reader.cursor == 0) return true
+        if(!reader.peek(-1).isLetterOrDigit()) return true
+        if(reader.peek().isUpperCase() && reader.peek(-1).isLowerCase()) return true
+        return false
+    }
+
     val ratedSuggestions = suggestions.associateWith { (suggestion, _, filterText) ->
         var indexSum = 0
         val filterReader = StringReader(filterText)
@@ -208,7 +215,7 @@ fun fuzzyMatchSuggestions(suggestions: MutableList<MatchingSuggestion>, input: S
             if(!c.isLetterOrDigit())
                 continue
             // Search for the next character. If it's the first character in the range (indexSum == 0), it has to be at the beginning of a word
-            while(filterReader.canRead() && (filterReader.peek() != c || indexSum == 0 && filterReader.cursor > 0 && filterReader.peek(-1).isLetterOrDigit() )) {
+            while(filterReader.canRead() && (filterReader.peek() != c || indexSum == 0 && !isBeginningOfWord(filterReader))) {
                 filterReader.skip()
             }
             if(!filterReader.canRead())
