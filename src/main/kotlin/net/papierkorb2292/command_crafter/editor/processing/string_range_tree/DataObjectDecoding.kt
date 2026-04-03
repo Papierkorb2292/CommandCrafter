@@ -330,13 +330,17 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         if(!valueInput.deduplicationMarkers.add("readDispatchingEntity"))
             return // Already done
         valueInput.alwaysReturnEmpty = false
-        val id = valueInput.read("id", NON_PLAYER_ENTITY_TYPE_CODEC).getOrNull() //TODO: Error on missing id field
+        val id = valueInput.lateAdditionRunner.acceptLateAddition {
+            valueInput.dynamic.read(NON_PLAYER_ENTITY_TYPE_CODEC.fieldOf("id").codec()).result().getOrNull()
+        }
         valueInput.alwaysReturnEmpty = true
         val entity = dummyEntities[id]
-        if(entity == null)
-            dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
-        else
+        if(entity != null) {
             analyzeEntity(entity, valueInput, true)
+            return
+        }
+        if(ExtraDecoderBehavior.getCurrentBehavior(valueInput.dynamic.ops)?.branchBehavior?.isAllPossibleEncoded() == true)
+            dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
     }
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {

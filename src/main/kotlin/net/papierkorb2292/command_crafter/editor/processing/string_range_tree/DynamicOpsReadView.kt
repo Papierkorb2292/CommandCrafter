@@ -18,7 +18,7 @@ import kotlin.jvm.optionals.getOrDefault
 // Uses dummy Encoders in a bunch of places to use methods of Codec that are not available for just a Decoder.
 // Btw. don't really know why Mojang didn't use DynamicOps in the first place
 // Also caches results to prevent unnecessary decoding (for example when multiple entities read from the same instance)
-class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val registries: HolderLookup.Provider, val map: Optional<MapLike<TNode>>, private val lateAdditionRunner: ExtraDecoderBehavior.LateAdditionRunner) :
+class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val registries: HolderLookup.Provider, val map: Optional<MapLike<TNode>>, val lateAdditionRunner: ExtraDecoderBehavior.LateAdditionRunner) :
     ValueInput {
     companion object {
         fun <TNode : Any> create(
