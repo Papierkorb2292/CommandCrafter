@@ -271,7 +271,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
             return errors.mapNotNull { entry ->
                 entry.createDiagnostic(ranges, fileMappingInfo, severity)
             } + warnings.mapNotNull { entry ->
-                entry.createDiagnostic(ranges, fileMappingInfo, severity)
+                entry.createDiagnostic(ranges, fileMappingInfo, DiagnosticSeverity.Warning)
             }
         }
 
