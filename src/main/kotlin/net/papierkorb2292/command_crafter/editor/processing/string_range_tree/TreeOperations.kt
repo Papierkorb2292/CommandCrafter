@@ -100,12 +100,14 @@ data class TreeOperations<TNode: Any>(
                 it
             )
         }
+        val onlyContextOps = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }.second
         val errorCallback = LeafErrorDecoderCallback(
             Dynamic(registryOps, stringRangeTree.root),
-            stringRangeTree.getParentLinks(ops).withFallback(accessedKeysWatcher.getParentLinks(ops)),
+            stringRangeTree.getParentLinks(onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(onlyContextOps)),
             accessedKeysWatcher,
             branchBehaviorProvider,
-            registryAccess
+            registryAccess,
+            onlyContextOps
         )
         val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
         IS_ANALYZING_DECODER.runWithValueSwap(true) {

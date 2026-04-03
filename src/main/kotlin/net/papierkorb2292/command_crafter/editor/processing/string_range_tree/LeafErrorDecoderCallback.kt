@@ -26,7 +26,8 @@ class LeafErrorDecoderCallback<TNode : Any>(
     override val parentLinks: ParentLinks,
     private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
-    override val registries: RegistryAccess?
+    override val registries: RegistryAccess?,
+    override val onlyContextOps: DynamicOps<TNode>
 ) : ExtraDecoderBehavior<TNode> {
     private var stack = ArrayList<ErrorStackEntry<TNode>>(16)
     private val lateAdditionMergers = ArrayList<() -> Unit>()

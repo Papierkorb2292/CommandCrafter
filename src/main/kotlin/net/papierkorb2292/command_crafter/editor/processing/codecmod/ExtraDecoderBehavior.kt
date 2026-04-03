@@ -77,6 +77,9 @@ interface ExtraDecoderBehavior<TNode : Any> {
     val parentLinks: ParentLinks?
         get() = null
 
+    val onlyContextOps: DynamicOps<TNode>?
+        get() = null
+
     fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {}
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}

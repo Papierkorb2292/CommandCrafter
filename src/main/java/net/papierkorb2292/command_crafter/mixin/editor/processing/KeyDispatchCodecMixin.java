@@ -77,7 +77,10 @@ public class KeyDispatchCodecMixin<K, V> {
                 return input.toString();
             }
         };
-        ExtraDecoderBehavior.Companion.decodeWithBehavior(keyCodec, ops, lenientAccessTrackingMap, possibleKeyTracker);
+        var tryOps = extraBehavior.getOnlyContextOps();
+        if(tryOps == null)
+            tryOps = ops;
+        ExtraDecoderBehavior.Companion.decodeWithBehavior(keyCodec, tryOps, lenientAccessTrackingMap, possibleKeyTracker);
 
         // Analyzing assumes that exactly one key was exacted by the key codec
         if(dispatchValue.get() == null || dispatchValue.get().getSecond()) {

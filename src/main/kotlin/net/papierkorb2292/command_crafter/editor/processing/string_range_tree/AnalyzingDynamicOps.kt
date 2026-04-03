@@ -26,6 +26,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     internal val baseResult: AnalyzingResult,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val registries: RegistryAccess?,
+    override val onlyContextOps: DynamicOps<TNode>
 ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode> {
     override var parentLinks: ParentLinks? = null
         private set
@@ -44,12 +45,13 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             delegate: DynamicOps<TNode>,
             analyzingResult: AnalyzingResult,
         ): Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> {
-            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(delegate) {
+            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(delegate) { innerDelegate ->
                 AnalyzingDynamicOps(
-                    it,
+                    innerDelegate,
                     analyzingResult,
                     treeOperations.branchBehaviorProvider,
-                    treeOperations.registryAccess
+                    treeOperations.registryAccess,
+                    wrapDynamicOps(delegate) { ListPlaceholderRemovingDynamicOps(treeOperations.stringRangeTree.placeholderNodes, it) }.second
                 )
             }
             // Apply AccessedKeysWatcher second, so it includes placeholder entries
@@ -58,7 +60,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                 ::AccessedKeysWatcherDynamicOps
             )
             analyzingOps.accessedKeysWatcher = accessedKeysWatcher
-            analyzingOps.parentLinks = treeOperations.stringRangeTree.getParentLinks(delegate).withFallback(accessedKeysWatcher.getParentLinks(delegate))
+            analyzingOps.parentLinks = treeOperations.stringRangeTree.getParentLinks(analyzingOps.onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(analyzingOps.onlyContextOps))
             return analyzingOps to wrappedAccessedKeysWatcherOps
         }
     }

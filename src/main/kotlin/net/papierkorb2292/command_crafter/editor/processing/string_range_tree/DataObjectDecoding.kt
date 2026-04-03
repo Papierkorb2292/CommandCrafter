@@ -139,7 +139,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 if(ExtraDecoderBehavior.getCurrentBehavior(ops) == null)
                     return delegate.decode(ops, input)
 
-                val embeddedDecoder = embeddedDecoderProvider.onlyAnalyzingBehavior().decode(ops, input).result()
+                val embeddedDecoder = embeddedDecoderProvider.onlyContextBehavior().decode(ops, input).result()
                     .getOrNull()?.first
                     ?: return delegate.decode(ops, input)
                 return delegate.withThreadLocal(EMBEDDED_NBT_DECODER, EmbeddedNbtDecoderData(input, embeddedDecoder, branchBehaviorModifier))
