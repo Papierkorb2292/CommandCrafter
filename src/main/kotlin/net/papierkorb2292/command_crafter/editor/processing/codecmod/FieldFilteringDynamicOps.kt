@@ -20,6 +20,8 @@ class FieldFilteringDynamicOps<T>(override val delegate: DynamicOps<T>, val fiel
 
             override fun entries(): Stream<Pair<T, T>> =
                 mapLike.entries().filter { pair -> input to pair.first !in fieldBlacklist }
+
+            override fun toString() = mapLike.toString()
         } }
     }
 

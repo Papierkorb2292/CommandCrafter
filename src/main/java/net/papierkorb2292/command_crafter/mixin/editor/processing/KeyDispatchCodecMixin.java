@@ -71,6 +71,11 @@ public class KeyDispatchCodecMixin<K, V> {
             public Stream<Pair<T, T>> entries() {
                 return input.entries();
             }
+
+            @Override
+            public String toString() {
+                return input.toString();
+            }
         };
         ExtraDecoderBehavior.Companion.decodeWithBehavior(keyCodec, ops, lenientAccessTrackingMap, possibleKeyTracker);
 
