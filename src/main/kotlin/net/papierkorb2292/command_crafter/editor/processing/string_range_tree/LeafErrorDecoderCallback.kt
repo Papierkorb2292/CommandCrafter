@@ -141,7 +141,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
     }
 
     fun processUnknownKeys() {
-        addMapUnknownKeyDiagnostics(root.value, stack.last().getAllDiagnostics())
+        addMapUnknownKeyDiagnostics(root.value, stack.last().comittedDiagnostics)
     }
 
     fun generateDiagnostics(ranges: NodeErrorRangeProvider<TNode>, fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
@@ -155,7 +155,8 @@ class LeafErrorDecoderCallback<TNode : Any>(
         if(map in completelyAccessedNodes)
             return
         val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toSet() ?: emptySet() // Convert to set so we don't use IdentityHashMap and so it's not modified
-        root.ops.getMapEntries(map).result().getOrNull()?.accept { key, child ->
+        // Use accessedKeysWatcherDynamicOps, so the NodeErrorRangeProvider will work with the keys
+        accessedKeysWatcherDynamicOps.getMapEntries(map).result().getOrNull()?.accept { key, child ->
             if(key in accessed) {
                 addMapUnknownKeyDiagnostics(child, nodeDiagnostics)
             } else {
