@@ -23,7 +23,6 @@ import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.TextColor
 import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
-import net.minecraft.resources.RegistryOps
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.packs.PackType
@@ -64,7 +63,6 @@ import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
 import java.util.stream.Stream
-import kotlin.jvm.optionals.getOrDefault
 import kotlin.jvm.optionals.getOrNull
 
 @Suppress("unused")
@@ -180,28 +178,47 @@ object CodecTransformers {
 
     val REGISTRY_SUGGESTIONS_BLACKLIST = ThreadLocal<Set<Any>>()
 
+    private fun getFilteredIds(registry: Registry<*>, blacklist: Set<Any>?) =
+        if(blacklist != null)
+            registry.entrySet().stream()
+                .filter { it.value !in blacklist }
+                .map { it.key.identifier() }
+        else
+            registry.keySet().stream()
+
+    private fun <T> getRegistrySuggestions(ops: DynamicOps<T>, registry: Registry<*>, namespaceOptional: Boolean, blacklist: Set<Any>?): Stream<T> =
+        getIdSuggestions(ops, namespaceOptional) { getFilteredIds(registry, blacklist) }
+
+    private inline fun <T> getIdSuggestions(ops: DynamicOps<T>, namespaceOptional: Boolean, prefix: String = "", ids: () -> Stream<Identifier>): Stream<T> {
+        val namespacedStream = ids().map { ops.createString(prefix + it.toString()) }
+        if(!namespaceOptional)
+            return namespacedStream
+        val shortStream = ids().filter { it.namespace == "minecraft" }.map { ops.createString(prefix + it.path) }
+        return Stream.concat(namespacedStream, shortStream)
+    }
+
     @JvmStatic
     @CodecMod(target = Registry::class, methodName = "referenceHolderWithLifecycle", fieldAccess = ["this"])
     fun <T> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> =
-        CodecSuggestionWrapper.withThreadLocal(codec, REGISTRY_SUGGESTIONS_BLACKLIST, object : ContextSuggestionsProvider<Set<Any>?> {
-            override fun <T: Any> getSuggestions(ops: DynamicOps<T>, context: Set<Any>?): Stream<T> =
-                if(context == null) registry.keys(ops)
-                else registry.entrySet().stream().filter { it.value !in context }.map { ops.createString(it.key.identifier().toString()) }
+        CodecSuggestionWrapper.withContext(codec, idContextGetter(REGISTRY_SUGGESTIONS_BLACKLIST), object : ContextSuggestionsProvider<IdSuggestionContext<Set<Any>>> {
+            override fun <T: Any> getSuggestions(ops: DynamicOps<T>, context: IdSuggestionContext<Set<Any>>): Stream<T> =
+                getRegistrySuggestions(ops, registry, context.namespaceOptional, context.extra)
         })
 
     @JvmStatic
     @CodecMod(target = ResourceKey::class, methodName = "codec")
-    fun <T : Any> addResourceKeySuggestions(codec: Codec<ResourceKey<T>>, registryKey: ResourceKey<out Registry<T>>): Codec<ResourceKey<T>> = Codec.of(codec, object : Decoder<ResourceKey<T>> {
-        override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<ResourceKey<T>, A>> {
-            val registries = ExtraDecoderBehavior.getCurrentBehavior(ops)?.registries
-                ?: return codec.decode(ops, input)
-            return CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
-                override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
-                    registries.lookup(registryKey).map { it.keys(ops) }.getOrDefault(Stream.empty())
-
-            }).decode(ops, input)
-        }
-    })
+    fun <T : Any, TReg : Any> addResourceKeySuggestions(codec: Codec<T>, registryKey: ResourceKey<out Registry<TReg>>): Codec<T> =
+        CodecSuggestionWrapper.withContext(codec, idContextGetter(registryKey), object : ContextSuggestionsProvider<IdSuggestionContext<Registry<TReg>>> {
+            override fun <T : Any> getSuggestions(
+                ops: DynamicOps<T>,
+                context: IdSuggestionContext<Registry<TReg>>,
+            ): Stream<T> {
+                val (namespaceOptional, registry) = context
+                if(registry == null)
+                    return Stream.empty()
+                return getRegistrySuggestions(ops, registry, namespaceOptional, null)
+            }
+        })
 
     @JvmStatic
     @CodecMod(target = StringRepresentable.StringRepresentableCodec::class, javaFieldWrite = "codec")
@@ -269,24 +286,29 @@ object CodecTransformers {
     
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "codec")
-    fun <T: Any> addTagKeySuggestions(codec: Codec<TagKey<T>>, resourceKey: ResourceKey<out Registry<T>>): Codec<TagKey<T>> =
-        CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
-            override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
-                val owner = (ops as RegistryOps<*>).owner(resourceKey).getOrNull()
-                return (owner as? HolderLookup<*>)?.listTagIds()
-                        ?.map { key -> ops.createString(key.location().toString()) }
-                        ?: Stream.empty()
+    fun <TReg: Any> addTagKeySuggestions(codec: Codec<TagKey<TReg>>, resourceKey: ResourceKey<out Registry<TReg>>): Codec<TagKey<TReg>> =
+        CodecSuggestionWrapper.withContext(codec, idContextGetter(resourceKey), object : ContextSuggestionsProvider<IdSuggestionContext<Registry<TReg>>> {
+            override fun <T : Any> getSuggestions(
+                ops: DynamicOps<T>,
+                context: IdSuggestionContext<Registry<TReg>>
+            ): Stream<T> {
+                val (namespaceOptional, registry) = context
+                if(registry == null) return Stream.empty()
+                return getIdSuggestions(ops, namespaceOptional) { registry.listTagIds().map { it.location }}
             }
         })
+
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "hashedCodec")
-    fun <T: Any> addHashedTagKeySuggestions(codec: Codec<TagKey<T>>, resourceKey: ResourceKey<out Registry<T>>): Codec<TagKey<T>> =
-        CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
-            override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
-                val owner = (ops as RegistryOps<*>).owner(resourceKey).getOrNull()
-                return (owner as? HolderLookup<*>)?.listTagIds()
-                    ?.map { key -> ops.createString('#' + key.location().toString()) }
-                    ?: Stream.empty()
+    fun <TReg: Any> addHashedTagKeySuggestions(codec: Codec<TagKey<TReg>>, resourceKey: ResourceKey<out Registry<TReg>>): Codec<TagKey<TReg>> =
+        CodecSuggestionWrapper.withContext(codec, idContextGetter(resourceKey), object : ContextSuggestionsProvider<IdSuggestionContext<Registry<TReg>>> {
+            override fun <T : Any> getSuggestions(
+                ops: DynamicOps<T>,
+                context: IdSuggestionContext<Registry<TReg>>
+            ): Stream<T> {
+                val (namespaceOptional, registry) = context
+                if(registry == null) return Stream.empty()
+                return getIdSuggestions(ops, namespaceOptional, "#") { registry.listTagIds().map { it.location }}
             }
         })
 
@@ -369,14 +391,13 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "TAG_OR_ELEMENT_ID")
     fun suggestTagEntryNames(codec: Codec<ExtraCodecs.TagOrElementLocation>): Codec<ExtraCodecs.TagOrElementLocation> =
-        CodecSuggestionWrapper.withThreadLocal(codec, CURRENT_TAG_ANALYZING_REGISTRY, object : ContextSuggestionsProvider<HolderLookup.RegistryLookup<*>?> {
-            override fun <T : Any> getSuggestions(ops: DynamicOps<T>, context: HolderLookup.RegistryLookup<*>?): Stream<T> {
-                if(context == null) return Stream.empty()
+        CodecSuggestionWrapper.withContext(codec, idContextGetter(CURRENT_TAG_ANALYZING_REGISTRY), object : ContextSuggestionsProvider<IdSuggestionContext<HolderLookup.RegistryLookup<*>>> {
+            override fun <T : Any> getSuggestions(ops: DynamicOps<T>, context: IdSuggestionContext<HolderLookup.RegistryLookup<*>>): Stream<T> {
+                val (namespaceOptional, registry) = context
+                if(registry == null) return Stream.empty()
                 return Stream.concat(
-                    context.listElementIds()
-                        .map { key -> ops.createString(key!!.identifier().toString()) },
-                    context.listTagIds()
-                        .map { key -> ops.createString("#" + key!!.location().toString()) }
+                    getIdSuggestions(ops, namespaceOptional) { registry.listElementIds().map { it.identifier() } },
+                    getIdSuggestions(ops, namespaceOptional, "#") { registry.listTagIds().map { it.location } },
                 )
             }
         })
@@ -492,4 +513,22 @@ object CodecTransformers {
                 DataObjectDecoding::getDecoderForBlock,
             )
         )
+
+    private fun idContextGetter(): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<Nothing>> = { node, behavior ->
+        val namespaceOptional = behavior.branchBehavior.nonCanonicalBehavior != ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE
+                && node != EXTRA_CANONICAL_ID.getOrNull()
+        IdSuggestionContext(namespaceOptional, null)
+    }
+    private fun <TExtra> idContextGetter(threadLocal: ThreadLocal<TExtra>): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<TExtra>> = { node, behavior ->
+        val namespaceOptional = behavior.branchBehavior.nonCanonicalBehavior != ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE
+                && node != EXTRA_CANONICAL_ID.getOrNull()
+        IdSuggestionContext(namespaceOptional, threadLocal.getOrNull())
+    }
+    private fun <TReg : Any> idContextGetter(registry: ResourceKey<out Registry<TReg>>): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<Registry<TReg>>> = { node, behavior ->
+        val namespaceOptional = behavior.branchBehavior.nonCanonicalBehavior != ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE
+                && node != EXTRA_CANONICAL_ID.getOrNull()
+        IdSuggestionContext(namespaceOptional, behavior.registries?.lookup(registry)?.getOrNull())
+    }
+
+    data class IdSuggestionContext<TExtra>(val namespaceOptional: Boolean, val extra: TExtra?)
 }
