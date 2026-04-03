@@ -74,9 +74,9 @@ data class TreeOperations<TNode: Any>(
 
     fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
         if(contentDecoder != null) {
-            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.Companion.createAnalyzingOps(this, registryAccess?.createSerializationContext(ops) ?: ops, analyzingResult)
+            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(this, registryAccess?.createSerializationContext(ops) ?: ops, analyzingResult)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
-                ExtraDecoderBehavior.Companion.decodeWithBehavior(
+                ExtraDecoderBehavior.decodeWithBehavior(
                     contentDecoder,
                     wrappedOps,
                     stringRangeTree.root,
@@ -111,7 +111,7 @@ data class TreeOperations<TNode: Any>(
         )
         val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
         IS_ANALYZING_DECODER.runWithValueSwap(true) {
-            ExtraDecoderBehavior.Companion.decodeWithBehavior(
+            ExtraDecoderBehavior.decodeWithBehavior(
                 decoder,
                 mergeErrorSuppressingOps,
                 stringRangeTree.root,

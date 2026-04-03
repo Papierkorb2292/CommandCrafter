@@ -88,7 +88,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         private val entitiesWithError = mutableSetOf<EntityType<*>>()
 
         fun registerAdditionalDataTypes() {
-            ArgumentTypeAdditionalDataSerializer.Companion.registerAdditionalDataType(
+            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
                 Identifier.fromNamespaceAndPath("command_crafter", "data_object_source"),
                 { argumentType ->
                     if(argumentType is DataObjectSourceContainer) {
@@ -102,7 +102,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     } else false
                 }, DATA_OBJECT_SOURCE_PACKET_CODEC.cast(), DATA_OBJECT_SOURCE_CODEC
             )
-            ArgumentTypeAdditionalDataSerializer.Companion.registerAdditionalDataType(
+            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
                 Identifier.fromNamespaceAndPath("command_crafter", "non_player_selector"),
                 { argumentType ->
                     if(argumentType is IsNonPlayerSelector) {
@@ -417,8 +417,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String) {
         fun getNBTBranchBehavior(): BranchBehaviorProvider<Tag> = when(kind) {
             DataObjectSourceKind.ENTITY_SUMMON -> BranchBehaviorProvider.Decode
-            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.Companion.getNBTMerge()
-            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.Companion.getNBTMerge()
+            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
+            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
         }
     }
 

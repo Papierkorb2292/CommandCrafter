@@ -65,7 +65,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
-            DataObjectDecoding.Companion.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
+            DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
                 TreeOperations.forJson(
                     parsedStringRangeTree,
                     concatenatedLines
