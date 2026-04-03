@@ -38,6 +38,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
     override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
         addError(error, input, stack.last().depth)
         popStack()
+        branchBehaviorProvider.onDecodeEnd(input)
     }
 
     override fun markStringParseError(input: TNode) {
@@ -55,12 +56,12 @@ class LeafErrorDecoderCallback<TNode : Any>(
     }
 
     override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
-        branchBehaviorProvider.onDecodeEnd(input)
         if(isPartial) return
         // Since decoding was successful, all other errors that children added are cleared.
         // Warnings are kept, since they exist even if the result was decoded correctly
         stack.last().clearChildErrors()
         popStack()
+        branchBehaviorProvider.onDecodeEnd(input)
     }
 
     override fun onDecodeStart(input: TNode) {
@@ -100,6 +101,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
 
     override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
         val stackCopy = ArrayList(stack)
+        val branchBehaviorCopy = branchBehaviorProvider.copy()
         stack.last().hasLateAddition = true
         lateAdditionMergers += {
             for(i in stackCopy.lastIndex downTo 1) {
@@ -110,10 +112,13 @@ class LeafErrorDecoderCallback<TNode : Any>(
         return object : ExtraDecoderBehavior.LateAdditionRunner {
             override fun <T> acceptLateAddition(adder: () -> T): T {
                 val prevStack = stack
+                val prevBehavior = branchBehaviorProvider
+                branchBehaviorProvider = branchBehaviorCopy
                 stack = ArrayList(16)
                 stack += stackCopy.last()
                 val result = adder()
                 stack = prevStack
+                branchBehaviorProvider = prevBehavior
                 return result
             }
         }
@@ -186,6 +191,13 @@ class LeafErrorDecoderCallback<TNode : Any>(
         override fun getByteBuffer(input: TNode) = onNodeAccess(input, delegate.getByteBuffer(input))
         override fun getIntStream(input: TNode) = onNodeAccess(input, delegate.getIntStream(input))
         override fun getLongStream(input: TNode) = onNodeAccess(input, delegate.getLongStream(input))
+        override fun <U> convertTo(outOps: DynamicOps<U>, input: TNode): U {
+            if(branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
+                stack.last().ignoreErrors = true
+            }
+            return delegate.convertTo(outOps, input)
+        }
+
     }
 
     private class ErrorStackEntry<TNode>(

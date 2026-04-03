@@ -264,16 +264,18 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         }
 
     override fun onDecodeStart(input: TNode) {
-        branchBehaviorProvider.onDecodeEnd(input)
+        branchBehaviorProvider.onDecodeStart(input)
     }
 
     override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
         @Suppress("UNCHECKED_CAST")
-        // Only use actual analyzing results for the node if it was also able to parse the full string,
-        // otherwise there was an error but another decoder did not return an error, so the string
-        // should not be interpreted by the errored decoder
-        if(!isPartial)
+        if(!isPartial) {
             successfullyDecodedNodes += input
+            branchBehaviorProvider.onDecodeEnd(input)
+        }
+    }
+
+    override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
         branchBehaviorProvider.onDecodeEnd(input)
     }
 
@@ -304,6 +306,19 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         val result = decodeCallback()
         suggestEmptyString = prevSuggestEmptyString
         return result
+    }
+
+    override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
+        val branchBehaviorCopy = branchBehaviorProvider.copy()
+        return object : ExtraDecoderBehavior.LateAdditionRunner {
+            override fun <T> acceptLateAddition(adder: () -> T): T {
+                val prevBranchBehavior = branchBehaviorProvider
+                branchBehaviorProvider = branchBehaviorCopy
+                val result = adder()
+                branchBehaviorProvider = prevBranchBehavior
+                return result
+            }
+        }
     }
 
     fun analyzeNode(node: TNode, range: StringRange, stringContent: () -> StringContent?) {
@@ -347,6 +362,9 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                 unmappedCursor: Int,
                 stringContent: StringContent?,
             ) {
+                // Only use actual analyzing results for the node if it was also able to parse the full string,
+                // otherwise there was an error but another decoder did not return an error, so the string
+                // should not be interpreted by the errored decoder
                 if(unmappedCursor > bestActualCursor && (unmappedCursor == Int.MAX_VALUE || !requireSuccessfulActual)) {
                     actualResult = if(stringContent != null) analyzingResult.withStringEscaperActual(stringContent.escaper) else analyzingResult
                     bestActualCursor = unmappedCursor

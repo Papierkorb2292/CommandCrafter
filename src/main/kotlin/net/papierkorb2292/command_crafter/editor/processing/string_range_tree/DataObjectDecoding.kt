@@ -327,8 +327,10 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         DynamicOpsReadView.getReadDecoder(registries, ::readDispatchingEntity)
 
     fun readDispatchingEntity(valueInput: DynamicOpsReadView<*>) {
+        if(!valueInput.deduplicationMarkers.add("readDispatchingEntity"))
+            return // Already done
         valueInput.alwaysReturnEmpty = false
-        val id = valueInput.read("id", NON_PLAYER_ENTITY_TYPE_CODEC).getOrNull()
+        val id = valueInput.read("id", NON_PLAYER_ENTITY_TYPE_CODEC).getOrNull() //TODO: Error on missing id field
         valueInput.alwaysReturnEmpty = true
         val entity = dummyEntities[id]
         if(entity == null)
@@ -347,15 +349,15 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    private val passengersCodec = Codec.of(MapCodec.unit(Unit).codec(), getDispatchingEntityDecoder()).listOf()
-
     fun analyzeEntity(entity: Entity, valueInput: DynamicOpsReadView<*>, includePassengers: Boolean) {
         if(entity.type in entitiesWithError)
             return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
+        if(!valueInput.deduplicationMarkers.add(entity))
+            return // Already done
         try {
             if(entity is ServerPlayer)
                 valueInput.read(NbtPredicate.SELECTED_ITEM_TAG, ItemStack.CODEC)
-            if(includePassengers) {
+            if(includePassengers && valueInput.deduplicationMarkers.add("Passengers")) {
                 valueInput.childrenListOrEmpty(Entity.TAG_PASSENGERS).forEach {
                     readDispatchingEntity(it as DynamicOpsReadView<*>)
                 }

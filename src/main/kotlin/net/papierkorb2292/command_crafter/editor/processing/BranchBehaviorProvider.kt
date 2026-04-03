@@ -18,7 +18,7 @@ interface BranchBehaviorProvider<in TNode> {
             override fun <TNode : Any> apply(provider: BranchBehaviorProvider<TNode>) = Decode
         }
         val WITH_NON_CANONICAL_KEEP_BEHAVIOR_MODIFIER = object : BranchBehaviorModifier {
-            override fun <TNode : Any> apply(provider: BranchBehaviorProvider<TNode>) = object : BranchBehaviorProvider<TNode> {
+            override fun <TNode : Any> apply(provider: BranchBehaviorProvider<TNode>): BranchBehaviorProvider<TNode> = object : BranchBehaviorProvider<TNode> {
                 override fun getBranchBehavior(includeSuggestions: Boolean): ExtraDecoderBehavior.BranchBehavior =
                     ExtraDecoderBehavior.BranchBehavior.forType(
                         provider.getBranchBehavior(includeSuggestions).type
@@ -31,6 +31,8 @@ interface BranchBehaviorProvider<in TNode> {
                 override fun onDecodeEnd(input: TNode) {
                     provider.onDecodeEnd(input)
                 }
+
+                override fun copy() = apply(provider.copy())
             }
         }
         fun modifierForProvider(newProvider: BranchBehaviorProvider<Any>) = object : BranchBehaviorModifier {
@@ -42,6 +44,7 @@ interface BranchBehaviorProvider<in TNode> {
     fun getBranchBehavior(includeSuggestions: Boolean): ExtraDecoderBehavior.BranchBehavior
     fun onDecodeStart(input: TNode)
     fun onDecodeEnd(input: TNode)
+    fun copy(): BranchBehaviorProvider<TNode>
 
     object Decode : BranchBehaviorProvider<Any?> {
         override fun getBranchBehavior(includeSuggestions: Boolean) =
@@ -50,14 +53,18 @@ interface BranchBehaviorProvider<in TNode> {
 
         override fun onDecodeStart(input: Any?) {}
         override fun onDecodeEnd(input: Any?) {}
+        override fun copy() = Decode
     }
 
     class ConditionalAllPossible<in TNode>(
         private val delegate: BranchBehaviorProvider<TNode>,
         private val nonCanonicalBehavior: ExtraDecoderBehavior.NonCanonicalBehavior,
         private val allPossiblePredicate: Predicate<in TNode>,
+        private var failedPredicateCount: Int,
     ) : BranchBehaviorProvider<TNode> {
-        private var failedPredicateCount: Int = 0
+        constructor(delegate: BranchBehaviorProvider<TNode>, nonCanonicalBehavior: ExtraDecoderBehavior.NonCanonicalBehavior, allPossiblePredicate: Predicate<in TNode>)
+                : this(delegate, nonCanonicalBehavior, allPossiblePredicate, 0)
+
         override fun getBranchBehavior(includeSuggestions: Boolean) =
             if(failedPredicateCount != 0) delegate.getBranchBehavior(includeSuggestions)
             else ExtraDecoderBehavior.BranchBehavior.forAllPossibleEncoded(nonCanonicalBehavior)
@@ -75,6 +82,8 @@ interface BranchBehaviorProvider<in TNode> {
                 failedPredicateCount--
             }
         }
+
+        override fun copy() = ConditionalAllPossible(delegate.copy(), nonCanonicalBehavior, allPossiblePredicate, failedPredicateCount)
     }
 
     interface BranchBehaviorModifier {

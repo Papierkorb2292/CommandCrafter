@@ -572,6 +572,7 @@ object TestCommandCrafter {
             data merge entity @s {§NoAI:1b,CustomName:[§{}]}
             # This can't be combined with the first command, because you wouldn't get all click_event suggestions inside a list, where no merging can happen
             data merge entity @s {CustomName:{click_event:{§}}}
+            data merge entity @s {Item:{components:{entity_data:{Passengers:[{CustomName:{click_event:{§}}}]}}}}
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
@@ -584,6 +585,12 @@ object TestCommandCrafter {
                 "Multiple suggestions at index $index"
             )
         }
+
+        context.assertValueEqual(
+            1,
+            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get().size,
+            "Suggestion count for click_event inside list"
+        )
 
         context.assertTrue(
             analyzingResult.diagnostics.any { it.range.start == markedLocations[1].position },

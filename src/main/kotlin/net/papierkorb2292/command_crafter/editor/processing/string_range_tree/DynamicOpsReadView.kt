@@ -49,6 +49,8 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
 
     var alwaysReturnEmpty = true
 
+    val deduplicationMarkers = mutableSetOf<Any>()
+
     private val readKeyCache = mutableMapOf<kotlin.Pair<String, Codec<*>>, Optional<*>>()
 
     @Suppress("UNCHECKED_CAST")

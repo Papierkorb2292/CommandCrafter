@@ -12,4 +12,7 @@ class ExtraDecoderContext<TNode : Any>(private val delegate: ExtraDecoderBehavio
 
     override val parentLinks: ParentLinks?
         get() = delegate.parentLinks
+
+    override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
+        get() = delegate.branchBehavior
 }
