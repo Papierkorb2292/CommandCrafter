@@ -57,6 +57,13 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
         shouldSuggest: Boolean
     ) = delegate.notePossibleValues(input, provider, shouldSuggest)
 
+    override fun <TResult> decodeWithoutStringSuggestion(decodeCallback: () -> TResult): TResult {
+        return delegate.decodeWithoutStringSuggestion(decodeCallback)
+    }
+
+    override val nodeAnalyzingTracker: ExtraDecoderBehavior.NodeAnalyzingTracker<TNode>?
+        get() = delegate.nodeAnalyzingTracker
+
     override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>?
         get() = delegate.nodeAnalyzingBehavior
 

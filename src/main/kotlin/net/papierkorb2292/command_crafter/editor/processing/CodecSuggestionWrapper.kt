@@ -28,19 +28,14 @@ class CodecSuggestionWrapper<A, TContext>(private val delegate: Codec<A>, val co
 
     override fun <T: Any> decode(ops: DynamicOps<T>, input: T?): DataResult<Pair<A, T>> {
         if(input == null) return delegate.decode(ops, null)
-        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
-        if(extraBehavior != null) {
-            val context = contextGetter(extraBehavior)
-            extraBehavior.notePossibleValues(input, {
-                suggestionsProvider.getSuggestions(ops, context).map {
-                    suggestionsProvider.suggestionModifier(ExtraDecoderBehavior.PossibleValue(it), ops)
-                }
-            })
-        }
-        val analyzingBehavior = extraBehavior?.nodeAnalyzingBehavior
-        if(analyzingBehavior == null || suggestEmptyString)
-            return delegate.decode(ops, input)
-        return analyzingBehavior.decodeWithoutStringSuggestion {
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return delegate.decode(ops, input)
+        val context = contextGetter(extraBehavior)
+        extraBehavior.notePossibleValues(input, {
+            suggestionsProvider.getSuggestions(ops, context).map {
+                suggestionsProvider.suggestionModifier(ExtraDecoderBehavior.PossibleValue(it), ops)
+            }
+        })
+        return extraBehavior.decodeWithoutStringSuggestion {
             delegate.decode(ops, input)
         }
     }

@@ -147,7 +147,7 @@ object CodecTransformers {
             input: TNode,
             ops: DynamicOps<TNode>,
         ) {
-            if(ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingBehavior == null)
+            if(ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingTracker == null)
                 return
             PackedEncoderColorInfo.wrapCodec(Codec.INT, false, nameProvider = { "0x${PackedEncoderColorInfo.colorToHex(it, false)}"}).listOf().onlyAnalyzingBehavior().decode(ops, input)
         }

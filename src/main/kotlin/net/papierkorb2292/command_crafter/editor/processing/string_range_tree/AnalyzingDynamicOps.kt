@@ -25,11 +25,10 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     override val delegate: DynamicOps<TNode>,
     tree: StringRangeTree<TNode>,
     internal val baseResult: AnalyzingResult,
-    override val stringContentGetter: StringContent.StringContentGetter<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val registries: RegistryAccess?,
-) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode>, ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode> {
-    override var tree = tree
+) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode> {
+    var tree = tree
         private set
 
     override var parentLinks: ParentLinks? = null
@@ -55,7 +54,6 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                     it,
                     treeOperations.stringRangeTree,
                     analyzingResult,
-                    treeOperations.stringGetter,
                     treeOperations.branchBehaviorProvider,
                     treeOperations.registryAccess
                 )
@@ -76,9 +74,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     internal val mapKeySuggestions =
         IdentityHashMap<TNode, MutableCollection<ExtraDecoderBehavior.PossibleValue.Provider<TNode>>>()
 
-    internal val nodePotentialAnalyzingResult =
-        IdentityHashMap<TNode, MutableCollection<NodeAnalyzingResult>>()
-    internal val nodeActualAnalyzingResult = IdentityHashMap<TNode, Pair<Int, NodeAnalyzingResult?>>()
+    internal val nodeAnalyzingCallbacks = IdentityHashMap<TNode, MutableCollection<ExtraDecoderBehavior.NodeAnalyzingCallback<TNode>>>()
+    internal val successfullyDecodedNodes = Collections.newSetFromMap<TNode>(IdentityHashMap())
 
     private var suggestEmptyString = true
 
@@ -88,45 +85,10 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     fun getMapKeySuggestions(node: TNode) =
         mapKeySuggestions.computeIfAbsent(node) { mutableSetOf() }
 
-    override fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult {
-        val result = baseResult.copyInput()
-        nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += NodeAnalyzingResult(
-            result
-        )
-        return result
-    }
-
-    override fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult {
-        var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.readSkippingChars)
-            .combineWith(stringContent.cursorMapper)
-        if(baseResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
-            absoluteContentMapper = baseResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
-        } else {
-            absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.skippedChars)
-                .combineWith(absoluteContentMapper)
+    override val nodeAnalyzingTracker = object : ExtraDecoderBehavior.NodeAnalyzingTracker<TNode> {
+        override fun registerCallback(node: TNode, analyzingCallback: ExtraDecoderBehavior.NodeAnalyzingCallback<TNode>) {
+            nodeAnalyzingCallbacks.getOrPut(node) { mutableListOf() } += analyzingCallback
         }
-        val stringMappingInfo = FileMappingInfo(
-            baseResult.mappingInfo.lines,
-            absoluteContentMapper
-        )
-        val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
-        nodePotentialAnalyzingResult.getOrPut(node) { mutableListOf() } += NodeAnalyzingResult(
-            stringAnalyzingResult,
-            stringContent.escaper
-        )
-        return stringAnalyzingResult
-    }
-
-    override fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int, stringContent: StringContent?) {
-        if(node !in nodeActualAnalyzingResult) {
-            nodeActualAnalyzingResult[node] =
-                unmappedCursor to NodeAnalyzingResult.fromNullable(analyzingResult, stringContent?.escaper)
-            return
-        }
-        val bestCursor = nodeActualAnalyzingResult[node]!!.first
-        if(unmappedCursor > bestCursor)
-            nodeActualAnalyzingResult[node] =
-                unmappedCursor to NodeAnalyzingResult.fromNullable(analyzingResult, stringContent?.escaper)
     }
 
     override fun getBooleanValue(input: TNode): DataResult<Boolean> {
@@ -310,7 +272,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         // Only use actual analyzing results for the node if it was also able to parse the full string,
         // otherwise there was an error but another decoder did not return an error, so the string
         // should not be interpreted by the errored decoder
-        finishNodeAnalyzingResultOverlay(input, null)
+        if(!isPartial)
+            successfullyDecodedNodes += input
         branchBehaviorProvider.onDecodeEnd(input)
     }
 
@@ -343,20 +306,68 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         return result
     }
 
-    override val nodeAnalyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>
-        get() = this
+    fun analyzeNode(node: TNode, range: StringRange, stringContent: () -> StringContent?) {
+        val callbacks = nodeAnalyzingCallbacks[node] ?: return
+        val potentialResults = mutableListOf<Pair<AnalyzingResult, StringEscaper?>>()
+        var actualResult: AnalyzingResult? = null
+        val requireSuccessfulActual = node in successfullyDecodedNodes
+
+        val behavior = object : ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode> {
+            private var bestActualCursor = 0
+
+            override val stringContentGetter get() = stringContent
+            override val range get() = range
+
+            override fun createNodeAnalyzingResultOverlay(): AnalyzingResult {
+                val result = baseResult.copyInput()
+                potentialResults += result to null
+                return result
+            }
+
+            override fun createStringAnalyzingResultOverlay(stringContent: StringContent): AnalyzingResult {
+                var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.readSkippingChars)
+                    .combineWith(stringContent.cursorMapper)
+                if(baseResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
+                    absoluteContentMapper = baseResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
+                } else {
+                    absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.skippedChars)
+                        .combineWith(absoluteContentMapper)
+                }
+                val stringMappingInfo = FileMappingInfo(
+                    baseResult.mappingInfo.lines,
+                    absoluteContentMapper
+                )
+                val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
+                potentialResults += stringAnalyzingResult to stringContent.escaper
+                return stringAnalyzingResult
+            }
+
+            override fun finishNodeAnalyzingResultOverlay(
+                analyzingResult: AnalyzingResult,
+                unmappedCursor: Int,
+                stringContent: StringContent?,
+            ) {
+                if(unmappedCursor > bestActualCursor && (unmappedCursor == Int.MAX_VALUE || !requireSuccessfulActual)) {
+                    actualResult = if(stringContent != null) analyzingResult.withStringEscaperActual(stringContent.escaper) else analyzingResult
+                    bestActualCursor = unmappedCursor
+                }
+            }
+        }
+
+        for(callback in callbacks) {
+            callback.analyze(behavior)
+        }
+
+        if(actualResult != null) {
+            baseResult.semanticTokens.overlay(listOf(actualResult.semanticTokens).iterator())
+            actualResult.semanticTokens.clear()
+            baseResult.combineWithActual(actualResult)
+        }
+        for((potentialResult, escaper) in potentialResults) {
+            baseResult.combineWithPotentialFinished(if(escaper != null) potentialResult.withStringEscaperPotential(escaper) else potentialResult)
+        }
+    }
 
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
         get() = branchBehaviorProvider.getBranchBehavior(true)
-
-    data class NodeAnalyzingResult(val analyzingResult: AnalyzingResult, val escaper: StringEscaper? = null) {
-        companion object {
-            fun fromNullable(analyzingResult: AnalyzingResult?, escaper: StringEscaper?): NodeAnalyzingResult? =
-                if(analyzingResult == null) null
-                else NodeAnalyzingResult(analyzingResult, escaper)
-        }
-
-        fun getActual() = if(escaper == null) analyzingResult else analyzingResult.withStringEscaperActual(escaper)
-        fun getPotential() = if(escaper == null) analyzingResult else analyzingResult.withStringEscaperPotential(escaper)
-    }
 }

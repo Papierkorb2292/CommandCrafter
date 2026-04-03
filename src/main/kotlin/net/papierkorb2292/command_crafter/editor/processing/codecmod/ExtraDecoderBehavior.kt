@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
+import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.core.RegistryAccess
@@ -7,7 +8,6 @@ import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvid
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.ParentLinks
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import org.eclipse.lsp4j.CompletionItem
@@ -88,16 +88,28 @@ interface ExtraDecoderBehavior<TNode : Any> {
 
     fun notePossibleValues(input: TNode, provider: PossibleValue.Provider<TNode>, shouldSuggest: Boolean = true) {}
 
+    fun <TResult> decodeWithoutStringSuggestion(decodeCallback: () -> TResult): TResult = decodeCallback()
+
+    val nodeAnalyzingTracker: NodeAnalyzingTracker<TNode>?
+        get() = null
+
     val nodeAnalyzingBehavior: NodeAnalyzingBehavior<TNode>?
         get() = null
 
-    interface NodeAnalyzingBehavior<in TNode : Any> {
-        val stringContentGetter: StringContent.StringContentGetter<in TNode>
-        val tree: StringRangeTree<in TNode>
-        fun createNodeAnalyzingResultOverlay(node: TNode): AnalyzingResult
-        fun createStringAnalyzingResultOverlay(node: TNode, stringContent: StringContent): AnalyzingResult
-        fun finishNodeAnalyzingResultOverlay(node: TNode, analyzingResult: AnalyzingResult?, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null)
-        fun <TResult> decodeWithoutStringSuggestion(decodeCallback: () -> TResult): TResult = decodeCallback()
+    interface NodeAnalyzingTracker<TNode : Any> {
+        fun registerCallback(node: TNode, analyzingCallback: NodeAnalyzingCallback<TNode>)
+    }
+
+    fun interface NodeAnalyzingCallback<TNode : Any> {
+        fun analyze(behavior: NodeAnalyzingBehavior<TNode>)
+    }
+
+    interface NodeAnalyzingBehavior<TNode : Any> {
+        val stringContentGetter: () -> StringContent?
+        val range: StringRange
+        fun createNodeAnalyzingResultOverlay(): AnalyzingResult
+        fun createStringAnalyzingResultOverlay(stringContent: StringContent): AnalyzingResult
+        fun finishNodeAnalyzingResultOverlay(analyzingResult: AnalyzingResult, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null)
     }
 
     data class PossibleValue<out TNode>(val element: TNode, val isNumberABoolean: Boolean = false, val preferHex: Boolean = false, val completionModifier: ((CompletionItem) -> Unit)? = null) {

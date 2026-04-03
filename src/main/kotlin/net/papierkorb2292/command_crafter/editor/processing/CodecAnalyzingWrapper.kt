@@ -17,12 +17,11 @@ class CodecAnalyzingWrapper<A>(private val delegate: Codec<A>, val callback: (An
         val result = delegate.decode(ops, input)
         val decoded = result.result().getOrNull()
         if(input == null || decoded == null) return result
-        ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingBehavior?.let { analyzingBehavior ->
+        ExtraDecoderBehavior.getCurrentBehavior(ops)?.nodeAnalyzingTracker?.registerCallback(input) { analyzingBehavior ->
             @Suppress("UNCHECKED_CAST")
-            val range = analyzingBehavior.tree.ranges[input]!!
-            val analyzingResult = analyzingBehavior.createNodeAnalyzingResultOverlay(input)
-            callback(analyzingResult, range, decoded.first, ops)
-            analyzingBehavior.finishNodeAnalyzingResultOverlay(input, analyzingResult)
+            val analyzingResult = analyzingBehavior.createNodeAnalyzingResultOverlay()
+            callback(analyzingResult, analyzingBehavior.range, decoded.first, ops)
+            analyzingBehavior.finishNodeAnalyzingResultOverlay(analyzingResult)
         }
         return result
     }

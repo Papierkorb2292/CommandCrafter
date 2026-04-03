@@ -30,7 +30,6 @@ import kotlin.collections.forEach
 import kotlin.collections.get
 import kotlin.collections.isNotEmpty
 import kotlin.collections.last
-import kotlin.collections.listOf
 import kotlin.collections.map
 import kotlin.collections.mapIndexed
 import kotlin.collections.mutableListOf
@@ -190,17 +189,9 @@ class StringRangeTree<TNode: Any>(
         return result
     }
 
-    fun combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps: AnalyzingDynamicOps<TNode>) {
-        for((node, _) in getNodesAndKeysSorted(analyzingDynamicOps.accessedKeysWatcher)) {
-            val actualAnalyzingResult = analyzingDynamicOps.nodeActualAnalyzingResult[node]?.second?.getActual()
-            if(actualAnalyzingResult != null) {
-                analyzingDynamicOps.baseResult.semanticTokens.overlay(listOf(actualAnalyzingResult.semanticTokens).iterator())
-                actualAnalyzingResult.semanticTokens.clear()
-                analyzingDynamicOps.baseResult.combineWithActual(actualAnalyzingResult)
-            }
-            for(potentialNodeAnalyzingResult in analyzingDynamicOps.nodePotentialAnalyzingResult[node] ?: continue) {
-                analyzingDynamicOps.baseResult.combineWithPotentialFinished(potentialNodeAnalyzingResult.getPotential())
-            }
+    fun combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, stringContentGetter: StringContent.StringContentGetter<TNode>) {
+        for((node, range) in getNodesAndKeysSorted(analyzingDynamicOps.accessedKeysWatcher)) {
+            analyzingDynamicOps.analyzeNode(node, range) { stringContentGetter.getStringContent(node) }
         }
     }
 

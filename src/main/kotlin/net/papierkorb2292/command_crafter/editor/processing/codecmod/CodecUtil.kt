@@ -84,13 +84,14 @@ fun <T> Codec<T>.markEncodedId(fieldName: String): Codec<T> = object : Codec<T> 
 
 }
 
+// Some of these usages should always use ExtraDecoderContext
 fun <F> Decoder<F>.onlyAnalyzingBehavior() = @NoDecoderCallbacks object : Codec<F> {
     override fun <T : Any> decode(
         ops: DynamicOps<T>,
         input: T,
     ): DataResult<Pair<F, T>> {
         val behavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
-        return if(behavior != null && behavior.nodeAnalyzingBehavior == null)
+        return if(behavior != null && behavior.nodeAnalyzingTracker == null)
             ExtraDecoderBehavior.decodeWithBehavior(this@onlyAnalyzingBehavior, ops, input, ExtraDecoderContext(behavior))
         else this@onlyAnalyzingBehavior.decode(ops, input)
     }
