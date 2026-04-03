@@ -54,7 +54,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
-import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
@@ -854,17 +856,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     // so the suggestions are at the correct location
                     val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
                     val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
-                    SUGGESTIONS_FULL_INPUT.set(completionReader.copy().apply {
-                        this.cursor = endCursor
-                    })
-                    val suggestionInfo = completionParentNode.children.map { child ->
+                    val fullInput = completionReader.copy().apply { this.cursor = endCursor }
+                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { completionParentNode.children.map { child ->
                         try {
                             val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
                             child.listSuggestions(
                                 contextBuilder.withSource(
                                     completionCommandSourceProvider(
                                         contextBuilder.source,
-                                        SUGGESTIONS_FULL_INPUT.get(),
+                                        fullInput,
                                         context
                                     )
                                 ).build(extendedTruncatedInput),
@@ -881,13 +881,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             )
                             Suggestions.empty() to null
                         }
-                    }
+                    } }
                     val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
                     val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
-                        SUGGESTIONS_FULL_INPUT.remove()
                         CompletableFuture.failedFuture(it)
                     }.thenApply {
-                        SUGGESTIONS_FULL_INPUT.remove()
                         val completionItems = suggestionInfo.flatMap { (future, analyzer) ->
                             val suggestionList = future.get().list
                             suggestionList.map { suggestion ->
