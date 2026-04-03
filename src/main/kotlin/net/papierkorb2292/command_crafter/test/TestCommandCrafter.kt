@@ -569,7 +569,9 @@ object TestCommandCrafter {
     @GameTest
     fun testEntityMergeNbtAnalyzing(context: GameTestHelper) {
         val markedLines = """
-            data merge entity @s {§NoAI:1b,CustomName:[§{},{click_event:{§}}]} 
+            data merge entity @s {§NoAI:1b,CustomName:[§{}]}
+            # This can't be combined with the first command, because you wouldn't get all click_event suggestions inside a list, where no merging can happen
+            data merge entity @s {CustomName:{click_event:{§}}}
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
