@@ -85,8 +85,9 @@ data class TreeOperations<TNode: Any>(
             }
             if(diagnosticSeverity != null)
                 generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
-            analyzingDynamicOps.tree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver)
-            analyzingDynamicOps.tree.combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps, stringGetter)
+            val newTree = stringRangeTree.copyWithPlaceholders(analyzingDynamicOps.placeholderChildrenMap)
+            newTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, suggestionResolver)
+            newTree.combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps, stringGetter)
         }
     }
 

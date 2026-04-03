@@ -23,14 +23,10 @@ import java.util.stream.Stream
 
 class AnalyzingDynamicOps<TNode: Any> private constructor(
     override val delegate: DynamicOps<TNode>,
-    tree: StringRangeTree<TNode>,
     internal val baseResult: AnalyzingResult,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val registries: RegistryAccess?,
 ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode> {
-    var tree = tree
-        private set
-
     override var parentLinks: ParentLinks? = null
         private set
     var accessedKeysWatcher: AccessedKeysWatcherDynamicOps<TNode>? = null
@@ -49,10 +45,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             analyzingResult: AnalyzingResult,
         ): Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> {
             val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(delegate) {
-                if(it is AnalyzingDynamicOps && it.tree === treeOperations.stringRangeTree) it
-                else AnalyzingDynamicOps(
+                AnalyzingDynamicOps(
                     it,
-                    treeOperations.stringRangeTree,
                     analyzingResult,
                     treeOperations.branchBehaviorProvider,
                     treeOperations.registryAccess
@@ -192,35 +186,11 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         return delegate.getStringValue(input)
     }
 
-    private val placeholders = mutableSetOf<TNode>()
+    val placeholderChildrenMap = mutableMapOf<TNode, TNode>()
 
     private fun insertContainerPlaceholder(container: TNode, placeholder: TNode): Boolean {
-        if(container in placeholders) return false
-
-        placeholders += placeholder
-
-        val orderedNodes = tree.orderedNodes.toMutableList()
-        orderedNodes.add(orderedNodes.indexOf(container) + 1, placeholder)
-
-        val listInnerRanges = tree.internalNodeRangesBetweenEntries[container]
-            ?: throw IllegalArgumentException("Node $container not found in internal node ranges between entries")
-        val listInnerRange = listInnerRanges.stream().findFirst().orElseThrow {
-            IllegalArgumentException("No internal node ranges between entries found for node $container")
-        }
-        val ranges = IdentityHashMap(tree.ranges)
-        ranges[placeholder] = StringRange.at(listInnerRange.end)
-        val nodeAllowedStartRanges = IdentityHashMap(tree.nodeAllowedStartRanges)
-        nodeAllowedStartRanges[placeholder] = listInnerRange
-        tree = StringRangeTree(
-            tree.root,
-            orderedNodes,
-            ranges,
-            nodeAllowedStartRanges,
-            tree.mapKeyRanges,
-            tree.internalNodeRangesBetweenEntries,
-            tree.placeholderNodes + placeholder,
-            tree.parentNodes
-        )
+        if(container in placeholderChildrenMap.values) return false
+        placeholderChildrenMap[container] = placeholder
         return true
     }
 
@@ -238,7 +208,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                 isEmpty = false
                 return@flatMap Stream.of(pair)
             }
-            if(!isEmpty || map in placeholders)
+            if(!isEmpty || map in placeholderChildrenMap.values)
                 return@flatMap Stream.empty()
             Stream.of(pair)
         }
@@ -258,7 +228,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                     biConsumer.accept(key, value)
                     isEmpty = false
                 }
-                if(isEmpty && input !in placeholders)
+                if(isEmpty && input !in placeholderChildrenMap.values)
                     biConsumer.accept(delegate.createString(EMPTY_MAP_PLACEHOLDER_KEY), delegate.emptyList())
             }
         }

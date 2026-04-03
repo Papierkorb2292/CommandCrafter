@@ -35,9 +35,11 @@ import kotlin.collections.mapIndexed
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
 import kotlin.collections.mutableSetOf
+import kotlin.collections.plus
 import kotlin.collections.plusAssign
 import kotlin.collections.reversed
 import kotlin.collections.set
+import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
 
@@ -213,6 +215,38 @@ class StringRangeTree<TNode: Any>(
                 return keyRange
         }
         return null
+    }
+
+    fun copyWithPlaceholders(placeholderChildrenMap: Map<TNode, TNode>): StringRangeTree<TNode> {
+        val orderedNodes = orderedNodes.toMutableList()
+        val ranges = IdentityHashMap(ranges)
+        val nodeAllowedStartRanges = IdentityHashMap(nodeAllowedStartRanges)
+        var i = 0
+        while(i < orderedNodes.size) {
+            val node = orderedNodes[i++]
+            val placeholder = placeholderChildrenMap[node] ?: continue
+            orderedNodes.add(i++, placeholder)
+
+            val listInnerRanges = internalNodeRangesBetweenEntries[node]
+                ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
+            val listInnerRange = listInnerRanges.stream().findFirst().orElseThrow {
+                IllegalArgumentException("No internal node ranges between entries found for node $node")
+            }
+
+            ranges[placeholder] = StringRange.at(listInnerRange.end)
+            nodeAllowedStartRanges[placeholder] = listInnerRange
+        }
+
+        return StringRangeTree(
+            root,
+            orderedNodes,
+            ranges,
+            nodeAllowedStartRanges,
+            mapKeyRanges,
+            internalNodeRangesBetweenEntries,
+            placeholderNodes + placeholderChildrenMap.values,
+            parentNodes
+        )
     }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
