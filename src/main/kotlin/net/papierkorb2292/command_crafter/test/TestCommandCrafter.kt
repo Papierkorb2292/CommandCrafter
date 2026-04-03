@@ -573,6 +573,7 @@ object TestCommandCrafter {
             # This can't be combined with the first command, because you wouldn't get all click_event suggestions inside a list, where no merging can happen
             data merge entity @s {CustomName:{click_event:{§}}}
             data merge entity @s {Item:{components:{entity_data:{Passengers:[{CustomName:{click_event:{§}}}]}}}}
+            data merge entity @s {Item:{components:{entity_data:{Passengers:[§{}]}}}}
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
 
@@ -595,6 +596,10 @@ object TestCommandCrafter {
         context.assertTrue(
             analyzingResult.diagnostics.any { it.range.start == markedLocations[1].position },
             "Error for missing keys inside a merged list"
+        )
+        context.assertTrue(
+            analyzingResult.diagnostics.any { it.range.start == markedLocations[4].position },
+            "Error for missing passenger id"
         )
 
         context.succeed()
