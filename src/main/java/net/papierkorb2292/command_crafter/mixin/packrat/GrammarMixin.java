@@ -42,9 +42,10 @@ public class GrammarMixin {
         final var fullInput = getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT());
         if (fullInput == null)
             return original;
-        fullInput.toCompleted();
-        fullInput.setString(original.getString());
-        return fullInput;
+        final var copy = fullInput.copy();
+        copy.toCompleted();
+        copy.setString(original.getString());
+        return copy;
     }
 
     @ModifyArg(
