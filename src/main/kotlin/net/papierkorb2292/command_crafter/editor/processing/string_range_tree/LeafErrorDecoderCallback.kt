@@ -166,7 +166,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
             if(key in accessed) {
                 addMapUnknownKeyDiagnostics(child, nodeDiagnostics)
             } else {
-                nodeDiagnostics.warnings += NodeDiagnostics.Entry("Unused key $key", key, 0) // Depth doesn't matter here
+                nodeDiagnostics.warnings += NodeDiagnostics.Entry("Unknown key $key", key, 0) // Depth doesn't matter here
             }
         }
         root.ops.getList(map).result().getOrNull()?.accept { child ->
