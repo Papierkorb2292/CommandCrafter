@@ -189,16 +189,13 @@ class LeafErrorDecoderCallback<TNode : Any>(
         override fun getMapEntries(input: TNode) = onNodeAccess(input, delegate.getMapEntries(input))
         override fun getList(input: TNode) = onNodeAccess(input, delegate.getList(input))
         override fun getStream(input: TNode) = onNodeAccess(input, delegate.getStream(input))
-        override fun getByteBuffer(input: TNode) = onNodeAccess(input, delegate.getByteBuffer(input))
-        override fun getIntStream(input: TNode) = onNodeAccess(input, delegate.getIntStream(input))
-        override fun getLongStream(input: TNode) = onNodeAccess(input, delegate.getLongStream(input))
         override fun <U> convertTo(outOps: DynamicOps<U>, input: TNode): U {
             if(branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
                 stack.last().ignoreErrors = true
             }
             return delegate.convertTo(outOps, input)
         }
-
+        // Don't suppress errors for getIntStream and such, because those won't be partially matched. TODO: Check specific type of lists
     }
 
     private class ErrorStackEntry<TNode>(
