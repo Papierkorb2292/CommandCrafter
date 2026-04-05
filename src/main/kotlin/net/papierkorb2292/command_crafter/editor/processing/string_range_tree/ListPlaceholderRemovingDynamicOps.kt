@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
 import java.util.function.Consumer
+import java.util.stream.Stream
 
 class ListPlaceholderRemovingDynamicOps<T>(private val placeholders: Set<T>, override val delegate: DynamicOps<T>):
     DelegatingDynamicOps<T> {
@@ -17,4 +18,13 @@ class ListPlaceholderRemovingDynamicOps<T>(private val placeholders: Set<T>, ove
             }
         }
     }
+
+    override fun getStream(input: T): DataResult<Stream<T>> =
+        delegate.getStream(input).map { stream ->
+            stream.filter { value -> value !in placeholders }
+        }
+
+    // Make sure getIntStream and stuff use the new getStream
+    override val delegateTypedLists: Boolean
+        get() = false
 }

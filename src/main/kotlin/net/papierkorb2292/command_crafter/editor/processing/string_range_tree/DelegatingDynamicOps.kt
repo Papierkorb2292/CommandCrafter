@@ -12,6 +12,8 @@ import java.util.stream.Stream
 
 interface DelegatingDynamicOps<T>: DynamicOps<T> {
     val delegate: DynamicOps<T>
+    val delegateTypedLists: Boolean
+        get() = true
     override fun empty(): T = delegate.empty()
     override fun emptyMap(): T = delegate.emptyMap()
     override fun emptyList(): T = delegate.emptyList()
@@ -43,11 +45,14 @@ interface DelegatingDynamicOps<T>: DynamicOps<T> {
     override fun getStream(input: T): DataResult<Stream<T>> = delegate.getStream(input)
     override fun getList(input: T): DataResult<Consumer<Consumer<T>>> = delegate.getList(input)
     override fun createList(input: Stream<T>): T = delegate.createList(input)
-    override fun getByteBuffer(input: T): DataResult<ByteBuffer> = delegate.getByteBuffer(input)
+    override fun getByteBuffer(input: T): DataResult<ByteBuffer> =
+        if(delegateTypedLists) delegate.getByteBuffer(input) else super.getByteBuffer(input)
     override fun createByteList(input: ByteBuffer): T = delegate.createByteList(input)
-    override fun getIntStream(input: T): DataResult<IntStream> = delegate.getIntStream(input)
+    override fun getIntStream(input: T): DataResult<IntStream> =
+        if(delegateTypedLists) delegate.getIntStream(input) else super.getIntStream(input)
     override fun createIntList(input: IntStream): T = delegate.createIntList(input)
-    override fun getLongStream(input: T): DataResult<LongStream> = delegate.getLongStream(input)
+    override fun getLongStream(input: T): DataResult<LongStream> =
+        if(delegateTypedLists) delegate.getLongStream(input) else super.getLongStream(input)
     override fun createLongList(input: LongStream): T = delegate.createLongList(input)
     override fun remove(input: T, key: String): T = delegate.remove(input, key)
     override fun compressMaps() = delegate.compressMaps()
