@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.test
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
@@ -20,15 +21,20 @@ import net.minecraft.commands.arguments.item.ItemArgument
 import net.minecraft.commands.arguments.item.ItemPredicateArgument
 import net.minecraft.commands.functions.StringTemplate
 import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.nbt.ByteTag
+import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.helper.lootRegistries
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -620,6 +626,43 @@ object TestCommandCrafter {
         context.assertValueEqual(markedLocations[0].position, analyzingResult.diagnostics[0].range.start, "First diagnostic start")
         context.assertValueEqual(markedLocations[1].position, analyzingResult.diagnostics[1].range.start, "Second diagnostic start")
         context.assertValueEqual(markedLocations[2].position, analyzingResult.diagnostics[2].range.start, "Third diagnostic start")
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testNbtPathAnalyzing(context: GameTestHelper) {
+        val markedLine = "foo[{bar:[]}].bar[0].baz{qux:{quux:false}}.qux{quux:§true§}"
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(listOf(markedLine))
+        val parser = NbtPathArgument()
+        val builder = StringRangePath.Builder()
+        NbtPathArgumentAnalyzer.currentPathBuilder.runWithValue(builder) {
+            parser.parse(
+                DirectiveStringReader(
+                    FileMappingInfo(processedLines),
+                    getCommandDispatcher(context),
+                    AnalyzingResourceCreator(
+                        null,
+                        "testPack/data/minecraft/function/test.mcfunction",
+                        context.level.server.lootRegistries
+                    )
+                )
+            )
+        }
+        val path = builder.buildStandalone()
+
+        context.assertValueEqual(8, path.segments.size, "Path segments count")
+        context.assertValueEqual(
+            listOf(StringRangePath.Collision(StringRange(markedLocations[0].absoluteCursor, markedLocations[1].absoluteCursor), ByteTag.ZERO)),
+            path.collisions,
+            "Path collisions"
+        )
+        val indexTag = parser.parse(StringReader("foo[0].bar")).get(path.root).getOrNull(0)
+        context.assertValueEqual(
+            listOf(indexTag, (indexTag as? ListTag)?.getOrNull(0)),
+            path.segments[3].tree.orderedNodes,
+            "Index segment"
+        )
 
         context.succeed()
     }
