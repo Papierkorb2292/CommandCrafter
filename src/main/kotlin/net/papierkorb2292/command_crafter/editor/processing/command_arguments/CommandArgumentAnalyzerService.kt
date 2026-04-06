@@ -18,8 +18,6 @@ import java.util.*
  */
 interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
     companion object {
-        val currentAnalyzingResult = ThreadLocal<AnalyzingResult>()
-
         private val analyzers: MutableMap<Class<out Any>, CommandArgumentAnalyzerService<*>> =
             ServiceLoader.load(CommandArgumentAnalyzerService::class.java)
                 .flatMap { provider -> provider.argumentTypes.map { argumentClass -> argumentClass to provider } }

@@ -32,13 +32,15 @@ import kotlin.collections.isNotEmpty
 import kotlin.collections.last
 import kotlin.collections.map
 import kotlin.collections.mapIndexed
+import kotlin.collections.mapKeysTo
+import kotlin.collections.mapTo
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
-import kotlin.collections.mutableSetOf
 import kotlin.collections.plus
 import kotlin.collections.plusAssign
 import kotlin.collections.reversed
 import kotlin.collections.set
+import kotlin.collections.toMap
 import kotlin.collections.toMutableList
 import kotlin.collections.withIndex
 import kotlin.math.min
@@ -249,6 +251,21 @@ class StringRangeTree<TNode: Any>(
         )
     }
 
+    fun copyWithReplacements(replacements: Map<TNode, TNode>): StringRangeTree<TNode> {
+        fun <TValue> mapKeys(map: Map<TNode, TValue>): Map<TNode, TValue> =
+            map.mapKeysTo(IdentityHashMap()) { replacements[it.key] ?: it.key }
+        return StringRangeTree(
+            replacements[root] ?: root,
+            orderedNodes.map { replacements[it] ?: it },
+            mapKeys(ranges),
+            mapKeys(nodeAllowedStartRanges),
+            mapKeys(mapKeyRanges),
+            mapKeys(internalNodeRangesBetweenEntries),
+            placeholderNodes.mapTo(Collections.newSetFromMap(IdentityHashMap())) { replacements[it] ?: it },
+            parentNodes.map { (replacements[it.key] ?: it.key) to (replacements[it.value] ?: it.value) }.toMap(IdentityHashMap())
+        )
+    }
+
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
 
     interface SuggestionResolver<TNode : Any> {
@@ -276,7 +293,7 @@ class StringRangeTree<TNode: Any>(
         private val nodeAllowedStartRanges = IdentityHashMap<TNode, StringRange>()
         private val mapKeyRanges = IdentityHashMap<TNode, MutableCollection<kotlin.Pair<TNode, StringRange>>>()
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
-        private val placeholderNodes = mutableSetOf<TNode>()
+        private val placeholderNodes = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
         private val parentNodes = IdentityHashMap<TNode, TNode>()
 
         var clampNodeRange: StringRange? = null

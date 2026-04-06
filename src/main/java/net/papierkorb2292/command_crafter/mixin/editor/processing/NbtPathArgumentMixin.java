@@ -1,74 +1,54 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
+import com.llamalad7.mixinextras.expression.Definition;
+import com.llamalad7.mixinextras.expression.Expression;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.llamalad7.mixinextras.sugar.Share;
-import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.NbtPathArgument;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
+import net.minecraft.nbt.*;
+import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService;
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(NbtPathArgument.class)
 public abstract class NbtPathArgumentMixin {
-    @ModifyArg(
-            method = "parseNode",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/commands/arguments/NbtPathArgument;readObjectNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/commands/arguments/NbtPathArgument$Node;",
-                    ordinal = 0
-            ),
-            slice = @Slice(
-                    from = @At(
-                            value = "INVOKE",
-                            target = "Lnet/minecraft/commands/arguments/NbtPathArgument;readUnquotedName(Lcom/mojang/brigadier/StringReader;)Ljava/lang/String;"
-                    )
-            )
-    )
-    private static String command_crafter$highlightUnquotedTag(StringReader reader, String tag) {
-        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
-        if(analyzingResult == null) return tag;
-
-        analyzingResult.getSemanticTokens().addMultiline(reader.getCursor() - tag.length(), tag.length(), TokenType.Companion.getPROPERTY(), 0);
-        return tag;
-    }
-
+    @Definition(id = "readObjectNode", method = "Lnet/minecraft/commands/arguments/NbtPathArgument;readObjectNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/commands/arguments/NbtPathArgument$Node;")
+    @Expression("readObjectNode(?, @(?))")
     @WrapOperation(
             method = "parseNode",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
-                    remap = false
-            ),
-            allow = 1
+            at = @At("MIXINEXTRAS:EXPRESSION"),
+            allow = 2,
+            require = 2
     )
-    private static String command_crafter$highlightQuotedTag(StringReader reader, Operation<String> op) {
-        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
-        if(analyzingResult == null) return op.call(reader);
+    private static String command_crafter$analyzeTag(StringReader reader, Operation<String> op) {
         final var startCursor = reader.getCursor();
         final var tag = op.call(reader);
-        analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
+
+        final var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
+        if(analyzingResult != null)
+            analyzingResult.getSemanticTokens().addMultiline(startCursor, reader.getCursor() - startCursor, TokenType.Companion.getPROPERTY(), 0);
+
+        final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
+        if(pathBuilder != null)
+            pathBuilder.addKeyAccess(tag, new StringRange(startCursor, reader.getCursor()));
+
         return tag;
     }
 
@@ -80,7 +60,7 @@ public abstract class NbtPathArgumentMixin {
             )
     )
     private static boolean command_crafter$allowEmptyTagWhenAnalyzing(boolean isEmpty) {
-        return isEmpty && getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult()) == null;
+        return isEmpty && getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult()) == null;
     }
 
     @ModifyExpressionValue(
@@ -93,64 +73,133 @@ public abstract class NbtPathArgumentMixin {
             )
     )
     private static int command_crafter$allowEmptyUnquotedTagWhenAnalyzing(int endCursor) {
-        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
+        var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
         return analyzingResult == null ? endCursor : -1;
     }
 
-    @SuppressWarnings("unused")
     @WrapOperation(
-            method = {"parseNode", "readObjectNode"},
+            method = "parseNode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/nbt/TagParser;parseCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/CompoundTag;"
+                    target = "Lnet/minecraft/nbt/TagParser;parseCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/CompoundTag;",
+                    ordinal = 1
             )
     )
-    private static CompoundTag command_crafter$highlightNbtOption(StringReader reader, Operation<CompoundTag> op) throws CommandSyntaxException {
-        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
-        if(analyzingResult == null)
+    private static CompoundTag command_crafter$analyzeListFilter(StringReader reader, Operation<CompoundTag> op) throws CommandSyntaxException {
+        final var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
+        final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
+        if(analyzingResult == null && pathBuilder == null)
+            return op.call(reader);
+        //noinspection unchecked
+        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
+        var treeBuilder = new StringRangeTree.Builder<Tag>();
+        final var list = new ListTag();
+        final var startCursor = reader.getCursor() - 1; // Include '['
+        treeBuilder.addNodeOrder(list);
+        var nbtReader = TagParser.create(NbtOps.INSTANCE);
+        if(pathBuilder != null) {
+            //noinspection unchecked
+            ((StringRangeTreeCreator<Tag>) nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        }
+        if(analyzingResult != null) {
+            ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
+            ((AnalyzingResultCreator) nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
+        }
+        var nbt = nbtReader.parseAsArgument(directiveReader);
+        if(pathBuilder != null) {
+            list.add(nbt);
+            treeBuilder.addNode(list, new StringRange(startCursor, reader.getCursor()), startCursor);
+            var tree = treeBuilder.build(list);
+            pathBuilder.addFilter(tree);
+        }
+        return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
+    }
+
+    @WrapOperation(
+            method = { "parseNode", "readObjectNode" },
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/nbt/TagParser;parseCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/CompoundTag;",
+                    ordinal = 0
+            )
+    )
+    private static CompoundTag command_crafter$analyzeCompoundFilter(StringReader reader, Operation<CompoundTag> op) throws CommandSyntaxException {
+        final var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
+        final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
+        if(analyzingResult == null && pathBuilder == null)
             return op.call(reader);
         //noinspection unchecked
         var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         var nbtReader = TagParser.create(NbtOps.INSTANCE);
-        //noinspection unchecked
-        ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-        ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
-        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
+        if(pathBuilder != null) {
+            //noinspection unchecked
+            ((StringRangeTreeCreator<Tag>) nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
+        }
+        if(analyzingResult != null) {
+            ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
+            ((AnalyzingResultCreator) nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
+        }
         var nbt = nbtReader.parseAsArgument(directiveReader);
-        var tree = treeBuilder.build(nbt);
-        TreeOperations.Companion.forNbt(
-                tree,
-                directiveReader
-        ).analyzeFull(analyzingResult, null);
+        if(pathBuilder != null) {
+            var tree = treeBuilder.build(nbt);
+            pathBuilder.addFilter(tree);
+        }
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 
-    @Inject(
-           method = "parseNode",
-           at = @At(
-                   value = "INVOKE",
-                   target = "Lcom/mojang/brigadier/StringReader;readInt()I",
-                   remap = false
-           )
+    @WrapOperation(
+            method = "parseNode",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;readInt()I"
+            )
     )
-    private static void command_crafter$saveIndexStartCursor(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursorRef) {
-        startCursorRef.set(reader.getCursor());
+    private static int command_crafter$analyzeIntIndex(StringReader reader, Operation<Integer> op) throws CommandSyntaxException {
+        final var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
+        final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
+        if(analyzingResult == null && pathBuilder == null)
+            return op.call(reader);
+
+        final var indexStart = reader.getCursor();
+        final var listStart = indexStart - 1;
+        int index;
+        try {
+            index = MixinUtil.<Integer, CommandSyntaxException>callWithThrows(op, reader);
+        } catch(CommandSyntaxException e) {
+            if(analyzingResult == null) {
+                // Don't be lenient
+                throw e;
+            }
+            index = 0;
+        }
+        final var indexEnd = reader.getCursor();
+        if(analyzingResult != null) {
+            analyzingResult.getSemanticTokens().addMultiline(indexStart, indexEnd - indexStart, TokenType.Companion.getNUMBER(), 0);
+        }
+        if(pathBuilder != null) {
+            var listEnd = indexEnd;
+            if(reader.canRead() && reader.peek() == ']')
+                listEnd++;
+            pathBuilder.addListAccess(new StringRange(listStart, listEnd), indexEnd);
+        }
+
+        return index;
     }
 
     @Inject(
             method = "parseNode",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;readInt()I",
-                    shift = At.Shift.AFTER,
-                    remap = false
+                    value = "FIELD",
+                    target = "Lnet/minecraft/commands/arguments/NbtPathArgument$AllElementsNode;INSTANCE:Lnet/minecraft/commands/arguments/NbtPathArgument$AllElementsNode;",
+                    opcode = Opcodes.GETSTATIC
             )
     )
-    private static void command_crafter$highlightIndex(StringReader reader, boolean root, CallbackInfoReturnable<?> cir, @Share("IndexStartCursor") LocalIntRef startCursorRef) {
-        var analyzingResult = getOrNull(CommandArgumentAnalyzerService.Companion.getCurrentAnalyzingResult());
-        if(analyzingResult == null) return;
-
-        analyzingResult.getSemanticTokens().addMultiline(startCursorRef.get(), reader.getCursor() - startCursorRef.get(), TokenType.Companion.getNUMBER(), 0);
+    private static void command_crafter$analyzeEmptyIndex(StringReader reader, boolean firstNode, CallbackInfoReturnable<NbtPathArgument.Node> cir) {
+        final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
+        if(pathBuilder != null) {
+            final var listEnd = reader.getCursor();
+            pathBuilder.addListAccess(new StringRange(listEnd - 2, listEnd), listEnd - 1);
+        }
     }
 }

@@ -6,10 +6,16 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.NbtPathArgument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
 class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> {
+    companion object {
+        val currentAnalyzingResult = ThreadLocal<AnalyzingResult>()
+        val currentPathBuilder = ThreadLocal<StringRangePath.Builder>()
+    }
+
     override val argumentTypes
         get() = listOf(NbtPathArgument::class.java)
 
@@ -21,8 +27,12 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         result: AnalyzingResult,
     ) {
-        CommandArgumentAnalyzerService.currentAnalyzingResult.runWithValue(result) {
-            type.parse(reader)
+        val builder = StringRangePath.Builder()
+        currentAnalyzingResult.runWithValue(result) {
+            currentPathBuilder.runWithValue(builder) {
+                type.parse(reader)
+            }
         }
+        val path = builder.buildStandalone()
     }
 }
