@@ -65,4 +65,58 @@ public class ArgumentTypeInfosMixin {
     private static <A extends ArgumentType<A>> ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> command_crafter$wrapNbtCompoundSerializer(ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> serializer) {
         return new ArgumentTypeAdditionalDataSerializer<>(serializer);
     }
+
+    @ModifyArg(
+            method = "bootstrap(Lnet/minecraft/core/Registry;)Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/commands/synchronization/ArgumentTypeInfos;register(Lnet/minecraft/core/Registry;Ljava/lang/String;Ljava/lang/Class;Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;)Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;",
+                    ordinal = 0
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=nbt_path"
+                    )
+            )
+    )
+    private static <A extends ArgumentType<A>> ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> command_crafter$wrapNbtPathSerializer(ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> serializer) {
+        return new ArgumentTypeAdditionalDataSerializer<>(serializer);
+    }
+
+    @ModifyArg(
+            method = "bootstrap(Lnet/minecraft/core/Registry;)Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/commands/synchronization/ArgumentTypeInfos;register(Lnet/minecraft/core/Registry;Ljava/lang/String;Ljava/lang/Class;Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;)Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;",
+                    ordinal = 0
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=nbt_tag"
+                    )
+            )
+    )
+    private static <A extends ArgumentType<A>> ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> command_crafter$wrapNbtTagSerializer(ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> serializer) {
+        return new ArgumentTypeAdditionalDataSerializer<>(serializer);
+    }
+
+    @ModifyArg(
+            method = "bootstrap(Lnet/minecraft/core/Registry;)Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/commands/synchronization/ArgumentTypeInfos;register(Lnet/minecraft/core/Registry;Ljava/lang/String;Ljava/lang/Class;Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;)Lnet/minecraft/commands/synchronization/ArgumentTypeInfo;",
+                    ordinal = 0
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=entity"
+                    )
+            )
+    )
+    private static <A extends ArgumentType<A>> ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> command_crafter$wrapEntitySerializer(ArgumentTypeInfo<A, ArgumentTypeInfo.Template<A>> serializer) {
+        return new ArgumentTypeAdditionalDataSerializer<>(serializer);
+    }
 }
