@@ -2,13 +2,19 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.serialization.Decoder
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.NbtPathArgument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.PathOperations
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import org.eclipse.lsp4j.DiagnosticSeverity
 
 class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> {
     companion object {
@@ -30,9 +36,20 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         val builder = StringRangePath.Builder()
         currentAnalyzingResult.runWithValue(result) {
             currentPathBuilder.runWithValue(builder) {
-                type.parse(reader)
+                try {
+                    type.parse(reader)
+                } catch(_: CommandSyntaxException) {}
             }
         }
         val path = builder.buildStandalone()
+
+        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`() ?: return
+        val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader)
+
+        PathOperations(path)
+            .withRegistry(reader.resourceCreator.registries)
+            .withDiagnosticSeverity(DiagnosticSeverity.Warning)
+            .withBranchBehaviorProvider(dataObjectSource.getNBTBranchBehavior())
+            .analyzeFull(result, decoder)
     }
 }

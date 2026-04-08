@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.google.gson.JsonElement
 import com.mojang.serialization.Decoder
-import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.JsonOps
 import net.minecraft.core.RegistryAccess
@@ -11,20 +10,19 @@ import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.DiagnosticSeverity
 
 data class TreeOperations<TNode: Any>(
     val stringRangeTree: StringRangeTree<TNode>,
-    val ops: DynamicOps<TNode>,
+    override val ops: DynamicOps<TNode>,
     val suggestionResolver: StringRangeTree.SuggestionResolver<TNode>,
     val stringGetter: StringContent.StringContentGetter<TNode>,
-    val registryAccess: RegistryAccess? = null,
+    override val registryAccess: RegistryAccess? = null,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
-    val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode
-) {
+    override val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode
+) : SchemaOperations<TNode> {
     companion object {
         val IS_ANALYZING_DECODER = ThreadLocal<Boolean>()
 
@@ -74,7 +72,7 @@ data class TreeOperations<TNode: Any>(
 
     fun analyzeFull(analyzingResult: AnalyzingResult, contentDecoder: Decoder<*>? = null) {
         if(contentDecoder != null) {
-            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(this, registryAccess?.createSerializationContext(ops) ?: ops, analyzingResult)
+            val (analyzingDynamicOps, wrappedOps) = AnalyzingDynamicOps.createAnalyzingOps(this, analyzingResult)
             IS_ANALYZING_DECODER.runWithValueSwap(true) {
                 ExtraDecoderBehavior.decodeWithBehavior(
                     contentDecoder,
@@ -92,37 +90,29 @@ data class TreeOperations<TNode: Any>(
     }
 
     fun generateDiagnostics(analyzingResult: AnalyzingResult, decoder: Decoder<*>, severity: DiagnosticSeverity = DiagnosticSeverity.Error) {
-        val registryOps = registryAccess?.createSerializationContext(ops) ?: ops
-        val (accessedKeysWatcher, ops) = wrapDynamicOps(registryOps, ::AccessedKeysWatcherDynamicOps)
-        val (_, filteredOps) = wrapDynamicOps(ops) {
-            ListPlaceholderRemovingDynamicOps(
-                stringRangeTree.placeholderNodes,
-                it
-            )
-        }
-        val onlyContextOps = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(stringRangeTree.placeholderNodes, it) }.second
-        val errorCallback = LeafErrorDecoderCallback(
-            Dynamic(registryOps, stringRangeTree.root),
-            stringRangeTree.getParentLinks(onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(onlyContextOps)),
-            accessedKeysWatcher,
-            branchBehaviorProvider,
-            registryAccess,
-            onlyContextOps
-        )
-        val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
+        val (errorCallback, wrappedOps) = LeafErrorDecoderCallback.createErrorOps(this)
         IS_ANALYZING_DECODER.runWithValueSwap(true) {
             ExtraDecoderBehavior.decodeWithBehavior(
                 decoder,
-                mergeErrorSuppressingOps,
+                wrappedOps,
                 stringRangeTree.root,
                 FirstDecoderExtraBehavior(errorCallback)
             )
         }
         errorCallback.processUnknownKeys()
         analyzingResult.diagnostics += errorCallback.generateDiagnostics(
-            { stringRangeTree.getNodeOrKeyRange(it, accessedKeysWatcher) },
+            { stringRangeTree.getNodeOrKeyRange(it, errorCallback.accessedKeysWatcherDynamicOps) },
             analyzingResult.mappingInfo,
             severity
         )
     }
+
+    override val root: TNode
+        get() = stringRangeTree.root
+
+    override val placeholderNodes: Set<TNode>
+        get() = stringRangeTree.placeholderNodes
+
+    override fun getParentLinks(ops: DynamicOps<TNode>) =
+        stringRangeTree.getParentLinks(ops)
 }

@@ -41,17 +41,16 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
          * @see [net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps]
          */
         fun <TNode : Any> createAnalyzingOps(
-            treeOperations: TreeOperations<TNode>,
-            delegate: DynamicOps<TNode>,
+            operations: SchemaOperations<TNode>,
             analyzingResult: AnalyzingResult,
         ): Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> {
-            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(delegate) { innerDelegate ->
+            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(operations.registryAccess?.createSerializationContext(operations.ops) ?: operations.ops) { innerDelegate ->
                 AnalyzingDynamicOps(
                     innerDelegate,
                     analyzingResult,
-                    treeOperations.branchBehaviorProvider,
-                    treeOperations.registryAccess,
-                    wrapDynamicOps(delegate) { ListPlaceholderRemovingDynamicOps(treeOperations.stringRangeTree.placeholderNodes, it) }.second
+                    operations.branchBehaviorProvider,
+                    operations.registryAccess,
+                    wrapDynamicOps(operations.ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second
                 )
             }
             // Apply AccessedKeysWatcher second, so it includes placeholder entries
@@ -60,7 +59,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                 ::AccessedKeysWatcherDynamicOps
             )
             analyzingOps.accessedKeysWatcher = accessedKeysWatcher
-            analyzingOps.parentLinks = treeOperations.stringRangeTree.getParentLinks(analyzingOps.onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(analyzingOps.onlyContextOps))
+            analyzingOps.parentLinks = operations.getParentLinks(analyzingOps.onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(analyzingOps.onlyContextOps))
             return analyzingOps to wrappedAccessedKeysWatcherOps
         }
     }

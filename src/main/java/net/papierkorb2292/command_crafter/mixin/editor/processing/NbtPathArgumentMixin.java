@@ -29,6 +29,20 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(NbtPathArgument.class)
 public abstract class NbtPathArgumentMixin {
+
+    @Inject(
+            method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/commands/arguments/NbtPathArgument$NbtPath;",
+            at = @At("RETURN")
+    )
+    private void command_crafter$analyzeTrailingDot(StringReader reader, CallbackInfoReturnable<NbtPathArgument.NbtPath> cir) {
+        if (!reader.canRead(0) || reader.peek(-1) != '.')
+            return;
+        final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
+        if(pathBuilder == null)
+            return;
+        pathBuilder.addKeyAccess("", StringRange.at(reader.getCursor()));
+    }
+
     @Definition(id = "readObjectNode", method = "Lnet/minecraft/commands/arguments/NbtPathArgument;readObjectNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/commands/arguments/NbtPathArgument$Node;")
     @Expression("readObjectNode(?, @(?))")
     @WrapOperation(

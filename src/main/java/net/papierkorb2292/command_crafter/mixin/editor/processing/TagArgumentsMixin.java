@@ -1,14 +1,15 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import net.minecraft.commands.arguments.CompoundTagArgument;
+import net.minecraft.commands.arguments.NbtPathArgument;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 
-@Mixin(CompoundTagArgument.class)
-public class CompoundTagArgumentMixin implements DataObjectSourceContainer {
+@Mixin({CompoundTagArgument.class, NbtPathArgument.class})
+public class TagArgumentsMixin implements DataObjectSourceContainer {
 
     private DataObjectDecoding.DataObjectSource command_crafter$dataObjectSource;
 

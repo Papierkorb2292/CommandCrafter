@@ -214,7 +214,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
                 }
             }
-            DataObjectSourceKind.ENTITY_CHANGE -> {
+            DataObjectSourceKind.ENTITY_CHANGE, DataObjectSourceKind.ENTITY_LOOKUP -> {
                 val selectorArgument = (context as CommandContextAccessor).arguments[dataObjectSource.argumentName]
                 val validEntities = if(selectorArgument != null) {
                     val selectorInput = selectorArgument.range.get(context.input)
@@ -233,7 +233,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
                 }
             }
-            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> {
+            DataObjectSourceKind.BLOCK_ENTITY_CHANGE, DataObjectSourceKind.BLOCK_ENTITY_LOOKUP -> {
                 // It is not possible to know which block entity it is. Decoder should try out all blocks
                 DynamicOpsReadView.getReadDecoder(registries) { input ->
                     for(blockEntity in dummyBlockEntitiesByType.values) {
@@ -417,8 +417,8 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String) {
         fun getNBTBranchBehavior(): BranchBehaviorProvider<Tag> = when(kind) {
             DataObjectSourceKind.ENTITY_SUMMON -> BranchBehaviorProvider.Decode
-            DataObjectSourceKind.ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
-            DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
+            DataObjectSourceKind.ENTITY_CHANGE, DataObjectSourceKind.BLOCK_ENTITY_CHANGE -> BranchBehaviorProvider.getNBTMerge()
+            DataObjectSourceKind.ENTITY_LOOKUP, DataObjectSourceKind.BLOCK_ENTITY_LOOKUP -> BranchBehaviorProvider.getForPathLookup(null)
         }
     }
 
@@ -428,5 +428,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         ENTITY_SUMMON,
         ENTITY_CHANGE,
         BLOCK_ENTITY_CHANGE,
+        ENTITY_LOOKUP,
+        BLOCK_ENTITY_LOOKUP
     }
 }

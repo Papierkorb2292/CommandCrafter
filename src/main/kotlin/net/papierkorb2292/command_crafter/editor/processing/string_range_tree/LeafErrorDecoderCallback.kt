@@ -8,6 +8,7 @@ import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -24,11 +25,36 @@ import kotlin.jvm.optionals.getOrNull
 class LeafErrorDecoderCallback<TNode : Any>(
     private val root: Dynamic<TNode>,
     override val parentLinks: ParentLinks,
-    private val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
+    val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val registries: RegistryAccess?,
     override val onlyContextOps: DynamicOps<TNode>
 ) : ExtraDecoderBehavior<TNode> {
+
+    companion object {
+        fun <TNode : Any> createErrorOps(operations: SchemaOperations<TNode>, ): Pair<LeafErrorDecoderCallback<TNode>, DynamicOps<TNode>> {
+            val registryOps = operations.registryAccess?.createSerializationContext(operations.ops) ?: operations.ops
+            val (accessedKeysWatcher, ops) = wrapDynamicOps(registryOps, ::AccessedKeysWatcherDynamicOps)
+            val (_, filteredOps) = wrapDynamicOps(ops) {
+                ListPlaceholderRemovingDynamicOps(
+                    operations.placeholderNodes,
+                    it
+                )
+            }
+            val onlyContextOps = wrapDynamicOps(ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second
+            val errorCallback = LeafErrorDecoderCallback(
+                Dynamic(registryOps, operations.root),
+                operations.getParentLinks(onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(onlyContextOps)),
+                accessedKeysWatcher,
+                operations.branchBehaviorProvider,
+                operations.registryAccess,
+                onlyContextOps
+            )
+            val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
+            return errorCallback to mergeErrorSuppressingOps
+        }
+    }
+
     private var stack = ArrayList<ErrorStackEntry<TNode>>(16)
     private val lateAdditionMergers = ArrayList<() -> Unit>()
     private val completelyAccessedNodes = Collections.newSetFromMap<TNode>(IdentityHashMap())

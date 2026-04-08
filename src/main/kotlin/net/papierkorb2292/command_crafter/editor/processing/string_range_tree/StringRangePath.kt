@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.brigadier.context.StringRange
+import com.mojang.serialization.Dynamic
+import com.mojang.serialization.DynamicOps
 import net.minecraft.nbt.*
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EndTagAccessor
 import java.util.*
@@ -9,12 +11,22 @@ class StringRangePath(
     val root: Tag,
     val segments: List<Segment>,
     val collisions: List<Collision>,
+    val placeholderNodes: Set<Tag>,
+    val parentNodes: Map<Tag, Tag>,
 ) {
+    fun getParentLinks(ops: DynamicOps<Tag>) = object : ParentLinks {
+        override fun getParent(node: Any): Dynamic<*>? {
+            val parent = parentNodes[node] ?: return null
+            return Dynamic(ops, parent)
+        }
+    }
 
     class Builder {
-        private var root: Tag = getEmpty()
         private val segments = mutableListOf<Segment>()
         private val collisions = mutableListOf<Collision>()
+        private val placeholderNodes = Collections.newSetFromMap(IdentityHashMap<Tag, Boolean>())
+        private val parentNodes = IdentityHashMap<Tag, Tag>()
+        private var root: Tag = getEmptyPlaceholder(null)
 
         private val replacements = IdentityHashMap<Tag, Tag>()
         private var nextNode: Tag = root
@@ -30,11 +42,11 @@ class StringRangePath(
             nextNodeConsumer(compound)
             val tree = getSegmentStartTree(range.start)
             segments += Segment(tree, range, key, nextNodeCanHaveCompoundFilter)
-            nextNode = (compound as? CompoundTag)?.get(key) ?: getEmpty()
+            nextNode = (compound as? CompoundTag)?.get(key) ?: getEmptyPlaceholder(compound)
             nextNodeConsumer = { child ->
                 (compound as CompoundTag).put(key, child)
             }
-            nextNodeCanHaveCompoundFilter = true
+            nextNodeCanHaveCompoundFilter = true //TODO: If range is empty, only allow if there's a macro at this position?
             endCursor = range.end
         }
 
@@ -45,6 +57,7 @@ class StringRangePath(
             if(collisions.isNotEmpty())
                 return // We can't reliably merge anything more
             val range = filter.ranges[filter.root]!!
+            placeholderNodes += filter.placeholderNodes
             val root = mergeInto(nextNode, filter.root) { filter.ranges[it]!! }
             if(root is ListTag) {
                 nextNodeConsumer(root)
@@ -56,6 +69,7 @@ class StringRangePath(
             } else {
                 nextNode = root
             }
+            parentNodes += filter.parentNodes
             segments += Segment(filter, range, null, nextNodeCanHaveCompoundFilter)
             nextNodeCanHaveCompoundFilter = false
             endCursor = range.end
@@ -134,13 +148,28 @@ class StringRangePath(
         }
 
         private fun getEmpty(): Tag = EndTagAccessor.callInit()
+        private fun getEmptyPlaceholder(parent: Tag?): Tag {
+            val empty = getEmpty()
+            if(parent != null)
+                parentNodes[empty] = parent
+            placeholderNodes += empty
+            return empty
+        }
 
         fun buildStandalone(): StringRangePath {
-            if(collisions.isEmpty()) {
+            if(collisions.isEmpty() && segments.lastOrNull()?.range?.isEmpty != true) { // Only add final segment if there isn't already an empty segment at the end
                 val lastSegmentTree = getSegmentStartTree(endCursor)
                 segments += Segment(lastSegmentTree, StringRange.at(endCursor), null, nextNodeCanHaveCompoundFilter)
+                nextNodeConsumer(nextNode)
             }
-            return StringRangePath(root, getSegmentsWithReplacements(), collisions)
+            flattenReplacements()
+            return StringRangePath(
+                root,
+                getSegmentsWithReplacements(),
+                collisions,
+                placeholderNodes, // Not mapped with replacements, because it only matters whether the last merged node is a placeholder
+                parentNodes.map { (replacements[it.key] ?: it.key) to (replacements[it.value] ?: it.value) }.toMap(),
+            )
         }
 
         private fun flattenReplacements() {
@@ -158,12 +187,10 @@ class StringRangePath(
             return flattened
         }
 
-        private fun getSegmentsWithReplacements(): List<Segment> {
-            flattenReplacements()
-            return segments.map {
+        private fun getSegmentsWithReplacements(): List<Segment> =
+            segments.map {
                 it.copy(tree = it.tree.copyWithReplacements(replacements))
             }
-        }
     }
 
     /**
