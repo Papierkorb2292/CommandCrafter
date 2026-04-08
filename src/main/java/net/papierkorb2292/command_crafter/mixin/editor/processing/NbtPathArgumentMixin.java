@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 import com.llamalad7.mixinextras.expression.Definition;
 import com.llamalad7.mixinextras.expression.Expression;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.StringReader;
@@ -30,17 +31,18 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 @Mixin(NbtPathArgument.class)
 public abstract class NbtPathArgumentMixin {
 
-    @Inject(
+    @ModifyReturnValue(
             method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/commands/arguments/NbtPathArgument$NbtPath;",
             at = @At("RETURN")
     )
-    private void command_crafter$analyzeTrailingDot(StringReader reader, CallbackInfoReturnable<NbtPathArgument.NbtPath> cir) {
-        if (!reader.canRead(0) || reader.peek(-1) != '.')
-            return;
+    private NbtPathArgument.NbtPath command_crafter$analyzeTrailingDot(NbtPathArgument.NbtPath original, StringReader reader) {
+        if(!original.toString().isEmpty() && (!reader.canRead(0) || reader.peek(-1) != '.'))
+            return original; // Only add another key access if the path is empty or has trailing dot
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(pathBuilder == null)
-            return;
+            return original;
         pathBuilder.addKeyAccess("", StringRange.at(reader.getCursor()));
+        return original;
     }
 
     @Definition(id = "readObjectNode", method = "Lnet/minecraft/commands/arguments/NbtPathArgument;readObjectNode(Lcom/mojang/brigadier/StringReader;Ljava/lang/String;)Lnet/minecraft/commands/arguments/NbtPathArgument$Node;")
