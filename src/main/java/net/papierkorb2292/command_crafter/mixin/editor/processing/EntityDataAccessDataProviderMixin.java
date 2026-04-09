@@ -20,7 +20,7 @@ import java.util.Set;
 @Mixin(targets = "net/minecraft/server/commands/data/EntityDataAccessor$1")
 public class EntityDataAccessDataProviderMixin {
 
-    private final Set<String> command_crafter$nonPlayerCommands = ImmutableSet.of("merge", "modify", "remove", "result", "success");
+    private final Set<String> command_crafter$mutatingCommands = ImmutableSet.of("merge", "modify", "remove", "result", "success");
 
     @ModifyExpressionValue(
             method = "wrap",
@@ -30,7 +30,7 @@ public class EntityDataAccessDataProviderMixin {
             )
     )
     private EntityArgument command_crafter$setIsNonPlayerSelector(EntityArgument entityArgument, ArgumentBuilder<CommandSourceStack, ?> parent) {
-        if(parent instanceof LiteralArgumentBuilder<?> literal && command_crafter$nonPlayerCommands.contains(literal.getLiteral())) {
+        if(parent instanceof LiteralArgumentBuilder<?> literal && command_crafter$mutatingCommands.contains(literal.getLiteral())) {
             ((IsNonPlayerSelector)entityArgument).command_crafter$setIsNonPlayerSelector(true);
         }
         return entityArgument;
@@ -43,7 +43,7 @@ public class EntityDataAccessDataProviderMixin {
                     target = "Ljava/util/function/Function;apply(Ljava/lang/Object;)Ljava/lang/Object;"
             )
     )
-    private Object command_crafter$setDataObjectSource(Object original) {
+    private Object command_crafter$setDataObjectSource(Object original, ArgumentBuilder<CommandSourceStack, ?> parent) {
         @SuppressWarnings("unchecked")
         final var builder = (ArgumentBuilder<CommandSourceStack, ?>)original;
         for(final var child : builder.getArguments()) {
@@ -52,7 +52,8 @@ public class EntityDataAccessDataProviderMixin {
             if(argument.getType() instanceof CompoundTagArgument compoundArg) {
                 ((DataObjectSourceContainer)compoundArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_CHANGE, "target"));
             } else if(argument.getType() instanceof NbtPathArgument pathArg) {
-                ((DataObjectSourceContainer) pathArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_LOOKUP, "target"));
+                final var kind = parent instanceof LiteralArgumentBuilder<?> literal && command_crafter$mutatingCommands.contains(literal.getLiteral()) ? DataObjectDecoding.DataObjectSourceKind.MUTATING_ENTITY_LOOKUP : DataObjectDecoding.DataObjectSourceKind.ENTITY_LOOKUP;
+                ((DataObjectSourceContainer) pathArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(kind, "target"));
             }
         }
         return original;
