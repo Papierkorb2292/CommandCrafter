@@ -340,7 +340,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             return
         }
         if(ExtraDecoderBehavior.getCurrentBehavior(valueInput.dynamic.ops)?.branchBehavior?.isAllPossibleEncoded() == true)
-            dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
+            dummyEntities.values.forEach { if(it !is ServerPlayer) analyzeEntity(it, valueInput, true) }
     }
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {
