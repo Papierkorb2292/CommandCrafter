@@ -34,14 +34,14 @@ class StringRangePath(
         private var nextNodeCanHaveCompoundFilter: Boolean = true
         private var endCursor: Int = 0
 
-        fun addKeyAccess(key: String, range: StringRange) {
+        fun addKeyAccess(key: String, range: StringRange, isTrailing: Boolean) {
             if(collisions.isNotEmpty())
                 return // We can't reliably merge anything more
-            val compound = mergeInto(nextNode, CompoundTag()) { range }
+            val compound = mergeInto(nextNode, CompoundTag(), if(isTrailing) null else ({ range }))
             nextNode = compound
             nextNodeConsumer(compound)
             val tree = getSegmentStartTree(range.start)
-            segments += Segment(tree, range, key, nextNodeCanHaveCompoundFilter)
+            segments += Segment(tree, range, key, nextNodeCanHaveCompoundFilter, isTrailing)
             nextNode = (compound as? CompoundTag)?.get(key) ?: getEmptyPlaceholder(compound)
             nextNodeConsumer = { child ->
                 (compound as CompoundTag).put(key, child)
@@ -70,7 +70,7 @@ class StringRangePath(
                 nextNode = root
             }
             parentNodes += filter.parentNodes
-            segments += Segment(filter, range, null, nextNodeCanHaveCompoundFilter)
+            segments += Segment(filter, range, null, nextNodeCanHaveCompoundFilter, false)
             nextNodeCanHaveCompoundFilter = false
             endCursor = range.end
         }
@@ -96,9 +96,10 @@ class StringRangePath(
         }
 
         // TODO: Recognize collisions when lists have different types
-        private fun mergeInto(src: Tag, newTag: Tag, collisionRangeGetter: (Tag) -> StringRange): Tag {
+        private fun mergeInto(src: Tag, newTag: Tag, collisionRangeGetter: ((Tag) -> StringRange)? = null): Tag {
             fun onCollision() {
-                collisions += Collision(collisionRangeGetter(newTag), src)
+                if(collisionRangeGetter != null)
+                    collisions += Collision(collisionRangeGetter(newTag), src)
             }
 
             if(newTag is EndTag) {
@@ -159,7 +160,7 @@ class StringRangePath(
         fun buildStandalone(): StringRangePath {
             if(collisions.isEmpty() && segments.lastOrNull()?.range?.isEmpty != true) { // Only add final segment if there isn't already an empty segment at the end
                 val lastSegmentTree = getSegmentStartTree(endCursor)
-                segments += Segment(lastSegmentTree, StringRange.at(endCursor), null, nextNodeCanHaveCompoundFilter)
+                segments += Segment(lastSegmentTree, StringRange.at(endCursor), null, nextNodeCanHaveCompoundFilter, true)
                 nextNodeConsumer(nextNode)
             }
             flattenReplacements()
@@ -199,6 +200,6 @@ class StringRangePath(
      * is at the end of the path, the [tree] is not actually present in the source file. It was added by the builder
      * just to give auto-completion for all valid segment types at the start of the range.
      */
-    data class Segment(val tree: StringRangeTree<Tag>, val range: StringRange, val key: String?, val allowsCompoundFilter: Boolean)
+    data class Segment(val tree: StringRangeTree<Tag>, val range: StringRange, val key: String?, val allowsCompoundFilter: Boolean, val isTrailing: Boolean)
     data class Collision(val range: StringRange, val present: Tag)
 }

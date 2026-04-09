@@ -41,7 +41,7 @@ public abstract class NbtPathArgumentMixin {
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(pathBuilder == null)
             return original;
-        pathBuilder.addKeyAccess("", StringRange.at(reader.getCursor()));
+        pathBuilder.addKeyAccess("", StringRange.at(reader.getCursor()), true);
         return original;
     }
 
@@ -63,7 +63,7 @@ public abstract class NbtPathArgumentMixin {
 
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(pathBuilder != null)
-            pathBuilder.addKeyAccess(tag, new StringRange(startCursor, reader.getCursor()));
+            pathBuilder.addKeyAccess(tag, new StringRange(startCursor, reader.getCursor()), false);
 
         return tag;
     }

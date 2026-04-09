@@ -71,8 +71,11 @@ data class PathOperations(
         // Add diagnostics for segment keys
         analyzingResult.diagnostics += errorCallback.generateDiagnostics(
             {
-                val map = errorCallback.accessedKeysWatcherDynamicOps.keyToMap[it] ?: return@generateDiagnostics null
-                nodeToKeySegment[map]?.range
+                val map = errorCallback.accessedKeysWatcherDynamicOps.keyToMap[it] ?: it
+                val segment = nodeToKeySegment[map]
+                if(segment == null || segment.isTrailing) // Diagnostic doesn't matter, because a trailing segment doesn't change the behavior of the path
+                    return@generateDiagnostics null
+                segment.range
             },
             analyzingResult.mappingInfo,
             severity
