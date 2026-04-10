@@ -89,6 +89,23 @@ public class SnbtGrammarMixin {
         }, action);
     }
 
+    @WrapOperation(
+            method = "lambda$createParser$22",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/nbt/SnbtGrammar$IntegerLiteral;create(Lcom/mojang/serialization/DynamicOps;Lnet/minecraft/util/parsing/packrat/ParseState;)Ljava/lang/Object;"
+            )
+    )
+    private static Object command_crafter$allowMalformedInteger(SnbtGrammar.IntegerLiteral instance, DynamicOps<Object> ops, ParseState<?> state, Operation<Object> op) {
+        final var original = op.call(instance, ops, state);
+        // It's important that a node is not null for the StringRangeTree builder. Additionally, longs need to be allowed without suffix because long arrays are leniently parsed as a list.
+        if(original == null && PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
+            final var attemptLong = instance.create(ops, SnbtGrammar.TypeSuffix.LONG, state);
+            return attemptLong != null ? attemptLong : command_crafter$createPlaceholder();
+        }
+        return original;
+    }
+
     @ModifyReturnValue(
             method = "lambda$createParser$22",
             at = @At("RETURN")

@@ -13,3 +13,5 @@ accessible class net/minecraft/client/OptionInstance$ValueSet
 accessible method net/minecraft/client/renderer/ShaderManager$ShaderSourceKey <init> (Lnet/minecraft/resources/Identifier;Lcom/mojang/blaze3d/shaders/ShaderType;)V
 accessible class net/minecraft/world/level/block/entity/BlockEntityType$BlockEntitySupplier
 accessible method net/minecraft/commands/arguments/item/ItemPredicateArgument$ComponentWrapper <init> (Lnet/minecraft/resources/Identifier;Ljava/util/function/Predicate;Lcom/mojang/serialization/Decoder;)V
+accessible class net/minecraft/nbt/SnbtGrammar$IntegerLiteral
+accessible class net/minecraft/nbt/SnbtGrammar$TypeSuffix
