@@ -112,6 +112,8 @@ data class TreeOperations<TNode: Any>(
 
     override val placeholderNodes: Set<TNode>
         get() = stringRangeTree.placeholderNodes
+    override val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>
+        get() = stringRangeTree.typeHints
 
     override fun getParentLinks(ops: DynamicOps<TNode>) =
         stringRangeTree.getParentLinks(ops)

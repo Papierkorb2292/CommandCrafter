@@ -80,6 +80,10 @@ class StringRangeTree<TNode: Any>(
      * Maps nodes to their parent (list or map)
      */
     val parentNodes: Map<TNode, TNode>,
+    /**
+     * Additional type info that is not represented by the node instances themselves
+     */
+    val typeHints: Map<TNode, NodeTypeHint>
 ) {
     /**
      * Flattens the list and sorts it. The lists contained in the input must already be sorted.
@@ -247,7 +251,8 @@ class StringRangeTree<TNode: Any>(
             mapKeyRanges,
             internalNodeRangesBetweenEntries,
             placeholderNodes + placeholderChildrenMap.values,
-            parentNodes
+            parentNodes,
+            typeHints
         )
     }
 
@@ -262,7 +267,8 @@ class StringRangeTree<TNode: Any>(
             mapKeys(mapKeyRanges),
             mapKeys(internalNodeRangesBetweenEntries),
             placeholderNodes.mapTo(Collections.newSetFromMap(IdentityHashMap())) { replacements[it] ?: it },
-            parentNodes.map { (replacements[it.key] ?: it.key) to (replacements[it.value] ?: it.value) }.toMap(IdentityHashMap())
+            parentNodes.map { (replacements[it.key] ?: it.key) to (replacements[it.value] ?: it.value) }.toMap(IdentityHashMap()),
+            mapKeys(typeHints)
         )
     }
 
@@ -295,6 +301,7 @@ class StringRangeTree<TNode: Any>(
         private val internalNodeRangesBetweenEntries = IdentityHashMap<TNode, MutableCollection<StringRange>>()
         private val placeholderNodes = Collections.newSetFromMap(IdentityHashMap<TNode, Boolean>())
         private val parentNodes = IdentityHashMap<TNode, TNode>()
+        private val typeHints = IdentityHashMap<TNode, NodeTypeHint>()
 
         var clampNodeRange: StringRange? = null
 
@@ -352,6 +359,10 @@ class StringRangeTree<TNode: Any>(
             parentNodes[child] = parent
         }
 
+        fun addTypeHint(node: TNode, typeHint: NodeTypeHint) {
+            typeHints[node] = typeHint
+        }
+
         fun build(root: TNode): StringRangeTree<TNode> {
             for(node in orderedNodes) {
                 if(node !in nodeRanges) {
@@ -360,7 +371,7 @@ class StringRangeTree<TNode: Any>(
             }
             return StringRangeTree(root, orderedNodes.mapIndexed { index, it ->
                 it ?: throw UnresolvedPlaceholderError("Node order placeholder not resolved at order index $index")
-            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries, placeholderNodes, parentNodes)
+            }, nodeRanges, nodeAllowedStartRanges, mapKeyRanges, internalNodeRangesBetweenEntries, placeholderNodes, parentNodes, typeHints)
         }
 
         class NodeWithoutRangeError(message: String) : Error(message)
@@ -381,6 +392,7 @@ class StringRangeTree<TNode: Any>(
             var mapKeyRanges: MutableCollection<kotlin.Pair<TNode, StringRange>>? = null,
             var isPlaceholder: Boolean? = null,
             var children: MutableCollection<TNode>? = null,
+            var typeHint: NodeTypeHint? = null
         ) {
             fun copyFrom(other: PartialNode<TNode>) {
                 require(index == other.index) { "Tried to copy from a node with a different index" }
@@ -392,6 +404,7 @@ class StringRangeTree<TNode: Any>(
                 mapKeyRanges = mapKeyRanges.appendNullable(other.mapKeyRanges)
                 isPlaceholder = other.isPlaceholder ?: isPlaceholder
                 children = other.children.appendNullable(children)
+                typeHint = other.typeHint ?: typeHint
             }
 
             fun addRangeBetweenEntries(range: StringRange) {
@@ -464,7 +477,16 @@ class StringRangeTree<TNode: Any>(
                 for(child in node.children ?: emptyList()) {
                     basicBuilder.addChild(node.node!!, child)
                 }
+                if(node.typeHint != null)
+                    basicBuilder.addTypeHint(node.node!!, node.typeHint!!)
             }
         }
+    }
+
+    enum class NodeTypeHint(val typeNameWithArticle: String, val isImpossibleInJson: Boolean) {
+        LIST("a list", false),
+        BYTE_ARRAY("a byte array", true),
+        INT_ARRAY("an int array", true),
+        LONG_ARRAY("a long array", true),
     }
 }

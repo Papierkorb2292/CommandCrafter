@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
+import com.google.gson.JsonElement
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.Dynamic
@@ -28,7 +29,8 @@ class LeafErrorDecoderCallback<TNode : Any>(
     val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val registries: RegistryAccess?,
-    override val onlyContextOps: DynamicOps<TNode>
+    override val onlyContextOps: DynamicOps<TNode>,
+    private val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>,
 ) : ExtraDecoderBehavior<TNode> {
 
     companion object {
@@ -48,7 +50,8 @@ class LeafErrorDecoderCallback<TNode : Any>(
                 accessedKeysWatcher,
                 operations.branchBehaviorProvider,
                 operations.registryAccess,
-                onlyContextOps
+                onlyContextOps,
+                operations.typeHints,
             )
             val (_, mergeErrorSuppressingOps) = wrapDynamicOps(filteredOps, errorCallback::PathErrorSuppressingDynamicOps)
             return errorCallback to mergeErrorSuppressingOps
@@ -210,10 +213,24 @@ class LeafErrorDecoderCallback<TNode : Any>(
             return dataResult
         }
 
+        fun <TResult> errorForMismatchedTypeHint(input: TNode, expectedType: StringRangeTree.NodeTypeHint, dataResult: DataResult<TResult>): DataResult<TResult> {
+            if(dataResult.isSuccess && branchBehavior.isAllPossibleEncoded()) {
+                val actualTypeHint = typeHints[input]
+                if(actualTypeHint != null && actualTypeHint != expectedType) {
+                    return DataResult.error {
+                        val jsonNote = if(input is JsonElement && expectedType.isImpossibleInJson) " (Which is impossible to declare in JSON)" else ""
+                        "Not ${expectedType.typeNameWithArticle}$jsonNote: $input"
+                    }
+                }
+            }
+            return dataResult
+        }
+
+        // Don't suppress errors for getIntStream and such, because those won't be partially matched, but check that the encoded type is correct
         override fun getMap(input: TNode) = onNodeAccess(input, delegate.getMap(input))
         override fun getMapValues(input: TNode) = onNodeAccess(input, delegate.getMapValues(input))
         override fun getMapEntries(input: TNode) = onNodeAccess(input, delegate.getMapEntries(input))
-        override fun getList(input: TNode) = onNodeAccess(input, delegate.getList(input))
+        override fun getList(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.LIST, onNodeAccess(input, delegate.getList(input)))
         override fun getStream(input: TNode) = onNodeAccess(input, delegate.getStream(input))
         override fun <U> convertTo(outOps: DynamicOps<U>, input: TNode): U {
             if(branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
@@ -221,7 +238,9 @@ class LeafErrorDecoderCallback<TNode : Any>(
             }
             return delegate.convertTo(outOps, input)
         }
-        // Don't suppress errors for getIntStream and such, because those won't be partially matched. TODO: Check specific type of lists
+        override fun getByteBuffer(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.BYTE_ARRAY, delegate.getByteBuffer(input))
+        override fun getIntStream(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.INT_ARRAY, delegate.getIntStream(input))
+        override fun getLongStream(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.LONG_ARRAY, delegate.getLongStream(input))
     }
 
     private class ErrorStackEntry<TNode>(

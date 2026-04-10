@@ -148,6 +148,8 @@ data class PathOperations(
 
     override val placeholderNodes: Set<Tag>
         get() = path.placeholderNodes
+    override val typeHints: Map<Tag, StringRangeTree.NodeTypeHint>
+        get() = path.typeHints
 
     override fun getParentLinks(ops: DynamicOps<Tag>) =
         path.getParentLinks(ops)

@@ -10,5 +10,6 @@ interface SchemaOperations<TNode : Any> {
     val placeholderNodes: Set<TNode>
     val registryAccess: RegistryAccess?
     val branchBehaviorProvider: BranchBehaviorProvider<TNode>
+    val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>
     fun getParentLinks(ops: DynamicOps<TNode>) : ParentLinks
 }

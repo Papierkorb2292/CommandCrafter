@@ -22,6 +22,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquot
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.objectweb.asm.Opcodes;
@@ -153,6 +154,32 @@ public class SnbtGrammarMixin {
         return wrappedSymbol;
     }
 
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:LAST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    to = @At(
+                            value = "CONSTANT",
+                            args = "intValue=93" // ']'
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$addListTypeHint(Term<StringReader> original) {
+        return (state, results, cut) -> {
+            var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+            if (builderArg != null) {
+                final var node = builderArg.getStringRangeTreeBuilder().peekNode();
+                if (node != null) {
+                    node.setTypeHint(StringRangeTree.NodeTypeHint.LIST);
+                }
+            }
+            return original.parse(state, results, cut);
+        };
+    }
+
     @WrapOperation(
             method = "createParser",
             at = @At(
@@ -172,6 +199,21 @@ public class SnbtGrammarMixin {
         var listEntriesTerm = instance.named(listEntriesSymbol);
         var arrayPrefixSymbol = UtilKt.getSymbolByName(instance, "array_prefix");
         return (state, results, cut) -> {
+            var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+            if(builderArg != null) {
+                final var node = builderArg.getStringRangeTreeBuilder().peekNode();
+                if(node != null) {
+                    final var arrayType = (Enum<?>) results.getOrThrow(arrayPrefixSymbol);
+                    final var typeHint = switch (arrayType.ordinal()) {
+                        case 0 -> StringRangeTree.NodeTypeHint.BYTE_ARRAY;
+                        case 1 -> StringRangeTree.NodeTypeHint.INT_ARRAY;
+                        case 2 -> StringRangeTree.NodeTypeHint.LONG_ARRAY;
+                        default -> null;
+                    };
+                    node.setTypeHint(typeHint);
+                }
+            }
+
             if (PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
                 var matches = listEntriesTerm.parse(state, results, cut);
                 if(matches) {

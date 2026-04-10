@@ -4,6 +4,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import net.minecraft.nbt.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree.NodeTypeHint
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EndTagAccessor
 import java.util.*
 
@@ -13,6 +14,7 @@ class StringRangePath(
     val collisions: List<Collision>,
     val placeholderNodes: Set<Tag>,
     val parentNodes: Map<Tag, Tag>,
+    val typeHints: Map<Tag, NodeTypeHint>,
 ) {
     fun getParentLinks(ops: DynamicOps<Tag>) = object : ParentLinks {
         override fun getParent(node: Any): Dynamic<*>? {
@@ -26,6 +28,7 @@ class StringRangePath(
         private val collisions = mutableListOf<Collision>()
         private val placeholderNodes = Collections.newSetFromMap(IdentityHashMap<Tag, Boolean>())
         private val parentNodes = IdentityHashMap<Tag, Tag>()
+        private val typeHints = IdentityHashMap<Tag, NodeTypeHint>()
         private var root: Tag = getEmptyPlaceholder(null)
 
         private val replacements = IdentityHashMap<Tag, Tag>()
@@ -70,6 +73,7 @@ class StringRangePath(
                 nextNode = root
             }
             parentNodes += filter.parentNodes
+            typeHints += filter.typeHints
             segments += Segment(filter, range, null, nextNodeCanHaveCompoundFilter, false)
             nextNodeCanHaveCompoundFilter = false
             endCursor = range.end
@@ -170,6 +174,7 @@ class StringRangePath(
                 collisions,
                 placeholderNodes, // Not mapped with replacements, because it only matters whether the last merged node is a placeholder
                 parentNodes.map { (replacements[it.key] ?: it.key) to (replacements[it.value] ?: it.value) }.toMap(),
+                typeHints.mapKeys { replacements[it.key] ?: it.key }
             )
         }
 

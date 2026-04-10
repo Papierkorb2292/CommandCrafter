@@ -107,6 +107,8 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
         }
 
         builder.addNodeOrder(current)
+        if(current is JsonArray)
+            builder.addTypeHint(current, StringRangeTree.NodeTypeHint.LIST)
 
         val stack: Deque<ReaderStackEntry> = ArrayDeque()
 
@@ -198,6 +200,8 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
                         nestedAllowedStartPos = `in`.absoluteValueStartPosBeforeWhitespace
                         current = value!!
                         builder.addNodeOrder(current)
+                        if(current is JsonArray)
+                            builder.addTypeHint(current, StringRangeTree.NodeTypeHint.LIST)
                     } else {
                         // There could have been an error thrown between assigning the two, which would cause the latter to be ahead of the former
                         builder.addNode(value!!, StringRange(valueStartPos, valueEndPos), `in`.absoluteValueStartPosBeforeWhitespace)
