@@ -168,6 +168,20 @@ public abstract class NbtPathArgumentMixin {
             method = "parseNode",
             at = @At(
                     value = "INVOKE",
+                    target = "Lcom/mojang/brigadier/StringReader;peek()C"
+            )
+    )
+    private static char command_crafter$allowMissingIndex(StringReader instance, Operation<Character> original) {
+        final var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
+        if(analyzingResult != null && !instance.canRead())
+            return ' ';
+        return original.call(instance);
+    }
+
+    @WrapOperation(
+            method = "parseNode",
+            at = @At(
+                    value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readInt()I"
             )
     )

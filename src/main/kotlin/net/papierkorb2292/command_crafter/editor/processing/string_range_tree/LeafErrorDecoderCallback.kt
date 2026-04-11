@@ -175,13 +175,13 @@ class LeafErrorDecoderCallback<TNode : Any>(
         next.offerChild(popped.node, popped.getAllDiagnostics())
     }
 
-    fun processUnknownKeys() {
+    fun finishDiagnostics() {
         addMapUnknownKeyDiagnostics(root.value, stack.last().comittedDiagnostics)
+        for(i in lateAdditionMergers.lastIndex downTo 0)
+            lateAdditionMergers[i].invoke()
     }
 
     fun generateDiagnostics(ranges: NodeErrorRangeProvider<TNode>, fileMappingInfo: FileMappingInfo, severity: DiagnosticSeverity = DiagnosticSeverity.Error): List<Diagnostic> {
-        for(i in lateAdditionMergers.lastIndex downTo 0)
-            lateAdditionMergers[i].invoke()
         val nodeDiagnostics = stack.last().getAllDiagnostics()
         return nodeDiagnostics.build(ranges, fileMappingInfo, severity)
     }

@@ -99,7 +99,7 @@ data class TreeOperations<TNode: Any>(
                 FirstDecoderExtraBehavior(errorCallback)
             )
         }
-        errorCallback.processUnknownKeys()
+        errorCallback.finishDiagnostics()
         analyzingResult.diagnostics += errorCallback.generateDiagnostics(
             { stringRangeTree.getNodeOrKeyRange(it, errorCallback.accessedKeysWatcherDynamicOps) },
             analyzingResult.mappingInfo,
