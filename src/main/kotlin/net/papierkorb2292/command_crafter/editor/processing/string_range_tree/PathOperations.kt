@@ -105,7 +105,7 @@ data class PathOperations(
                         analyzingResult.mappingInfo,
                         CompletionItemKind.Property
                     ) {
-                        keySuggestions.stream().flatMap { it.getValue().distinct() }
+                        keySuggestions.stream().flatMap { it.getValue() }.distinct()
                             .filter { !(it.element is StringTag && it.element.value.isEmpty()) }
                             .map { suggestion ->
                                 val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
