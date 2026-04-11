@@ -46,7 +46,7 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`() ?: return
         val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader)
 
-        PathOperations(path)
+        PathOperations.forReader(path, reader)
             .withRegistry(reader.resourceCreator.registries)
             .withDiagnosticSeverity(DiagnosticSeverity.Warning)
             .withBranchBehaviorProvider(dataObjectSource.getNBTBranchBehavior())

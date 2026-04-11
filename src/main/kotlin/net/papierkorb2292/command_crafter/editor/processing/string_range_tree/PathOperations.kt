@@ -13,20 +13,27 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations.Companion.IS_ANALYZING_DECODER
 import net.papierkorb2292.command_crafter.helper.concatNullable
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItemKind
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.Range
 import java.util.*
+import java.util.stream.Stream
 
 data class PathOperations(
     val path: StringRangePath,
+    val suggestionResolver: StringRangeTree.SuggestionResolver<Tag>,
     override val registryAccess: RegistryAccess? = null,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     override val branchBehaviorProvider: BranchBehaviorProvider<Tag> = BranchBehaviorProvider.Decode
 ) : SchemaOperations<Tag> {
     companion object {
         private val keyCharactersRequireQuoted = CharSet.of(' ', '"', '\'', '[', ']', '.', '{', '}')
+
+        fun forReader(path: StringRangePath, reader: DirectiveStringReader<*>) =
+            PathOperations(path, NbtSuggestionResolver(reader) { false })
     }
 
     val nodeToKeySegment = path.segments.filter { it.key != null }.associateByTo(IdentityHashMap()) { it.tree.root }
@@ -51,8 +58,12 @@ data class PathOperations(
             }
             if(diagnosticSeverity != null)
                 generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
-            // TODO: Analyze tree filtered (only suggest compound if applicable)
-            suggestKeys(analyzingResult, analyzingDynamicOps)
+            for(segment in path.segments) {
+                val newTree = segment.tree.copyWithPlaceholders(analyzingDynamicOps.placeholderChildrenMap)
+                newTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, FilterSuggestionResolver(segment))
+                //TODO: Combine analyzing results
+                suggestKeys(segment, analyzingResult, analyzingDynamicOps)
+            }
         }
         addCollisionDiagnostics(analyzingResult)
     }
@@ -91,31 +102,29 @@ data class PathOperations(
         )
     }
 
-    private fun suggestKeys(analyzingResult: AnalyzingResult, analyzingDynamicOps: AnalyzingDynamicOps<Tag>) {
-        for(segment in path.segments) {
-            val keySuggestions = analyzingDynamicOps.mapKeySuggestions[segment.tree.root]
-                .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeys[segment.tree.root]
-                    ?.flatMap { mapKeyNode -> analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList() })
-            if(!keySuggestions.isNullOrEmpty() && segment.key != null) {
-                analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
-                    AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                    StringRange(segment.range.start, segment.range.end),
-                    StreamCompletionItemProvider(
-                        segment.range.start,
-                        { segment.range.end },
-                        analyzingResult.mappingInfo,
-                        CompletionItemKind.Property
-                    ) {
-                        keySuggestions.stream().flatMap { it.getValue() }.distinct()
-                            .filter { !(it.element is StringTag && it.element.value.isEmpty()) }
-                            .map { suggestion ->
-                                val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
-                                val escapedKey = escapePathKey(key)
-                                StreamCompletionItemProvider.Completion(escapedKey, key, suggestion.completionModifier)
-                            }
-                    }
-                )
-            }
+    private fun suggestKeys(segment: StringRangePath.Segment, analyzingResult: AnalyzingResult, analyzingDynamicOps: AnalyzingDynamicOps<Tag>) {
+        val keySuggestions = analyzingDynamicOps.mapKeySuggestions[segment.tree.root]
+            .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeys[segment.tree.root]
+                ?.flatMap { mapKeyNode -> analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList() })
+        if(!keySuggestions.isNullOrEmpty() && segment.key != null) {
+            analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                StringRange(segment.range.start, segment.range.end),
+                StreamCompletionItemProvider(
+                    segment.range.start,
+                    { segment.range.end },
+                    analyzingResult.mappingInfo,
+                    CompletionItemKind.Property
+                ) {
+                    keySuggestions.stream().flatMap { it.getValue() }.distinct()
+                        .filter { !(it.element is StringTag && it.element.value.isEmpty()) }
+                        .map { suggestion ->
+                            val key = (suggestion.element as? StringTag)?.value ?: suggestion.element.toString()
+                            val escapedKey = escapePathKey(key)
+                            StreamCompletionItemProvider.Completion(escapedKey, key, suggestion.completionModifier)
+                        }
+                }
+            )
         }
     }
 
@@ -166,4 +175,55 @@ data class PathOperations(
 
     override fun getParentLinks(ops: DynamicOps<Tag>) =
         path.getParentLinks(ops)
+
+    inner class FilterSuggestionResolver(val segment: StringRangePath.Segment) : StringRangeTree.SuggestionResolver<Tag> {
+        private val segmentRoot = segment.tree.root
+        private val segmentListChild = (segmentRoot as? ListTag)?.firstOrNull()
+
+        override fun resolveNodeSuggestion(
+            suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<Tag>>,
+            tree: StringRangeTree<Tag>,
+            node: Tag,
+            suggestionRange: StringRange,
+            mappingInfo: FileMappingInfo,
+        ): StringRangeTree.ResolvedSuggestion? {
+            val filteredSuggestions = when(node) {
+                // Allow map filter, list filter or dot (for maps)
+                segmentRoot -> suggestionProviders.map { provider -> ExtraDecoderBehavior.PossibleValue.Provider {
+                    provider.getValue().flatMap {
+                        when(it.element) {
+                            is CompoundTag -> {
+                                // Suggest dot as string. The suggestion resolver is configured to suggest it without quotes
+                                if(segment.allowsCompoundFilter)
+                                    Stream.of(it, ExtraDecoderBehavior.PossibleValue(StringTag.valueOf(".")))
+                                else
+                                    Stream.of(ExtraDecoderBehavior.PossibleValue(StringTag.valueOf(".")))
+                            }
+                            is ListTag -> Stream.of(it)
+                            else -> Stream.of()
+                        }
+                    }
+                } }
+                // Only allow map inside list filter
+                segmentListChild -> suggestionProviders.map { provider -> ExtraDecoderBehavior.PossibleValue.Provider { provider.getValue().filter { it.element is CompoundTag } } }
+                else -> suggestionProviders
+            }
+            return suggestionResolver.resolveNodeSuggestion(filteredSuggestions, tree, node, suggestionRange, mappingInfo)
+        }
+
+        override fun resolveMapKeySuggestion(
+            suggestionProviders: Collection<ExtraDecoderBehavior.PossibleValue.Provider<Tag>>,
+            tree: StringRangeTree<Tag>,
+            map: Tag,
+            suggestionRange: StringRange,
+            mappingInfo: FileMappingInfo,
+        ): StringRangeTree.ResolvedSuggestion? {
+            val shouldSuggestKeys = segment.key == null && !segment.isTrailing
+            return if(shouldSuggestKeys) {
+                suggestionResolver.resolveMapKeySuggestion(suggestionProviders, tree, map, suggestionRange, mappingInfo)
+            } else {
+                null
+            }
+        }
+    }
 }

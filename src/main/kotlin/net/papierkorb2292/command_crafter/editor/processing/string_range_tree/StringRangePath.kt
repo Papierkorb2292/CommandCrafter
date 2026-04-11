@@ -95,7 +95,9 @@ class StringRangePath(
 
         private fun getSegmentStartTree(cursor: Int): StringRangeTree<Tag> {
             val builder = StringRangeTree.Builder<Tag>()
-            builder.addNode(nextNode, StringRange.at(cursor), cursor)
+            val range = StringRange.at(cursor)
+            builder.addNode(nextNode, range, cursor)
+            builder.addRangeBetweenInternalNodeEntries(nextNode, range)
             return builder.build(nextNode)
         }
 
