@@ -24,6 +24,7 @@ import java.util.stream.Stream
 
 data class PathOperations(
     val path: StringRangePath,
+    val input: String,
     val suggestionResolver: StringRangeTree.SuggestionResolver<Tag>,
     override val registryAccess: RegistryAccess? = null,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
@@ -33,7 +34,7 @@ data class PathOperations(
         private val keyCharactersRequireQuoted = CharSet.of(' ', '"', '\'', '[', ']', '.', '{', '}')
 
         fun forReader(path: StringRangePath, reader: DirectiveStringReader<*>) =
-            PathOperations(path, NbtSuggestionResolver(reader) { false })
+            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false })
     }
 
     val nodeToKeySegment = path.segments.filter { it.key != null }.associateByTo(IdentityHashMap()) { it.tree.root }
@@ -60,8 +61,11 @@ data class PathOperations(
                 generateDiagnostics(analyzingResult, contentDecoder, diagnosticSeverity)
             for(segment in path.segments) {
                 val newTree = segment.tree.copyWithPlaceholders(analyzingDynamicOps.placeholderChildrenMap)
-                newTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, FilterSuggestionResolver(segment))
-                //TODO: Combine analyzing results
+                newTree.suggestFromAnalyzingOps(analyzingDynamicOps, analyzingResult, FilterSuggestionResolver(segment), true) // Allow missing internal ranges, because END tags could have been replaced by compounds and lists
+                if(segment.isFilter()) {
+                    // TODO: Also analyze path keys (only matters for custom mcdoc)
+                    newTree.combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps, NbtStringContentGetter(newTree, input))
+                }
                 suggestKeys(segment, analyzingResult, analyzingDynamicOps)
             }
         }
@@ -218,8 +222,7 @@ data class PathOperations(
             suggestionRange: StringRange,
             mappingInfo: FileMappingInfo,
         ): StringRangeTree.ResolvedSuggestion? {
-            val shouldSuggestKeys = segment.key == null && !segment.isTrailing
-            return if(shouldSuggestKeys) {
+            return if(segment.isFilter()) {
                 suggestionResolver.resolveMapKeySuggestion(suggestionProviders, tree, map, suggestionRange, mappingInfo)
             } else {
                 null

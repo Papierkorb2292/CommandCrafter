@@ -649,7 +649,7 @@ object TestCommandCrafter {
                 )
             )
         }
-        val path = builder.buildStandalone()
+        val path = builder.buildStandalone(processedLines[0])
 
         context.assertValueEqual(8, path.segments.size, "Path segments count")
         context.assertValueEqual(

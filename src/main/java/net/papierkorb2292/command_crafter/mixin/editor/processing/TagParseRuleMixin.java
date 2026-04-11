@@ -60,17 +60,8 @@ public class TagParseRuleMixin<T> {
         var tree = treeBuilder.build(nbt);
         if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
-            if (nbt instanceof EndTag)
+            if(!tree.isFinishedNbt(reader.getString())) {
                 malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-            else if (nbt instanceof CompoundTag || nbt instanceof CollectionTag) {
-                if (nbt instanceof CompoundTag && reader.peek(-1) != '}') {
-                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-                } else if (nbt instanceof CollectionTag && reader.peek(-1) != ']') {
-                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-                } else if (tree.getRanges().values().stream().filter(range -> range.getEnd() == reader.getCursor()).count() > 1) {
-                    // A child compound/list ended here
-                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-                }
             }
         }
         PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {

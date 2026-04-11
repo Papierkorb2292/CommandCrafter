@@ -126,17 +126,8 @@ public class ItemStringReaderReaderMixin {
                     .analyzeFull(command_crafter$analyzingResult, type.codec());
         } else if(!reader.canRead()) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
-            if(nbt instanceof EndTag)
+            if(!tree.isFinishedNbt(reader.getString())) {
                 command_crafter$suggestionStartCursor = reader.getCursor();
-            else if(nbt instanceof CompoundTag || nbt instanceof CollectionTag) {
-                if(nbt instanceof CompoundTag && reader.peek(-1) != '}') {
-                    command_crafter$suggestionStartCursor = reader.getCursor();
-                } else if(nbt instanceof CollectionTag && reader.peek(-1) != ']') {
-                    command_crafter$suggestionStartCursor = reader.getCursor();
-                } else if(tree.getRanges().values().stream().filter(range -> range.getEnd() == reader.getCursor()).count() > 1){
-                    // A child compound/list ended here
-                    command_crafter$suggestionStartCursor = reader.getCursor();
-                }
             }
         }
         return (O)nbt;

@@ -3,6 +3,9 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
+import net.minecraft.nbt.CollectionTag
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.EndTag
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -37,6 +40,7 @@ import kotlin.collections.mapNotNull
 import kotlin.collections.mapTo
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
+import kotlin.collections.none
 import kotlin.collections.plus
 import kotlin.collections.plusAssign
 import kotlin.collections.reversed
@@ -84,7 +88,7 @@ class StringRangeTree<TNode: Any>(
     /**
      * Additional type info that is not represented by the node instances themselves
      */
-    val typeHints: Map<TNode, NodeTypeHint>
+    val typeHints: Map<TNode, NodeTypeHint>,
 ) {
     /**
      * Flattens the list and sorts it. The lists contained in the input must already be sorted.
@@ -130,7 +134,7 @@ class StringRangeTree<TNode: Any>(
     private fun getNodeRangeOrThrow(node: TNode) =
         ranges[node] ?: throw IllegalStateException("Node $node not found in ranges")
 
-    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>) {
+    fun suggestFromAnalyzingOps(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, result: AnalyzingResult, suggestionResolver: SuggestionResolver<TNode>, allowMissingInternalRange: Boolean = false) {
         val copiedMappingInfo = result.mappingInfo.copy()
         val resolvedSuggestions = orderedNodes.map { node ->
             val nodeSuggestions = mutableListOf<kotlin.Pair<StringRange, ResolvedSuggestion>>()
@@ -144,7 +148,12 @@ class StringRangeTree<TNode: Any>(
                 .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeys[node]?.flatMap { mapKeyNode ->
                     analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList()
                 })?.let { suggestionProviders ->
-                    val ranges = internalNodeRangesBetweenEntries[node] ?: throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
+                    val ranges = internalNodeRangesBetweenEntries[node]
+                    if(ranges == null) {
+                        if(!allowMissingInternalRange)
+                            throw IllegalArgumentException("Node $node not found in internal node ranges between entries")
+                        return@let
+                    }
                     nodeSuggestions += ranges.mapNotNull { range ->
                         val suggestion = suggestionResolver.resolveMapKeySuggestion(suggestionProviders, this, node, range, copiedMappingInfo)
                         if(suggestion != null) range to suggestion else null
@@ -276,6 +285,24 @@ class StringRangeTree<TNode: Any>(
         )
     }
 
+    fun isFinishedNbt(input: String): Boolean {
+        // Check if the nbt was ended correctly (otherwise don't give other suggestions)
+        if(root is EndTag) return false
+        if(root !is CompoundTag && root !is CollectionTag) return true
+        val range = getNodeRangeOrThrow(root)
+        val endChar = range.end - 1
+        if(endChar < 0) return false
+        if(root is CompoundTag) {
+            if(input[endChar] != '}') {
+                return false
+            }
+        } else if(input[endChar] != ']') {
+            return false
+        }
+        // Check if a child compound/list ended here
+        return ranges.none { it.key != root && it.value.end == range.end }
+    }
+
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)
 
     interface SuggestionResolver<TNode : Any> {
@@ -396,7 +423,7 @@ class StringRangeTree<TNode: Any>(
             var mapKeyRanges: MutableCollection<kotlin.Pair<TNode, StringRange>>? = null,
             var isPlaceholder: Boolean? = null,
             var children: MutableCollection<TNode>? = null,
-            var typeHint: NodeTypeHint? = null
+            var typeHint: NodeTypeHint? = null,
         ) {
             fun copyFrom(other: PartialNode<TNode>) {
                 require(index == other.index) { "Tried to copy from a node with a different index" }

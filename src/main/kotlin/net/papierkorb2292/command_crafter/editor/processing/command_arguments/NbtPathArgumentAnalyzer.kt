@@ -41,7 +41,7 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
                 } catch(_: CommandSyntaxException) {}
             }
         }
-        val path = builder.buildStandalone()
+        val path = builder.buildStandalone(reader.string)
 
         val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`() ?: return
         val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader)

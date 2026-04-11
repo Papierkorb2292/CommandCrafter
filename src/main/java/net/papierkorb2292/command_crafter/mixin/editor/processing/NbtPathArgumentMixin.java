@@ -41,7 +41,7 @@ public abstract class NbtPathArgumentMixin {
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(pathBuilder == null)
             return original;
-        pathBuilder.addKeyAccess("", StringRange.at(reader.getCursor()), true);
+        pathBuilder.addKeyAccess("", StringRange.at(reader.getCursor()), original.toString().isEmpty(), true);
         return original;
     }
 
@@ -55,6 +55,7 @@ public abstract class NbtPathArgumentMixin {
     )
     private static String command_crafter$analyzeTag(StringReader reader, Operation<String> op) {
         final var startCursor = reader.getCursor();
+        final var isFirst = startCursor == 0 || !reader.canRead(0) || reader.peek(-1) != '.';
         final var tag = op.call(reader);
 
         final var analyzingResult = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentAnalyzingResult());
@@ -63,7 +64,7 @@ public abstract class NbtPathArgumentMixin {
 
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(pathBuilder != null)
-            pathBuilder.addKeyAccess(tag, new StringRange(startCursor, reader.getCursor()), false);
+            pathBuilder.addKeyAccess(tag, new StringRange(startCursor, reader.getCursor()), isFirst, false);
 
         return tag;
     }
@@ -124,7 +125,8 @@ public abstract class NbtPathArgumentMixin {
         var nbt = nbtReader.parseAsArgument(directiveReader);
         if(pathBuilder != null) {
             list.add(nbt);
-            treeBuilder.addNode(list, new StringRange(startCursor, reader.getCursor()), startCursor);
+            final var hasClosingBracket = reader.canRead() && reader.peek() == ']';
+            treeBuilder.addNode(list, new StringRange(startCursor, hasClosingBracket ? reader.getCursor() + 1 : reader.getCursor()), startCursor);
             var tree = treeBuilder.build(list);
             pathBuilder.addFilter(tree);
         }
