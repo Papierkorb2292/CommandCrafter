@@ -125,7 +125,11 @@ data class PathOperations(
         for(collision in path.collisions) {
             val presentValue = when(collision.present) {
                 is CompoundTag -> "a compound tag"
-                is ListTag -> "a list tag" // TODO: Should convert arrays to string, make sure to include array type
+                is ListTag -> {
+                    val typeHint = path.typeHints[collision.present] ?: StringRangeTree.NodeTypeHint.LIST
+                    val lengthMessage = if(typeHint != StringRangeTree.NodeTypeHint.LIST) " of length ${collision.present.size}" else ""
+                    "${typeHint.typeNameWithArticle} tag${lengthMessage}"
+                }
                 else -> collision.present.toString()
             }
             analyzingResult.diagnostics += Diagnostic(

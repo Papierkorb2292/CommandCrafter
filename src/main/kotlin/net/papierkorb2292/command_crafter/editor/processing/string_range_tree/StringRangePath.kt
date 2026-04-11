@@ -61,6 +61,7 @@ class StringRangePath(
                 return // We can't reliably merge anything more
             val range = filter.ranges[filter.root]!!
             placeholderNodes += filter.placeholderNodes
+            typeHints += filter.typeHints // Add before mergeInto
             val root = mergeInto(nextNode, filter.root) { filter.ranges[it]!! }
             if(root is ListTag) {
                 nextNodeConsumer(root)
@@ -73,7 +74,6 @@ class StringRangePath(
                 nextNode = root
             }
             parentNodes += filter.parentNodes
-            typeHints += filter.typeHints
             segments += Segment(filter, range, null, nextNodeCanHaveCompoundFilter, false)
             nextNodeCanHaveCompoundFilter = false
             endCursor = range.end
@@ -129,12 +129,25 @@ class StringRangePath(
                     if(src !is ListTag)
                         throw IllegalArgumentException("Collection inside path must be a list")
 
-                    if(newTag !is CollectionTag) {
+                    val srcTypeHint = typeHints[src] // No need to apply replacements, because only the type hint for the current replacement matters
+                    requireNotNull(srcTypeHint) { "srcTypeHint for list should never be null, since the only way to have an existing value is a condition, for which the SNBT parser always adds type hints"}
+                    val newTypeHint = typeHints[newTag]
+
+                    if(newTag !is CollectionTag || newTypeHint != null && newTypeHint != srcTypeHint) {
                         onCollision()
                     } else {
                         replacements[newTag] = src
-                        for(child in newTag)
-                            src.addTag(src.size, child)
+                        if(srcTypeHint == NodeTypeHint.LIST) {
+                            for(child in newTag)
+                                src.addTag(src.size, child)
+                        } else if(src.size != newTag.size()) {
+                            onCollision()
+                        } else {
+                            // Compare all elements of an array
+                            for(i in 0 until src.size) {
+                                mergeInto(src[i], newTag[i], collisionRangeGetter)
+                            }
+                        }
                     }
                     return src
                 }
