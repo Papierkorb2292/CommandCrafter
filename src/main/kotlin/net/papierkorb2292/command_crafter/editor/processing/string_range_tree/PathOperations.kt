@@ -68,6 +68,14 @@ data class PathOperations(
             )
         }
         errorCallback.processUnknownKeys()
+        // Add diagnostics for trees
+        for(segment in path.segments) {
+            analyzingResult.diagnostics += errorCallback.generateDiagnostics(
+                { segment.tree.getNodeOrKeyRange(it, errorCallback.accessedKeysWatcherDynamicOps) },
+                analyzingResult.mappingInfo,
+                severity
+            )
+        }
         // Add diagnostics for segment keys
         analyzingResult.diagnostics += errorCallback.generateDiagnostics(
             {
