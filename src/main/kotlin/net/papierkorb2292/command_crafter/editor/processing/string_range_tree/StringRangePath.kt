@@ -99,7 +99,6 @@ class StringRangePath(
             return builder.build(nextNode)
         }
 
-        // TODO: Recognize collisions when lists have different types
         private fun mergeInto(src: Tag, newTag: Tag, collisionRangeGetter: ((Tag) -> StringRange)? = null): Tag {
             fun onCollision() {
                 if(collisionRangeGetter != null)
