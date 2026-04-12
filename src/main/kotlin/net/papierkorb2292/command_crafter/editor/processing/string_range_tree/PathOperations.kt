@@ -203,7 +203,7 @@ data class PathOperations(
                                 else
                                     Stream.of(ExtraDecoderBehavior.PossibleValue(StringTag.valueOf(".")))
                             }
-                            is ListTag -> Stream.of(it)
+                            is ListTag -> if(it.element.isEmpty) Stream.of(it) else Stream.of()
                             else -> Stream.of()
                         }
                     }
