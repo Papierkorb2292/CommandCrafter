@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
@@ -18,6 +19,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.papierkorb2292.command_crafter.editor.processing.*;
@@ -605,14 +607,45 @@ public class EntitySelectorOptionsMixin {
     @WrapOperation(
             method = "lambda$bootStrap$35",
             at = @At(
-                    value = "INVOKE",
+                    value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/core/DefaultedRegistry;getOptional(Lnet/minecraft/resources/Identifier;)Ljava/util/Optional;"
+                    )
             )
     )
-    private static void command_crafter$trackTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op) {
+    private static void command_crafter$trackIdTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op) {
         final var tracker = getOrNull(DataObjectDecoding.Companion.getSELECTOR_TYPE_PREDICATE_TRACKER());
         if(tracker != null)
             tracker.add(predicate);
+        op.call(parser, predicate);
+    }
+
+    @WrapOperation(
+            method = "lambda$bootStrap$35",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/tags/TagKey;create(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/resources/Identifier;)Lnet/minecraft/tags/TagKey;"
+                    )
+            )
+    )
+    private static void command_crafter$trackTagTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op, @Local(name = "id") TagKey<EntityType<?>> id) {
+        final var tracker = getOrNull(DataObjectDecoding.Companion.getSELECTOR_TYPE_PREDICATE_TRACKER());
+        if(tracker != null) {
+            // Only add condition if tag is bound
+            BuiltInRegistries.ENTITY_TYPE.get(id).ifPresent(tag -> {
+                if(tag.isBound())
+                    tracker.add(predicate);
+            });
+        }
         op.call(parser, predicate);
     }
 }
