@@ -10,17 +10,16 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider;
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CompoundTagArgumentAnalyzer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
-import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -103,27 +102,14 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
         command_crafter$decoderAnalyzing = new MalformedStringDecoderAnalyzing<>(
                 (dynamic) -> DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue()),
                 (decoderData, result, behavior, stringContent) -> {
-                    final var nbtReader = TagParser.create(NbtOps.INSTANCE);
-                    ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
-                    ((AnalyzingResultCreator) nbtReader).command_crafter$setAnalyzingResult(result);
-                    final var treeBuilder = new StringRangeTree.Builder<Tag>();
-                    //noinspection unchecked
-                    ((StringRangeTreeCreator<Tag>) nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
-                    Tag nbt;
-                    try {
-                        nbt = nbtReader.parseAsArgument(new StringReader(stringContent.getContent()));
-                    } catch (CommandSyntaxException ignored) {
-                        return; // Shouldn't happen
-                    }
-
-                    if (decoderData != null) {
-                        final var tree = treeBuilder.build(nbt);
-                        TreeOperations.Companion.forNbt(tree, stringContent.getContent())
-                                .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                                .withRegistry(behavior.getRegistries())
-                                .withBranchBehaviorProvider(decoderData.getBranchBehaviorModifier().apply(BranchBehaviorProvider.Decode.INSTANCE))
-                                .analyzeFull(result, decoderData.getDecoder());
-                    }
+                    CompoundTagArgumentAnalyzer.Companion.analyzeReader(
+                            new StringReader(stringContent.getContent()),
+                            result,
+                            behavior.getRegistries(),
+                            tree -> TreeOperations.Companion.forNbt(tree, stringContent.getContent()),
+                            decoderData != null ? decoderData.getBranchBehaviorModifier().apply(BranchBehaviorProvider.Decode.INSTANCE) : null,
+                            decoderData != null ? decoderData.getDecoder() : null
+                    );
                 }
         );
         return command_crafter$decoderAnalyzing.wrapCodec(codec);
