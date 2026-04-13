@@ -96,9 +96,6 @@ interface ExtraDecoderBehavior<TNode : Any> {
     val nodeAnalyzingTracker: NodeAnalyzingTracker<TNode>?
         get() = null
 
-    val nodeAnalyzingBehavior: NodeAnalyzingBehavior<TNode>?
-        get() = null
-
     interface NodeAnalyzingTracker<TNode : Any> {
         fun registerCallback(node: TNode, analyzingCallback: NodeAnalyzingCallback<TNode>)
     }
