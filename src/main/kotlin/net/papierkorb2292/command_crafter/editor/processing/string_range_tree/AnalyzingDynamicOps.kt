@@ -5,11 +5,12 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.MapLike
-import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import org.eclipse.lsp4j.Position
@@ -25,7 +26,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     override val delegate: DynamicOps<TNode>,
     internal val baseResult: AnalyzingResult,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
-    override val registries: RegistryAccess?,
+    override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
     override val onlyContextOps: DynamicOps<TNode>
 ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode> {
     override var parentLinks: ParentLinks? = null
@@ -44,12 +45,12 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             operations: SchemaOperations<TNode>,
             analyzingResult: AnalyzingResult,
         ): Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> {
-            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(operations.registryAccess?.createSerializationContext(operations.ops) ?: operations.ops) { innerDelegate ->
+            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(operations.reader.resourceCreator.registries.createSerializationContext(operations.ops)) { innerDelegate ->
                 AnalyzingDynamicOps(
                     innerDelegate,
                     analyzingResult,
                     operations.branchBehaviorProvider,
-                    operations.registryAccess,
+                    operations.reader,
                     wrapDynamicOps(operations.ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second
                 )
             }

@@ -12,11 +12,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryFileCodec
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer.analyzeForId
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree.PartialBuilder
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.StringRangeTreeBranchingArgument
@@ -24,6 +20,10 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParser
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.analyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.furthestAnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs.nbtStringRangeTreeBuilder
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree.PartialBuilder
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ResourceOrIdArgumentAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
@@ -107,9 +107,8 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
             tree,
             reader
         ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
-                Identifier.tryParse(nbtString.value()) == null
-            })
-            .withRegistry(reader.resourceCreator.registries)
+            Identifier.tryParse(nbtString.value()) == null
+        })
         if(!isInline)
             treeOperations = treeOperations.withDiagnosticSeverity(null)
         treeOperations.analyzeFull(result, inlineOrReferenceCodec)

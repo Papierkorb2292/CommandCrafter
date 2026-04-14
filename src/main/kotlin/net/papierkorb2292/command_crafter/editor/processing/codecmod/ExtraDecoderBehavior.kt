@@ -4,12 +4,14 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.ParentLinks
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.CompletionItem
 import java.util.stream.Stream
 
@@ -71,8 +73,10 @@ interface ExtraDecoderBehavior<TNode : Any> {
     val branchBehavior: BranchBehavior
         get() = BranchBehavior.forType(BranchBehaviorType.SHORT_CIRCUIT)
 
-    val registries: RegistryAccess?
+    val reader: DirectiveStringReader<AnalyzingResourceCreator>?
         get() = null
+    val registries: RegistryAccess?
+        get() = reader?.resourceCreator?.registries
 
     val parentLinks: ParentLinks?
         get() = null

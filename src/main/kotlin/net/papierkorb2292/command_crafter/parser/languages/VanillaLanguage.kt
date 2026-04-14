@@ -1424,8 +1424,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             return resource
         }
 
-        private fun <ResourceCreator> analyzeTagTupleEntries(
-            reader: DirectiveStringReader<ResourceCreator>,
+        private fun analyzeTagTupleEntries(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
             analyzingResult: AnalyzingResult,
             decoder: Decoder<*>,
             throwSyntaxErrors: Boolean = true,

@@ -9,12 +9,14 @@ import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.Position
@@ -65,12 +67,19 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             } catch(e: IOException) {
                 return result
             }
+
+            val directiveReader = DirectiveStringReader(
+                result.mappingInfo,
+                languageServer.minecraftServer.commandDispatcher,
+                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager)
+            )
+
             DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
                 TreeOperations.forJson(
                     parsedStringRangeTree,
+                    directiveReader,
                     concatenatedLines
-                ).withRegistry(languageServer.dynamicRegistryManager)
-                    .analyzeFull(result, fileDecoder)
+                ).analyzeFull(result, fileDecoder)
             }
             return result
         }

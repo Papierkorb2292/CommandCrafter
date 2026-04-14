@@ -19,7 +19,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -101,12 +100,10 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     private static Codec<CompoundTag> command_crafter$storeFlattenedCodecInput(Codec<CompoundTag> codec) {
         command_crafter$decoderAnalyzing = new MalformedStringDecoderAnalyzing<>(
                 (dynamic) -> DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue()),
-                (decoderData, result, behavior, stringContent) -> {
+                (decoderData, result, behavior, reader) -> {
                     CompoundTagArgumentAnalyzer.Companion.analyzeReader(
-                            new StringReader(stringContent.getContent()),
+                            reader,
                             result,
-                            behavior.getRegistries(),
-                            tree -> TreeOperations.Companion.forNbt(tree, stringContent.getContent()),
                             decoderData != null ? decoderData.getBranchBehaviorModifier().apply(BranchBehaviorProvider.Decode.INSTANCE) : null,
                             decoderData != null ? decoderData.getDecoder() : null
                     );

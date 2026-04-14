@@ -4,8 +4,8 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
 import it.unimi.dsi.fastutil.chars.CharSet
-import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.*
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.StreamCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
@@ -26,21 +26,18 @@ data class PathOperations(
     val path: StringRangePath,
     val input: String,
     val suggestionResolver: StringRangeTree.SuggestionResolver<Tag>,
-    override val registryAccess: RegistryAccess? = null,
+    override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     override val branchBehaviorProvider: BranchBehaviorProvider<Tag> = BranchBehaviorProvider.Decode
 ) : SchemaOperations<Tag> {
     companion object {
         private val keyCharactersRequireQuoted = CharSet.of(' ', '"', '\'', '[', ']', '.', '{', '}')
 
-        fun forReader(path: StringRangePath, reader: DirectiveStringReader<*>) =
-            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false })
+        fun forReader(path: StringRangePath, reader: DirectiveStringReader<AnalyzingResourceCreator>) =
+            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false }, reader)
     }
 
     val nodeToKeySegment = path.segments.filter { it.key != null }.associateByTo(IdentityHashMap()) { it.tree.root }
-
-    fun withRegistry(registryAccess: RegistryAccess?)
-            = copy(registryAccess = registryAccess)
 
     fun withDiagnosticSeverity(severity: DiagnosticSeverity?) = copy(diagnosticSeverity = severity)
 

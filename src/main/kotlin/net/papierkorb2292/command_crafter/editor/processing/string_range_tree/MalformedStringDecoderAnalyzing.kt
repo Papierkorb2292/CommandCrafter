@@ -5,10 +5,13 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.Range
 
@@ -31,7 +34,8 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
     }
 
     private fun <T : Any> onParsedGeneric(dynamic: Dynamic<T>, errorCursor: Int, errorMsg: String?) {
-        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(dynamic.ops) ?: return
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(dynamic.ops)
+        val originalReader = extraBehavior?.reader ?: return
         if(errorMsg != null)
             extraBehavior.markStringParseError(dynamic.value)
         val context = contextGetter(dynamic)
@@ -39,7 +43,17 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             val stringContent = analyzingBehavior.stringContentGetter.invoke() ?: return@registerCallback
             val analyzingResult = analyzingBehavior.createStringAnalyzingResultOverlay(stringContent)
 
-            analyzer.analyze(context, analyzingResult, extraBehavior, stringContent)
+            val directiveReader = DirectiveStringReader(
+                FileMappingInfo(
+                    listOf(),
+                    stringContent.cursorMapper
+                ),
+                originalReader.dispatcher,
+                originalReader.resourceCreator
+            )
+            directiveReader.string = stringContent.content // Make sure the entire string is already present, soo the reader doesn't add its own mappings
+
+            analyzer.analyze(context, analyzingResult, extraBehavior, directiveReader)
 
             if(errorMsg != null) {
                 val mappingInfo = analyzingResult.mappingInfo
@@ -57,6 +71,6 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
     }
 
     fun interface StringAnalyzer<TContext> {
-        fun analyze(context: TContext, result: AnalyzingResult, behavior: ExtraDecoderBehavior<*>, stringContent: StringContent)
+        fun analyze(context: TContext, result: AnalyzingResult, behavior: ExtraDecoderBehavior<*>, reader: DirectiveStringReader<AnalyzingResourceCreator>)
     }
 }

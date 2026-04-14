@@ -47,7 +47,6 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         val decoder: Decoder<*>? = DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader)
 
         PathOperations.forReader(path, reader)
-            .withRegistry(reader.resourceCreator.registries)
             .withDiagnosticSeverity(DiagnosticSeverity.Warning)
             .withBranchBehaviorProvider(dataObjectSource.getNBTBranchBehavior())
             .analyzeFull(result, decoder)

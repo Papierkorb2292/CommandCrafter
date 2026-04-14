@@ -339,7 +339,7 @@ object LanguageManager {
                 return languageType.argumentDecoder.parse(NbtOps.INSTANCE, args).orThrow
             }
 
-            override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
+            override fun readAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, analyzingResult: AnalyzingResult) {
                 val startCursor = reader.cursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 val language = try {
@@ -384,7 +384,7 @@ object LanguageManager {
                 reader.switchLanguage(readAndAnalyzeLanguageArgs(reader, languageType, analyzingResult) ?: return)
             }
 
-            private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
+            private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<AnalyzingResourceCreator>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
                 val languageEnd = reader.cursor
 
                 if(reader.trySkipWhitespace(false) {

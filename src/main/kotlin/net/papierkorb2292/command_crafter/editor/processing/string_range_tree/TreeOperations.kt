@@ -7,6 +7,7 @@ import com.mojang.serialization.JsonOps
 import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -19,27 +20,20 @@ data class TreeOperations<TNode: Any>(
     override val ops: DynamicOps<TNode>,
     val suggestionResolver: StringRangeTree.SuggestionResolver<TNode>,
     val stringGetter: StringContent.StringContentGetter<TNode>,
-    override val registryAccess: RegistryAccess? = null,
+    override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
     override val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode
 ) : SchemaOperations<TNode> {
     companion object {
         val IS_ANALYZING_DECODER = ThreadLocal<Boolean>()
 
-        fun forJson(jsonTree: StringRangeTree<JsonElement>, content: String) =
+        fun forJson(jsonTree: StringRangeTree<JsonElement>, reader: DirectiveStringReader<AnalyzingResourceCreator>, fullContent: String) =
             TreeOperations(
                 jsonTree,
                 JsonOps.INSTANCE,
-                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(content),
-                StringRangeTreeJsonReader.StringContentGetter(jsonTree, content),
-            )
-
-        fun forJson(jsonTree: StringRangeTree<JsonElement>, reader: DirectiveStringReader<*>) =
-            TreeOperations(
-                jsonTree,
-                JsonOps.INSTANCE,
-                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(reader),
-                StringRangeTreeJsonReader.StringContentGetter(jsonTree, reader.string),
+                StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(fullContent),
+                StringRangeTreeJsonReader.StringContentGetter(jsonTree, fullContent),
+                reader
             )
 
         fun forNbt(nbtTree: StringRangeTree<Tag>, content: String) =
@@ -48,19 +42,18 @@ data class TreeOperations<TNode: Any>(
                 NbtOps.INSTANCE,
                 NbtSuggestionResolver(content),
                 NbtStringContentGetter(nbtTree, content),
+                TODO()
             )
 
-        fun forNbt(nbtTree: StringRangeTree<Tag>, reader: DirectiveStringReader<*>) =
+        fun forNbt(nbtTree: StringRangeTree<Tag>, reader: DirectiveStringReader<AnalyzingResourceCreator>) =
             TreeOperations(
                 nbtTree,
                 NbtOps.INSTANCE,
                 NbtSuggestionResolver(reader),
                 NbtStringContentGetter(nbtTree, reader.string),
+                reader
             )
     }
-
-    fun withRegistry(registryAccess: RegistryAccess?)
-        = copy(registryAccess = registryAccess)
 
     fun withOps(ops: DynamicOps<TNode>) = copy(ops = ops)
 

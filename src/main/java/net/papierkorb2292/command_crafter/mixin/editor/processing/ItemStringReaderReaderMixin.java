@@ -122,8 +122,7 @@ public class ItemStringReaderReaderMixin {
             TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
-            ).withRegistry(directiveReader.getResourceCreator().getRegistries())
-                    .analyzeFull(command_crafter$analyzingResult, type.codec());
+            ).analyzeFull(command_crafter$analyzingResult, type.codec());
         } else if(!reader.canRead()) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
             if(!tree.isFinishedNbt(reader.getString())) {

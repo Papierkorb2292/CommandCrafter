@@ -82,11 +82,11 @@ public class ParserWithDecodingMixin<T> {
             }
 
             var tree = treeBuilder.build(nbt);
+            //noinspection unchecked
             TreeOperations.Companion.forNbt(
                     tree,
-                    directiveReader
-            ).withRegistry(((AnalyzingResourceCreator)directiveReader.getResourceCreator()).getRegistries())
-                    .analyzeFull(analyzingResult, val$codec);
+                    (DirectiveStringReader<AnalyzingResourceCreator>)directiveReader
+            ).analyzeFull(analyzingResult, val$codec);
         } finally {
             analyzingResultThreadLocal.set(analyzingResultArg);
         }

@@ -1,12 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
-import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Decoder
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.CompoundTagArgument
-import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
@@ -21,7 +19,7 @@ import org.eclipse.lsp4j.DiagnosticSeverity
 
 class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagArgument> {
     companion object {
-        fun analyzeReader(reader: StringReader, result: AnalyzingResult, registries: RegistryAccess?, treeOperationsBuilder: (StringRangeTree<Tag>) -> TreeOperations<Tag>, branchBehaviorProvider: BranchBehaviorProvider<Tag>?, decoder: Decoder<*>?) {
+        fun analyzeReader(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, branchBehaviorProvider: BranchBehaviorProvider<Tag>?, decoder: Decoder<*>?) {
             val nbtReader = TagParser.create(NbtOps.INSTANCE)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
@@ -31,10 +29,9 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
             val nbt: Tag = nbtReader.parseAsArgument(reader)
             if(decoder != null) {
                 val tree: StringRangeTree<Tag> = treeBuilder.build(nbt)
-                treeOperationsBuilder(tree)
+                TreeOperations.forNbt(tree, reader)
                     .withDiagnosticSeverity(DiagnosticSeverity.Warning)
                     .withBranchBehaviorProvider(branchBehaviorProvider ?: BranchBehaviorProvider.Decode)
-                    .withRegistry(registries)
                     .analyzeFull(result, decoder)
             }
         }
@@ -56,8 +53,6 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         analyzeReader(
             reader,
             result,
-            reader.resourceCreator.registries,
-            { tree -> TreeOperations.forNbt(tree, reader) },
             dataObjectSource?.getNBTBranchBehavior(),
             decoder
         )

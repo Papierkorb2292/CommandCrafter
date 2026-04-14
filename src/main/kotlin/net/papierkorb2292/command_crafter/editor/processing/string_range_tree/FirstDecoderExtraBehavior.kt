@@ -1,9 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.serialization.DataResult
-import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
 /**
  * Only calls the delegate for the start and result of the first decoder that a node is passed.
@@ -67,8 +68,8 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
         get() = delegate.branchBehavior
 
-    override val registries: RegistryAccess?
-        get() = delegate.registries
+    override val reader: DirectiveStringReader<AnalyzingResourceCreator>?
+        get() = delegate.reader
 
     override val parentLinks: ParentLinks?
         get() = delegate.parentLinks

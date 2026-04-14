@@ -228,9 +228,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
         TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        )
-                .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                .withRegistry(directiveStringReader.getResourceCreator().getRegistries())
+        ).withDiagnosticSeverity(DiagnosticSeverity.Warning)
                 .analyzeFull(command_crafter$analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }

@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import net.minecraft.commands.SharedSuggestionProvider
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import java.io.IOException
@@ -223,11 +224,13 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun endStatementAndAnalyze(analyzingResult: AnalyzingResult, skipNewLine: Boolean = true): Boolean {
+        if(resourceCreator !is AnalyzingResourceCreator) throw IllegalStateException("Analyzing directives requires AnalyzingResourceCreator")
         cutReadChars()
         val foundDirective = trySkipWhitespace(skipNewLine) {
             if(canRead() && peek() == '@') {
                 skip()
-                directiveManager.readDirectiveAndAnalyze(this, analyzingResult)
+                @Suppress("UNCHECKED_CAST")
+                directiveManager.readDirectiveAndAnalyze(this as DirectiveStringReader<AnalyzingResourceCreator>, analyzingResult)
                 true
             } else false
         }

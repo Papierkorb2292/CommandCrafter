@@ -5,11 +5,12 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
-import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -28,14 +29,14 @@ class LeafErrorDecoderCallback<TNode : Any>(
     override val parentLinks: ParentLinks,
     val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
-    override val registries: RegistryAccess?,
+    override val reader: DirectiveStringReader<AnalyzingResourceCreator>?,
     override val onlyContextOps: DynamicOps<TNode>,
     private val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>,
 ) : ExtraDecoderBehavior<TNode> {
 
     companion object {
         fun <TNode : Any> createErrorOps(operations: SchemaOperations<TNode>, ): Pair<LeafErrorDecoderCallback<TNode>, DynamicOps<TNode>> {
-            val registryOps = operations.registryAccess?.createSerializationContext(operations.ops) ?: operations.ops
+            val registryOps = operations.reader.resourceCreator.registries.createSerializationContext(operations.ops)
             val (accessedKeysWatcher, ops) = wrapDynamicOps(registryOps, ::AccessedKeysWatcherDynamicOps)
             val (_, filteredOps) = wrapDynamicOps(ops) {
                 ListPlaceholderRemovingDynamicOps(
@@ -49,7 +50,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
                 operations.getParentLinks(onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(onlyContextOps)),
                 accessedKeysWatcher,
                 operations.branchBehaviorProvider,
-                operations.registryAccess,
+                operations.reader,
                 onlyContextOps,
                 operations.typeHints,
             )

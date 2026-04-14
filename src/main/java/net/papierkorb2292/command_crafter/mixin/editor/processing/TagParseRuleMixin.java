@@ -69,8 +69,7 @@ public class TagParseRuleMixin<T> {
             if(analyzingResultArg != null) {
                 //noinspection unchecked
                 var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input();
-                var treeOps = TreeOperations.Companion.forNbt(tree, directiveReader)
-                        .withRegistry(directiveReader.getResourceCreator().getRegistries());
+                var treeOps = TreeOperations.Companion.forNbt(tree, directiveReader);
                 var registryTreeOps = treeOps.withOps(ops);
                 registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), decoder);
             }
