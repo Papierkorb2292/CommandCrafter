@@ -365,7 +365,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     AnalyzingResourceCreator(
                         reader.resourceCreator.languageServer,
                         reader.resourceCreator.sourceFunctionUri,
-                        reader.resourceCreator.registries
+                        reader.resourceCreator.registries,
+                        reader.resourceCreator.source
                     )
                 ).apply {
                     // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)

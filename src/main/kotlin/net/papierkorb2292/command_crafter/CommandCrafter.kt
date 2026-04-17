@@ -70,7 +70,7 @@ object CommandCrafter: ModInitializer {
     val LOGGER = LogManager.getLogger(MOD_ID)
     val VERSION: String = FabricLoader.getInstance().getModContainer(MOD_ID).get().metadata.version.friendlyString
     lateinit var config: CommandCrafterConfig
-        private set
+    lateinit var analyzingSourceProvider: (MinecraftLanguageServer) -> SharedSuggestionProvider
 
     private var dedicatedServerEditorConnectionManager: EditorConnectionManager? = null
 
@@ -102,11 +102,12 @@ object CommandCrafter: ModInitializer {
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used
             // For all other cases, the analyzer is only needed on the client side, where an AnalyzingClientCommandSource is used
-            MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
+            analyzingSourceProvider = { languageServer ->
                 val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
                     ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
                 CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, "", CommonComponents.EMPTY, directServerConnection.server, null)
-            }))
+            }
+            MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer())
             MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
 
             ServerLifecycleEvents.SERVER_STARTED.register {

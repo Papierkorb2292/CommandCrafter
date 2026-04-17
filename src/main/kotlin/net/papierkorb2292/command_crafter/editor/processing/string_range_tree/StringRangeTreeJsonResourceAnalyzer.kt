@@ -7,6 +7,7 @@ import net.minecraft.core.HolderLookup
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.metadata.MetadataSectionType
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -71,7 +72,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             val directiveReader = DirectiveStringReader(
                 result.mappingInfo,
                 languageServer.minecraftServer.commandDispatcher,
-                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager)
+                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer))
             )
 
             DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {

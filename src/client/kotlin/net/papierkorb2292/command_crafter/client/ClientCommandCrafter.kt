@@ -36,12 +36,12 @@ import net.papierkorb2292.command_crafter.editor.SocketEditorConnectionType
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.completionItemsToSuggestions
 import net.papierkorb2292.command_crafter.editor.processing.helper.sortCommonTagCompletionsAtEnd
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
@@ -80,9 +80,11 @@ object ClientCommandCrafter : ClientModInitializer {
         CommandCrafter.registerDynamicRegistries()
         CommandCrafter.registerRegistryTags()
 
-        MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
+        CommandCrafter.analyzingSourceProvider = { languageServer ->
             AnalyzingClientCommandSource(Minecraft.getInstance(), languageServer.dynamicRegistryManager)
-        }, { analyzingResult ->
+        }
+
+        MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer { analyzingResult ->
             val finalResult = analyzingResult.copyActual()
             finalResult.addPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
@@ -95,7 +97,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 }
             )
             finalResult
-        }))
+        })
         MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(LanguageMetadataSection.TYPE))
 
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
@@ -160,16 +162,17 @@ object ClientCommandCrafter : ClientModInitializer {
             return emptySuggestions
         // Make sure to use CommandCrafter's dispatcher, which has extra info
         val dispatcher = editorConnectionManager.minecraftServerConnection.commandDispatcher
+        val source = AnalyzingClientCommandSource(Minecraft.getInstance(), editorConnectionManager.minecraftServerConnection.dynamicRegistryManager)
         val directiveReader = DirectiveStringReader(
             FileMappingInfo(listOf(input)),
             dispatcher,
-            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager)
+            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager, source)
         )
         directiveReader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
         if(directiveReader.canRead() && directiveReader.peek() == '/')
             directiveReader.skip()
         val analyzingResult = AnalyzingResult(directiveReader.fileMappingInfo, Position())
-        val parsed = directiveReader.dispatcher.parse(directiveReader, AnalyzingClientCommandSource(Minecraft.getInstance(), editorConnectionManager.minecraftServerConnection.dynamicRegistryManager))
+        val parsed = directiveReader.dispatcher.parse(directiveReader, source)
 
         val (parsedNode, context) = getContextForIngameSuggestions(parsed, directiveReader, cursor) ?: return emptySuggestions
         val node = parsedNode.node

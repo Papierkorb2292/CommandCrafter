@@ -319,7 +319,7 @@ object NetworkServerConnectionHandler {
             val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
             val server = context.server
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, "", context.server.registryAccess()))
+            val reader = DirectiveStringReader(FileMappingInfo(payload.inputLines), server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, "", context.server.registryAccess(), server.createCommandSourceStack()))
             reader.cursor = payload.cursor
             serverConnection.contextCompletionProvider.getCompletions(reader, payload.context).thenAccept {
                 context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))

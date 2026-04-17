@@ -1,10 +1,10 @@
 package net.papierkorb2292.command_crafter.editor
 
-import net.minecraft.commands.SharedSuggestionProvider
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.Language
@@ -13,7 +13,6 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Position
 
 class McFunctionAnalyzer(
-    private val sourceProvider: (MinecraftLanguageServer) -> SharedSuggestionProvider,
     private val resultWrapper: ((AnalyzingResult) -> AnalyzingResult)? = null
 ) : FileAnalyseHandler {
     val ANALYZER_CONFIG_PATH = ".mcfunction"
@@ -24,11 +23,12 @@ class McFunctionAnalyzer(
         file: OpenFile,
         languageServer: MinecraftLanguageServer,
     ): AnalyzingResult {
+        val source = CommandCrafter.analyzingSourceProvider(languageServer)
         val dispatcher = languageServer.minecraftServer.commandDispatcher
         val reader = DirectiveStringReader(
             file.createFileMappingInfo(),
             dispatcher,
-            AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager).apply {
+            AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, source).apply {
                 (file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData)?.let { persistentCache ->
                     if(persistentCache.usedCommandDispatcher == dispatcher)
                         previousCache = persistentCache
@@ -41,7 +41,7 @@ class McFunctionAnalyzer(
         DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
             LanguageManager.analyse(
                 reader,
-                sourceProvider(languageServer),
+                source,
                 result,
                 Language.TopLevelClosure(VanillaLanguage())
             )

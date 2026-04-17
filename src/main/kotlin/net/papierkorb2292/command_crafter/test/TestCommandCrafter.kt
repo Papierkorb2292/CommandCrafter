@@ -644,7 +644,8 @@ object TestCommandCrafter {
                     AnalyzingResourceCreator(
                         null,
                         "testPack/data/minecraft/function/test.mcfunction",
-                        context.level.server.lootRegistries
+                        context.level.server.lootRegistries,
+                        getParsingCommandSource(context)
                     )
                 )
             )
@@ -773,7 +774,8 @@ object TestCommandCrafter {
                 AnalyzingResourceCreator(
                     null,
                     "testPack/data/minecraft/function/test.mcfunction",
-                    source.server.registryAccess()
+                    source.server.registryAccess(),
+                    source
                 )
             ),
             source,
@@ -939,7 +941,8 @@ object TestCommandCrafter {
                 AnalyzingResourceCreator(
                     null,
                     "testPack/data/minecraft/function/test.mcfunction",
-                    source.server.lootRegistries
+                    source.server.lootRegistries,
+                    source
                 )
             ),
             source,
