@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.CompoundTagArgument;
@@ -45,15 +46,16 @@ public class EntityDataAccessDataProviderMixin {
     )
     private Object command_crafter$setDataObjectSource(Object original, ArgumentBuilder<CommandSourceStack, ?> parent) {
         @SuppressWarnings("unchecked")
-        final var builder = (ArgumentBuilder<CommandSourceStack, ?>)original;
+        final var builder = (RequiredArgumentBuilder<CommandSourceStack, ?>)original;
+        final var argName = builder.getName();
         for(final var child : builder.getArguments()) {
             if(!(child instanceof ArgumentCommandNode<?,?> argument))
                 continue;
             if(argument.getType() instanceof CompoundTagArgument compoundArg) {
-                ((DataObjectSourceContainer)compoundArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_CHANGE, "target"));
+                ((DataObjectSourceContainer)compoundArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_CHANGE, argName));
             } else if(argument.getType() instanceof NbtPathArgument pathArg) {
                 final var kind = parent instanceof LiteralArgumentBuilder<?> literal && command_crafter$mutatingCommands.contains(literal.getLiteral()) ? DataObjectDecoding.DataObjectSourceKind.MUTATING_ENTITY_LOOKUP : DataObjectDecoding.DataObjectSourceKind.ENTITY_LOOKUP;
-                ((DataObjectSourceContainer) pathArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(kind, "target"));
+                ((DataObjectSourceContainer) pathArg).command_crafter$setDataObjectSource(new DataObjectDecoding.DataObjectSource(kind, argName));
             }
         }
         return original;
