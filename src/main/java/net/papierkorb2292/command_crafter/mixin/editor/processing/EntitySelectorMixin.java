@@ -43,7 +43,7 @@ public class EntitySelectorMixin {
                     reader.enterClosure(new Language.TopLevelClosure(language));
                     language.analyzeCommandNode(
                             new ParsedCommandNode<>(entityNode, new StringRange(reader.getCursor(), reader.getRemainingLength())),
-                            new ParsedCommandNode<>(rootNode, StringRange.at(reader.getCursor())),
+                            new ParsedCommandNode<>(rootNode, StringRange.at(reader.getCursor() - 1)),
                             new CommandContextBuilder<>(reader.getDispatcher(), reader.getResourceCreator().getSource(), rootNode, reader.getCursor()),
                             result,
                             reader,
