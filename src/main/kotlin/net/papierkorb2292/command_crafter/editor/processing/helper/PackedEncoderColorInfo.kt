@@ -62,18 +62,10 @@ class PackedEncoderColorInfo<TNode, TColor>(
                     ops: DynamicOps<T>,
                 ): ExtraDecoderBehavior.PossibleValue<T> {
                     val hexSuggestion = if(preferHex) suggestion.withPreferHex() else suggestion
-                    return hexSuggestion.withCompletionModifier { completionItem ->
-                        completionItem.kind = CompletionItemKind.Color
-                        val parsed = delegate.parse(ops, suggestion.element).result().orElse(null)
-                        if(parsed != null) {
-                            if(nameProvider != null)
-                                completionItem.label = nameProvider(parsed)
-
-                            val color = toPacked(parsed).and(0xFFFFFF) // Doesn't accept alpha
-                            // VSCode uses detail to preview colors in auto-complete list
-                            completionItem.detail = "#" + colorToHex(color, false)
-                        }
-                    }
+                    val parsed = delegate.parse(ops, suggestion.element).result().orElse(null)
+                    val label = if(parsed != null) nameProvider?.invoke(parsed) else null
+                    val color = if(parsed != null) toPacked(parsed).and(0xFFFFFF) else null // Doesn't accept alpha
+                    return hexSuggestion.withCompletionModifier(ColorCompletionModifier(label, color))
                 }
             }, true)
         }
@@ -155,5 +147,16 @@ class PackedEncoderColorInfo<TNode, TColor>(
         val serialized = if(encoded is Tag) defaultLabel else encoded.toString() // Allow hexadecimal in SNBT
         val label = nameProvider?.invoke(colorValue) ?: defaultLabel
         return listOf(ColorPresentation(label, TextEdit(range, serialized)))
+    }
+
+    data class ColorCompletionModifier(val label: String?, val color: Int?): (CompletionItem) -> Unit {
+        override fun invoke(completionItem: CompletionItem) {
+            completionItem.kind = CompletionItemKind.Color
+            if(label != null)
+                completionItem.label = label
+            // VSCode uses detail to preview colors in auto-complete list
+            if(color != null)
+                completionItem.detail = "#" + colorToHex(color, false)
+        }
     }
 }
