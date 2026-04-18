@@ -735,7 +735,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         } while(gapReader.cursor <= gapRange.end)
     }
 
-    private fun analyzeCommandNode(
+    fun analyzeCommandNode(
         parsedNode: ParsedCommandNode<SharedSuggestionProvider>,
         parentNode: ParsedCommandNode<SharedSuggestionProvider>,
         contextBuilder: CommandContextBuilder<SharedSuggestionProvider>,

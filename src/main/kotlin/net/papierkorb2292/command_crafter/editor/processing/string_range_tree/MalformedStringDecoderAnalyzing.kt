@@ -1,17 +1,21 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
+import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
+import net.minecraft.util.CompilableString
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.mixin.editor.processing.CompilableStringCommandParserHelperAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.Range
 
@@ -26,6 +30,27 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             codecInput.runWithValueSwap(Dynamic(ops, input)) {
                 delegate.decode(ops, input)
             }
+    }
+
+    fun <A : Any> wrapCommandParserHelper(delegate: CompilableString.CommandParserHelper<A>): CompilableString.CommandParserHelper<A> {
+        @Suppress("UNCHECKED_CAST")
+        val accessor = delegate as CompilableStringCommandParserHelperAccessor<A>
+        return object : CompilableString.CommandParserHelper<A>() {
+            override fun parse(reader: StringReader): A {
+                try {
+                    val result = accessor.callParse(reader)
+                    onParsed()
+                    return result
+                } catch(e: CommandSyntaxException) {
+                    onParsed(e.cursor, e.message)
+                    throw e
+                }
+            }
+
+            override fun errorMessage(original: String, exception: CommandSyntaxException): String =
+                accessor.callErrorMessage(original, exception)
+
+        }
     }
 
     fun onParsed(errorCursor: Int = Int.MAX_VALUE, errorMsg: String? = null) {
@@ -44,16 +69,19 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             val analyzingResult = analyzingBehavior.createStringAnalyzingResultOverlay(stringContent)
 
             val directiveReader = DirectiveStringReader(
-                FileMappingInfo(
-                    listOf(),
-                    stringContent.cursorMapper
-                ),
+                analyzingResult.mappingInfo,
                 originalReader.dispatcher,
                 originalReader.resourceCreator
             )
-            directiveReader.string = stringContent.content // Make sure the entire string is already present, soo the reader doesn't add its own mappings
+            directiveReader.toCompleted()
+            directiveReader.string = stringContent.content
+            directiveReader.cursor = 0
 
-            analyzer.analyze(context, analyzingResult, extraBehavior, directiveReader)
+            try {
+                analyzer.analyze(context, analyzingResult, extraBehavior, directiveReader)
+            } catch(e: CommandSyntaxException) {
+                CommandCrafter.LOGGER.debug("Error analyzing string content '${stringContent.content}'", e)
+            }
 
             if(errorMsg != null) {
                 val mappingInfo = analyzingResult.mappingInfo
