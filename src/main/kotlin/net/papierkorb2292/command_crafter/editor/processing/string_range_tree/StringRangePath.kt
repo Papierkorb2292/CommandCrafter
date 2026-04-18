@@ -177,10 +177,19 @@ class StringRangePath(
 
         fun buildStandalone(input: String): StringRangePath {
             // Only add final segment if there isn't already an empty segment at the end and the previous segment was finished
-            if(collisions.isEmpty() && segments.lastOrNull()?.range?.isEmpty != true && segments.lastOrNull()?.tree?.isFinishedNbt(input) != false) {
-                val lastSegmentTree = getSegmentStartTree(endCursor)
-                segments += Segment(lastSegmentTree, StringRange.at(endCursor), null, nextNodeCanHaveCompoundFilter, true)
-                nextNodeConsumer(nextNode)
+            if(collisions.isEmpty()) {
+                val lastSegment = segments.lastOrNull()
+                if(lastSegment == null || !lastSegment.range.isEmpty && (lastSegment.key != null || lastSegment.tree.isFinishedNbt(input))) {
+                    val lastSegmentTree = getSegmentStartTree(endCursor)
+                    segments += Segment(
+                        lastSegmentTree,
+                        StringRange.at(endCursor),
+                        null,
+                        nextNodeCanHaveCompoundFilter,
+                        true
+                    )
+                    nextNodeConsumer(nextNode)
+                }
             }
             flattenReplacements()
             return StringRangePath(

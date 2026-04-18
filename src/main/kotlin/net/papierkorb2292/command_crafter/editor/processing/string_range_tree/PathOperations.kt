@@ -82,7 +82,7 @@ data class PathOperations(
         errorCallback.finishDiagnostics()
         // Add diagnostics for trees
         for(segment in path.segments) {
-            if(segment.isTrailing) continue
+            if(!segment.isFilter()) continue
             analyzingResult.diagnostics += errorCallback.generateDiagnostics(
                 { segment.tree.getNodeOrKeyRange(it, errorCallback.accessedKeysWatcherDynamicOps) },
                 analyzingResult.mappingInfo,
