@@ -206,9 +206,11 @@ class LeafErrorDecoderCallback<TNode : Any>(
 
     inner class PathErrorSuppressingDynamicOps(override val delegate: DynamicOps<TNode>):
         DelegatingDynamicOps<TNode> {
-        fun <TResult> onNodeAccess(input: TNode, dataResult: DataResult<TResult>): DataResult<TResult> {
+        fun <TResult> onNodeAccess(input: TNode, dataResult: DataResult<TResult>, requireThatNoTypeHintIsPresent: Boolean = false): DataResult<TResult> {
             // Don't show errors for missing keys or invalid list lengths when Minecraft doesn't actually enforce it (like in a path or for a merge)
             if(dataResult.isSuccess && branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
+                if(requireThatNoTypeHintIsPresent && typeHints.containsKey(input))
+                    return dataResult
                 stack.last().ignoreErrors = true
             }
             return dataResult
@@ -239,9 +241,9 @@ class LeafErrorDecoderCallback<TNode : Any>(
             }
             return delegate.convertTo(outOps, input)
         }
-        override fun getByteBuffer(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.BYTE_ARRAY, delegate.getByteBuffer(input))
-        override fun getIntStream(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.INT_ARRAY, delegate.getIntStream(input))
-        override fun getLongStream(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.LONG_ARRAY, delegate.getLongStream(input))
+        override fun getByteBuffer(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.BYTE_ARRAY, onNodeAccess(input, delegate.getByteBuffer(input), true)) // Suppress errors if no type hint is present to allow indices in paths
+        override fun getIntStream(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.INT_ARRAY, onNodeAccess(input, delegate.getIntStream(input), true))
+        override fun getLongStream(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.LONG_ARRAY, onNodeAccess(input, delegate.getLongStream(input), true))
     }
 
     private class ErrorStackEntry<TNode>(
