@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 import com.google.common.collect.BiMap
+import com.mojang.brigadier.StringReader
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.PrimitiveCodec
@@ -12,6 +13,7 @@ import net.minecraft.advancements.criterion.BlockPredicate
 import net.minecraft.advancements.criterion.EntityPredicate
 import net.minecraft.advancements.criterion.EntityTypePredicate
 import net.minecraft.advancements.criterion.NbtPredicate
+import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryCodecs
@@ -21,6 +23,7 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.locale.Language
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.TextColor
+import net.minecraft.network.chat.contents.NbtContents
 import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
@@ -512,6 +515,29 @@ object CodecTransformers {
                 BlockState.CODEC.fieldOf("output_state").decoder().decodeParent().decodeParent().map { it.block },
                 DataObjectDecoding::getDecoderForBlock,
             )
+        )
+
+    @JvmStatic
+    @CodecMod(target = NbtContents::class, codecField = "nbt")
+    fun addNbtContentsNbtSuggestions(codec: Codec<NbtPredicate>): Codec<NbtPredicate> =
+        DataObjectDecoding.wrapWithEmbeddedDecoder(
+            codec,
+            DataObjectDecoding.convertToDataObjectDecoder(
+                Codec.either(
+                    Codec.STRING.fieldOf("entity").codec(),
+                    Codec.PASSTHROUGH.fieldOf("block").codec()
+                ).decodeParent(),
+                { dataObjectDecoding, either ->
+                    either?.map(
+                        { entityString ->
+                            dataObjectDecoding.getConditionDecoderForEntities(dataObjectDecoding.getEntityChangeCandidates(EntitySelectorParser(StringReader(entityString), true), true))
+                        }, { blockInput ->
+                            dataObjectDecoding.getConditionDecoderForBlocks(null)
+                        }
+                    ) ?: dataObjectDecoding.getConditionDecoderForEverything()
+                }
+            ),
+            BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
         )
 
     private fun idContextGetter(): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<Nothing>> = { node, behavior ->
