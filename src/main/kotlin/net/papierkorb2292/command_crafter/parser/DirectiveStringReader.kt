@@ -366,6 +366,11 @@ class DirectiveStringReader<out ResourceCreator>(
         while(canRead() && peek() == ' ') read()
     }
 
+    // Correctly handle the case where the cursor is past the end of the string, which might happen when removing trailing whitespace
+    override fun getRemainingLength(): Int = max(0, super.getRemainingLength())
+    override fun getRemaining(): String = if(!canRead()) "" else super.getRemaining()
+    override fun getRead(): String = if(!canRead()) string else super.getRead()
+
     fun getMultilineString(absoluteStart: Int, absoluteEnd: Int, lineSeparator: String = OpenFile.LINE_SEPARATOR): String {
         val startPos = AnalyzingResult.getPositionFromCursor(absoluteStart, fileMappingInfo)
         val endPos = AnalyzingResult.getPositionFromCursor(absoluteEnd, fileMappingInfo)
