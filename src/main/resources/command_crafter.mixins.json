@@ -73,6 +73,7 @@
     "editor.processing.CompilableStringCommandParserHelperAccessor",
     "editor.processing.ComponentSerializationMixin",
     "editor.processing.ConnectionMixin",
+    "editor.processing.DataCommandsMixin",
     "editor.processing.DelegatingOpsAccessor",
     "editor.processing.DoubleTagAccessor",
     "editor.processing.EitherCodecMixin",

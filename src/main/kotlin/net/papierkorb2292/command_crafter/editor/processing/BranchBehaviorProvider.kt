@@ -9,7 +9,7 @@ interface BranchBehaviorProvider<in TNode> {
     companion object {
         fun getNBTMerge(): BranchBehaviorProvider<Tag> = ConditionalAllPossible(Decode, ExtraDecoderBehavior.NonCanonicalBehavior.DROP_DOWN_TO_DECODE) { it is CompoundTag }
         fun <TNode> getForPathLookup(newValue: TNode?): BranchBehaviorProvider<TNode> = ConditionalAllPossible(Decode, ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE) { it != newValue }
-        fun getNBTMergePathLookup(newValue: Tag): BranchBehaviorProvider<Tag> = ConditionalAllPossible(getNBTMerge(), ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE) { it != newValue }
+        fun getNBTMergePathLookup(newValue: Tag?): BranchBehaviorProvider<Tag> = ConditionalAllPossible(getNBTMerge(), ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE) { it != newValue }
 
         val DEFAULT_BEHAVIOR_MODIFIER = object : BranchBehaviorModifier {
             override fun <TNode : Any> apply(provider: BranchBehaviorProvider<TNode>) = provider

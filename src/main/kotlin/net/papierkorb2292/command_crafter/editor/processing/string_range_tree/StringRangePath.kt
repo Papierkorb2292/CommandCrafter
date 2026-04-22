@@ -202,6 +202,21 @@ class StringRangePath(
             )
         }
 
+        fun buildMutating(newValue: StringRangeTree<Tag>, mutator: (Tag) -> Tag): StringRangeTree<Tag> {
+            nextNodeConsumer(mutator(nextNode))
+            return StringRangeTree(
+                root,
+                newValue.orderedNodes,
+                newValue.ranges,
+                newValue.nodeAllowedStartRanges,
+                newValue.mapKeyRanges,
+                newValue.internalNodeRangesBetweenEntries,
+                newValue.placeholderNodes,
+                newValue.parentNodes,
+                newValue.typeHints,
+            )
+        }
+
         private fun flattenReplacements() {
             for(key in replacements.keys) {
                 flattenReplacement(key)

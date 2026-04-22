@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.authlib.GameProfile
 import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
@@ -241,6 +242,13 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                     }
                 }
             }
+            DataObjectSourceKind.PATH_SET_MUTATION, DataObjectSourceKind.PATH_MERGE_MUTATION, DataObjectSourceKind.PATH_APPEND_MUTATION -> {
+                // Use the decoder from the path argument
+                val pathCommandNode = context.nodes.firstOrNull { it.node.name == dataObjectSource.argumentName }?.node
+                val delegateSource = ((pathCommandNode as? ArgumentCommandNode<*, *>)?.type as? DataObjectSourceContainer)?.`command_crafter$getDataObjectSource`()
+                    ?: return null
+                getDecoderForSource(delegateSource, context, reader)
+            }
         }
     }
 
@@ -421,14 +429,21 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     }
 
     data class DataObjectSource(val kind: DataObjectSourceKind, val argumentName: String) {
-        fun getNBTBranchBehavior(): BranchBehaviorProvider<Tag> = when(kind) {
+        fun getNBTBranchBehavior(pathMutatingValue: Tag? = null): BranchBehaviorProvider<Tag> = when(kind) {
             DataObjectSourceKind.ENTITY_SUMMON
                 -> BranchBehaviorProvider.Decode
             DataObjectSourceKind.ENTITY_CHANGE, DataObjectSourceKind.BLOCK_ENTITY_CHANGE
                 -> BranchBehaviorProvider.getNBTMerge()
             DataObjectSourceKind.ENTITY_LOOKUP, DataObjectSourceKind.MUTATING_ENTITY_LOOKUP, DataObjectSourceKind.BLOCK_ENTITY_LOOKUP, DataObjectSourceKind.MUTATING_BLOCK_ENTITY_LOOKUP
                 -> BranchBehaviorProvider.getForPathLookup(null)
+            DataObjectSourceKind.PATH_SET_MUTATION, DataObjectSourceKind.PATH_APPEND_MUTATION
+                -> BranchBehaviorProvider.getForPathLookup(pathMutatingValue)
+            DataObjectSourceKind.PATH_MERGE_MUTATION
+                -> BranchBehaviorProvider.getNBTMergePathLookup(pathMutatingValue)
         }
+
+        fun isPathReference(): Boolean =
+            kind == DataObjectSourceKind.PATH_SET_MUTATION || kind == DataObjectSourceKind.PATH_MERGE_MUTATION || kind == DataObjectSourceKind.PATH_APPEND_MUTATION
     }
 
     data class EmbeddedNbtDecoderData<TNode>(val node: TNode, val decoder: Decoder<*>, val branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier)
@@ -440,6 +455,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         ENTITY_LOOKUP,
         MUTATING_ENTITY_LOOKUP,
         BLOCK_ENTITY_LOOKUP,
-        MUTATING_BLOCK_ENTITY_LOOKUP
+        MUTATING_BLOCK_ENTITY_LOOKUP,
+        PATH_MERGE_MUTATION,
+        PATH_SET_MUTATION,
+        PATH_APPEND_MUTATION,
     }
 }

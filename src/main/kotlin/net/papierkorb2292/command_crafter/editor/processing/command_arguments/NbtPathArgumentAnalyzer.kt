@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
@@ -15,7 +16,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.Da
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.PathOperations
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
-import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.DiagnosticSeverity
 
@@ -25,15 +26,7 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         val currentPathBuilder = ThreadLocal<StringRangePath.Builder>()
 
         fun analyzeReader(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, branchBehaviorProvider: BranchBehaviorProvider<Tag>?, decoder: Decoder<*>?) {
-            val builder = StringRangePath.Builder()
-            currentAnalyzingResult.runWithValue(result) {
-                currentPathBuilder.runWithValue(builder) {
-                    try {
-                        NbtPathArgument().parse(reader)
-                    } catch(_: CommandSyntaxException) {}
-                }
-            }
-            val path = builder.buildStandalone(reader.string)
+            val path = readNbtPath(reader, result).buildStandalone(reader.string)
 
             if(decoder != null) {
                 PathOperations.forReader(path, reader)
@@ -48,6 +41,18 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         }, { decoderData, result, behavior, reader ->
             analyzeReader(reader, result, BranchBehaviorProvider.getForPathLookup(null), decoderData?.decoder)
         })
+
+        fun readNbtPath(reader: StringReader, analyzingResult: AnalyzingResult?): StringRangePath.Builder {
+            val builder = StringRangePath.Builder()
+            currentAnalyzingResult.runWithValueSwap(analyzingResult) {
+                currentPathBuilder.runWithValueSwap(builder) {
+                    try {
+                        NbtPathArgument().parse(reader)
+                    } catch(_: CommandSyntaxException) {}
+                }
+            }
+            return builder
+        }
     }
 
     override val argumentTypes

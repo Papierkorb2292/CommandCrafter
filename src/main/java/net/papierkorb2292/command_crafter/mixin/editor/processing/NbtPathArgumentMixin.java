@@ -12,14 +12,12 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.arguments.NbtPathArgument;
 import net.minecraft.nbt.*;
 import net.papierkorb2292.command_crafter.MixinUtil;
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -107,8 +105,6 @@ public abstract class NbtPathArgumentMixin {
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(analyzingResult == null && pathBuilder == null)
             return op.call(reader);
-        //noinspection unchecked
-        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         final var list = new ListTag();
         final var startCursor = reader.getCursor() - 1; // Include '['
@@ -122,7 +118,7 @@ public abstract class NbtPathArgumentMixin {
             ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
             ((AnalyzingResultCreator) nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
         }
-        var nbt = nbtReader.parseAsArgument(directiveReader);
+        var nbt = nbtReader.parseAsArgument(reader);
         if(pathBuilder != null) {
             list.add(nbt);
             final var hasClosingBracket = reader.canRead() && reader.peek() == ']';
@@ -146,8 +142,6 @@ public abstract class NbtPathArgumentMixin {
         final var pathBuilder = getOrNull(NbtPathArgumentAnalyzer.Companion.getCurrentPathBuilder());
         if(analyzingResult == null && pathBuilder == null)
             return op.call(reader);
-        //noinspection unchecked
-        var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         var nbtReader = TagParser.create(NbtOps.INSTANCE);
         if(pathBuilder != null) {
@@ -158,7 +152,7 @@ public abstract class NbtPathArgumentMixin {
             ((AllowMalformedContainer) nbtReader).command_crafter$setAllowMalformed(true);
             ((AnalyzingResultCreator) nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
         }
-        var nbt = nbtReader.parseAsArgument(directiveReader);
+        var nbt = nbtReader.parseAsArgument(reader);
         if(pathBuilder != null) {
             var tree = treeBuilder.build(nbt);
             pathBuilder.addFilter(tree);
