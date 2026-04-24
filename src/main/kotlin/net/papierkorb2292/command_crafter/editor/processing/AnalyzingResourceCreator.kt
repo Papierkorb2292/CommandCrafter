@@ -37,7 +37,7 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
          */
         val absoluteCursor: Int,
         /**
-         * `true` if the suggestions were requested through [net.minecraft.command.CommandSource.getCompletions]
+         * `true` if the suggestions were requested through [net.minecraft.commands.SharedSuggestionProvider.customSuggestion]
          */
         val isServersideSuggestionRequest: Boolean
     )
