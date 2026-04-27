@@ -36,15 +36,6 @@ data class TreeOperations<TNode: Any>(
                 reader
             )
 
-        fun forNbt(nbtTree: StringRangeTree<Tag>, content: String) =
-            TreeOperations(
-                nbtTree,
-                NbtOps.INSTANCE,
-                NbtSuggestionResolver(content),
-                NbtStringContentGetter(nbtTree, content),
-                TODO()
-            )
-
         fun forNbt(nbtTree: StringRangeTree<Tag>, reader: DirectiveStringReader<AnalyzingResourceCreator>) =
             TreeOperations(
                 nbtTree,
