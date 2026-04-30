@@ -173,6 +173,8 @@ data class PathOperations(
         get() = path.placeholderNodes
     override val typeHints: Map<Tag, StringRangeTree.NodeTypeHint>
         get() = path.typeHints
+    override val macroNodes: Set<Tag>
+        get() = path.macroNodes
 
     override fun getParentLinks(ops: DynamicOps<Tag>) =
         path.getParentLinks(ops)

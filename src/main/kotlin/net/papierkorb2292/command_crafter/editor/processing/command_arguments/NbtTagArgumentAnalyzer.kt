@@ -42,7 +42,7 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
             val pathArgument = (context as CommandContextAccessor).arguments[dataObjectSource.argumentName]
             if(pathArgument != null) {
                 val pathInput = pathArgument.range.get(context.input)
-                val path = NbtPathArgumentAnalyzer.readNbtPath(StringReader(pathInput), null)
+                val path = NbtPathArgumentAnalyzer.readNbtPath(StringReader(pathInput), reader.resourceCreator, null)
                 val mutatingTree = path.buildMutating(originalTree) { pathTag ->
                     //TODO: Warning when tag type doesn't match the operation
                     when(dataObjectSource.kind) {

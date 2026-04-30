@@ -4,7 +4,6 @@ import com.google.gson.JsonElement
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
 import com.mojang.serialization.JsonOps
-import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -98,6 +97,8 @@ data class TreeOperations<TNode: Any>(
         get() = stringRangeTree.placeholderNodes
     override val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>
         get() = stringRangeTree.typeHints
+
+    override val macroNodes: Set<TNode> = stringRangeTree.getMacroNodes(reader.resourceCreator)
 
     override fun getParentLinks(ops: DynamicOps<TNode>) =
         stringRangeTree.getParentLinks(ops)

@@ -34,6 +34,11 @@ fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
     return -(low + 1)
 }
 
+fun roundUpBinarySearch(index: Int): Int {
+    // Turn negative values into -(index + 1) or index.inv()
+    return index xor (index shr 31)
+}
+
 inline fun <reified T> arrayOfNotNull(vararg elements: T?): Array<T> {
     var index = 0
     return Array(elements.count { it != null }) {

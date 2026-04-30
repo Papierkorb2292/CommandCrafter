@@ -4,6 +4,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import net.minecraft.nbt.*
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree.NodeTypeHint
 import net.papierkorb2292.command_crafter.mixin.editor.processing.EndTagAccessor
 import java.util.*
@@ -13,6 +14,7 @@ class StringRangePath(
     val segments: List<Segment>,
     val collisions: List<Collision>,
     val placeholderNodes: Set<Tag>,
+    val macroNodes: Set<Tag>,
     val parentNodes: Map<Tag, Tag>,
     val typeHints: Map<Tag, NodeTypeHint>,
 ) {
@@ -23,10 +25,11 @@ class StringRangePath(
         }
     }
 
-    class Builder {
+    class Builder(private val resourceCreator: AnalyzingResourceCreator) {
         private val segments = mutableListOf<Segment>()
         private val collisions = mutableListOf<Collision>()
         private val placeholderNodes = Collections.newSetFromMap(IdentityHashMap<Tag, Boolean>())
+        private val macroNodes = Collections.newSetFromMap(IdentityHashMap<Tag, Boolean>())
         private val parentNodes = IdentityHashMap<Tag, Tag>()
         private val typeHints = IdentityHashMap<Tag, NodeTypeHint>()
         private var root: Tag = getEmptyPlaceholder(null)
@@ -40,7 +43,7 @@ class StringRangePath(
         fun addKeyAccess(key: String, range: StringRange, isFirst: Boolean, isTrailing: Boolean) {
             if(collisions.isNotEmpty())
                 return // We can't reliably merge anything more
-            val compound = mergeInto(nextNode, CompoundTag(), if(isTrailing) null else ({ range }))
+            val compound = mergeInto(nextNode, CompoundTag(), !isTrailing) { range }
             nextNode = compound
             nextNodeConsumer(compound)
             val tree = getSegmentStartTree(if(isFirst) range.start else range.start - 1) // Placed in front of the dot
@@ -62,6 +65,7 @@ class StringRangePath(
             val range = filter.ranges[filter.root]!!
             placeholderNodes += filter.placeholderNodes
             typeHints += filter.typeHints // Add before mergeInto
+            macroNodes += filter.getMacroNodes(resourceCreator)
             val root = mergeInto(nextNode, filter.root) { filter.ranges[it]!! }
             nextNodeConsumer(root)
             if(root is ListTag) {
@@ -101,10 +105,11 @@ class StringRangePath(
             return builder.build(nextNode)
         }
 
-        private fun mergeInto(src: Tag, newTag: Tag, collisionRangeGetter: ((Tag) -> StringRange)? = null): Tag {
+        //TODO: Handle collisions with macros
+        private fun mergeInto(src: Tag, newTag: Tag, addCollisions: Boolean = true, rangeGetter: (Tag) -> StringRange): Tag {
             fun onCollision() {
-                if(collisionRangeGetter != null)
-                    collisions += Collision(collisionRangeGetter(newTag), src)
+                if(addCollisions)
+                    collisions += Collision(rangeGetter(newTag), src)
             }
 
             if(newTag is EndTag) {
@@ -146,7 +151,7 @@ class StringRangePath(
                         } else {
                             // Compare all elements of an array
                             for(i in 0 until src.size) {
-                                mergeInto(src[i], newTag[i], collisionRangeGetter)
+                                mergeInto(src[i], newTag[i], addCollisions, rangeGetter)
                             }
                         }
                     }
@@ -158,7 +163,7 @@ class StringRangePath(
                     } else {
                         replacements[newTag] = src
                         for((key, child) in newTag.entrySet()) {
-                            src.put(key, mergeInto(src.get(key) ?: getEmpty(), child, collisionRangeGetter))
+                            src.put(key, mergeInto(src.get(key) ?: getEmpty(), child, addCollisions, rangeGetter))
                         }
                     }
                     return src
@@ -197,6 +202,7 @@ class StringRangePath(
                 getSegmentsWithReplacements(),
                 collisions,
                 placeholderNodes, // Not mapped with replacements, because it only matters whether the last merged node is a placeholder
+                macroNodes,
                 parentNodes.map { (replacements[it.key] ?: it.key) to (replacements[it.value] ?: it.value) }.toMap(),
                 typeHints.mapKeys { replacements[it.key] ?: it.key }
             )

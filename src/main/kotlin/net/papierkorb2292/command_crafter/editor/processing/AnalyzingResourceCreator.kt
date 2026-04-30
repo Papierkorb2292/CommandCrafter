@@ -5,10 +5,13 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.helper.IntList
+import net.papierkorb2292.command_crafter.helper.binarySearch
 import java.util.*
 
 class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val sourceFunctionUri: String, val registries: RegistryAccess, val source: SharedSuggestionProvider) {
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
+    val macroTargetCursors: IntList = IntList()
 
     /**
      * If not null, the analyzing is done only to request suggestions at one specific position.
@@ -22,6 +25,14 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
     fun canSuggestionsSkipRange(absoluteStart: Int, absoluteEnd: Int): Boolean {
         val suggestionCursor = suggestionRequestInfo?.absoluteCursor ?: return false
         return suggestionCursor !in absoluteStart..absoluteEnd
+    }
+
+    fun macroInRange(targetStart: Int, targetEndInclusive: Int): Boolean {
+        var index = macroTargetCursors.binarySearch { macroTargetCursors[it].compareTo(targetStart) }
+        if(index >= 0) return true // Found exact match
+        // Test if the next macro after absoluteStart is still before absoluteEndInclusive
+        index = -(index + 1)
+        return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
 
     data class ResourceStackEntry(val analyzingResult: AnalyzingResult)

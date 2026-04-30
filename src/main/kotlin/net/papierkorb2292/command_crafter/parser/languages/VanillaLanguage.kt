@@ -349,6 +349,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
 
             val replacedMacro = macroInvocation.substitute(macroVariableValues)
+            // TODO: Also add mapped macros from the original reader
             // A macro variable is present at the beginning of every segment except for the first one
             val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
             macroVariableLocations.remove(0)
@@ -372,6 +373,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
                     toCompleted()
                     string = replacedMacro
+                    resourceCreator.macroTargetCursors += macroVariableLocations
                 },
                 source,
                 macroAnalyzingResult,

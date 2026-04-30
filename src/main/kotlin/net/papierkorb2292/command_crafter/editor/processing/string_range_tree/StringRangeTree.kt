@@ -7,13 +7,16 @@ import net.minecraft.nbt.CollectionTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.EndTag
 import net.papierkorb2292.command_crafter.editor.debugger.helper.clamp
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareToExclusive
 import net.papierkorb2292.command_crafter.helper.appendNullable
+import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.concatNullable
+import net.papierkorb2292.command_crafter.helper.roundUpBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import java.util.*
 import kotlin.collections.ArrayDeque
@@ -40,6 +43,7 @@ import kotlin.collections.mapNotNull
 import kotlin.collections.mapTo
 import kotlin.collections.mutableListOf
 import kotlin.collections.mutableMapOf
+import kotlin.collections.mutableSetOf
 import kotlin.collections.none
 import kotlin.collections.plus
 import kotlin.collections.plusAssign
@@ -301,6 +305,23 @@ class StringRangeTree<TNode: Any>(
         }
         // Check if a child compound/list ended here
         return ranges.none { it.key != root && it.value.end == range.end }
+    }
+
+    fun getMacroNodes(resourceCreator: AnalyzingResourceCreator): Set<TNode> {
+        val result = mutableSetOf<TNode>()
+        val macroTargetCursors = resourceCreator.macroTargetCursors
+        val startCursor = ranges[orderedNodes[0]]!!.start // Don't use root here, because nbt tag arguments using a path might not have a range for root
+        var macroIndex = roundUpBinarySearch(macroTargetCursors.binarySearch { macroTargetCursors[it].compareTo(startCursor) })
+        for(node in orderedNodes) {
+            val range = ranges[node]!!
+            while(macroIndex < macroTargetCursors.size && macroTargetCursors[macroIndex] < range.start)
+                macroIndex++
+            if(macroIndex >= macroTargetCursors.size)
+                break
+            if(macroTargetCursors[macroIndex] <= range.end)
+                result += node
+        }
+        return result
     }
 
     class ResolvedSuggestion(val suggestionEnd: Int, val completionItemProvider: PotentialSyntaxNode)

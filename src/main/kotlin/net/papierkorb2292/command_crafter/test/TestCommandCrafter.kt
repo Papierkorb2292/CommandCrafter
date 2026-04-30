@@ -632,21 +632,23 @@ object TestCommandCrafter {
 
     @GameTest
     fun testNbtPathAnalyzing(context: GameTestHelper) {
-        val markedLine = "foo[{bar:[]}].bar[0].baz{qux:{quux:false}}.qux{quux:§true§}"
+        val markedLine = "foo[{bar:[]}].bar[0].baz{qux:{quux:§false}}.qux{quux:§true§}"
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(listOf(markedLine))
         val parser = NbtPathArgument()
-        val builder = StringRangePath.Builder()
+        val resourceCreator = AnalyzingResourceCreator(
+            null,
+            "testPack/data/minecraft/function/test.mcfunction",
+            context.level.server.lootRegistries,
+            getParsingCommandSource(context)
+        )
+        resourceCreator.macroTargetCursors += markedLocations[0].absoluteCursor
+        val builder = StringRangePath.Builder(resourceCreator)
         NbtPathArgumentAnalyzer.currentPathBuilder.runWithValue(builder) {
             parser.parse(
                 DirectiveStringReader(
                     FileMappingInfo(processedLines),
                     getCommandDispatcher(context),
-                    AnalyzingResourceCreator(
-                        null,
-                        "testPack/data/minecraft/function/test.mcfunction",
-                        context.level.server.lootRegistries,
-                        getParsingCommandSource(context)
-                    )
+                    resourceCreator
                 )
             )
         }
@@ -654,7 +656,7 @@ object TestCommandCrafter {
 
         context.assertValueEqual(8, path.segments.size, "Path segments count")
         context.assertValueEqual(
-            listOf(StringRangePath.Collision(StringRange(markedLocations[0].absoluteCursor, markedLocations[1].absoluteCursor), ByteTag.ZERO)),
+            listOf(StringRangePath.Collision(StringRange(markedLocations[1].absoluteCursor, markedLocations[2].absoluteCursor), ByteTag.ZERO)),
             path.collisions,
             "Path collisions"
         )
@@ -663,6 +665,10 @@ object TestCommandCrafter {
             listOf(indexTag, (indexTag as? ListTag)?.getOrNull(0)),
             path.segments[3].tree.orderedNodes,
             "Index segment"
+        )
+        context.assertTrue(
+            path.macroNodes.any { it == ByteTag.ZERO },
+            "false didn't contain macro"
         )
 
         context.succeed()

@@ -26,7 +26,7 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         val currentPathBuilder = ThreadLocal<StringRangePath.Builder>()
 
         fun analyzeReader(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, branchBehaviorProvider: BranchBehaviorProvider<Tag>?, decoder: Decoder<*>?) {
-            val path = readNbtPath(reader, result).buildStandalone(reader.string)
+            val path = readNbtPath(reader, reader.resourceCreator, result).buildStandalone(reader.string)
 
             if(decoder != null) {
                 PathOperations.forReader(path, reader)
@@ -42,8 +42,8 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
             analyzeReader(reader, result, BranchBehaviorProvider.getForPathLookup(null), decoderData?.decoder)
         })
 
-        fun readNbtPath(reader: StringReader, analyzingResult: AnalyzingResult?): StringRangePath.Builder {
-            val builder = StringRangePath.Builder()
+        fun readNbtPath(reader: StringReader, resourceCreator: AnalyzingResourceCreator, analyzingResult: AnalyzingResult?): StringRangePath.Builder {
+            val builder = StringRangePath.Builder(resourceCreator)
             currentAnalyzingResult.runWithValueSwap(analyzingResult) {
                 currentPathBuilder.runWithValueSwap(builder) {
                     try {
