@@ -91,7 +91,6 @@ fun <F> Decoder<F>.onlyContextBehavior() = @NoDecoderCallbacks object : Decoder<
     }
 }
 
-// Some of these usages should always use ExtraDecoderContext
 fun <F> Decoder<F>.onlyAnalyzingBehavior() = @NoDecoderCallbacks object : Codec<F> {
     override fun <T : Any> decode(
         ops: DynamicOps<T>,
