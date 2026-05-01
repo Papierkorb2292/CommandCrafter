@@ -802,11 +802,11 @@ object TestCommandCrafter {
 
     @GameTest
     fun testMacroSuggestions(context: GameTestHelper) {
-        val markedLines = """
-            ${'$'}execute $(sub) run §
-            ${'$'}execute if entity $(selector) run §execute run execute run $(something)
-            ${'$'}execute $(sub) §
-            ${'$'}execute as @a at @s positioned $(Offset) unless entity @e[tag=a,distance=..0.1,gamemode=§] if entity @e[tag=$(anchor),distance=..10] run
+        val markedLines = $$"""
+            $execute $(sub) run §
+            $execute if entity $(selector) run §execute run execute run $(something)
+            $execute $(sub) §
+            $execute as @a at @s positioned $(Offset) unless entity @e[tag=a,distance=..0.1,gamemode=§] if entity @e[tag=$(anchor),distance=..10] run
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
         val commandDispatcher = getCommandDispatcher(context)
