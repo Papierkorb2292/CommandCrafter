@@ -30,6 +30,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
     val accessedKeysWatcherDynamicOps: AccessedKeysWatcherDynamicOps<TNode>,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val reader: DirectiveStringReader<AnalyzingResourceCreator>?,
+    private val macroNodes: Set<TNode>,
     override val onlyContextOps: DynamicOps<TNode>,
     private val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>,
 ) : ExtraDecoderBehavior<TNode> {
@@ -51,6 +52,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
                 accessedKeysWatcher,
                 operations.branchBehaviorProvider,
                 operations.reader,
+                operations.macroNodes,
                 onlyContextOps,
                 operations.typeHints,
             )
@@ -158,6 +160,8 @@ class LeafErrorDecoderCallback<TNode : Any>(
     override fun markCompletelyAccessed(input: TNode) {
         completelyAccessedNodes += input
     }
+
+    override fun hasMacro(node: TNode): Boolean = node in macroNodes
 
     override val branchBehavior: ExtraDecoderBehavior.BranchBehavior
         get() = branchBehaviorProvider.getBranchBehavior(false)

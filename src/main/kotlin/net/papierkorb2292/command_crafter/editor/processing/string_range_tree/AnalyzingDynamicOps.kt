@@ -27,6 +27,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     internal val baseResult: AnalyzingResult,
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
+    private val macroNodes: Set<TNode>,
     override val onlyContextOps: DynamicOps<TNode>
 ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode> {
     override var parentLinks: ParentLinks? = null
@@ -51,6 +52,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                     analyzingResult,
                     operations.branchBehaviorProvider,
                     operations.reader,
+                    operations.macroNodes,
                     wrapDynamicOps(operations.ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second
                 )
             }
@@ -279,6 +281,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         suggestEmptyString = prevSuggestEmptyString
         return result
     }
+
+    override fun hasMacro(node: TNode): Boolean = node in macroNodes
 
     override fun markErrorLateAddition(): ExtraDecoderBehavior.LateAdditionRunner {
         val branchBehaviorCopy = branchBehaviorProvider.copy()

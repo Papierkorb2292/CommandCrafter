@@ -97,6 +97,8 @@ interface ExtraDecoderBehavior<TNode : Any> {
 
     fun <TResult> decodeWithoutStringSuggestion(decodeCallback: () -> TResult): TResult = decodeCallback()
 
+    fun hasMacro(node: TNode): Boolean = false
+
     val nodeAnalyzingTracker: NodeAnalyzingTracker<TNode>?
         get() = null
 

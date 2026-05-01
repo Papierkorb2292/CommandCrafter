@@ -37,10 +37,8 @@ public class KeyDispatchCodecMixin<K, V> {
     )
     private <T> DataResult<?> command_crafter$analyzePossibleBranches(DataResult<K> typeResult, Function<K, DataResult<?>> valueDecoder, Operation<DataResult<?>> op, DynamicOps<T> ops, MapLike<T> input) {
         final var result = op.call(typeResult, valueDecoder);
-        if(!typeResult.isError())
-            return result;
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);
-        if(extraBehavior == null || !extraBehavior.getBranchBehavior().isAllPossibleEncoded())
+        if(extraBehavior == null)
             return result;
 
         final var possibleKeyTracker = new DecoderPossibleValueTracker<T>();
@@ -90,18 +88,21 @@ public class KeyDispatchCodecMixin<K, V> {
         }
 
         final var key = dispatchValue.get().getFirst();
-        final var possibleValues = possibleKeyTracker.getPossibleValues().get(lenientAccessTrackingMap.get(key));
+        final var keyValue = lenientAccessTrackingMap.get(key);
+        final var possibleValues = possibleKeyTracker.getPossibleValues().get(keyValue);
         if(possibleValues == null) {
             CommandCrafter.INSTANCE.getLOGGER().debug("Dispatcher key codec did not provide possible values: {}", keyCodec.toString());
             command_crafter$onMissingPossibleKey(input, extraBehavior);
             return result;
         }
 
-        for(final var possibleValue : possibleValues) {
-            keyCodec.decode(ops, MapLike.forMap(Map.of(key, possibleValue), ops)).result().ifPresent(valueDecoder::apply);
-        }
+        final var shouldTryOutPossible = typeResult.isError() && extraBehavior.getBranchBehavior().isAllPossibleEncoded() || keyValue != null && extraBehavior.hasMacro(keyValue);
+        if(shouldTryOutPossible)
+            for(final var possibleValue : possibleValues)
+                keyCodec.decode(ops, MapLike.forMap(Map.of(key, possibleValue), ops)).result().ifPresent(valueDecoder::apply);
 
         return result;
+
     }
 
     private <T> void command_crafter$onMissingPossibleKey(MapLike<T> input, ExtraDecoderBehavior<T> extraBehavior) {

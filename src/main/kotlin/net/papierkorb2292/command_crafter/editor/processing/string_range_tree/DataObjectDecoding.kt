@@ -344,17 +344,17 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         if(!valueInput.deduplicationMarkers.add("readDispatchingEntity"))
             return // Already done
         valueInput.alwaysReturnEmpty = false
-        val id = valueInput.lateAdditionRunner.acceptLateAddition {
-            valueInput.dynamic.read(NON_PLAYER_ENTITY_TYPE_CODEC.fieldOf("id").codec()).result().getOrNull()
+        val macroCheckedId = valueInput.lateAdditionRunner.acceptLateAddition {
+            valueInput.dynamic.read(NON_PLAYER_ENTITY_TYPE_CODEC.withMacroCheck().fieldOf("id").codec()).result().getOrNull()
         }
+        val id = macroCheckedId?.result?.result()?.getOrNull()
         valueInput.alwaysReturnEmpty = true
         val entity = dummyEntities[id]
-        if(entity != null) {
-            analyzeEntity(entity, valueInput, true)
-            return
-        }
-        if(ExtraDecoderBehavior.getCurrentBehavior(valueInput.dynamic.ops)?.branchBehavior?.isAllPossibleEncoded() == true)
+        if(entity == null && ExtraDecoderBehavior.getCurrentBehavior(valueInput.dynamic.ops)?.branchBehavior?.isAllPossibleEncoded() == true || macroCheckedId?.hasMacro ?: false) {
             dummyEntities.values.forEach { if(it !is ServerPlayer) analyzeEntity(it, valueInput, true) }
+            return
+        } else if(entity != null)
+            analyzeEntity(entity, valueInput, true)
     }
 
     fun analyzeBlockEntity(blockEntity: BlockEntity, valueInput: ValueInput) {

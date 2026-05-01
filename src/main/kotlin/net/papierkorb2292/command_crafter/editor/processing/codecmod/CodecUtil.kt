@@ -67,6 +67,22 @@ fun <T> Codec<T>.nonCanonical(): Codec<T> = object : Codec<T> {
     }
 }
 
+fun <T> Codec<T>.withMacroCheck(): Codec<MacroChecked<T>> = object : Codec<MacroChecked<T>> {
+    override fun <A : Any> encode(input: MacroChecked<T>, ops: DynamicOps<A>, prefix: A): DataResult<A> =
+        input.result.flatMap { this@withMacroCheck.encode(it, ops, prefix) }
+
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<MacroChecked<T>, A>> {
+        val result = this@withMacroCheck.decode(ops, input)
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
+        return DataResult.success(Pair.of(
+            MacroChecked(result.map { it.first }, extraBehavior?.hasMacro(input) ?: false),
+            result.result().getOrNull()?.second ?: ops.empty())
+        )
+    }
+}
+
+data class MacroChecked<T>(val result: DataResult<T>, val hasMacro: Boolean)
+
 fun <T> Codec<T>.markEncodedId(fieldName: String): Codec<T> = object : Codec<T> {
     override fun <A : Any> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
         this@markEncodedId.encode(input, ops, prefix)

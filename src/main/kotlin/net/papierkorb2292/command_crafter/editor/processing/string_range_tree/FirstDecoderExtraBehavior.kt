@@ -62,6 +62,8 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
         return delegate.decodeWithoutStringSuggestion(decodeCallback)
     }
 
+    override fun hasMacro(node: TNode): Boolean = delegate.hasMacro(node)
+
     override val nodeAnalyzingTracker: ExtraDecoderBehavior.NodeAnalyzingTracker<TNode>?
         get() = delegate.nodeAnalyzingTracker
 
