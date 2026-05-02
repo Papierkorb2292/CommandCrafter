@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
@@ -33,6 +34,19 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
         // Test if the next macro after targetStart is still before targetEndInclusive
         index = -(index + 1)
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
+    }
+
+    fun loadCache(file: OpenFile, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
+        (file.persistentAnalyzerData as? CacheData)?.let { persistentCache ->
+            if(persistentCache.usedCommandDispatcher == dispatcher)
+                previousCache = persistentCache
+        }
+        newCache.usedCommandDispatcher = dispatcher
+    }
+
+    fun storeCache(file: OpenFile) {
+        if(!Thread.currentThread().isInterrupted)
+            file.persistentAnalyzerData = newCache
     }
 
     data class ResourceStackEntry(val analyzingResult: AnalyzingResult)

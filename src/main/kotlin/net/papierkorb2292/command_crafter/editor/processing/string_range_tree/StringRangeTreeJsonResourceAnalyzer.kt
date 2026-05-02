@@ -72,7 +72,9 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             val directiveReader = DirectiveStringReader(
                 result.mappingInfo,
                 languageServer.minecraftServer.commandDispatcher,
-                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer))
+                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer)).apply {
+                    loadCache(file, languageServer.minecraftServer.commandDispatcher)
+                }
             )
 
             DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
@@ -82,6 +84,9 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                     concatenatedLines
                 ).analyzeFull(result, fileDecoder)
             }
+
+            directiveReader.resourceCreator.storeCache(file)
+
             return result
         }
 

@@ -29,11 +29,7 @@ class McFunctionAnalyzer(
             file.createFileMappingInfo(),
             dispatcher,
             AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, source).apply {
-                (file.persistentAnalyzerData as? AnalyzingResourceCreator.CacheData)?.let { persistentCache ->
-                    if(persistentCache.usedCommandDispatcher == dispatcher)
-                        previousCache = persistentCache
-                }
-                newCache.usedCommandDispatcher = dispatcher
+                loadCache(file, dispatcher)
             }
         )
         val result = AnalyzingResult(reader.fileMappingInfo, Position())
@@ -48,8 +44,7 @@ class McFunctionAnalyzer(
         }
         reader.resourceCreator.resourceStack.pop()
         val filtered = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
-        if(!Thread.currentThread().isInterrupted)
-            file.persistentAnalyzerData = reader.resourceCreator.newCache
+        reader.resourceCreator.storeCache(file)
         if(resultWrapper != null)
             return resultWrapper(filtered)
         return filtered
