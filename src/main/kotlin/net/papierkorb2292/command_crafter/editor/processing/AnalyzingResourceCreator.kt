@@ -30,7 +30,7 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
     fun macroInRange(targetStart: Int, targetEndInclusive: Int): Boolean {
         var index = macroTargetCursors.binarySearch { macroTargetCursors[it].compareTo(targetStart) }
         if(index >= 0) return true // Found exact match
-        // Test if the next macro after absoluteStart is still before absoluteEndInclusive
+        // Test if the next macro after targetStart is still before targetEndInclusive
         index = -(index + 1)
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
