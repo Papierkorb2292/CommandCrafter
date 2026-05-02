@@ -70,16 +70,16 @@ import kotlin.math.min
  * Completions for those spawners will not be limited to the best attempt like with other spawners, instead all completions from all attempts will be added, because even the best result
  * is probably not a good indication of what the user might want to type next in this case.
  *
- * @param reader The [DirectiveStringReader] containing the macro command contents where all macro variables have been resolved as an empty string
- * @param variableLocations A list of all cursor positions in the input where a macro variable was.
+ * @param reader The [DirectiveStringReader] containing the macro command contents where all macro variables have been resolved as an empty string.
+ * The [AnalyzingResourceCreator] should contain the macro locations.
  */
 @OptIn(ExperimentalUnsignedTypes::class)
 class MacroAnalyzingCrawlerRunner(
     private val baseContext: CommandContextBuilder<SharedSuggestionProvider>,
     private val reader: DirectiveStringReader<AnalyzingResourceCreator>,
-    private val variableLocations: IntList,
     private val baseAnalyzingResult: AnalyzingResult
 ) {
+    private val variableLocations = reader.resourceCreator.macroTargetCursors
     private val attemptPositions = IntList()
     init {
         attemptPositions.add(0)

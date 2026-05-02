@@ -377,7 +377,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 },
                 source,
                 macroAnalyzingResult,
-                macroVariableLocations
             ) { sourceCursor ->
                 // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
                 val unresolvedMacroCursor = macroSourceFileInfo.cursorMapper.mapToTarget(sourceCursor)
@@ -1046,7 +1045,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Component.nullToEmpty("Command doesn't end with a new line"))
 
         //TODO: Error on trailing data
-        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, macroVariableLocations: IntList, completionPredicate: (Int) -> Boolean) {
+        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, completionPredicate: (Int) -> Boolean) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
             // Don't let parsers enable escaped multiline, since there already are mappings
             reader.onlyReadEscapedMultiline = true
@@ -1055,7 +1054,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val crawlerRunner = MacroAnalyzingCrawlerRunner(
                 CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor),
                 reader,
-                macroVariableLocations,
                 baseAnalyzingResult
             )
             val analyzingResult = crawlerRunner.run()
