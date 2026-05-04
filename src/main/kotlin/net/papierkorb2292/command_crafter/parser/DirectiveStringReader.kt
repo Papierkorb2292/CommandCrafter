@@ -308,8 +308,6 @@ class DirectiveStringReader<out ResourceCreator>(
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
             it.updateLanguage()
-            it.readCharacters = readCharacters
-            it.skippedChars = skippedChars
             it.currentIndentation = currentIndentation
             it.nextLine = nextLine
             it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
