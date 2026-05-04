@@ -316,12 +316,12 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             }
 
             override fun createStringAnalyzingResultOverlay(stringContent: StringContent): AnalyzingResult {
-                var absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.readSkippingChars)
+                var absoluteContentMapper = OffsetProcessedInputCursorMapper(-baseResult.mappingInfo.readSkippingChars)
                     .combineWith(stringContent.cursorMapper)
                 if(baseResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
                     absoluteContentMapper = baseResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
                 } else {
-                    absoluteContentMapper = OffsetProcessedInputCursorMapper(baseResult.mappingInfo.skippedChars)
+                    absoluteContentMapper = OffsetProcessedInputCursorMapper(-baseResult.mappingInfo.skippedChars)
                         .combineWith(absoluteContentMapper)
                 }
                 val stringMappingInfo = FileMappingInfo(

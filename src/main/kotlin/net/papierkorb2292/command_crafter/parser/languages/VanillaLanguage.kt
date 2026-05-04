@@ -292,7 +292,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
             val macroSourceFileInfo = FileMappingInfo(
                 relevantLines,
-                OffsetProcessedInputCursorMapper(-absoluteStartOffset)
+                OffsetProcessedInputCursorMapper(absoluteStartOffset)
                     .combineWith(reader.fileMappingInfo.cursorMapper)
                     .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars - startCursor))
             )
