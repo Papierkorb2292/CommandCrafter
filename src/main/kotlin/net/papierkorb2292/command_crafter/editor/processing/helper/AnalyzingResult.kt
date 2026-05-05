@@ -411,7 +411,7 @@ class AnalyzingResult(
         fun getColorFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.color"
 
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
-            val cached = mappingInfo.positionFromCursorFIFOCache.getAndMoveToLast(cursor)
+            val cached = mappingInfo.positionFromCursorLRUCache.getAndMoveToLast(cursor)
             if(cached != null) {
                 if(zeroBased) return cached
                 // Only zero-based position is cached, so make one-based
@@ -439,13 +439,13 @@ class AnalyzingResult(
                 )
             }
 
-            if(mappingInfo.positionFromCursorFIFOCache.size >= 7)
-                mappingInfo.positionFromCursorFIFOCache.removeFirst()
+            if(mappingInfo.positionFromCursorLRUCache.size >= 7)
+                mappingInfo.positionFromCursorLRUCache.removeFirst()
             if(zeroBased)
-                mappingInfo.positionFromCursorFIFOCache.put(cursor, pos)
+                mappingInfo.positionFromCursorLRUCache.put(cursor, pos)
             else
                 // Only cache zero-based position
-                mappingInfo.positionFromCursorFIFOCache.put(cursor, Position(pos.line - 1, pos.character - 1))
+                mappingInfo.positionFromCursorLRUCache.put(cursor, Position(pos.line - 1, pos.character - 1))
             return pos
         }
 

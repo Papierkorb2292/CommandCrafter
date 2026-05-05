@@ -21,9 +21,9 @@ class FileMappingInfo(
     var readCharacters: Int = 0,
     var skippedChars: Int = 0,
     @JsonIgnore
-    val positionFromCursorFIFOCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
+    val positionFromCursorLRUCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
     @JsonIgnore
-    val completionItemToPositionFIFOCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
+    val completionItemToPositionLRUCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
 ) {
     companion object {
         fun fromLines(lines: List<String>) = FileMappingInfo(lines)
@@ -41,7 +41,7 @@ class FileMappingInfo(
     val readSkippingChars
         get() = readCharacters - skippedChars
 
-    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorFIFOCache, completionItemToPositionFIFOCache)
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
 
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false

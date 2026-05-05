@@ -133,7 +133,7 @@ data class CompletionItemPositionInfo(val processedCursor: Int, val requestedCur
 fun Suggestion.toCompletionItem(reader: DirectiveStringReader<AnalyzingResourceCreator>, completionCursorLine: Int, completionAbsoluteCursor: Int): CompletionItem {
     fun toPosition(cursor: Int): Position {
         val positionInfo = CompletionItemPositionInfo(cursor, completionAbsoluteCursor)
-        val cache = reader.fileMappingInfo.completionItemToPositionFIFOCache
+        val cache = reader.fileMappingInfo.completionItemToPositionLRUCache
         val cached = cache.getAndMoveToLast(positionInfo)
         if(cached != null)
             return cached
