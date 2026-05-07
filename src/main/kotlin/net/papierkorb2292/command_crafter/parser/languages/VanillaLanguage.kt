@@ -60,10 +60,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.*
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
@@ -101,7 +98,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 continue
             throwIfSlashPrefix(reader, reader.currentLine)
             if(reader.canRead() && reader.peek() == '$') {
-                val macro = readMacro(reader)
+                val macro = readMacro(reader, easyNewLine)
                 //For validation
                 FunctionBuilderAccessor_Parser.init<CommandSourceStack>().addMacro(
                     macro, reader.currentLine, source
@@ -257,13 +254,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         source: SharedSuggestionProvider,
         result: AnalyzingResult,
     ) {
-        val startCursor = reader.cursor
-        val absoluteStartOffset = reader.readCharacters + startCursor
-        val macro = readMacro(reader)
-
-        // Skip irrelevant macros when generating suggestions
-        if(reader.resourceCreator.canSuggestionsSkipRange(absoluteStartOffset, reader.absoluteCursor))
-            return
+        val startInParent = reader.skippingCursor
+        val absoluteStartOffset = reader.absoluteCursor
+        val parser = if(easyNewLine) TopLevelMacroParser.EASY_NEW_LINE else TopLevelMacroParser.VANILLA
+        val macro = parser.parse(reader)
 
         // Get only the relevant lines for caching
         val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
@@ -275,124 +269,28 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         ) { line, cursor, length ->
             relevantLines += reader.lines[line].substring(cursor, cursor + length)
         }
-        var fullResult = reader.resourceCreator.previousCache?.vanillaMacroCache[relevantLines]
-        if(fullResult == null) {
-            val startTime = Util.getNanos()
-            val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
-                StringTemplate.fromString(macro)
-            }
-            val macroVariableValues = macroInvocation.variables.map { "" }
+        val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser)
+        var cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
-            @Suppress("CAST_NEVER_SUCCEEDS")
-            val resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
-                .`command_crafter$getCursorMapper`(macroVariableValues)
-            for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
-                resolvedMacroCursorMapper.sourceCursors[i] += 1 // Because leading '$' is included in the relevant lines, but not in the macro string that got parsed
-
-            // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
-            val macroSourceFileInfo = FileMappingInfo(
-                relevantLines,
-                OffsetProcessedInputCursorMapper(absoluteStartOffset)
-                    .combineWith(reader.fileMappingInfo.cursorMapper)
-                    .combineWith(OffsetProcessedInputCursorMapper(-reader.readSkippingChars - startCursor))
-            )
-            val variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
-            // Highlight starting '$' with the same color as macro variables
-            // This ensures some kind of consistency, and it makes macro lines stand out to more
-            variablesSemanticTokens.addMultiline(0, 1, TokenType.ENUM, 0)
-            val diagnostics = mutableListOf<Diagnostic>()
-            for((i, variable) in macroInvocation.variables.withIndex()) {
-                val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
-                variablesSemanticTokens.addMultiline(variableStart, 2 + variable.length + 1, TokenType.ENUM, 0)
-                val variableNameStart = variableStart + 2
-                val variableNameEnd = variableNameStart + variable.length
-                val hasClosingParentheses = macro.getOrNull(variableNameEnd - 1) == ')'
-                if(hasClosingParentheses) {
-                    // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
-                    // that aren't actually intended to be part of the name
-                    for((i, c) in variable.withIndex()) {
-                        if(!StringTemplate.isValidVariableName(c.toString())) {
-                            // Add diagnostic starting at the first invalid char so it's easy to tell where the problem lies
-                            diagnostics += Diagnostic(
-                                Range(
-                                    AnalyzingResult.getPositionFromCursor(
-                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameStart + i),
-                                        macroSourceFileInfo
-                                    ),
-                                    AnalyzingResult.getPositionFromCursor(
-                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
-                                        macroSourceFileInfo
-                                    )
-                                ),
-                                "Invalid macro variable name '$variable'"
-                            )
-                            break
-                        }
-                    }
-                } else {
-                    val endPosition = AnalyzingResult.getPositionFromCursor(
-                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
-                        macroSourceFileInfo
-                    )
-                    diagnostics += Diagnostic(
-                        Range(endPosition, endPosition.advance()),
-                        "Unterminated macro variable"
-                    )
-                }
-            }
-
-            if(macroInvocation.variables.isEmpty()) {
-                diagnostics += Diagnostic(
-                    Range(Position(0, 0), Position(0, 1)), // Mark '$'
-                    "No variables in macro"
-                )
-            }
-
-            val replacedMacro = macroInvocation.substitute(macroVariableValues)
-            // TODO: Also add mapped macros from the original reader
-            // A macro variable is present at the beginning of every segment except for the first one
-            val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
-            macroVariableLocations.remove(0)
-
-            val macroMappingInfo = FileMappingInfo(
-                relevantLines,
-                macroSourceFileInfo.cursorMapper.combineWith(resolvedMacroCursorMapper)
-            )
-            val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
-            analyzeMacroCommand(
-                DirectiveStringReader(
-                    macroMappingInfo,
-                    reader.dispatcher,
-                    AnalyzingResourceCreator(
-                        reader.resourceCreator.languageServer,
-                        reader.resourceCreator.sourceFunctionUri,
-                        reader.resourceCreator.registries,
-                        reader.resourceCreator.source
-                    )
-                ).apply {
-                    // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
-                    toCompleted()
-                    string = replacedMacro
-                    resourceCreator.macroTargetCursors += macroVariableLocations
-                },
-                source,
-                macroAnalyzingResult,
-            ) { sourceCursor ->
-                // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
-                val unresolvedMacroCursor = macroSourceFileInfo.cursorMapper.mapToTarget(sourceCursor)
-                resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
-            }
-
-            macroAnalyzingResult.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
-            macroAnalyzingResult.diagnostics += diagnostics
-            fullResult = macroAnalyzingResult
-            if(logMacroAnalyzingTime) {
-                val duration = (Util.getNanos() - startTime) / 1000
-                println("Took ${duration}µs to analyze macro: $macro")
-            }
+        if(cachedNode == null) {
+            cachedNode = analyzeMacroString(
+                input,
+                macro,
+                null,
+                StringRange(absoluteStartOffset, reader.absoluteCursor),
+                StringRange(startInParent, reader.skippingCursor),
+                reader,
+                source
+            ) ?: return
         }
-        reader.resourceCreator.newCache.vanillaMacroCache[relevantLines] = fullResult
-        result.combineWith(fullResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
+
+        reader.resourceCreator.newCache.macroCache.apply {
+            macrosByInput[input] = cachedNode
+            orderedMacros += cachedNode
+            orderedMacroStartInParent += startInParent
+        }
+
+        result.combineWith(cachedNode.analyzingResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
     }
 
     override fun parseToCommands(
@@ -409,7 +307,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val startCursor = reader.absoluteCursor
                 val startSkippedCharacters = reader.skippedChars
                 builder.addMacro(
-                    readMacro(reader),
+                    readMacro(reader, easyNewLine),
                     reader.currentLine,
                     source
                 )
@@ -501,44 +399,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val string2: String = reader.readUnquotedString()
             throw IllegalArgumentException("Unknown or invalid command on line $line (did you mean '$string2'? Do not use a preceding forwards slash.)")
         }
-    }
-
-    private fun readMacro(reader: DirectiveStringReader<*>): String {
-        if(!reader.canRead()) return ""
-        if(!easyNewLine) {
-            reader.convertInputToEscapedMultiline()
-            reader.peek()
-            // Add back trailing whitespace for analyzing (suggestions might use them)
-            if(reader.resourceCreator is AnalyzingResourceCreator)
-                reader.disableTrimmingFromEscapedMultiline()
-            val macro = reader.readLine()
-            reader.disableEscapedMultiline()
-            reader.readLine() // Skip remaining whitespace and '\n'
-            return if(macro.startsWith('$')) macro.substring(1) else macro
-        }
-        val lineStart = reader.cursor
-        val lineReadCharacters = reader.readCharacters
-        val lineSkippedChars = reader.skippedChars
-        if(reader.peek() == '$')
-            reader.skip()
-        val macroBuilder = StringBuilder(reader.readLine())
-        reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - 1 - lineStart)
-        var indentStartCursor = reader.cursor
-        while(reader.tryReadIndentation { it > reader.currentIndentation }) {
-            val skippedChars = reader.cursor - indentStartCursor // Note that skippedChars doesn't include newline characters. By not skipping this char, the mapping accounts for the additional ' ' characters.
-            reader.string = reader.string.substring(0, indentStartCursor - 1) + ' ' + reader.string.substring(reader.cursor) //Also removes newline
-            reader.cursor = indentStartCursor
-            reader.skippedChars += skippedChars
-            reader.readCharacters += skippedChars
-            macroBuilder.append(' ')
-            val lineStart = reader.cursor
-            val lineReadCharacters = reader.readCharacters
-            val lineSkippedChars = reader.skippedChars
-            macroBuilder.append(reader.readLine())
-            reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - 1 - lineStart)
-            indentStartCursor = reader.cursor
-        }
-        return macroBuilder.toString()
     }
 
     private fun skipToNextCommandNoBuildCheck(reader: DirectiveStringReader<*>): Boolean {
@@ -1044,6 +904,158 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Component.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Component.nullToEmpty("Command doesn't end with a new line"))
 
+        private fun analyzeMacroString(
+            input: AnalyzingResourceCreator.MacroInput,
+            macro: StringContent,
+            cache: AnalyzingResourceCreator.MacroCache?,
+            absoluteRange: StringRange,
+            rangeInParent: StringRange,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            source: SharedSuggestionProvider,
+        ): AnalyzingResourceCreator.MacroNode? {
+            // Skip irrelevant macros when generating suggestions
+            if(reader.resourceCreator.canSuggestionsSkipRange(absoluteRange.start, absoluteRange.end))
+                return null
+
+            val relevantLines = input.lines
+            val startTime = Util.getNanos()
+            val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
+                StringTemplate.fromString(macro.content)
+            }
+            val macroVariableValues = macroInvocation.variables.map { "" }
+
+            @Suppress("CAST_NEVER_SUCCEEDS")
+            val resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
+                .`command_crafter$getCursorMapper`(macroVariableValues)
+            for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
+                resolvedMacroCursorMapper.sourceCursors[i] += 1 // Because leading '$' is included in the relevant lines, but not in the macro string that got parsed
+
+            // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
+            val macroSourceFileInfo = FileMappingInfo(
+                relevantLines,
+                macro.cursorMapper
+            )
+            val variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
+            val diagnostics = mutableListOf<Diagnostic>()
+            analyzeMacroVariables(
+                macroInvocation,
+                resolvedMacroCursorMapper,
+                variablesSemanticTokens,
+                macro.content,
+                diagnostics,
+                macroSourceFileInfo
+            )
+
+            if(macroInvocation.variables.isEmpty()) {
+                diagnostics += Diagnostic(
+                    Range(Position(0, 0), Position(0, 1)), // Mark '$'
+                    "No variables in macro"
+                )
+            }
+
+            val replacedMacro = macroInvocation.substitute(macroVariableValues)
+            // TODO: Also add mapped macros from the original reader
+            // A macro variable is present at the beginning of every segment except for the first one
+            val macroVariableLocations = resolvedMacroCursorMapper.targetCursors.copy()
+            macroVariableLocations.remove(0)
+
+            val macroMappingInfo = FileMappingInfo(
+                relevantLines,
+                macroSourceFileInfo.cursorMapper.combineWith(resolvedMacroCursorMapper)
+            )
+            val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
+            val childResourceCreator = AnalyzingResourceCreator(
+                reader.resourceCreator.languageServer,
+                reader.resourceCreator.sourceFunctionUri,
+                reader.resourceCreator.registries,
+                reader.resourceCreator.source
+            )
+            childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
+            analyzeMacroCommand(
+                DirectiveStringReader(
+                    macroMappingInfo,
+                    reader.dispatcher,
+                    childResourceCreator
+                ).apply {
+                    // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
+                    toCompleted()
+                    string = replacedMacro
+                    resourceCreator.macroTargetCursors += macroVariableLocations
+                },
+                source,
+                macroAnalyzingResult,
+            ) { sourceCursor ->
+                // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
+                val unresolvedMacroCursor = macroSourceFileInfo.cursorMapper.mapToTarget(sourceCursor)
+                resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
+            }
+
+            macroAnalyzingResult.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
+            macroAnalyzingResult.diagnostics += diagnostics
+            if(logMacroAnalyzingTime) {
+                val duration = (Util.getNanos() - startTime) / 1000
+                println("Took ${duration}µs to analyze macro: ${macro.content}")
+            }
+            return AnalyzingResourceCreator.MacroNode(
+                macroAnalyzingResult,
+                input,
+                rangeInParent,
+                childResourceCreator.newCache.macroCache
+            )
+        }
+
+        private fun analyzeMacroVariables(
+            macroInvocation: StringTemplate,
+            resolvedMacroCursorMapper: SplitProcessedInputCursorMapper,
+            variablesSemanticTokens: SemanticTokensBuilder,
+            macroString: String,
+            diagnostics: MutableList<Diagnostic>,
+            macroSourceFileInfo: FileMappingInfo,
+        ) {
+            // Highlight starting '$' with the same color as macro variables
+            // This ensures some kind of consistency, and it makes macro lines stand out to more
+            variablesSemanticTokens.addMultiline(0, 1, TokenType.ENUM, 0)
+            for((i, variable) in macroInvocation.variables.withIndex()) {
+                val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
+                variablesSemanticTokens.addMultiline(variableStart, 2 + variable.length + 1, TokenType.ENUM, 0)
+                val variableNameStart = variableStart + 2
+                val variableNameEnd = variableNameStart + variable.length
+                val hasClosingParentheses = macroString.getOrNull(variableNameEnd - 1) == ')'
+                if(hasClosingParentheses) {
+                    // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
+                    // that aren't actually intended to be part of the name
+                    for((i, c) in variable.withIndex()) {
+                        if(!StringTemplate.isValidVariableName(c.toString())) {
+                            // Add diagnostic starting at the first invalid char so it's easy to tell where the problem lies
+                            diagnostics += Diagnostic(
+                                Range(
+                                    AnalyzingResult.getPositionFromCursor(
+                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameStart + i),
+                                        macroSourceFileInfo
+                                    ),
+                                    AnalyzingResult.getPositionFromCursor(
+                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
+                                        macroSourceFileInfo
+                                    )
+                                ),
+                                "Invalid macro variable name '$variable'"
+                            )
+                            break
+                        }
+                    }
+                } else {
+                    val endPosition = AnalyzingResult.getPositionFromCursor(
+                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
+                        macroSourceFileInfo
+                    )
+                    diagnostics += Diagnostic(
+                        Range(endPosition, endPosition.advance()),
+                        "Unterminated macro variable"
+                    )
+                }
+            }
+        }
+
         //TODO: Error on trailing data
         fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, completionPredicate: (Int) -> Boolean) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
@@ -1097,6 +1109,61 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 foundAny = true
             }
+        }
+
+        enum class TopLevelMacroParser(val easyNewLine: Boolean) : AnalyzingResourceCreator.MacroParser {
+            VANILLA(false),
+            EASY_NEW_LINE(true);
+
+            override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): StringContent {
+                val absoluteCursor = reader.absoluteCursor
+                val skippingCursor = reader.skippingCursor
+                return StringContent(
+                    readMacro(reader, easyNewLine),
+                    OffsetProcessedInputCursorMapper(absoluteCursor)
+                        .combineWith(reader.cursorMapper)
+                        .combineWith(OffsetProcessedInputCursorMapper(-skippingCursor)),
+                    StringEscaper.Identity
+                )
+            }
+        }
+
+        private fun readMacro(reader: DirectiveStringReader<*>, easyNewLine: Boolean): String {
+            if(!reader.canRead()) return ""
+            if(!easyNewLine) {
+                reader.convertInputToEscapedMultiline()
+                reader.peek()
+                // Add back trailing whitespace for analyzing (suggestions might use them)
+                if(reader.resourceCreator is AnalyzingResourceCreator)
+                    reader.disableTrimmingFromEscapedMultiline()
+                val macro = reader.readLine()
+                reader.disableEscapedMultiline()
+                reader.readLine() // Skip remaining whitespace and '\n'
+                return if(macro.startsWith('$')) macro.substring(1) else macro
+            }
+            val lineStart = reader.cursor
+            val lineReadCharacters = reader.readCharacters
+            val lineSkippedChars = reader.skippedChars
+            if(reader.peek() == '$')
+                reader.skip()
+            val macroBuilder = StringBuilder(reader.readLine())
+            reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - 1 - lineStart)
+            var indentStartCursor = reader.cursor
+            while(reader.tryReadIndentation { it > reader.currentIndentation }) {
+                val skippedChars = reader.cursor - indentStartCursor // Note that skippedChars doesn't include newline characters. By not skipping this char, the mapping accounts for the additional ' ' characters.
+                reader.string = reader.string.substring(0, indentStartCursor - 1) + ' ' + reader.string.substring(reader.cursor) //Also removes newline
+                reader.cursor = indentStartCursor
+                reader.skippedChars += skippedChars
+                reader.readCharacters += skippedChars
+                macroBuilder.append(' ')
+                val lineStart = reader.cursor
+                val lineReadCharacters = reader.readCharacters
+                val lineSkippedChars = reader.skippedChars
+                macroBuilder.append(reader.readLine())
+                reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - 1 - lineStart)
+                indentStartCursor = reader.cursor
+            }
+            return macroBuilder.toString()
         }
 
         fun isReaderVanilla(reader: ImmutableStringReader): Boolean {

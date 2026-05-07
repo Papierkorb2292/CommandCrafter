@@ -1,13 +1,16 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.context.StringRange
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import java.util.*
 
 class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val sourceFunctionUri: String, val registries: RegistryAccess, val source: SharedSuggestionProvider) {
@@ -53,8 +56,36 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
 
     class CacheData(
         var usedCommandDispatcher: CommandDispatcher<SharedSuggestionProvider>? = null,
-        val vanillaMacroCache: MutableMap<List<String>, AnalyzingResult> = mutableMapOf()
+        val macroCache: MacroCache = MacroCache()
+    ) {
+        fun copyForMacro(macroCache: MacroCache): CacheData =
+            CacheData(usedCommandDispatcher, macroCache)
+    }
+
+    class MacroCache(
+        /**
+         * Used for caching children when only the parent changed
+         */
+        val macrosByInput: MutableMap<MacroInput, MacroNode> = mutableMapOf(),
+        /**
+         * Used for caching the parent when only the child changed
+         */
+        val orderedMacros: MutableList<MacroNode> = mutableListOf(),
+        val orderedMacroStartInParent: IntList = IntList()
     )
+
+    class MacroNode(
+        val analyzingResult: AnalyzingResult,
+        val input: MacroInput,
+        val rangeInParent: StringRange,
+        val children: MacroCache,
+    )
+
+    data class MacroInput(val lines: List<String>, val parser: MacroParser)
+
+    interface MacroParser {
+        fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): StringContent
+    }
 
     class SuggestionRequestInfo(
         /**
