@@ -254,21 +254,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         source: SharedSuggestionProvider,
         result: AnalyzingResult,
     ) {
-        val startInParent = reader.skippingCursor
         val absoluteStartOffset = reader.absoluteCursor
         val parser = if(easyNewLine) TopLevelMacroParser.EASY_NEW_LINE else TopLevelMacroParser.VANILLA
         val macro = parser.parse(reader)
 
         // Get only the relevant lines for caching
         val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
-        val relevantLines = mutableListOf<String>()
-        AnalyzingResult.getInlineRangesBetweenCursors(
-            absoluteStartOffset,
-            reader.absoluteCursor,
-            reader.fileMappingInfo
-        ) { line, cursor, length ->
-            relevantLines += reader.lines[line].substring(cursor, cursor + length)
-        }
+        val relevantLines = AnalyzingResult.getLinesBetweenCursors(macro.absoluteRange.start, macro.absoluteRange.end, reader.fileMappingInfo)
         val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser)
         var cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
@@ -277,8 +269,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 input,
                 macro,
                 null,
-                StringRange(absoluteStartOffset, reader.absoluteCursor),
-                StringRange(startInParent, reader.skippingCursor),
                 reader,
                 source
             ) ?: return
@@ -287,7 +277,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         reader.resourceCreator.newCache.macroCache.apply {
             macrosByInput[input] = cachedNode
             orderedMacros += cachedNode
-            orderedMacroStartInParent += startInParent
+            orderedMacroStartInParent += macro.rangeInParent.start
         }
 
         result.combineWith(cachedNode.analyzingResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
@@ -906,21 +896,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         private fun analyzeMacroString(
             input: AnalyzingResourceCreator.MacroInput,
-            macro: StringContent,
+            macro: AnalyzingResourceCreator.DecodedMacro,
             cache: AnalyzingResourceCreator.MacroCache?,
-            absoluteRange: StringRange,
-            rangeInParent: StringRange,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: SharedSuggestionProvider,
         ): AnalyzingResourceCreator.MacroNode? {
             // Skip irrelevant macros when generating suggestions
-            if(reader.resourceCreator.canSuggestionsSkipRange(absoluteRange.start, absoluteRange.end))
+            if(reader.resourceCreator.canSuggestionsSkipRange(macro.absoluteRange.start, macro.absoluteRange.end))
                 return null
 
             val relevantLines = input.lines
             val startTime = Util.getNanos()
             val macroInvocation = ALLOW_MALFORMED_MACRO.runWithValue(true) {
-                StringTemplate.fromString(macro.content)
+                StringTemplate.fromString(macro.string.content)
             }
             val macroVariableValues = macroInvocation.variables.map { "" }
 
@@ -933,7 +921,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
             val macroSourceFileInfo = FileMappingInfo(
                 relevantLines,
-                macro.cursorMapper
+                macro.string.cursorMapper
             )
             val variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
             val diagnostics = mutableListOf<Diagnostic>()
@@ -941,7 +929,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 macroInvocation,
                 resolvedMacroCursorMapper,
                 variablesSemanticTokens,
-                macro.content,
+                macro.string.content,
                 diagnostics,
                 macroSourceFileInfo
             )
@@ -994,12 +982,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             macroAnalyzingResult.diagnostics += diagnostics
             if(logMacroAnalyzingTime) {
                 val duration = (Util.getNanos() - startTime) / 1000
-                println("Took ${duration}µs to analyze macro: ${macro.content}")
+                println("Took ${duration}µs to analyze macro: ${macro.string}")
             }
             return AnalyzingResourceCreator.MacroNode(
                 macroAnalyzingResult,
                 input,
-                rangeInParent,
+                macro.rangeInParent,
                 childResourceCreator.newCache.macroCache
             )
         }
@@ -1115,16 +1103,24 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             VANILLA(false),
             EASY_NEW_LINE(true);
 
-            override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): StringContent {
+            override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro {
                 val absoluteCursor = reader.absoluteCursor
                 val skippingCursor = reader.skippingCursor
-                return StringContent(
+                val content =  StringContent(
                     readMacro(reader, easyNewLine),
                     OffsetProcessedInputCursorMapper(absoluteCursor)
                         .combineWith(reader.cursorMapper)
                         .combineWith(OffsetProcessedInputCursorMapper(-skippingCursor)),
                     StringEscaper.Identity
                 )
+                val endsInNewline = reader.cursor > 0 && reader.peek(-1) == '\n'
+                return AnalyzingResourceCreator.DecodedMacro(content, StringRange(
+                    absoluteCursor,
+                    if(endsInNewline) max(absoluteCursor, reader.absoluteCursor - 1) else reader.absoluteCursor
+                ), StringRange(
+                    skippingCursor,
+                    if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor
+                ))
             }
         }
 

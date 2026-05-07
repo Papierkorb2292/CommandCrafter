@@ -512,6 +512,14 @@ class AnalyzingResult(
             }
         }
 
+        fun getLinesBetweenCursors(startCursor: Int, endCursor: Int, mappingInfo: FileMappingInfo): List<String> {
+            val lines = mutableListOf<String>()
+            getInlineRangesBetweenCursors(startCursor, endCursor, mappingInfo) { line, cursor, length ->
+                lines += mappingInfo.lines[line].substring(cursor, cursor + length)
+            }
+            return lines
+        }
+
         fun getLineCursorRange(lineNumber: Int, mappingInfo: FileMappingInfo) =
             getLineCursorRange(lineNumber, mappingInfo.lines)
 

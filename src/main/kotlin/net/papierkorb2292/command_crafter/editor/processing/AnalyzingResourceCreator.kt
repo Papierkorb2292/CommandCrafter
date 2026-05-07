@@ -84,8 +84,10 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
     data class MacroInput(val lines: List<String>, val parser: MacroParser)
 
     interface MacroParser {
-        fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): StringContent
+        fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): DecodedMacro
     }
+
+    data class DecodedMacro(val string: StringContent, val absoluteRange: StringRange, val rangeInParent: StringRange)
 
     class SuggestionRequestInfo(
         /**
