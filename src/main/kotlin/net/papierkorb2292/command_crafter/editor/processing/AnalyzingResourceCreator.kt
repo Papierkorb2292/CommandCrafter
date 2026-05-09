@@ -13,18 +13,22 @@ import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import java.util.*
 
-class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val sourceFunctionUri: String, val registries: RegistryAccess, val source: SharedSuggestionProvider) {
+class AnalyzingResourceCreator(
+    val languageServer: MinecraftLanguageServer?,
+    val sourceFunctionUri: String,
+    val registries: RegistryAccess,
+    val source: SharedSuggestionProvider,
+    val macroTargetCursors: IntList = IntList(),
+    var previousCache: CacheData? = null,
+    val newCache: CacheData = CacheData(),
+) {
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
-    val macroTargetCursors: IntList = IntList()
 
     /**
      * If not null, the analyzing is done only to request suggestions at one specific position.
      * This means irrelevant sections of the input can be skipped.
      */
     var suggestionRequestInfo: SuggestionRequestInfo? = null
-
-    var previousCache: CacheData? = null
-    val newCache = CacheData()
 
     fun canSuggestionsSkipRange(absoluteStart: Int, absoluteEnd: Int): Boolean {
         val suggestionCursor = suggestionRequestInfo?.absoluteCursor ?: return false
@@ -38,6 +42,8 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
         index = -(index + 1)
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
+
+    fun copyInput() = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroTargetCursors.copy(), previousCache, newCache)
 
     fun loadCache(file: OpenFile, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
         (file.persistentAnalyzerData as? CacheData)?.let { persistentCache ->

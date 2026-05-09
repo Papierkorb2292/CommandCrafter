@@ -71,7 +71,9 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             val directiveReader = DirectiveStringReader(
                 analyzingResult.mappingInfo,
                 originalReader.dispatcher,
-                originalReader.resourceCreator
+                originalReader.resourceCreator.copyInput().apply {
+                    stringContent.cursorMapper.mapAllToTargetSorted(macroTargetCursors, false)
+                }
             )
             directiveReader.toCompleted()
             directiveReader.string = stringContent.content

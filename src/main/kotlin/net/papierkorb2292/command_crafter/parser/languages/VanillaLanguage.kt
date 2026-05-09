@@ -955,13 +955,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 else macro.string.cursorMapper
             )
             val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
-            val childResourceCreator = AnalyzingResourceCreator(
-                reader.resourceCreator.languageServer,
-                reader.resourceCreator.sourceFunctionUri,
-                reader.resourceCreator.registries,
-                reader.resourceCreator.source
-            )
+            val childResourceCreator = reader.resourceCreator.copyInput()
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
+            if(resolvedMacroCursorMapper != null)
+                resolvedMacroCursorMapper.mapAllToTargetSorted(childResourceCreator.macroTargetCursors, true)
+            childResourceCreator.macroTargetCursors.addAllSorted(macroVariableLocations)
             analyzeMacroCommand(
                 DirectiveStringReader(
                     macroMappingInfo,
@@ -971,15 +969,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
                     toCompleted()
                     string = replacedMacro
-                    // TODO: Also add mapped macros from the original reader
-                    resourceCreator.macroTargetCursors += macroVariableLocations
                 },
                 source,
                 macroAnalyzingResult,
             ) { sourceCursor ->
                 if(resolvedMacroCursorMapper != null) {
                     // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
-                    val unresolvedMacroCursor = macro.string.cursorMapper.mapToTarget(sourceCursor)
+                    val unresolvedMacroCursor = macro.string.cursorMapper.mapToTarget(sourceCursor, true)
                     resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
                 } else {
                     true

@@ -63,6 +63,22 @@ class IntList(capacity: Int) {
         size += other.size
     }
 
+    fun addAllSorted(other: IntList) {
+        val newSize = entries.size + other.entries.size
+        val newEntries = IntArray(newSize)
+        var i = 0
+        var j = 0
+        var k = 0
+        while(i < size && j < other.size)
+            newEntries[k++] = if(entries[i] <= other.entries[j]) entries[i++] else other.entries[j++]
+        while(i < size)
+            newEntries[k++] = entries[i++]
+        while(j < other.size)
+            newEntries[k++] = other.entries[j++]
+        entries = newEntries
+        size += other.size
+    }
+
     fun remove(position: Int): Int {
         Objects.checkIndex(position, size)
         val element = entries[position]
@@ -70,6 +86,11 @@ class IntList(capacity: Int) {
             entries.copyInto(entries, position, position + 1, size)
         size--
         return element
+    }
+
+    fun removeAfter(start: Int) {
+        Objects.checkIndex(start, size)
+        size = start + 1
     }
 
     fun isEmpty() = size == 0

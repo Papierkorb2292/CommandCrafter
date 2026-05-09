@@ -3,8 +3,7 @@ package net.papierkorb2292.command_crafter.parser.helper
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
-import kotlin.collections.component1
-import kotlin.collections.component2
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import kotlin.math.max
 import kotlin.math.min
 
@@ -108,6 +107,35 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
             else if (inputCursors[index] + lengths[index] + endInclusiveOffset <= inputCursor) -1
             else 0
         }
+    }
+
+    fun mapAllToTargetSorted(sourceCursors: IntList, removeUnmapped: Boolean) {
+        mapAllSorted(sourceCursors, this.sourceCursors, this.targetCursors, removeUnmapped)
+    }
+
+    fun mapAllToSourceSorted(targetCursors: IntList, removeUnmapped: Boolean) {
+        mapAllSorted(targetCursors, this.targetCursors, this.sourceCursors, removeUnmapped)
+    }
+
+    private fun mapAllSorted(list: IntList, inputCursors: IntList, outputCursors: IntList, removeUnmapped: Boolean) {
+        if(list.isEmpty())
+            return
+        var nextReadIndex = 0
+        var lastWrittenIndex = -1
+        var mappingIndex = roundDownBinarySearch(inputCursors.binarySearch { inputCursors[it].compareTo(list[0]) })
+        while(nextReadIndex < list.size && mappingIndex < inputCursors.size) {
+            val inputCursor = list[nextReadIndex]
+            if(mappingIndex + 1 < inputCursors.size && inputCursor >= inputCursors[mappingIndex + 1]) {
+                // The cursor is not part of the current mapping, go the next mapping
+                mappingIndex++
+                continue
+            }
+            nextReadIndex++
+            if(removeUnmapped && (mappingIndex < 0 || inputCursors[mappingIndex] + lengths[mappingIndex] < inputCursor))
+                continue
+            list[++lastWrittenIndex] = if(mappingIndex < 0) inputCursor else inputCursor - inputCursors[mappingIndex] + outputCursors[mappingIndex]
+        }
+        list.removeAfter(lastWrittenIndex)
     }
 
     fun combineWith(targetMapper: OffsetProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
