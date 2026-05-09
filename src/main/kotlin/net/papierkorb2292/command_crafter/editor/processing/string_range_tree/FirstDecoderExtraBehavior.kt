@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.serialization.DataResult
+import com.mojang.serialization.DynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
@@ -63,6 +64,9 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
     }
 
     override fun hasMacro(node: TNode): Boolean = delegate.hasMacro(node)
+
+    override val onlyContextOps: DynamicOps<TNode>?
+        get() = delegate.onlyContextOps
 
     override val nodeAnalyzingTracker: ExtraDecoderBehavior.NodeAnalyzingTracker<TNode>?
         get() = delegate.nodeAnalyzingTracker
