@@ -81,7 +81,7 @@ class AnalyzingResourceCreator(val languageServer: MinecraftLanguageServer?, val
         val children: MacroCache,
     )
 
-    data class MacroInput(val lines: List<String>, val parser: MacroParser)
+    data class MacroInput(val lines: List<String>, val isTemplate: Boolean, val parser: MacroParser)
 
     interface MacroParser {
         fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): DecodedMacro
