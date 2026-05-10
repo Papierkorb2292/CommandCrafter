@@ -161,7 +161,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.skip()
                 }
                 if(reader.canRead() && reader.peek() == '$') {
-                    readAndAnalyzeMacro(reader, source, result)
+                    readAndAnalyzeMacroWithCache(reader, source, result)
                     continue
                 }
                 //Let command start at cursor 0, so completions don't overlap with suggestRootNode
@@ -249,7 +249,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
     }
 
-    private fun readAndAnalyzeMacro(
+    private fun readAndAnalyzeMacroWithCache(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         source: SharedSuggestionProvider,
         result: AnalyzingResult,
