@@ -930,7 +930,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     macro.string.cursorMapper
                 )
                 variablesSemanticTokens = SemanticTokensBuilder(macroSourceFileInfo)
-                analyzeMacroTemplate(
+                analyzeMacroTemplateSyntax(
                     macroInvocation,
                     resolvedMacroCursorMapper,
                     variablesSemanticTokens,
@@ -996,7 +996,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             )
         }
 
-        private fun analyzeMacroTemplate(
+        private fun analyzeMacroTemplateSyntax(
             macroInvocation: StringTemplate,
             resolvedMacroCursorMapper: SplitProcessedInputCursorMapper,
             variablesSemanticTokens: SemanticTokensBuilder,
