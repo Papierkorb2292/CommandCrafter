@@ -129,6 +129,19 @@ class IntList(capacity: Int) {
 
     fun contains(element: Int) = indexOf(element) != -1
 
+    fun any(predicate: (Int) -> Boolean): Boolean {
+        for(i in 0 until size)
+            if(predicate(entries[i]))
+                return true
+        return false
+    }
+    fun all(predicate: (Int) -> Boolean): Boolean {
+        for(i in 0 until size)
+            if(!predicate(entries[i]))
+                return false
+        return true
+    }
+
     fun copy() = IntList().also { it.addAll(this) }
 
     override fun equals(other: Any?): Boolean {

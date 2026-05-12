@@ -886,6 +886,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     companion object {
         const val ID = "vanilla"
 
+        val DEFAULT = VanillaLanguage()
+
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val shouldDisplayWarningOnMacroTimeout = false

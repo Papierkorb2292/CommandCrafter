@@ -3,10 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Pair
-import com.mojang.serialization.Codec
-import com.mojang.serialization.DataResult
-import com.mojang.serialization.Dynamic
-import com.mojang.serialization.DynamicOps
+import com.mojang.serialization.*
 import net.minecraft.util.CompilableString
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -17,7 +14,10 @@ import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.mixin.editor.processing.CompilableStringCommandParserHelperAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.Range
+import java.util.*
+import kotlin.jvm.optionals.getOrNull
 
 class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dynamic<out Any>) -> TContext, private val analyzer: StringAnalyzer<TContext>) {
     private val codecInput = ThreadLocal<Dynamic<out Any>>()
@@ -30,6 +30,18 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             codecInput.runWithValueSwap(Dynamic(ops, input)) {
                 delegate.decode(ops, input)
             }
+    }
+
+    fun <A> wrapCodecWithError(delegate: Codec<A>, errorProvider: Decoder<Optional<kotlin.Pair<Int, String>>>, errorIsWarning: Boolean = false): Codec<A> = object : Codec<A> {
+        override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> =
+            delegate.encode(input, ops, prefix)
+
+        override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
+            val result = delegate.decode(ops, input)
+            val error = errorProvider.decode(ops, input).result().getOrNull()?.first?.getOrNull()
+            onParsedGeneric(Dynamic(ops, input), error?.first ?: Int.MAX_VALUE, error?.second,  errorIsWarning)
+            return result
+        }
     }
 
     fun <A : Any> wrapCommandParserHelper(delegate: CompilableString.CommandParserHelper<A>): CompilableString.CommandParserHelper<A> {
@@ -58,10 +70,10 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
         onParsedGeneric(dynamic, errorCursor, errorMsg)
     }
 
-    private fun <T : Any> onParsedGeneric(dynamic: Dynamic<T>, errorCursor: Int, errorMsg: String?) {
+    private fun <T : Any> onParsedGeneric(dynamic: Dynamic<T>, errorCursor: Int, errorMsg: String?, errorIsWarning: Boolean = false) {
         val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(dynamic.ops)
         val originalReader = extraBehavior?.reader ?: return
-        if(errorMsg != null)
+        if(errorMsg != null && !errorIsWarning)
             extraBehavior.markStringParseError(dynamic.value)
         val context = contextGetter(dynamic)
         extraBehavior.nodeAnalyzingTracker?.registerCallback(dynamic.value) { analyzingBehavior ->
@@ -93,6 +105,8 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
                         AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(errorCursor + mappingInfo.readSkippingChars, false), mappingInfo, true),
                         AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(stringContent.content.length + mappingInfo.readSkippingChars, false), mappingInfo, true)
                     )
+                    if(errorIsWarning)
+                        severity = DiagnosticSeverity.Warning
                 }
                 analyzingResult.diagnostics.add(diagnostic)
             }

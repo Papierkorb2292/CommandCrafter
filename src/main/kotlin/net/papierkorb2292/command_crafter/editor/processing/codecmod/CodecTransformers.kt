@@ -1,7 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing.codecmod
 
 import com.google.common.collect.BiMap
+import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.ContextChain
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.PrimitiveCodec
@@ -13,6 +16,7 @@ import net.minecraft.advancements.criterion.BlockPredicate
 import net.minecraft.advancements.criterion.EntityPredicate
 import net.minecraft.advancements.criterion.EntityTypePredicate
 import net.minecraft.advancements.criterion.NbtPredicate
+import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
@@ -22,20 +26,19 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
 import net.minecraft.locale.Language
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.TextColor
 import net.minecraft.network.chat.contents.NbtContents
 import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
+import net.minecraft.server.dialog.action.CommandTemplate
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.pack.PackFormat
 import net.minecraft.tags.TagEntry
 import net.minecraft.tags.TagKey
-import net.minecraft.util.ARGB
-import net.minecraft.util.ExtraCodecs
-import net.minecraft.util.InclusiveRange
-import net.minecraft.util.StringRepresentable
+import net.minecraft.util.*
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.item.FallingBlockEntity
 import net.minecraft.world.item.DyeColor
@@ -50,18 +53,27 @@ import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.ContextSuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.Language.TopLevelClosure
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
+import org.eclipse.lsp4j.Range
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
@@ -539,6 +551,69 @@ object CodecTransformers {
             ),
             BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
         )
+
+    @JvmStatic
+    @CodecMod(target = ClickEvent.RunCommand::class, codecField = "command")
+    fun analyzeRunCommandClickEvent(codec: Codec<String>): Codec<String> =
+        wrapCommandStringCodec(codec, isTemplate = false, isSuggestCommand = false)
+
+    @JvmStatic
+    @CodecMod(target = ClickEvent.SuggestCommand::class, codecField = "command")
+    fun analyzeSuggestCommandClickEvent(codec: Codec<String>): Codec<String> =
+        wrapCommandStringCodec(codec, isTemplate = false, isSuggestCommand = true)
+
+    @JvmStatic
+    @CodecMod(target = CommandTemplate::class, codecField = "template")
+    fun analyzeCommandTemplate(codec: Codec<String>): Codec<String> =
+        wrapCommandStringCodec(codec, isTemplate = true, isSuggestCommand = false)
+
+    private fun <A> wrapCommandStringCodec(codec: Codec<A>, isTemplate: Boolean, isSuggestCommand: Boolean): Codec<A> {
+        fun getContextChainError(parseResults: ParseResults<*>, input: String): CommandSyntaxException? {
+            val flattened = ContextChain.tryFlatten(parseResults.context.build(input))
+            return if(flattened.isEmpty) CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader) else null
+        }
+
+        val analyzing = MalformedStringDecoderAnalyzing({}, { context, result, behavior, reader ->
+            val isMacro = isTemplate || reader.resourceCreator.macroTargetCursors.any { it >= 0 && it <= reader.string.length } // Check if any of the parents' macros are inside the string
+            val hasSlash = reader.canRead() && reader.peek() == '/'
+            if(isSuggestCommand) {
+                if(!hasSlash && !(isMacro && reader.resourceCreator.macroTargetCursors.contains(0)))
+                    return@MalformedStringDecoderAnalyzing // Don't analyze anything if there isn't a slash (but a macro may supply the slash)
+            } else if(hasSlash)
+                reader.skip()
+
+            if(!isMacro) {
+                reader.enterClosure(TopLevelClosure(VanillaLanguage.DEFAULT))
+                val parseResults = reader.dispatcher.parse(reader, reader.resourceCreator.source)
+                @Suppress("UNCHECKED_CAST")
+                val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
+                VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, result, resultReader)
+                val commandException = Commands.getParseException(parseResults)
+                    ?: getContextChainError(parseResults, reader.string)
+                // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
+                if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
+                    result.diagnostics += Diagnostic(
+                        Range(
+                            AnalyzingResult.getPositionFromCursor(resultReader.cursorMapper.mapToSource(resultReader.readSkippingChars + commandException.cursor), resultReader.fileMappingInfo),
+                            AnalyzingResult.getPositionFromCursor(resultReader.cursorMapper.mapToSource(resultReader.readSkippingChars + resultReader.string.length), resultReader.fileMappingInfo)
+                        ),
+                        commandException.message,
+                        DiagnosticSeverity.Warning,
+                        null
+                    )
+                }
+            }
+        })
+        return analyzing.wrapCodecWithError(codec, Codec.STRING.map { string ->
+            // From ExtraCodecs.CHAT_STRING
+            for((i, c) in string.withIndex()) {
+                if(!StringUtil.isAllowedChatCharacter(c.code)) {
+                    return@map Optional.of(i to "Disallowed chat character: '$c'")
+                }
+            }
+            Optional.empty()
+        }, isTemplate) // Templates don't check for illegal characters, but it should still be a warning
+    }
 
     private fun idContextGetter(): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<Nothing>> = { node, behavior ->
         val namespaceOptional = behavior.branchBehavior.nonCanonicalBehavior != ExtraDecoderBehavior.NonCanonicalBehavior.IGNORE

@@ -269,7 +269,7 @@ class MacroAnalyzingCrawlerRunner(
         val nextNodeNonWhitespaceStart = reader.cursor
         reader.cursor = nextNodeStartCursor
         // This can also skip more characters when trying to analyze the next command node
-        val analyzingFootprint = macroLanguage.analyzeParsedCommand(
+        val analyzingFootprint = VanillaLanguage.DEFAULT.analyzeParsedCommand(
             commandParseResults,
             analyzingResult,
             reader,
@@ -1155,7 +1155,6 @@ class MacroAnalyzingCrawlerRunner(
         private const val LITERAL_COUNT_INFINITY: UByte = 255U
         // Exact conditions for where to cut off are more or less arbitrary, just see what works well
         private const val CUT_OFF_MINIMUM_LITERAL_COUNT = 3
-        private val macroLanguage = VanillaLanguage()
         private val emptyInputLiteralCountMap = Int2ByteLinkedOpenHashMap()
         private val processedDispatcherData = WeakHashMap<CommandDispatcher<SharedSuggestionProvider>, Pair<NodeIdentifier, NodeMaxLiteralCounter>>()
         private val shouldCheckForTimeout = !CommandCrafter.getBooleanSystemProperty("cc_no_macro_timeout")
