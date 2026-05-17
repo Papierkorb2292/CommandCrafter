@@ -86,8 +86,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
 
             directiveReader.resourceCreator.storeCache(file)
-
-            return result
+            return directiveReader.resourceCreator.overlayMacros(result)
         }
 
         private val NULL_PROVIDER = { _: Any? -> null }

@@ -144,6 +144,13 @@ class IntList(capacity: Int) {
 
     fun copy() = IntList().also { it.addAll(this) }
 
+    inline fun map(transform: (Int) -> Int): IntList {
+        val result = IntList(size)
+        for(i in 0 until size)
+            result += transform(this[i])
+        return result
+    }
+
     override fun equals(other: Any?): Boolean {
         if(other !is IntList)
             return false

@@ -940,23 +940,24 @@ object TestCommandCrafter {
         val source = getParsingCommandSource(context)
         val analyzingResult = AnalyzingResult(FileMappingInfo(lines), Position())
 
+        val resourceCreator = AnalyzingResourceCreator(
+            null,
+            "testPack/data/minecraft/function/test.mcfunction",
+            source.server.lootRegistries,
+            source
+        )
         LanguageManager.analyse(
             DirectiveStringReader(
                 analyzingResult.mappingInfo,
                 commandDispatcher,
-                AnalyzingResourceCreator(
-                    null,
-                    "testPack/data/minecraft/function/test.mcfunction",
-                    source.server.lootRegistries,
-                    source
-                )
+                resourceCreator
             ),
             source,
             analyzingResult,
             Language.TopLevelClosure(VanillaLanguage())
         )
 
-        return analyzingResult
+        return resourceCreator.overlayMacros(analyzingResult)
     }
 
     private fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =

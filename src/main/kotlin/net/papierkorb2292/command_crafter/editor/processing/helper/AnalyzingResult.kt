@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.maxWithNullable
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
@@ -108,6 +109,49 @@ class AnalyzingResult(
             getActualNodeCompressed(this.offsetActualInput(-cursorOffset).offsetActualOutput(position), cursorOffset),
             getPotentialNodeCompressed(this.offsetPotentialInput(-cursorOffset).offsetPotentialOutput(position), cursorOffset),
             mutableMapOf(),
+        )
+    }
+
+    /**
+     * Creates a copy of this analyzing result and overlays all given overlays on top of it.
+     *
+     * The overlays must be sorted and not overlap. The overlays' syntax nodes must be present in compressed form (i.e. passed through addOffset before)
+     */
+    fun overlayAllCompressedSorted(overlays: List<AnalyzingResult>): AnalyzingResult {
+        val actualNodeOverlays = overlays.flatMap { it.actualSyntaxNodes }
+        val overlayActualRange = encompassingNodeRange(actualNodeOverlays)
+        val currentActualRange = encompassingNodeRange(actualSyntaxNodes)
+        return AnalyzingResult(
+            mappingInfo,
+            SemanticTokensBuilder(mappingInfo).apply {
+                combineWith(semanticTokens)
+                overlay(overlays.map { it.semanticTokens }.iterator())
+            },
+            diagnostics.toMutableList().apply {
+                for(overlay in overlays) {
+                    addAll(overlay.diagnostics)
+                }
+            },
+            colorInfos.toMutableList().apply {
+                for(overlay in overlays) {
+                    addAll(overlay.colorInfos)
+                }
+            },
+            filePosition,
+            documentation,
+            if(overlayActualRange == null) actualSyntaxNodes else mutableListOf(RangedSyntaxNode(maxWithNullable(overlayActualRange, currentActualRange), object : ActualSyntaxNode {
+                override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
+                    getSyntaxNodeAtCursor(cursor, actualNodeOverlays, false)?.getDefinition(cursor)
+                        ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor)
+
+                override fun getHover(cursor: Int): CompletableFuture<Hover>? =
+                    getSyntaxNodeAtCursor(cursor, actualNodeOverlays, false)?.getHover(cursor)
+                        ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getHover(cursor)
+            })),
+            finishedPotentialSyntaxNodes.toMutableList().apply {
+                add(overlays.flatMapTo(mutableListOf()) { it.finishedPotentialSyntaxNodes.getOrNull(0) ?: emptyList() })
+            },
+            buildingPotentialSyntaxNodes
         )
     }
 

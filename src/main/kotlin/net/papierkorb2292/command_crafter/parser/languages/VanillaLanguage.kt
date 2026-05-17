@@ -254,12 +254,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         source: SharedSuggestionProvider,
         result: AnalyzingResult,
     ) {
-        val absoluteStartOffset = reader.absoluteCursor
         val parser = if(easyNewLine) TopLevelMacroParser.EASY_NEW_LINE else TopLevelMacroParser.VANILLA
         val macro = parser.parse(reader)
 
         // Get only the relevant lines for caching
-        val startOffsetPosition = AnalyzingResult.getPositionFromCursor(absoluteStartOffset, reader.fileMappingInfo)
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(macro.absoluteRange.start, macro.absoluteRange.end, reader.fileMappingInfo)
         val input = AnalyzingResourceCreator.MacroInput(relevantLines, true, parser)
         var cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
@@ -272,15 +270,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader,
                 source
             ) ?: return
+        } else {
+            cachedNode = cachedNode.copyForChildCacheHit(macro)
         }
 
         reader.resourceCreator.newCache.macroCache.apply {
             macrosByInput[input] = cachedNode
             orderedMacros += cachedNode
-            orderedMacroStartInParent += macro.rangeInParent.start
+            orderedMacroStartInParent += cachedNode.rangeInParent.start
+            orderedMacroAbsoluteStart += cachedNode.absoluteRange.start
         }
-
-        result.combineWith(cachedNode.analyzingResult.addOffset(result, startOffsetPosition, absoluteStartOffset))
     }
 
     override fun parseToCommands(
@@ -957,7 +956,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 else macro.string.cursorMapper
             )
             val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
-            val childResourceCreator = reader.resourceCreator.copyInput()
+            val childResourceCreator = reader.resourceCreator.copyForMacro()
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
             if(resolvedMacroCursorMapper != null)
                 resolvedMacroCursorMapper.mapAllToTargetSorted(childResourceCreator.macroTargetCursors, true)
@@ -994,6 +993,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 macroAnalyzingResult,
                 input,
                 macro.rangeInParent,
+                macro.absoluteRange,
                 childResourceCreator.newCache.macroCache
             )
         }
@@ -1127,13 +1127,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     StringEscaper.Identity
                 )
                 val endsInNewline = reader.cursor > 0 && reader.peek(-1) == '\n'
-                return AnalyzingResourceCreator.DecodedMacro(content, StringRange(
-                    absoluteCursor,
-                    if(endsInNewline) max(absoluteCursor, reader.absoluteCursor - 1) else reader.absoluteCursor
-                ), StringRange(
-                    skippingCursor,
-                    if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor
-                ))
+                val rangeInParent = StringRange(skippingCursor, if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor)
+                return AnalyzingResourceCreator.DecodedMacro(content, reader.cursorMapper.mapToSource(rangeInParent), rangeInParent)
             }
         }
 

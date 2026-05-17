@@ -43,7 +43,8 @@ class McFunctionAnalyzer(
             )
         }
         reader.resourceCreator.resourceStack.pop()
-        val filtered = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
+        val combinedResult = reader.resourceCreator.overlayMacros(result)
+        val filtered = combinedResult.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
         reader.resourceCreator.storeCache(file)
         if(resultWrapper != null)
             return resultWrapper(filtered)

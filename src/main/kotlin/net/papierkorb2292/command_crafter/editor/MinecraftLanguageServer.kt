@@ -7,11 +7,11 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
@@ -282,7 +282,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun completion(params: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
                 val file = openFiles[params.textDocument.uri] ?: return emptyCompletionsDefault
                 val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
-
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return analyzer.thenComposeAsync { analyzingResult ->
                     val completions = DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(dynamicRegistryManager) {

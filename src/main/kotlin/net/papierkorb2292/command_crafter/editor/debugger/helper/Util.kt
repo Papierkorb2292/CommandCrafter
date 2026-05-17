@@ -4,14 +4,14 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.network.FriendlyByteBuf
-import net.minecraft.server.MinecraftServer
 import net.minecraft.commands.functions.InstantiatedFunction
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.minecraft.util.Mth
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAccessor
-import net.papierkorb2292.command_crafter.networking.*
-import org.eclipse.lsp4j.debug.*
+import org.eclipse.lsp4j.debug.SourceBreakpoint
+import kotlin.math.max
+import kotlin.math.min
 
 operator fun <S> CommandContextBuilder<S>.get(index: Int): CommandContextBuilder<S>? {
     var context = this
@@ -57,6 +57,8 @@ fun StringRange.clamp(clampRange: StringRange) = StringRange(
     Mth.clamp(start, clampRange.start, clampRange.end),
     Mth.clamp(end, clampRange.start, clampRange.end)
 )
+fun max(a: StringRange, b: StringRange) = StringRange(min(a.start, b.start), max(a.end, b.end))
+fun maxWithNullable(a: StringRange, b: StringRange?): StringRange = if(b == null) a else max(a, b)
 
 fun SourceBreakpoint.copy(): SourceBreakpoint {
     val breakpoint = SourceBreakpoint()

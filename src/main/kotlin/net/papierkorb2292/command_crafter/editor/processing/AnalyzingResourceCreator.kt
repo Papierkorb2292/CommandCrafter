@@ -6,6 +6,7 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
 import net.papierkorb2292.command_crafter.helper.IntList
@@ -44,6 +45,7 @@ class AnalyzingResourceCreator(
     }
 
     fun copyInput() = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroTargetCursors.copy(), previousCache, newCache)
+    fun copyForMacro() = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroTargetCursors.copy(), previousCache, CacheData(newCache.usedCommandDispatcher))
 
     fun loadCache(file: OpenFile, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
         (file.persistentAnalyzerData as? CacheData)?.let { persistentCache ->
@@ -58,6 +60,14 @@ class AnalyzingResourceCreator(
             file.persistentAnalyzerData = newCache
     }
 
+    fun overlayMacros(analyzingResult: AnalyzingResult, macros: MacroCache = newCache.macroCache): AnalyzingResult {
+        return analyzingResult.overlayAllCompressedSorted(macros.orderedMacros.map {
+            val mappedOffset = analyzingResult.mappingInfo.cursorMapper.mapToSource(it.rangeInParent.start)
+            val positionOffset = AnalyzingResult.getPositionFromCursor(mappedOffset, analyzingResult.mappingInfo)
+            overlayMacros(it.analyzingResult, it.children).addOffset(analyzingResult, positionOffset, mappedOffset)
+        })
+    }
+
     data class ResourceStackEntry(val analyzingResult: AnalyzingResult)
 
     class CacheData(
@@ -70,22 +80,49 @@ class AnalyzingResourceCreator(
 
     class MacroCache(
         /**
-         * Used for caching children when only the parent changed
+         * Used for caching children when only the parent changed. Allowed to contain macros that are no longer present in the input in case they reappear.
          */
         val macrosByInput: MutableMap<MacroInput, MacroNode> = mutableMapOf(),
         /**
          * Used for caching the parent when only the child changed
          */
         val orderedMacros: MutableList<MacroNode> = mutableListOf(),
-        val orderedMacroStartInParent: IntList = IntList()
-    )
+        val orderedMacroStartInParent: IntList = IntList(),
+        /**
+         * Used for merging macros into [AnalyzingResult]
+         */
+        val orderedMacroAbsoluteStart: IntList = IntList()
+    ) {
+        fun copyWithAbsoluteOffset(offset: Int): MacroCache = MacroCache(
+            macrosByInput.mapValuesTo(mutableMapOf()) { it.value.copyWithAbsoluteOffset(offset) },
+            orderedMacros.mapTo(mutableListOf()) { it.copyWithAbsoluteOffset(offset) },
+            orderedMacroStartInParent,
+            orderedMacroAbsoluteStart.map { it + offset }
+        )
+    }
 
     class MacroNode(
         val analyzingResult: AnalyzingResult,
         val input: MacroInput,
         val rangeInParent: StringRange,
+        val absoluteRange: StringRange,
         val children: MacroCache,
-    )
+    ) {
+        fun copyForChildCacheHit(macro: DecodedMacro) = MacroNode(
+            analyzingResult,
+            input,
+            macro.rangeInParent,
+            macro.absoluteRange,
+            children.copyWithAbsoluteOffset(macro.absoluteRange.start - absoluteRange.start)
+        )
+        fun copyWithAbsoluteOffset(offset: Int) = MacroNode(
+            analyzingResult,
+            input,
+            rangeInParent,
+            absoluteRange + offset,
+            children.copyWithAbsoluteOffset(offset)
+        )
+    }
 
     data class MacroInput(val lines: List<String>, val isTemplate: Boolean, val parser: MacroParser)
 
