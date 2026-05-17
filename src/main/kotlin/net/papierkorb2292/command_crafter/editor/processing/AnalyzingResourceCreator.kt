@@ -93,6 +93,13 @@ class AnalyzingResourceCreator(
          */
         val orderedMacroAbsoluteStart: IntList = IntList()
     ) {
+        fun addMacro(macro: MacroNode) {
+            macrosByInput[macro.input] = macro
+            orderedMacros += macro
+            orderedMacroStartInParent += macro.rangeInParent.start
+            orderedMacroAbsoluteStart += macro.absoluteRange.start
+        }
+
         fun copyWithAbsoluteOffset(offset: Int): MacroCache = MacroCache(
             macrosByInput.mapValuesTo(mutableMapOf()) { it.value.copyWithAbsoluteOffset(offset) },
             orderedMacros.mapTo(mutableListOf()) { it.copyWithAbsoluteOffset(offset) },

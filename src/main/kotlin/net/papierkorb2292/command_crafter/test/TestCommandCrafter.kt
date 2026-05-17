@@ -40,6 +40,7 @@ import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvide
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.StringifiableCommandNode
+import net.papierkorb2292.command_crafter.parser.helper.getCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
@@ -80,7 +81,7 @@ object TestCommandCrafter {
         val macroInvocation = StringTemplate.fromString("say $(greeting), $(name)!")
         val arguments = listOf("What's up", "your highness")
         @Suppress("CAST_NEVER_SUCCEEDS")
-        val cursorMapper = (macroInvocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(arguments)
+        val cursorMapper = macroInvocation.getCursorMapper(arguments)
         context.assertValueEqual(intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length), cursorMapper.sourceCursors,
             Component.literal("source_cursors"))
         context.assertValueEqual(intListOf("".length, "say What's up".length, "say What's up, your highness".length), cursorMapper.targetCursors, Component.literal("target_cursors"))
@@ -93,7 +94,7 @@ object TestCommandCrafter {
         val macroInvocation = StringTemplate.fromString("say $(message)")
         val arguments = listOf("foo")
         @Suppress("CAST_NEVER_SUCCEEDS")
-        val cursorMapper = (macroInvocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(arguments)
+        val cursorMapper = macroInvocation.getCursorMapper(arguments)
         context.assertValueEqual(intListOf("".length, "say $(message)".length), cursorMapper.sourceCursors, Component.literal("source_cursors"))
         context.assertValueEqual(intListOf("".length, "say foo".length), cursorMapper.targetCursors, Component.literal("target_cursors"))
         context.assertValueEqual(intListOf("say ".length, "".length), cursorMapper.lengths, Component.literal("lengths"))

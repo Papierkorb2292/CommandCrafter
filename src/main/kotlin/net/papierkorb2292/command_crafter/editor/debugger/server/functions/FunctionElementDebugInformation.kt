@@ -903,7 +903,7 @@ class FunctionElementDebugInformation(
             val variableIndices = macroLine.parameters()
             val variableArguments = variableIndices.map { frame.macroArguments[it] }
             @Suppress("CAST_NEVER_SUCCEEDS")
-            val resolvedMacroCursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(variableArguments)
+            val resolvedMacroCursorMapper = invocation.getCursorMapper(variableArguments)
 
             @Suppress("UNCHECKED_CAST")
             val context = (action as BuildContextsAccessor<CommandSourceStack>).command.topContext
@@ -938,7 +938,7 @@ class FunctionElementDebugInformation(
             val variableIndices = macroLine.parameters()
             val variableArguments = variableIndices.map { frame.macroArguments[it] }
             @Suppress("CAST_NEVER_SUCCEEDS")
-            val cursorMapper = (invocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(variableArguments)
+            val cursorMapper = invocation.getCursorMapper(variableArguments)
 
             return listOf(FileContentReplacer.Replacement(
                 startPos.line,

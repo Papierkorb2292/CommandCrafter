@@ -260,26 +260,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         // Get only the relevant lines for caching
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(macro.absoluteRange.start, macro.absoluteRange.end, reader.fileMappingInfo)
         val input = AnalyzingResourceCreator.MacroInput(relevantLines, true, parser)
-        var cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
+        val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
-        if(cachedNode == null) {
-            cachedNode = analyzeMacroString(
-                input,
-                macro,
-                null,
-                reader,
-                source
-            ) ?: return
-        } else {
-            cachedNode = cachedNode.copyForChildCacheHit(macro)
+        if(cachedNode != null) {
+            reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro))
+            return
         }
-
-        reader.resourceCreator.newCache.macroCache.apply {
-            macrosByInput[input] = cachedNode
-            orderedMacros += cachedNode
-            orderedMacroStartInParent += cachedNode.rangeInParent.start
-            orderedMacroAbsoluteStart += cachedNode.absoluteRange.start
-        }
+        analyzeMacroString(
+            input,
+            macro,
+            null,
+            reader,
+            source
+        )
     }
 
     override fun parseToCommands(
@@ -901,10 +894,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             cache: AnalyzingResourceCreator.MacroCache?,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: SharedSuggestionProvider,
-        ): AnalyzingResourceCreator.MacroNode? {
+        ) {
             // Skip irrelevant macros when generating suggestions
             if(reader.resourceCreator.canSuggestionsSkipRange(macro.absoluteRange.start, macro.absoluteRange.end))
-                return null
+                return
 
             val relevantLines = input.lines
             val startTime = Util.getNanos()
@@ -919,9 +912,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
                 val macroVariableValues = macroInvocation.variables.map { "" }
 
-                @Suppress("CAST_NEVER_SUCCEEDS")
-                resolvedMacroCursorMapper = (macroInvocation as MacroCursorMapperProvider)
-                    .`command_crafter$getCursorMapper`(macroVariableValues)
+                resolvedMacroCursorMapper = macroInvocation.getCursorMapper(macroVariableValues)
                 for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
                     resolvedMacroCursorMapper.sourceCursors[i] += 1 // Because leading '$' is included in the relevant lines, but not in the macro string that got parsed
 
@@ -989,13 +980,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val duration = (Util.getNanos() - startTime) / 1000
                 println("Took ${duration}µs to analyze macro: ${macro.string}")
             }
-            return AnalyzingResourceCreator.MacroNode(
+            reader.resourceCreator.newCache.macroCache.addMacro(AnalyzingResourceCreator.MacroNode(
                 macroAnalyzingResult,
                 input,
                 macro.rangeInParent,
                 macro.absoluteRange,
                 childResourceCreator.newCache.macroCache
-            )
+            ))
         }
 
         private fun analyzeMacroTemplateSyntax(
