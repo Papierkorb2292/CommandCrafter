@@ -109,7 +109,9 @@ data class PathOperations(
                 ?.flatMap { mapKeyNode -> analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList() })
         if(!keySuggestions.isNullOrEmpty() && segment.key != null) {
             analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
-                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                // Different channel, because if the tree before it has an empty range, a macro could go in-between,
+                // which means the start cursor would decrease and the suggestions end up overlapping
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL + "_pathkey",
                 StringRange(segment.range.start, segment.range.end),
                 StreamCompletionItemProvider(
                     segment.range.start,
