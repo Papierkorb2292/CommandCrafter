@@ -978,7 +978,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             macroAnalyzingResult.diagnostics += diagnostics
             if(logMacroAnalyzingTime) {
                 val duration = (Util.getNanos() - startTime) / 1000
-                println("Took ${duration}µs to analyze macro: ${macro.string}")
+                println("Took ${duration}µs to analyze macro: ${macro.string.content}")
             }
             reader.resourceCreator.newCache.macroCache.addMacro(AnalyzingResourceCreator.MacroNode(
                 macroAnalyzingResult,
