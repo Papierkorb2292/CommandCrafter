@@ -410,7 +410,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             }
             return entityType to entity
         } catch(e: Throwable) {
-            CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id", e)
+            CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id, please report this to the developer Papierkorb2292 and include a list of installed mods", e)
             return null
         }
     }
@@ -423,7 +423,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             val blockEntity = accessor.factory.create(BlockPos.ZERO, accessor.validBlocks.first().defaultBlockState()) ?: return null
             return blockEntityType to blockEntity
         } catch(e: Throwable) {
-            CommandCrafter.LOGGER.warn("Error creating dummy block entity of type $id", e)
+            CommandCrafter.LOGGER.warn("Error creating dummy block entity of type $id, please report this to the developer Papierkorb2292 and include a list of installed mods", e)
             return null
         }
     }
