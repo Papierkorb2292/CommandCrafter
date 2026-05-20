@@ -81,6 +81,7 @@
     "editor.processing.EntityArgumentMixin",
     "editor.processing.EntityDataAccessDataProviderMixin",
     "editor.processing.EntityMixin",
+    "editor.processing.EntityPermissionContextMixin",
     "editor.processing.EntitySelectorMixin",
     "editor.processing.EntitySelectorOptionsMixin",
     "editor.processing.EntitySelectorParserMixin",
