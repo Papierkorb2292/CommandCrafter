@@ -406,7 +406,7 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
 
     class NetworkCommandExecutor(private val client: Minecraft) : CommandExecutor {
         override fun executeCommand(command: String) {
-            client.gui.chat.addRecentChat("/$command") //TODO: Test how multiple lines work in chat screen
+            client.gui.hud.chat.addRecentChat("/$command") //TODO: Test how multiple lines work in chat screen
             client.connection?.sendCommand(command)
         }
     }

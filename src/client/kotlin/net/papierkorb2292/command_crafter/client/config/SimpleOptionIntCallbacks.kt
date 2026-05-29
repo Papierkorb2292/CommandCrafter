@@ -11,7 +11,6 @@ import net.minecraft.client.gui.narration.NarrationElementOutput
 import net.minecraft.network.chat.Component
 import net.papierkorb2292.command_crafter.mixin.client.OptionInstanceAccessor
 import java.util.*
-import java.util.function.Consumer
 import java.util.function.Function
 
 object SimpleOptionIntCallbacks : OptionInstance.ValueSet<Int> {
@@ -22,7 +21,7 @@ object SimpleOptionIntCallbacks : OptionInstance.ValueSet<Int> {
         x: Int,
         y: Int,
         width: Int,
-        changeCallback: Consumer<Int>
+        changeCallback: OptionInstance.ValueUpdateListener<in Int>
     ): Function<OptionInstance<Int>, AbstractWidget> {
         return Function { option ->
             val textInput = EditBox(
@@ -91,7 +90,7 @@ object SimpleOptionIntCallbacks : OptionInstance.ValueSet<Int> {
                     return@setResponder
                 }
                 option.set(int)
-                changeCallback.accept(int)
+                changeCallback.valueChanged(int)
                 container.setTooltip(tooltipFactory.apply(int))
             }
             container

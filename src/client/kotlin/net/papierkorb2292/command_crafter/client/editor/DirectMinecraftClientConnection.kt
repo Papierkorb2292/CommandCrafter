@@ -28,7 +28,7 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
 
     override fun reloadResources(params: ReloadResourcesParams) {
         if(params.onlyShaders != true) {
-            client.gui.chat.addClientSystemMessage(
+            client.gui.hud.chat.addClientSystemMessage(
                 Component.translatable("command_crafter.reload.resources").withStyle(ChatFormatting.GREEN))
             client.reloadResourcePacks()
             return
@@ -41,7 +41,7 @@ object DirectMinecraftClientConnection : MinecraftClientConnection {
             shaderReloadWaitFuture.whenComplete{ _, _ ->
                 client.execute {
                     // Has to run on render thread
-                    client.gui.chat.addClientSystemMessage(
+                    client.gui.hud.chat.addClientSystemMessage(
                         Component.translatable("command_crafter.reload.shaders").withStyle(ChatFormatting.GREEN))
                 }
                 DirectMinecraftClientConnection.shaderReloadWaitFuture = SimpleReloadInstance.create(

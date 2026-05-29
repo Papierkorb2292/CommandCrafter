@@ -4,10 +4,12 @@ import com.mojang.logging.LogQueues
 import com.mojang.logging.plugins.QueueLogAppender
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.Util.nullIsFine
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.Appender
+import org.apache.logging.log4j.core.Filter
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.core.config.Configuration
 import org.apache.logging.log4j.core.layout.LevelPatternSelector
@@ -73,7 +75,7 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         )).build()).withConfiguration(config).build()
 
         @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-        val appender: Appender = QueueLogAppender.createAppender(EDITOR_LOG_QUEUE, "false", layout, null, null)
+        val appender: Appender = QueueLogAppender.createAppender(EDITOR_LOG_QUEUE, "false", layout, nullIsFine<Filter>(null), nullIsFine<String>(null))
         appender.start()
         config.addAppender(appender)
         logger.addAppender(appender, Level.INFO, null)
