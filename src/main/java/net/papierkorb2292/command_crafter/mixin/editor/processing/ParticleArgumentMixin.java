@@ -78,8 +78,10 @@ public class ParticleArgumentMixin implements AnalyzingCommandNode {
         var nbt = nbtReader.parseAsArgument(optionsReader);
         var tree = treeBuilder.build(nbt);
 
+        var ignoreErrors = !hasNbt && parameterDecoder != null && parameterDecoder.decode(NbtOps.INSTANCE, NbtOps.INSTANCE.emptyMap()).isSuccess();
+
         StringRangeTree.TreeOperations.Companion.forNbt(tree, reader)
-            .withDiagnosticSeverity(DiagnosticSeverity.Error)
+            .withDiagnosticSeverity(ignoreErrors ? null : DiagnosticSeverity.Error)
             .analyzeFull(result, hasNbt, parameterDecoder);
     }
 
