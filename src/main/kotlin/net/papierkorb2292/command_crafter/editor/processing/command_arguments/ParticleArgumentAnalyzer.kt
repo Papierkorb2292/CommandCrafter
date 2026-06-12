@@ -71,8 +71,10 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         val nbt: Tag = nbtReader.parseAsArgument(optionsReader)!!
         val tree = treeBuilder.build(nbt)
 
+        val ignoreErrors = !hasNbt && parameterDecoder != null && parameterDecoder.decode(NbtOps.INSTANCE, NbtOps.INSTANCE.emptyMap()).isSuccess
+
         TreeOperations.forNbt(tree, optionsReader)
-            .withDiagnosticSeverity(DiagnosticSeverity.Error)
+            .withDiagnosticSeverity(if(ignoreErrors) null else DiagnosticSeverity.Error)
             .analyzeFull(result, parameterDecoder)
     }
 }
