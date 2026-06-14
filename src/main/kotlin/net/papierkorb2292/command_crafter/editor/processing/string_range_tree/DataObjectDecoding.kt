@@ -319,6 +319,13 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
             dummyEntities.values.forEach { analyzeEntity(it, valueInput, true) }
             dummyBlockEntitiesByType.values.forEach { analyzeBlockEntity(it, valueInput) }
+            ExtraDecoderBehavior.markCompletelyAccessed(valueInput.dynamic) // For storages
+        }
+
+    fun getConditionDecoderForStorages(): Decoder<Unit> =
+        DynamicOpsReadView.getReadDecoder(registries) { valueInput ->
+            // Storages don't have any type info yet
+            ExtraDecoderBehavior.markCompletelyAccessed(valueInput.dynamic)
         }
 
     fun <IdType> getDecoderForGenericType(types: Iterable<IdType>): Decoder<Unit> =

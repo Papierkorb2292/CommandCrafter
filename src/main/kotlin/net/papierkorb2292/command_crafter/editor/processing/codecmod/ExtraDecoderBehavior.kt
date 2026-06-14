@@ -68,6 +68,10 @@ interface ExtraDecoderBehavior<TNode : Any> {
             @Suppress("UNCHECKED_CAST")
             CURRENT_EXTRA_DECODER_BEHAVIOR.runWithValueSwap(RegisteredBehavior(behavior.callback as ExtraDecoderBehavior<TNode>, newOps), callback)
         }
+
+        fun <TNode : Any> markCompletelyAccessed(input: Dynamic<TNode>) {
+            getCurrentBehavior(input.ops)?.markCompletelyAccessed(input.value)
+        }
     }
 
     val branchBehavior: BranchBehavior

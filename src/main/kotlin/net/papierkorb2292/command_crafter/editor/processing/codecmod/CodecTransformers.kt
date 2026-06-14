@@ -536,16 +536,22 @@ object CodecTransformers {
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
                 Codec.either(
-                    Codec.STRING.fieldOf("entity").codec(),
-                    Codec.PASSTHROUGH.fieldOf("block").codec()
+                    Codec.either(
+                        Codec.STRING.fieldOf("entity").codec(),
+                        Codec.PASSTHROUGH.fieldOf("block").codec(),
+                    ),
+                    Codec.STRING.fieldOf("storage").codec()
                 ).decodeParent(),
                 { dataObjectDecoding, either ->
                     either?.map(
-                        { entityString ->
-                            dataObjectDecoding.getConditionDecoderForEntities(dataObjectDecoding.getEntityChangeCandidates(EntitySelectorParser(StringReader(entityString), true), true))
-                        }, { blockInput ->
-                            dataObjectDecoding.getConditionDecoderForBlocks(null)
-                        }
+                        { entityOrBlock -> entityOrBlock.map(
+                            { entityString ->
+                                dataObjectDecoding.getConditionDecoderForEntities(dataObjectDecoding.getEntityChangeCandidates(EntitySelectorParser(StringReader(entityString), true), true))
+                            }, { blockInput ->
+                                dataObjectDecoding.getConditionDecoderForBlocks(null)
+                            })
+                        },
+                        { storage -> dataObjectDecoding.getConditionDecoderForStorages() }
                     ) ?: dataObjectDecoding.getConditionDecoderForEverything()
                 }
             ),
