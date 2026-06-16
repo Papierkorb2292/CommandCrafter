@@ -34,7 +34,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute as @a run say HI!",
         "arguments" : {
@@ -55,7 +58,22 @@
                 "builtInRegistryHolder" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
                 "factory" : { },
                 "category" : "MISC",
-                "immuneTo" : [ ],
+                "immuneTo" : {
+                  "registry" : {
+                    "registryName" : {
+                      "namespace" : "minecraft",
+                      "path" : "root"
+                    },
+                    "identifier" : {
+                      "namespace" : "minecraft",
+                      "path" : "block"
+                    }
+                  },
+                  "location" : {
+                    "namespace" : "minecraft",
+                    "path" : "default_immune_to"
+                  }
+                },
                 "serialize" : false,
                 "summon" : false,
                 "fireImmune" : false,
@@ -174,7 +192,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute as @a run say HI!",
           "arguments" : { },
@@ -220,7 +241,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute as @a run say HI!",
             "command" : { },
@@ -292,7 +316,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute as @a run say HI!",
         "arguments" : { },
@@ -338,7 +365,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute as @a run say HI!",
           "command" : { },
@@ -408,7 +438,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute as @a run say HI!",
         "command" : { },
@@ -482,7 +515,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "command" : {
@@ -573,7 +609,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "arguments" : { },
@@ -619,7 +658,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "arguments" : { },
@@ -665,7 +707,10 @@
                   "y" : 0.0
                 },
                 "signingContext" : { },
-                "chatMessageChainer" : { }
+                "chatMessageChainer" : { },
+                "context" : null,
+                "sourceType" : "SYSTEM",
+                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
               },
               "input" : "execute if entity @s run tp @s ~ ~1 ~",
               "command" : { },
@@ -768,7 +813,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "arguments" : { },
@@ -814,7 +862,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "arguments" : { },
@@ -860,7 +911,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "command" : { },
@@ -958,7 +1012,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "arguments" : { },
@@ -1004,7 +1061,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "command" : { },
@@ -1101,7 +1161,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "command" : { },
@@ -1202,7 +1265,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "arguments" : {
@@ -1272,7 +1338,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "arguments" : { },
@@ -1318,7 +1387,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
             "command" : { },
@@ -1389,7 +1461,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "arguments" : { },
@@ -1435,7 +1510,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "command" : { },
@@ -1502,7 +1580,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "command" : { },
@@ -1574,7 +1655,10 @@
             "y" : 0.0
           },
           "signingContext" : { },
-          "chatMessageChainer" : { }
+          "chatMessageChainer" : { },
+          "context" : null,
+          "sourceType" : "SYSTEM",
+          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
         },
         "input" : "function ",
         "command" : { },
@@ -1650,7 +1734,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute as @a run say HI!",
           "arguments" : {
@@ -1671,7 +1758,22 @@
                   "builtInRegistryHolder" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
                   "factory" : { },
                   "category" : "MISC",
-                  "immuneTo" : [ ],
+                  "immuneTo" : {
+                    "registry" : {
+                      "registryName" : {
+                        "namespace" : "minecraft",
+                        "path" : "root"
+                      },
+                      "identifier" : {
+                        "namespace" : "minecraft",
+                        "path" : "block"
+                      }
+                    },
+                    "location" : {
+                      "namespace" : "minecraft",
+                      "path" : "default_immune_to"
+                    }
+                  },
                   "serialize" : false,
                   "summon" : false,
                   "fireImmune" : false,
@@ -1790,7 +1892,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute as @a run say HI!",
             "arguments" : { },
@@ -1836,7 +1941,10 @@
                   "y" : 0.0
                 },
                 "signingContext" : { },
-                "chatMessageChainer" : { }
+                "chatMessageChainer" : { },
+                "context" : null,
+                "sourceType" : "SYSTEM",
+                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
               },
               "input" : "execute as @a run say HI!",
               "command" : { },
@@ -1915,7 +2023,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "command" : {
@@ -2006,7 +2117,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "arguments" : { },
@@ -2052,7 +2166,10 @@
                   "y" : 0.0
                 },
                 "signingContext" : { },
-                "chatMessageChainer" : { }
+                "chatMessageChainer" : { },
+                "context" : null,
+                "sourceType" : "SYSTEM",
+                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
               },
               "input" : "execute if entity @s run tp @s ~ ~1 ~",
               "arguments" : { },
@@ -2098,7 +2215,10 @@
                     "y" : 0.0
                   },
                   "signingContext" : { },
-                  "chatMessageChainer" : { }
+                  "chatMessageChainer" : { },
+                  "context" : null,
+                  "sourceType" : "SYSTEM",
+                  "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                 },
                 "input" : "execute if entity @s run tp @s ~ ~1 ~",
                 "command" : { },
@@ -2238,7 +2358,10 @@
                         "y" : 0.0
                       },
                       "signingContext" : { },
-                      "chatMessageChainer" : { }
+                      "chatMessageChainer" : { },
+                      "context" : null,
+                      "sourceType" : "SYSTEM",
+                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2347,7 +2470,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "arguments" : {
@@ -2417,7 +2543,10 @@
                 "y" : 0.0
               },
               "signingContext" : { },
-              "chatMessageChainer" : { }
+              "chatMessageChainer" : { },
+              "context" : null,
+              "sourceType" : "SYSTEM",
+              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
             },
             "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
             "arguments" : { },
@@ -2463,7 +2592,10 @@
                   "y" : 0.0
                 },
                 "signingContext" : { },
-                "chatMessageChainer" : { }
+                "chatMessageChainer" : { },
+                "context" : null,
+                "sourceType" : "SYSTEM",
+                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
               },
               "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
               "command" : { },
@@ -2541,7 +2673,10 @@
               "y" : 0.0
             },
             "signingContext" : { },
-            "chatMessageChainer" : { }
+            "chatMessageChainer" : { },
+            "context" : null,
+            "sourceType" : "SYSTEM",
+            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
           },
           "input" : "function ",
           "command" : { },
@@ -2645,7 +2780,10 @@
                         "y" : 0.0
                       },
                       "signingContext" : { },
-                      "chatMessageChainer" : { }
+                      "chatMessageChainer" : { },
+                      "context" : null,
+                      "sourceType" : "SYSTEM",
+                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2784,7 +2922,10 @@
                         "y" : 0.0
                       },
                       "signingContext" : { },
-                      "chatMessageChainer" : { }
+                      "chatMessageChainer" : { },
+                      "context" : null,
+                      "sourceType" : "SYSTEM",
+                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2923,7 +3064,10 @@
                         "y" : 0.0
                       },
                       "signingContext" : { },
-                      "chatMessageChainer" : { }
+                      "chatMessageChainer" : { },
+                      "context" : null,
+                      "sourceType" : "SYSTEM",
+                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -3062,7 +3206,10 @@
                         "y" : 0.0
                       },
                       "signingContext" : { },
-                      "chatMessageChainer" : { }
+                      "chatMessageChainer" : { },
+                      "context" : null,
+                      "sourceType" : "SYSTEM",
+                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -3201,7 +3348,10 @@
                         "y" : 0.0
                       },
                       "signingContext" : { },
-                      "chatMessageChainer" : { }
+                      "chatMessageChainer" : { },
+                      "context" : null,
+                      "sourceType" : "SYSTEM",
+                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
                     },
                     "input" : "say HI!",
                     "command" : { },

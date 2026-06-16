@@ -11,20 +11,20 @@ import com.fasterxml.jackson.databind.ser.std.NullSerializer
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializerBase
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
-import com.fasterxml.jackson.datatype.jdk8.OptionalSerializer
 import com.github.difflib.text.DiffRow
 import com.github.difflib.text.DiffRowGenerator
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.CommandNode
-import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.material.Fluid
-import net.minecraft.world.item.Item
-import net.minecraft.core.Registry
+import net.fabricmc.fabric.impl.permission.CommandPermissionContext
 import net.minecraft.core.Holder
-import net.minecraft.server.MinecraftServer
+import net.minecraft.core.Registry
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.network.chat.Component
+import net.minecraft.server.MinecraftServer
+import net.minecraft.world.item.Item
 import net.minecraft.world.level.Level
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.material.Fluid
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.mixin.test.GameTestHelperAccessor
@@ -44,6 +44,7 @@ object TestSnapshotHelper {
         .addSerializer(Block::class.java, ToStringSerializer.instance)
         .addSerializer(Fluid::class.java, ToStringSerializer.instance)
         .addSerializer(Item::class.java, ToStringSerializer.instance)
+        .addSerializer(CommandPermissionContext::class.java, NullSerializer.instance)
     val objectMapper = ObjectMapper()
         .configure(SerializationFeature.INDENT_OUTPUT, true)
         .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
