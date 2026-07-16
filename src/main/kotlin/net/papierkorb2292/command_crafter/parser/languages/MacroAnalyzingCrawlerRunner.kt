@@ -1212,7 +1212,7 @@ class MacroAnalyzingCrawlerRunner(
             DoubleArgumentType::class.java,
             IntegerArgumentType::class.java,
             LongArgumentType::class.java,
-            ColorArgument::class.java,
+            TeamColorArgument::class.java,
             HexColorArgument::class.java,
             ObjectiveArgument::class.java,
             ObjectiveCriteriaArgument::class.java,

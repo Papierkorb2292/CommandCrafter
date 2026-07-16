@@ -1,5 +1,7 @@
 # CommandCrafter
 
+[<img src="https://badges.moddingx.org/modrinth/downloads/PGGZ2WoY?style=flat" alt="Downloads on Modrinth"><img src="https://badges.moddingx.org/modrinth/versions/PGGZ2WoY?style=flat" alt="Versions on Modrinth">](https://modrinth.com/mod/commandcrafter) [<img src="https://vsmarketplacebadges.dev/version/papierkorb2292.commandcrafter.svg" alt="Version on VSCode Marketplace">](https://marketplace.visualstudio.com/items?itemName=Papierkorb2292.commandcrafter)
+
 ![A video typing a macro command into a function file making use of CommandCrafter's auto-completion](editor_extensions/vscode/MacroExample.gif)
 
 This [Fabric mod](https://modrinth.com/mod/commandcrafter) and [VSCode extension](https://marketplace.visualstudio.com/items?itemName=Papierkorb2292.commandcrafter) connects your editor to Minecraft, giving you lots of useful features for datapacks, such as:

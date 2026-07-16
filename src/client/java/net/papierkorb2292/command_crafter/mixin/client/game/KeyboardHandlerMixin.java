@@ -1,31 +1,30 @@
 package net.papierkorb2292.command_crafter.mixin.client.game;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.TypedDataComponent;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.RegistryOps;
-import net.minecraft.network.chat.Component;
-import net.minecraft.ChatFormatting;
 import net.minecraft.world.phys.HitResult;
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter;
 import net.papierkorb2292.command_crafter.editor.debugger.variables.SlotAccessValueReference;
 import org.jspecify.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
 import java.util.Collections;
-import java.util.Locale;
 import java.util.Objects;
 
 @Mixin(KeyboardHandler.class)
@@ -35,7 +34,8 @@ public abstract class KeyboardHandlerMixin {
     public abstract void setClipboard(String clipboard);
 
     @Shadow
-    protected abstract void showDebugChat(Component message);
+    @Final
+    private Minecraft minecraft;
 
     @ModifyExpressionValue(
             method = "copyRecreateCommand",
@@ -76,9 +76,9 @@ public abstract class KeyboardHandlerMixin {
         String giveCommand = "/give @s " + formatted;
         setClipboard(giveCommand);
         if(notPressingShift)
-            showDebugChat(Component.translatable("command_crafter.debug.inspect.item").withStyle(ChatFormatting.GREEN));
+            minecraft.showDebugChat(Component.translatable("command_crafter.debug.inspect.item").withStyle(ChatFormatting.GREEN));
         else
-            showDebugChat(Component.translatable("command_crafter.debug.inspect.item.default").withStyle(ChatFormatting.GREEN));
+            minecraft.showDebugChat(Component.translatable("command_crafter.debug.inspect.item.default").withStyle(ChatFormatting.GREEN));
 
         return null;
     }

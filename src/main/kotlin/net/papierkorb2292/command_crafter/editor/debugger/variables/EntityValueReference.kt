@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.editor.debugger.variables
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.advancements.criterion.NbtPredicate
+import net.minecraft.advancements.predicates.NbtPredicate
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.nbt.CompoundTag

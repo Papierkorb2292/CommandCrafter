@@ -16,7 +16,6 @@ import java.util.function.Function;
 
 @Mixin(ParticleArgument.class)
 public class ParticleArgumentMixin {
-
     @ModifyReceiver(
             method = "readParticle(Lnet/minecraft/nbt/TagParser;Lcom/mojang/brigadier/StringReader;Lnet/minecraft/core/particles/ParticleType;Lnet/minecraft/core/HolderLookup$Provider;)Lnet/minecraft/core/particles/ParticleOptions;",
             at = @At(

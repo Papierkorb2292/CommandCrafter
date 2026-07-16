@@ -15,6 +15,7 @@ import com.github.difflib.text.DiffRow
 import com.github.difflib.text.DiffRowGenerator
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.CommandNode
+import net.fabricmc.fabric.impl.permission.CommandPermissionContext
 import net.minecraft.core.Holder
 import net.minecraft.core.Registry
 import net.minecraft.gametest.framework.GameTestHelper
@@ -45,6 +46,7 @@ object TestSnapshotHelper {
         .addSerializer(Block::class.java, ToStringSerializer.instance)
         .addSerializer(Fluid::class.java, ToStringSerializer.instance)
         .addSerializer(Item::class.java, ToStringSerializer.instance)
+        .addSerializer(CommandPermissionContext::class.java, NullSerializer.instance)
     val objectMapper = ObjectMapper()
         .configure(SerializationFeature.INDENT_OUTPUT, true)
         .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
