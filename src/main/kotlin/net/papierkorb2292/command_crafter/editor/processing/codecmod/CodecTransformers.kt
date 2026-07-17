@@ -12,10 +12,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.ints.IntList
 import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
-import net.minecraft.advancements.criterion.BlockPredicate
-import net.minecraft.advancements.criterion.EntityPredicate
-import net.minecraft.advancements.criterion.EntityTypePredicate
-import net.minecraft.advancements.criterion.NbtPredicate
+import net.minecraft.advancements.predicates.BlockPredicate
+import net.minecraft.advancements.predicates.NbtPredicate
+import net.minecraft.advancements.predicates.entity.EntityPredicate
+import net.minecraft.advancements.predicates.entity.EntityTypePredicate
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.HolderLookup
@@ -276,15 +276,16 @@ object CodecTransformers {
     })
 
     @JvmStatic
-    @CodecMod(target = EntityPredicate::class, codecField = "nbt")
-    fun addEntityPredicateNbtSuggestions(codec: Codec<NbtPredicate>): Codec<NbtPredicate> =
+    @CodecMod(target = EntityPredicate::class, javaFieldWrite = "MAP_CODEC")
+    fun addEntityPredicateNbtSuggestions(codec: Codec<*>): Codec<*> =
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
-                EntityTypePredicate.CODEC.fieldOf("type").decoder().decodeParent().map { it.types },
+                EntityTypePredicate.CODEC.encodedFieldOf(Identifier.parse("entity_type"), Identifier.CODEC).map { it.types },
                 DataObjectDecoding::getConditionDecoderForEntities,
             ),
-            BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
+            BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null)),
+            Codec.PASSTHROUGH.encodedFieldOf(Identifier.parse("nbt"), Identifier.CODEC)
         )
 
     @JvmStatic

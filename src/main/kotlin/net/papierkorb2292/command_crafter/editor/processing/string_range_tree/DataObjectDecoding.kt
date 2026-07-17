@@ -6,7 +6,7 @@ import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
-import net.minecraft.advancements.criterion.NbtPredicate
+import net.minecraft.advancements.predicates.NbtPredicate
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceArgument
@@ -25,6 +25,7 @@ import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.flag.FeatureFlags
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
@@ -56,7 +57,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
         val NON_PLAYER_ENTITY_TYPE_CODEC: Codec<EntityType<*>> = Codec.of(
             EntityType.CODEC,
-            EntityType.CODEC.withThreadLocal(CodecTransformers.REGISTRY_SUGGESTIONS_BLACKLIST, setOf(EntityType.PLAYER))
+            EntityType.CODEC.withThreadLocal(CodecTransformers.REGISTRY_SUGGESTIONS_BLACKLIST, setOf(EntityTypes.PLAYER))
         )
 
         // Used to replace components in Holder.Reference.components so default components can be accessed outside a world,
@@ -132,7 +133,12 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             return if(decoderData?.node == node) decoderData else null
         }
 
-        fun <TResult> wrapWithEmbeddedDecoder(delegate: Codec<TResult>, embeddedDecoderProvider: Decoder<out Decoder<*>>, branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier = BranchBehaviorProvider.DEFAULT_BEHAVIOR_MODIFIER): Codec<TResult> = object : Codec<TResult> {
+        fun <TResult> wrapWithEmbeddedDecoder(
+            delegate: Codec<TResult>,
+            embeddedDecoderProvider: Decoder<out Decoder<*>>,
+            branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier = BranchBehaviorProvider.DEFAULT_BEHAVIOR_MODIFIER,
+            affectedNodeSelector: Decoder<Dynamic<*>> = Codec.PASSTHROUGH
+        ): Codec<TResult> = object : Codec<TResult> {
             override fun <T: Any> encode(input: TResult, ops: DynamicOps<T>, prefix: T): DataResult<T> =
                 delegate.encode(input, ops, prefix)
 
@@ -143,7 +149,10 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 val embeddedDecoder = embeddedDecoderProvider.onlyContextBehavior().decode(ops, input).result()
                     .getOrNull()?.first
                     ?: return delegate.decode(ops, input)
-                return delegate.withThreadLocal(EMBEDDED_NBT_DECODER, EmbeddedNbtDecoderData(input, embeddedDecoder, branchBehaviorModifier))
+                val affectedNode = affectedNodeSelector.onlyContextBehavior().decode(ops, input).result()
+                    .getOrNull()?.first
+                    ?: return delegate.decode(ops, input)
+                return delegate.withThreadLocal(EMBEDDED_NBT_DECODER, EmbeddedNbtDecoderData(affectedNode.value, embeddedDecoder, branchBehaviorModifier))
                     .decode(ops, input)
             }
         }
@@ -260,7 +269,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         val selector = selectorParser.selector
         if(!selector.includesEntities()) {
             if(includePlayers) {
-                val player = dummyEntities[EntityType.PLAYER]!!
+                val player = dummyEntities[EntityTypes.PLAYER]!!
                 if(predicates.all { predicate -> predicate.test(player) })
                     return listOf(player)
             }
@@ -398,7 +407,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
 
     private fun <T : Entity> createDummyEntity(id: Identifier, entityType: EntityType<T>): Pair<EntityType<T>, Entity>? {
         try {
-            if(entityType == EntityType.PLAYER) {
+            if(entityType == EntityTypes.PLAYER) {
                 val entity = PLAYER_CONSTRUCTOR_LEVEL_OVERRIDE.runWithValueSwap(dummyWorld) {
                     ServerPlayer(
                         Util.nullIsFine<MinecraftServer>(null), // Handled with mixins

@@ -67,12 +67,12 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
         val ctx: LoggerContext = LogManager.getContext(false) as LoggerContext
         val config: Configuration = ctx.configuration
 
-        val layout = PatternLayout.newBuilder().withPatternSelector(LevelPatternSelector.newBuilder().setProperties(arrayOf(
+        val layout = PatternLayout.newBuilder().setPatternSelector(LevelPatternSelector.newBuilder().setProperties(arrayOf(
             PatternMatch("info" , getAnsiPattern("cyan", true)), // "#3794ff" --> #1c4c83
             PatternMatch("warn" , getAnsiPattern("yellow", false)), // "#cca700" --> #ae9623
             PatternMatch("error", getAnsiPattern("red", false)), // "#f48771" --> #b6494b
             PatternMatch("debug", getAnsiPattern("bg_yellow black", false))
-        )).build()).withConfiguration(config).build()
+        )).build()).setConfiguration(config).build()
 
         @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val appender: Appender = QueueLogAppender.createAppender(EDITOR_LOG_QUEUE, "false", layout, nullIsFine<Filter>(null), nullIsFine<String>(null))

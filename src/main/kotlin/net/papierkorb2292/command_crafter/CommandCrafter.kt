@@ -19,7 +19,6 @@ import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.resources.Identifier
-import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.server.ServerFunctionLibrary
 import net.minecraft.server.notifications.EmptyNotificationService
 import net.minecraft.server.permissions.LevelBasedPermissionSet
@@ -283,7 +282,7 @@ object CommandCrafter: ModInitializer {
         PackContentFileType.RECIPES_FILE_TYPE to Recipe.CODEC,
     )
     fun registerDynamicRegistries() {
-        val registries = DynamicRegistries.getDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
+        val registries = DynamicRegistries.getWorldRegistries()
         val dynamicJsonResourceCodecs = registries.associate { dynamicRegistry ->
             PackContentFileType.getOrCreateTypeForDynamicRegistry(dynamicRegistry.key) to dynamicRegistry.elementCodec
         }
@@ -291,8 +290,7 @@ object CommandCrafter: ModInitializer {
     }
     fun registerRegistryTags() {
         val keys = BuiltInRegistries.REGISTRY.registryKeySet() +
-            DynamicRegistries.getDynamicRegistries().map { it.key } +
-            RegistryDataLoader.DIMENSION_REGISTRIES.map { it.key } +
+            DynamicRegistries.getWorldRegistries().map { it.key } +
             ServerFunctionLibrary.TYPE_KEY
         val tagJsonResourceCodecs = keys.associate { key ->
             PackContentFileType.getOrCreateTypeForRegistryTag(key) to TagFile.CODEC

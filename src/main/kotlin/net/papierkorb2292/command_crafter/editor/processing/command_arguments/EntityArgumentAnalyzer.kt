@@ -5,7 +5,7 @@ import com.mojang.brigadier.context.StringRange
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
-import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.player.Player
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -43,7 +43,7 @@ class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
             }
 
 
-            if(!allowPlayers && allowedEntities.size == 1 && allowedEntities.first().type == EntityType.PLAYER) {
+            if(!allowPlayers && allowedEntities.size == 1 && allowedEntities.first().type == EntityTypes.PLAYER) {
                 val sourceRange = result.mappingInfo.cursorMapper.mapToSource(range + reader.readSkippingChars)
                 result.diagnostics.add(
                     Diagnostic(

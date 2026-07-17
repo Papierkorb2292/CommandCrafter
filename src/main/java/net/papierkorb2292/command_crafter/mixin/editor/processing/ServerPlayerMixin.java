@@ -19,6 +19,7 @@ import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
@@ -167,7 +168,7 @@ public abstract class ServerPlayerMixin extends Avatar {
         final var enderPearls = input.childrenListOrEmpty(ENDER_PEARLS_TAG);
         final var dataObjectDecoding = DataObjectDecoding.Companion.getForDecoder(dynamicOpsReadView.getDynamic().getOps());
         if(dataObjectDecoding == null) return;
-        final var enderPearl = dataObjectDecoding.getDummyEntities().get(EntityType.ENDER_PEARL);
+        final var enderPearl = dataObjectDecoding.getDummyEntities().get(EntityTypes.ENDER_PEARL);
         for(final var enderPearlInput : enderPearls) {
             enderPearlInput.read(ENDER_PEARL_DIMENSION_TAG, Level.RESOURCE_KEY_CODEC);
             enderPearlInput.read("id", command_crafter$enderPearlIdCodec);

@@ -62,7 +62,7 @@ import java.util.stream.Collectors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
-    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> = DynamicRegistries.getDynamicRegistries() + LootDataType.values().map {
+    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> = DynamicRegistries.getBootstrappingRegistries() + LootDataType.values().map {
         createRegistryLoaderEntryForLootDataType(it)
     }.toList()
     fun getSyncedRegistries() = getAllDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES

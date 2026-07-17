@@ -51,6 +51,10 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
     private val chunkManager = DummyChunkManager()
     override fun players(): MutableList<out Player> = mutableListOf()
 
+    private var nextEntityId = 1
+
+    override fun getNextEntityId(): Int = nextEntityId++
+
     override fun getUncachedNoiseBiome(biomeX: Int, biomeY: Int, biomeZ: Int): Holder<Biome> {
         return registryAccess().getOrThrow(Biomes.PLAINS)
     }

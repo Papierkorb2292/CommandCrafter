@@ -636,7 +636,7 @@ public class EntitySelectorOptionsMixin {
                     )
             )
     )
-    private static void command_crafter$trackTagTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op, @Local(name = "id") TagKey<EntityType<?>> id) {
+    private static void command_crafter$trackTagTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op, @Local(name = "key") TagKey<EntityType<?>> id) {
         final var tracker = getOrNull(DataObjectDecoding.Companion.getSELECTOR_TYPE_PREDICATE_TRACKER());
         if(tracker != null) {
             // Only add condition if tag is bound

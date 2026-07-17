@@ -155,6 +155,18 @@ fun <T> unitDecoder(unit: T) = object : Decoder<T> {
         DataResult.success(Pair(unit, ops.empty()))
 }
 
+fun <T, K> Decoder<T>.encodedFieldOf(key: K, keyDecoder: Decoder<K>) = object : Decoder<T> {
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> =
+        ops.getMap(input).flatMap { map ->
+            map.entries().filter {
+                keyDecoder.decode(ops, it.first).result().getOrNull()?.first == key
+            }.findFirst()
+                .map { this@encodedFieldOf.decode(ops, it.second) }
+                .getOrNull()
+                ?: DataResult.error { "No encoded key $key in $input" }
+        }
+}
+
 interface BeforeDecodeCallback {
     fun <TNode: Any> invoke(input: TNode, ops: DynamicOps<TNode>)
 }
