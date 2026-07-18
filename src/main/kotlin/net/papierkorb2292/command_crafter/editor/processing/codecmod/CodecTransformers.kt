@@ -52,6 +52,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.rule.blockent
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
@@ -613,7 +614,7 @@ object CodecTransformers {
                 }
             } else {
                 val parser = behavior.macroParser ?: return@MalformedStringDecoderAnalyzing
-                val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range)
+                val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range + analyzingBehavior.baseMappingInfo.readSkippingChars)
                 val relevantLines = AnalyzingResult.getLinesBetweenCursors(absoluteRange.start, absoluteRange.end, analyzingBehavior.baseMappingInfo)
 
                 val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser,
@@ -626,7 +627,7 @@ object CodecTransformers {
                         reader.string,
                         OffsetProcessedInputCursorMapper(absoluteRange.start).combineWith(reader.cursorMapper), // Map cursor relative to the beginning of the string
                         string.escaper
-                    ), absoluteRange, analyzingBehavior.range
+                    ), absoluteRange, analyzingBehavior.range + analyzingBehavior.baseMappingInfo.readSkippingChars
                 )
                 val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
                 if(cachedNode != null) {
