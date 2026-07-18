@@ -616,7 +616,11 @@ object CodecTransformers {
                 val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range)
                 val relevantLines = AnalyzingResult.getLinesBetweenCursors(absoluteRange.start, absoluteRange.end, analyzingBehavior.baseMappingInfo)
 
-                val input = AnalyzingResourceCreator.MacroInput(relevantLines, isTemplate, false, parser)
+                val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser,
+                    isTemplate = isTemplate,
+                    hasTemplatePrefix = false,
+                    addMissingVariablesError = false,
+                )
                 val macro = AnalyzingResourceCreator.DecodedMacro(
                     StringContent(
                         reader.string,

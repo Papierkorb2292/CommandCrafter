@@ -135,7 +135,7 @@ class AnalyzingResourceCreator(
         override fun toString() = input.lines.joinToString("\n")
     }
 
-    data class MacroInput(val lines: List<String>, val isTemplate: Boolean, val addMissingVariablesError: Boolean, val parser: MacroParser)
+    data class MacroInput(val lines: List<String>, val parser: MacroParser, val isTemplate: Boolean, val hasTemplatePrefix: Boolean, val addMissingVariablesError: Boolean)
 
     data class DelayedMacro(val input: MacroInput, val macro: DecodedMacro, val cache: MacroCache?, val reader: DirectiveStringReader<AnalyzingResourceCreator>)
 

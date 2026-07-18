@@ -259,7 +259,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         // Get only the relevant lines for caching
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(macro.absoluteRange.start, macro.absoluteRange.end, reader.fileMappingInfo)
-        val input = AnalyzingResourceCreator.MacroInput(relevantLines, true, true, parser)
+        val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser,
+            isTemplate = true,
+            hasTemplatePrefix = true,
+            addMissingVariablesError = true,
+        )
         val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
         if(cachedNode != null) {
@@ -919,8 +923,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val macroVariableValues = macroInvocation.variables.map { "" }
 
                 resolvedMacroCursorMapper = macroInvocation.getCursorMapper(macroVariableValues)
-                for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
-                    resolvedMacroCursorMapper.sourceCursors[i] += 1 // Because leading '$' is included in the relevant lines, but not in the macro string that got parsed
+                if(input.hasTemplatePrefix)
+                    for(i in 0 until resolvedMacroCursorMapper.sourceCursors.size)
+                        resolvedMacroCursorMapper.sourceCursors[i] += 1 // Because leading '$' is included in the relevant lines, but not in the macro string that got parsed
 
                 // Build a new FileMappingInfo that only includes the lines with the macro such that the result can be cached regardless of other file content
                 val macroSourceFileInfo = FileMappingInfo(
@@ -935,7 +940,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     macro.string.content,
                     diagnostics,
                     macroSourceFileInfo,
-                    input.addMissingVariablesError
+                    input.addMissingVariablesError,
+                    input.hasTemplatePrefix
                 )
                 replacedMacro = macroInvocation.substitute(macroVariableValues)
                 // A macro variable is present at the beginning of every segment except for the first one
@@ -1018,16 +1024,19 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             diagnostics: MutableList<Diagnostic>,
             macroSourceFileInfo: FileMappingInfo,
             addMissingVariablesError: Boolean,
+            hasTemplatePrefix: Boolean
         ) {
-            // Highlight starting '$' with the same color as macro variables
-            // This ensures some kind of consistency, and it makes macro lines stand out to more
-            variablesSemanticTokens.addMultiline(0, 1, TokenType.ENUM, 0)
+            if(hasTemplatePrefix) {
+                // Highlight starting '$' with the same color as macro variables
+                // This ensures some kind of consistency, and it makes macro lines stand out to more
+                variablesSemanticTokens.addMultiline(0, 1, TokenType.ENUM, 0)
+            }
             for((i, variable) in macroInvocation.variables.withIndex()) {
                 val variableStart = resolvedMacroCursorMapper.sourceCursors[i] + resolvedMacroCursorMapper.lengths[i]
                 variablesSemanticTokens.addMultiline(variableStart, 2 + variable.length + 1, TokenType.ENUM, 0)
                 val variableNameStart = variableStart + 2
                 val variableNameEnd = variableNameStart + variable.length
-                val hasClosingParentheses = macroString.getOrNull(variableNameEnd - 1) == ')'
+                val hasClosingParentheses = macroString.getOrNull(variableNameEnd - if(hasTemplatePrefix) 1 else 0) == ')'
                 if(hasClosingParentheses) {
                     // Only check for a valid name if the macro has closing parentheses, otherwise it might be including too many chars anyway
                     // that aren't actually intended to be part of the name
