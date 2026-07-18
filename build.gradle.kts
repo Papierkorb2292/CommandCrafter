@@ -75,11 +75,13 @@ loom {
             name("Game Test")
             vmArg("-Dfabric-api.gametest")
             vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
             runDir("build/gametest")
         }
 
         getByName("client") {
             vmArg("@$mixinJavaagentArgFile")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
             val devUsername = project.extra["dev_username"] as String
             programArg("--username=$devUsername")
             val uuid = fetchPlayerUUID(devUsername)
@@ -89,6 +91,7 @@ loom {
 
         getByName("server") {
             vmArg("@$mixinJavaagentArgFile")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
         }
     }
 }
