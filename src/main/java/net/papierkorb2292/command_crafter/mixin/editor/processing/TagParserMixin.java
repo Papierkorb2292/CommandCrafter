@@ -100,7 +100,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     private static Codec<CompoundTag> command_crafter$storeFlattenedCodecInput(Codec<CompoundTag> codec) {
         command_crafter$decoderAnalyzing = new MalformedStringDecoderAnalyzing<>(
                 (dynamic) -> DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue()),
-                (decoderData, result, behavior, reader) -> {
+                (decoderData, result, _, reader, _, _) -> {
                     CompoundTagArgumentAnalyzer.Companion.analyzeReader(
                             reader,
                             result,

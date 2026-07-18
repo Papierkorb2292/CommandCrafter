@@ -28,7 +28,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
     private var branchBehaviorProvider: BranchBehaviorProvider<TNode>,
     override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
     private val macroNodes: Set<TNode>,
-    override val onlyContextOps: DynamicOps<TNode>
+    override val onlyContextOps: DynamicOps<TNode>,
+    override val macroParser: AnalyzingResourceCreator.MacroParser?
 ) : DelegatingDynamicOps<TNode>, ExtraDecoderBehavior<TNode> {
     override var parentLinks: ParentLinks? = null
         private set
@@ -53,7 +54,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
                     operations.branchBehaviorProvider,
                     operations.reader,
                     operations.macroNodes,
-                    wrapDynamicOps(operations.ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second
+                    wrapDynamicOps(operations.ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second,
+                    operations.macroParser
                 )
             }
             // Apply AccessedKeysWatcher second, so it includes placeholder entries
@@ -308,6 +310,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
 
             override val stringContentGetter get() = stringContent
             override val range get() = range
+            override val baseMappingInfo: FileMappingInfo
+                get() = baseResult.mappingInfo
 
             override fun createNodeAnalyzingResultOverlay(): AnalyzingResult {
                 val result = baseResult.copyInput()

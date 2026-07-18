@@ -39,7 +39,7 @@ public class EntitySelectorMixin {
         final var language = new VanillaLanguage();
         final var stringAnalyzing = new MalformedStringDecoderAnalyzing<>(
                 _ -> null,
-                (_, result, behavior, reader) -> {
+                (_, result, _, reader, _ , _) -> {
                     reader.enterClosure(new Language.TopLevelClosure(language));
                     language.analyzeCommandNode(
                             new ParsedCommandNode<>(entityNode, new StringRange(reader.getCursor(), reader.getRemainingLength())),

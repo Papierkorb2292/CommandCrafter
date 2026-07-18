@@ -27,14 +27,15 @@ data class PathOperations(
     val input: String,
     val suggestionResolver: StringRangeTree.SuggestionResolver<Tag>,
     override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
+    override val macroParser: AnalyzingResourceCreator.MacroParser,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
-    override val branchBehaviorProvider: BranchBehaviorProvider<Tag> = BranchBehaviorProvider.Decode
+    override val branchBehaviorProvider: BranchBehaviorProvider<Tag> = BranchBehaviorProvider.Decode,
 ) : SchemaOperations<Tag> {
     companion object {
         private val keyCharactersRequireQuoted = CharSet.of(' ', '"', '\'', '[', ']', '.', '{', '}')
 
         fun forReader(path: StringRangePath, reader: DirectiveStringReader<AnalyzingResourceCreator>) =
-            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false }, reader)
+            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false }, reader, NbtMacroParser)
     }
 
     val nodeToKeySegment = path.segments.filter { it.key != null }.associateByTo(IdentityHashMap()) { it.tree.root }

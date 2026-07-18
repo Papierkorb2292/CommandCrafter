@@ -38,7 +38,7 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
 
         val malformedStringAnalyzer = MalformedStringDecoderAnalyzing({
             DataObjectDecoding.getEmbeddedNbtDecoder(it.value)
-        }, { decoderData, result, behavior, reader ->
+        }, { decoderData, result, _, reader, _, _ ->
             analyzeReader(reader, result, BranchBehaviorProvider.getForPathLookup(null), decoderData?.decoder)
         })
 

@@ -340,26 +340,30 @@ class StringRangeTreeJsonReader(private val jsonReaderProvider: () -> JsonReader
     }
 
     class StringContentGetter(val tree: StringRangeTree<JsonElement>, val input: String): StringContent.StringContentGetter<JsonElement> {
-        override fun getStringContent(node: JsonElement): StringContent? {
-            if(node !is JsonPrimitive || !node.isString)
-                return null
-            val range = tree.ranges[node]!!
-            val firstChar = input[range.start]
-            val isQuoted = firstChar == '"' || firstChar == '\''
-            val sourceString =
-                if(isQuoted)
-                // If the string is missing content and end quotes, end-1 will be before start+1
-                    if(range.end - 1 > range.start)
-                        input.substring(range.start + 1, range.end - 1)
+        companion object {
+            fun getStringContent(node: JsonElement, input: String, range: StringRange): StringContent? {
+                if(node !is JsonPrimitive || !node.isString)
+                    return null
+                val firstChar = input[range.start]
+                val isQuoted = firstChar == '"' || firstChar == '\''
+                val sourceString =
+                    if(isQuoted)
+                    // If the string is missing content and end quotes, end-1 will be before start+1
+                        if(range.end - 1 > range.start)
+                            input.substring(range.start + 1, range.end - 1)
+                        else
+                            input.substring(range.start + 1, range.end)
                     else
-                        input.substring(range.start + 1, range.end)
-                else
-                    input.substring(range.start, range.end)
-            return StringContent(
-                node.asString,
-                createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
-                if(isQuoted) StringEscaper.escapeForQuotes(firstChar.toString()) else StringEscaper.Identity
-            )
+                        input.substring(range.start, range.end)
+                return StringContent(
+                    node.asString,
+                    createCursorMapperForEscapedCharacters(sourceString, range.start + 1),
+                    if(isQuoted) StringEscaper.escapeForQuotes(firstChar.toString()) else StringEscaper.Identity
+                )
+            }
         }
+
+        override fun getStringContent(node: JsonElement): StringContent? =
+            getStringContent(node, input, tree.ranges[node]!!)
     }
 }

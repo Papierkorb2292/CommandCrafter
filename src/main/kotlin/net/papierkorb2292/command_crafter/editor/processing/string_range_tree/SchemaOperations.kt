@@ -13,5 +13,6 @@ interface SchemaOperations<TNode : Any> {
     val branchBehaviorProvider: BranchBehaviorProvider<TNode>
     val typeHints: Map<TNode, StringRangeTree.NodeTypeHint>
     val macroNodes: Set<TNode>
+    val macroParser: AnalyzingResourceCreator.MacroParser
     fun getParentLinks(ops: DynamicOps<TNode>) : ParentLinks
 }

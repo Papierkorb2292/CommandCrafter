@@ -259,7 +259,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         // Get only the relevant lines for caching
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(macro.absoluteRange.start, macro.absoluteRange.end, reader.fileMappingInfo)
-        val input = AnalyzingResourceCreator.MacroInput(relevantLines, true, parser)
+        val input = AnalyzingResourceCreator.MacroInput(relevantLines, true, true, parser)
         val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
         if(cachedNode != null) {
@@ -888,7 +888,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         private val DOUBLE_SLASH_EXCEPTION = SimpleCommandExceptionType(Component.literal("Unknown or invalid command  (if you intended to make a comment, use '#' not '//')"))
         private val COMMAND_NEEDS_NEW_LINE_EXCEPTION = SimpleCommandExceptionType(Component.nullToEmpty("Command doesn't end with a new line"))
 
-        private fun analyzeMacroString(
+        fun analyzeMacroString(
             input: AnalyzingResourceCreator.MacroInput,
             macro: AnalyzingResourceCreator.DecodedMacro,
             cache: AnalyzingResourceCreator.MacroCache?,
@@ -898,6 +898,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Skip irrelevant macros when generating suggestions
             if(reader.resourceCreator.canSuggestionsSkipRange(macro.absoluteRange.start, macro.absoluteRange.end))
                 return
+
+            // If this is a nested macro, wait until the outer macro finishes, since there's a time limit for the outer macro that shouldn't be exhausted by the nested macro
+            reader.resourceCreator.macroQueue?.let { queue ->
+                queue += AnalyzingResourceCreator.DelayedMacro(input, macro, cache, reader)
+                return
+            }
 
             val relevantLines = input.lines
             val startTime = Util.getNanos()
@@ -928,7 +934,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     variablesSemanticTokens,
                     macro.string.content,
                     diagnostics,
-                    macroSourceFileInfo
+                    macroSourceFileInfo,
+                    input.addMissingVariablesError
                 )
                 replacedMacro = macroInvocation.substitute(macroVariableValues)
                 // A macro variable is present at the beginning of every segment except for the first one
@@ -948,6 +955,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             )
             val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
             val childResourceCreator = reader.resourceCreator.copyForMacro()
+            val macroQueue = mutableListOf<AnalyzingResourceCreator.DelayedMacro>()
+            childResourceCreator.macroQueue = macroQueue
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
             if(resolvedMacroCursorMapper != null)
                 resolvedMacroCursorMapper.mapAllToTargetSorted(childResourceCreator.macroTargetCursors, true)
@@ -958,7 +967,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.dispatcher,
                     childResourceCreator
                 ).apply {
-                    // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
+                   // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
                     toCompleted()
                     string = replacedMacro
                 },
@@ -980,6 +989,18 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val duration = (Util.getNanos() - startTime) / 1000
                 println("Took ${duration}µs to analyze macro: ${macro.string.content}")
             }
+
+            for(delayedMacro in macroQueue) {
+                delayedMacro.reader.resourceCreator.macroQueue = null
+                analyzeMacroString(
+                    delayedMacro.input,
+                    delayedMacro.macro,
+                    delayedMacro.cache,
+                    delayedMacro.reader,
+                    source
+                )
+            }
+
             reader.resourceCreator.newCache.macroCache.addMacro(AnalyzingResourceCreator.MacroNode(
                 macroAnalyzingResult,
                 input,
@@ -996,6 +1017,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             macroString: String,
             diagnostics: MutableList<Diagnostic>,
             macroSourceFileInfo: FileMappingInfo,
+            addMissingVariablesError: Boolean,
         ) {
             // Highlight starting '$' with the same color as macro variables
             // This ensures some kind of consistency, and it makes macro lines stand out to more
@@ -1040,7 +1062,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 }
             }
 
-            if(macroInvocation.variables.isEmpty()) {
+            if(addMissingVariablesError && macroInvocation.variables.isEmpty()) {
                 diagnostics += Diagnostic(
                     Range(Position(0, 0), Position(0, 1)), // Mark '$'
                     "No variables in macro"

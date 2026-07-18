@@ -92,7 +92,7 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             directiveReader.cursor = 0
 
             try {
-                analyzer.analyze(context, analyzingResult, extraBehavior, directiveReader)
+                analyzer.analyze(context, analyzingResult, extraBehavior, directiveReader, stringContent, analyzingBehavior)
             } catch(e: CommandSyntaxException) {
                 CommandCrafter.LOGGER.debug("Error analyzing string content '${stringContent.content}'", e)
             }
@@ -115,6 +115,6 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
     }
 
     fun interface StringAnalyzer<TContext> {
-        fun analyze(context: TContext, result: AnalyzingResult, behavior: ExtraDecoderBehavior<*>, reader: DirectiveStringReader<AnalyzingResourceCreator>)
+        fun analyze(context: TContext, result: AnalyzingResult, behavior: ExtraDecoderBehavior<*>, reader: DirectiveStringReader<AnalyzingResourceCreator>, string: StringContent, analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<*>)
     }
 }

@@ -64,12 +64,14 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoder
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.Language.TopLevelClosure
+import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -580,7 +582,7 @@ object CodecTransformers {
             return if(flattened.isEmpty) CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader) else null
         }
 
-        val analyzing = MalformedStringDecoderAnalyzing({}, { context, result, behavior, reader ->
+        val analyzing = MalformedStringDecoderAnalyzing({}, { context, result, behavior, reader, string, analyzingBehavior ->
             val isMacro = isTemplate || reader.resourceCreator.macroTargetCursors.any { it >= 0 && it <= reader.string.length } // Check if any of the parents' macros are inside the string
             val hasSlash = reader.canRead() && reader.peek() == '/'
             if(isSuggestCommand) {
@@ -608,6 +610,25 @@ object CodecTransformers {
                         DiagnosticSeverity.Warning,
                         null
                     )
+                }
+            } else {
+                val parser = behavior.macroParser ?: return@MalformedStringDecoderAnalyzing
+                val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range)
+                val relevantLines = AnalyzingResult.getLinesBetweenCursors(absoluteRange.start, absoluteRange.end, analyzingBehavior.baseMappingInfo)
+
+                val input = AnalyzingResourceCreator.MacroInput(relevantLines, isTemplate, false, parser)
+                val macro = AnalyzingResourceCreator.DecodedMacro(
+                    StringContent(
+                        reader.string,
+                        OffsetProcessedInputCursorMapper(absoluteRange.start).combineWith(reader.cursorMapper), // Map cursor relative to the beginning of the string
+                        string.escaper
+                    ), absoluteRange, analyzingBehavior.range
+                )
+                val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
+                if(cachedNode != null) {
+                    reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro))
+                } else {
+                    VanillaLanguage.analyzeMacroString(input, macro, null, reader, reader.resourceCreator.source)
                 }
             }
         })

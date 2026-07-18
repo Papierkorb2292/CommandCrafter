@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItem
 import java.util.stream.Stream
 
@@ -88,6 +89,9 @@ interface ExtraDecoderBehavior<TNode : Any> {
     val onlyContextOps: DynamicOps<TNode>?
         get() = null
 
+    val macroParser: AnalyzingResourceCreator.MacroParser?
+        get() = null
+
     fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {}
     fun markStringParseError(input: TNode) {}
     fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
@@ -117,6 +121,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
     interface NodeAnalyzingBehavior<TNode : Any> {
         val stringContentGetter: () -> StringContent?
         val range: StringRange
+        val baseMappingInfo: FileMappingInfo
         fun createNodeAnalyzingResultOverlay(): AnalyzingResult
         fun createStringAnalyzingResultOverlay(stringContent: StringContent): AnalyzingResult
         fun finishNodeAnalyzingResultOverlay(analyzingResult: AnalyzingResult, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null)

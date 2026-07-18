@@ -31,6 +31,8 @@ class AnalyzingResourceCreator(
      */
     var suggestionRequestInfo: SuggestionRequestInfo? = null
 
+    var macroQueue: MutableList<DelayedMacro>? = null
+
     fun canSuggestionsSkipRange(absoluteStart: Int, absoluteEnd: Int): Boolean {
         val suggestionCursor = suggestionRequestInfo?.absoluteCursor ?: return false
         return suggestionCursor !in absoluteStart..absoluteEnd
@@ -129,12 +131,16 @@ class AnalyzingResourceCreator(
             absoluteRange + offset,
             children.copyWithAbsoluteOffset(offset)
         )
+
+        override fun toString() = input.lines.joinToString("\n")
     }
 
-    data class MacroInput(val lines: List<String>, val isTemplate: Boolean, val parser: MacroParser)
+    data class MacroInput(val lines: List<String>, val isTemplate: Boolean, val addMissingVariablesError: Boolean, val parser: MacroParser)
+
+    data class DelayedMacro(val input: MacroInput, val macro: DecodedMacro, val cache: MacroCache?, val reader: DirectiveStringReader<AnalyzingResourceCreator>)
 
     interface MacroParser {
-        fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): DecodedMacro
+        fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): DecodedMacro?
     }
 
     data class DecodedMacro(val string: StringContent, val absoluteRange: StringRange, val rangeInParent: StringRange)

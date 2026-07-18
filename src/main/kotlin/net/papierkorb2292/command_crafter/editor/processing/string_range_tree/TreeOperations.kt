@@ -20,8 +20,9 @@ data class TreeOperations<TNode: Any>(
     val suggestionResolver: StringRangeTree.SuggestionResolver<TNode>,
     val stringGetter: StringContent.StringContentGetter<TNode>,
     override val reader: DirectiveStringReader<AnalyzingResourceCreator>,
+    override val macroParser: AnalyzingResourceCreator.MacroParser,
     val diagnosticSeverity: DiagnosticSeverity? = DiagnosticSeverity.Error,
-    override val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode
+    override val branchBehaviorProvider: BranchBehaviorProvider<TNode> = BranchBehaviorProvider.Decode,
 ) : SchemaOperations<TNode> {
     companion object {
         val IS_ANALYZING_DECODER = ThreadLocal<Boolean>()
@@ -32,7 +33,8 @@ data class TreeOperations<TNode: Any>(
                 JsonOps.INSTANCE,
                 StringRangeTreeJsonReader.StringRangeTreeSuggestionResolver(fullContent),
                 StringRangeTreeJsonReader.StringContentGetter(jsonTree, fullContent),
-                reader
+                reader,
+                JsonMacroParser
             )
 
         fun forNbt(nbtTree: StringRangeTree<Tag>, reader: DirectiveStringReader<AnalyzingResourceCreator>) =
@@ -41,7 +43,8 @@ data class TreeOperations<TNode: Any>(
                 NbtOps.INSTANCE,
                 NbtSuggestionResolver(reader),
                 NbtStringContentGetter(nbtTree, reader.string),
-                reader
+                reader,
+                NbtMacroParser
             )
     }
 
