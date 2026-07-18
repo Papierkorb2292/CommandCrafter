@@ -89,6 +89,10 @@ class IntList(capacity: Int) {
     }
 
     fun removeAfter(start: Int) {
+        if(start == -1) {
+            size = 0
+            return
+        }
         Objects.checkIndex(start, size)
         size = start + 1
     }
