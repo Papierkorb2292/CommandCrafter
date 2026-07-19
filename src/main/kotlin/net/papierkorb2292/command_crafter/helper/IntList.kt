@@ -17,6 +17,8 @@ class IntList(capacity: Int) {
             size = content.size
             content.copyInto(entries)
         }
+
+        fun intListOfZeros(size: Int) = IntList(size).also { it.size = size }
     }
 
     private var entries = IntArray(capacity)
@@ -33,7 +35,10 @@ class IntList(capacity: Int) {
         entries[index] = element
     }
 
-    operator fun plus(element: Int) = copy().apply { this += element }
+    operator fun plus(element: Int) = copy(size + 1).also {
+        it.size++
+        it[size] = element
+    }
     operator fun plusAssign(element: Int) = add(element)
 
     fun add(element: Int) = add(size, element)
@@ -48,7 +53,10 @@ class IntList(capacity: Int) {
         size++
     }
 
-    operator fun plus(other: IntList) = copy().apply { this += other }
+    operator fun plus(other: IntList) = copy(size + other.size).also {
+        it.size += other.size
+        other.entries.copyInto(it.entries, size, 0, other.size)
+    }
     operator fun plusAssign(other: IntList) = addAll(other)
 
     fun addAll(other: IntList) = addAll(size, other)
@@ -146,12 +154,15 @@ class IntList(capacity: Int) {
         return true
     }
 
-    fun copy() = IntList().also { it.addAll(this) }
+    fun copy(capacity: Int = size) = IntList(capacity).also {
+        it.size = size
+        entries.copyInto(it.entries, 0, 0, size)
+    }
 
     inline fun map(transform: (Int) -> Int): IntList {
-        val result = IntList(size)
+        val result = intListOfZeros(size)
         for(i in 0 until size)
-            result += transform(this[i])
+            result[i] = transform(this[i])
         return result
     }
 
