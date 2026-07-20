@@ -26,6 +26,7 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.Vec3
+import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
@@ -36,7 +37,6 @@ import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.*
-import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.StringifiableCommandNode
@@ -843,6 +843,64 @@ object TestCommandCrafter {
             line3Suggestions,
             "line 4 selector gamemode suggestions"
         )
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testOpenFileApplyContentChange(context: GameTestHelper) {
+        val initial = """
+            first
+            second
+            third
+            fourth
+        """.trimIndent()
+
+        val openFile = OpenFile.fromString("test.mcfunction", initial)
+
+        // Initial content
+        var result = openFile.stringifyLines()
+        var expected = listOf("first", "second", "third", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("initial content"))
+
+        // Test replacing second and third line with multiple new lines, but keep the first and last character
+        val newMiddle = """
+            SECOND1
+            SECOND2
+            SECOND3
+        """.trimIndent()
+        val endChar1 = openFile.stringifyLines()[2].length
+        openFile.applyContentChange(1, 2, 1, endChar1 - 1, newMiddle)
+        result = openFile.stringifyLines()
+        expected = listOf("first", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("multi -> multi"))
+
+        // Test replacing first line with multiple new lines, but keep the first and last character
+        val newFirst = """
+            FIRST-A
+            FIRST-B
+        """.trimIndent()
+        val endChar2 = openFile.stringifyLines()[0].length
+        openFile.applyContentChange(0, 0, 1, endChar2 - 1, newFirst)
+        result = openFile.stringifyLines()
+        expected = listOf("fFIRST-A", "FIRST-Bt", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("single -> multi"))
+
+        // Test collapsing all SECOND lines into one line, but keep the two first and last characters
+        val collapse = "replaced middle"
+        val endChar3 = openFile.stringifyLines()[4].length
+        openFile.applyContentChange(2, 4, 2, endChar3 - 2, collapse)
+        result = openFile.stringifyLines()
+        expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("multi -> single"))
+
+        // Test a single line modification on the last line, keeping the first two and last characters
+        val insert = "abcde"
+        val endChar4 = openFile.stringifyLines()[3].length
+        openFile.applyContentChange(3, 3, 2, endChar4 - 2, insert)
+        result = openFile.stringifyLines()
+        expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "foabcdeth")
+        context.assertValueEqual(result, expected, Component.literal("single -> single"))
 
         context.succeed()
     }

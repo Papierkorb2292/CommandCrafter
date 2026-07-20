@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
@@ -8,8 +9,9 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
-class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var version: Int = 0) {
+class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var version: Int = 0) {
     val parsedUri = EditorURI.parseURI(uri)
+    val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
     var analyzingResult: CompletableFuture<AnalyzingResult>? = null
     var analyzerFuture: Future<*>? = null
     var keptAliveAnalyzers = mutableSetOf<Future<*>>()
@@ -20,12 +22,22 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         val analyzerExecutor = Executors.newFixedThreadPool(5)
 
         fun linesFromString(content: String) = linesFromStrings(content.lines())
-        fun linesFromStrings(lines: List<String>): MutableList<StringBuffer> = lines.mapTo(ArrayList(lines.size), ::StringBuffer)
+        fun linesFromStrings(lines: List<String>): MutableList<StringBuilder> = lines.mapTo(ArrayList(lines.size), ::StringBuilder)
         fun fromString(uri: String, content: String, version: Int = 0) = fromLines(uri, content.lines(), version)
-        fun fromLines(uri: String, lines: List<String>, version: Int = 0) = OpenFile(uri, lines.mapTo(ArrayList(lines.size), ::StringBuffer), version)
+        fun fromLines(uri: String, lines: List<String>, version: Int = 0) = OpenFile(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder), version)
     }
 
-    fun stringifyLines() = lines.map { it.toString() }
+    @Synchronized
+    fun stringifyLines() = lines.mapIndexed { index, builder ->
+        val cached = cachedLineStrings[index]
+        if(cached != null) {
+            cached
+        } else {
+            val string = builder.toString()
+            cachedLineStrings[index] = string
+            string
+        }
+    }
     fun createFileMappingInfo() = FileMappingInfo(stringifyLines())
 
     fun applyContentChange(change: TextDocumentContentChangeEvent) =
@@ -37,6 +49,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
             change.text
         )
 
+    @Synchronized
     fun applyContentChange(
         startLine: Int,
         endLine: Int,
@@ -45,22 +58,15 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
         newText: String,
     ) {
         if (startLine >= lines.size || endLine >= lines.size || startLine > endLine || (startLine == endLine && startChar > endChar)) {
+            CommandCrafter.LOGGER.error("Received invalid incremental file modification: from ${startLine}:${startChar} to ${endLine}:${endChar}. Current line count: ${lines.size}")
             return
-        }
-
-        fun addNewLinesAndReturnLast(lines: MutableList<StringBuffer>, newLines: Iterator<String>, start: Int): String {
-            var currentLine = start
-            for (line in newLines) {
-                if (!newLines.hasNext()) return line
-                lines.add(currentLine++, StringBuffer(line))
-            }
-            return ""
         }
 
         val newLines = newText.lineSequence().iterator()
         val startLineText = lines[startLine]
         val endLineText = lines[endLine]
         val secondLine = startLine + 1
+        cachedLineStrings[startLine] = null
         if (startLine == endLine) {
             if (!newLines.hasNext()) {
                 startLineText.delete(startChar, endChar)
@@ -74,24 +80,43 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuffer>, var versio
             //The line needs to be split up, because the new text consists of multiple lines
             val endText = startLineText.substring(endChar)
             startLineText.replace(startChar, startLineText.length, firstLineText)
-            val preAddLineCount = lines.size
-            val last = addNewLinesAndReturnLast(lines, newLines, secondLine)
-            lines.add(secondLine + lines.size - preAddLineCount, StringBuffer(last).append(endText))
+            var currentLine = secondLine
+            do {
+                val line = newLines.next()
+                cachedLineStrings.add(currentLine, null)
+                if(!newLines.hasNext()) {
+                    lines.add(currentLine, StringBuilder(line).append(endText))
+                    break
+                }
+                lines.add(currentLine++, StringBuilder(line))
+            } while(true)
         } else {
+            cachedLineStrings[endLine] = null
             startLineText.replace(startChar, startLineText.length, if (newLines.hasNext()) newLines.next() else "")
-            if (endLine > secondLine) {
-                lines.subList(secondLine, endLine).clear()
-            }
             if (!newLines.hasNext()) {
                 //The start and end line have to be joined, since the new text has fewer than two lines
                 startLineText.append(endLineText.substring(endChar))
-                //The last line moved to secondLine, as everything between
-                //was removed in the previous 'if' statement
-                lines.removeAt(secondLine)
+                lines.subList(secondLine, endLine + 1).clear()
+                cachedLineStrings.subList(secondLine, endLine + 1).clear()
                 return
             }
-            val last = addNewLinesAndReturnLast(lines, newLines, secondLine)
-            endLineText.replace(0, endChar, last)
+            var currentLine = secondLine
+            do {
+                val line = newLines.next()
+                if(!newLines.hasNext()) {
+                    endLineText.replace(0, endChar, line)
+                    break
+                }
+                if(currentLine < endLine) {
+                    cachedLineStrings[currentLine] = null
+                    lines[currentLine++] = StringBuilder(line)
+                } else {
+                    cachedLineStrings.add(currentLine, null)
+                    lines.add(currentLine++, StringBuilder(line))
+                }
+            } while(true);
+            if(currentLine < endLine)
+                cachedLineStrings.subList(currentLine, endLine).clear()
         }
     }
 
