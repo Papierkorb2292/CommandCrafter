@@ -273,7 +273,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         analyzeMacroString(
             input,
             macro,
-            null,
+            null, // There is no cache, since this macro is new (modifications of existing macros are detected by AnalyzingResourceCreator)
             reader,
             source
         )
