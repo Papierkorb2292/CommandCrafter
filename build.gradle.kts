@@ -113,8 +113,12 @@ tasks {
     jar { from("GSON_LICENSE") }
     jar { from("LSP4J_LICENSE") }
     processResources {
+        outputs.upToDateWhen { false } // Cause I'm dynamically computing the values to insert
         filesMatching("fabric.mod.json") {
-            expand("version" to project.extra["mod_version"] as String)
+            var version = project.extra["mod_version"] as String
+            if(project.hasProperty("isDevBuild")) // For dev builds, append the build time to the version, because I usually don't manually bump the version number for them
+                version += "+${System.currentTimeMillis() / 1000}"
+            expand("version" to version)
         }
     }
 
@@ -123,6 +127,12 @@ tasks {
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
         withSourcesJar()
+    }
+
+    register("buildDev", GradleBuild::class) {
+        // Dev build only includes the Minecraft version, mod version is replaced with the "dev" string to make the file easier to replace
+        startParameter.projectProperties = mapOf("mod_version" to "dev+${(version as String).substringAfter('+')}", "isDevBuild" to "true")
+        tasks = listOf("build")
     }
 
     val createMixinJavaArgFileTask = register("createMixinJavaAgentArgFile") {
