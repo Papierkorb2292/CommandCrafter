@@ -30,10 +30,10 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.*
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations.Companion.forNbt
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations.Companion.forNbt
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -214,6 +214,11 @@ object LanguageManager {
                         val idEnd = reader.cursor
                         // Only highlight ids with a non-empty namespace and path (to avoid highlighting colons in normal text)
                         if(idStart + 1 == pathStartCursor || idEnd == pathStartCursor) {
+                            reader.cursor = pathStartCursor
+                            continue
+                        }
+                        // Also don't highlight ids with upper case letters directly next to them, it's probably part of a word
+                        if(idStart >= 1 && Character.isUpperCase(string[idStart - 1]) || idEnd < string.length && Character.isUpperCase(string[idEnd])) {
                             reader.cursor = pathStartCursor
                             continue
                         }

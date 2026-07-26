@@ -593,6 +593,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 while(reader.canRead() && Identifier.validPathChar(reader.peek()))
                     reader.skip()
                 val idEnd = reader.cursor
+                // Only highlight ids with a non-empty namespace and path (to avoid highlighting colons in normal text)
+                if(idStart + 1 == i || idEnd == i) {
+                    reader.cursor = i
+                    continue
+                }
+                // Also don't highlight ids with upper case letters directly next to them, it's probably part of a word
+                if(idStart >= 0 && Character.isUpperCase(documentation[idStart]) || idEnd + 1 < documentation.length && Character.isUpperCase(documentation[idEnd + 1])) {
+                    reader.cursor = i
+                    continue
+                }
                 val resourceSearchKeywords = PackContentFileType.parseKeywords(reader.string, idStart, idEnd).toSet()
                 val range = StringRange(idStart, idEnd)
                 replacements += PackContentFileType.findWorkspaceResourceFromId(
