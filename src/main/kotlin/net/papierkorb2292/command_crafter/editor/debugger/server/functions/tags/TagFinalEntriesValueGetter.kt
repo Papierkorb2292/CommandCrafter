@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
 import com.google.common.collect.ImmutableSet
+import net.minecraft.resources.Identifier
 import net.minecraft.tags.TagEntry
 import net.minecraft.tags.TagLoader
-import net.minecraft.resources.Identifier
 
 class TagFinalEntriesValueGetter(
     private val tagId: Identifier,
@@ -15,7 +15,8 @@ class TagFinalEntriesValueGetter(
         fun getOrCreateFinalEntriesForTag(id: Identifier, parsedTags: Map<Identifier, List<TagLoader.EntryWithSource>>, finalEntries: MutableMap<Identifier, Collection<FinalEntry>>): Collection<FinalEntry> {
             finalEntries[id]?.let { return it }
             val resultBuilder = ImmutableSet.builder<FinalEntry>()
-            parsedTags[id]!!.forEach { trackedEntry ->
+            // parsedTags[id] can be null for non-required tag references
+            parsedTags[id]?.forEach { trackedEntry ->
                 trackedEntry.entry.build(TagFinalEntriesValueGetter(id, trackedEntry, parsedTags, finalEntries), resultBuilder::add)
             }
             val result = resultBuilder.build()
