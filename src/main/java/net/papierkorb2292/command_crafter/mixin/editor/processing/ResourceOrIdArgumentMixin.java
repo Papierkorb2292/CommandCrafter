@@ -6,7 +6,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.arguments.ResourceOrIdArgument;
-import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.ResourceOrIdArgumentAnalyzer;
 import org.spongepowered.asm.mixin.Mixin;
 
 import java.util.concurrent.CompletableFuture;
@@ -17,7 +17,8 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 public class ResourceOrIdArgumentMixin {
     @WrapMethod(method = "listSuggestions")
     private CompletableFuture<Suggestions> command_crafter$skipVanillaSuggestions(CommandContext<?> context, SuggestionsBuilder suggestionsBuilder, Operation<CompletableFuture<Suggestions>> op) {
-        if(getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT()) != null)
+        var shouldSkip = getOrNull(ResourceOrIdArgumentAnalyzer.Companion.getShouldSkipResourceOrIdSuggestions());
+        if(shouldSkip != null && shouldSkip)
             return suggestionsBuilder.buildFuture();
         return op.call(context, suggestionsBuilder);
     }

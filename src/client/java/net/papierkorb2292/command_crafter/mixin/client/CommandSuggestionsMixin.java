@@ -12,6 +12,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.CommandSuggestions;
 import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter;
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.ResourceOrIdArgumentAnalyzer;
+import net.papierkorb2292.command_crafter.helper.UtilKt;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -31,7 +33,12 @@ public class CommandSuggestionsMixin {
             )
     )
     private CompletableFuture<Suggestions> command_crafter$addCustomSuggestions(CommandDispatcher<ClientSuggestionProvider> instance, ParseResults<ClientSuggestionProvider> parseResults, int cursor, Operation<CompletableFuture<Suggestions>> op) {
-        return op.call(instance, parseResults, cursor).thenCompose(vanillaSuggestions ->
+        final var vanillaFuture = UtilKt.runWithValueSwap(
+                ResourceOrIdArgumentAnalyzer.Companion.getShouldSkipResourceOrIdSuggestions(),
+                true,
+                () -> op.call(instance, parseResults, cursor)
+        );
+        return vanillaFuture.thenCompose(vanillaSuggestions ->
                 ClientCommandCrafter.INSTANCE.getCustomIngameSuggestions(parseResults.getReader().getString(), cursor).thenApply(customSuggestions -> {
                     if(vanillaSuggestions.isEmpty()) return customSuggestions;
                     if(customSuggestions.isEmpty()) return vanillaSuggestions;

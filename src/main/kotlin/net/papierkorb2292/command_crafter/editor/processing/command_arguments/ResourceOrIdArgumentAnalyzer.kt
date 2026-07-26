@@ -28,6 +28,10 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.ResourceOrIdAr
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
 class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrIdArgument<*>> {
+    companion object {
+        val shouldSkipResourceOrIdSuggestions = ThreadLocal<Boolean>()
+    }
+
     override val argumentTypes: List<Class<out ResourceOrIdArgument<*>>>
         get() = listOf(ResourceOrIdArgument::class.java)
 

@@ -58,6 +58,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.ResourceOrIdArgumentAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.partial_id_autocomplete.CompletionItemsPartialIdGenerator
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.*
@@ -705,29 +706,31 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
                     val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
                     val fullInput = completionReader.copy().apply { this.cursor = endCursor }
-                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { completionParentNode.children.map { child ->
-                        try {
-                            val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
-                            child.listSuggestions(
-                                contextBuilder.withSource(
-                                    completionCommandSourceProvider(
-                                        contextBuilder.source,
-                                        fullInput,
-                                        context
-                                    )
-                                ).build(extendedTruncatedInput),
-                                SuggestionsBuilder(
-                                    extendedTruncatedInput, truncatedInputLowerCase,
-                                    min(parsedNodeRange.start, extendedTruncatedInput.length)
+                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { ResourceOrIdArgumentAnalyzer.shouldSkipResourceOrIdSuggestions.runWithValueSwap(true) {
+                        completionParentNode.children.map { child ->
+                            try {
+                                val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
+                                child.listSuggestions(
+                                    contextBuilder.withSource(
+                                        completionCommandSourceProvider(
+                                            contextBuilder.source,
+                                            fullInput,
+                                            context
+                                        )
+                                    ).build(extendedTruncatedInput),
+                                    SuggestionsBuilder(
+                                        extendedTruncatedInput, truncatedInputLowerCase,
+                                        min(parsedNodeRange.start, extendedTruncatedInput.length)
 
+                                    )
+                                ) to analyzer
+                            } catch(e: Exception) {
+                                CommandCrafter.LOGGER.debug(
+                                    "Error while getting suggestions for command node ${child.name}",
+                                    e
                                 )
-                            ) to analyzer
-                        } catch(e: Exception) {
-                            CommandCrafter.LOGGER.debug(
-                                "Error while getting suggestions for command node ${child.name}",
-                                e
-                            )
-                            Suggestions.empty() to null
+                                Suggestions.empty() to null
+                            }
                         }
                     } }
                     val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
