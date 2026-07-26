@@ -863,7 +863,7 @@ object TestCommandCrafter {
         var expected = listOf("first", "second", "third", "fourth")
         context.assertValueEqual(result, expected, Component.literal("initial content"))
 
-        // Test replacing second and third line with multiple new lines, but keep the first and last character
+        // Test replacing second and third line with multiple new lines (more than before), but keep the first and last character
         val newMiddle = """
             SECOND1
             SECOND2
@@ -873,7 +873,7 @@ object TestCommandCrafter {
         openFile.applyContentChange(1, 2, 1, endChar1 - 1, newMiddle)
         result = openFile.stringifyLines()
         expected = listOf("first", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
-        context.assertValueEqual(result, expected, Component.literal("multi -> multi"))
+        context.assertValueEqual(result, expected, Component.literal("multi -> multi (more)"))
 
         // Test replacing first line with multiple new lines, but keep the first and last character
         val newFirst = """
@@ -901,6 +901,18 @@ object TestCommandCrafter {
         result = openFile.stringifyLines()
         expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "foabcdeth")
         context.assertValueEqual(result, expected, Component.literal("single -> single"))
+
+        // Test replacing all lines with multiple new lines (less than before), but keep the first and last character
+        val newContent = """
+            1
+            2
+            3
+        """.trimIndent()
+        val endChar5 = openFile.stringifyLines()[3].length
+        openFile.applyContentChange(0, 3, 1, endChar5 - 1, newContent)
+        result = openFile.stringifyLines()
+        expected = listOf("f1", "2", "3h")
+        context.assertValueEqual(result, expected, Component.literal("multi -> multi (less)"))
 
         context.succeed()
     }

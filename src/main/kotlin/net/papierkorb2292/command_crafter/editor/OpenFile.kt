@@ -115,8 +115,10 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
                     lines.add(currentLine++, StringBuilder(line))
                 }
             } while(true);
-            if(currentLine < endLine)
+            if(currentLine < endLine) {
+                lines.subList(currentLine, endLine).clear()
                 cachedLineStrings.subList(currentLine, endLine).clear()
+            }
         }
     }
 
