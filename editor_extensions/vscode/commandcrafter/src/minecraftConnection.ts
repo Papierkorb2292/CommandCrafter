@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import {
+    CloseAction,
     Disposable,
+	ErrorAction,
 	LanguageClient,
 	State,
 	StreamInfo
@@ -146,6 +148,14 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                     documentSelector: [{ pattern: "**" }],
                     synchronize: {
                         fileEvents: vscode.workspace.createFileSystemWatcher("**")
+                    },
+                    errorHandler: {
+                        error: (error, message, count) => ({
+                            action: ErrorAction.Shutdown
+                        }),
+                        closed: () => ({
+                            action: CloseAction.DoNotRestart  
+                        }),
                     }
                 }
             );
