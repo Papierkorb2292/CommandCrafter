@@ -14,6 +14,7 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
+import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.NbtOps
 import net.minecraft.network.Connection
 import net.minecraft.network.protocol.Packet
@@ -24,15 +25,12 @@ import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacke
 import net.minecraft.network.protocol.game.ClientboundCommandsPacket
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryDataLoader
-import net.minecraft.resources.RegistryValidator
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagNetworkSerialization
-import net.minecraft.world.level.storage.loot.LootDataType
-import net.minecraft.world.level.storage.loot.Validatable
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
@@ -43,8 +41,8 @@ import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAddition
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.lookupWithUpdatedTags
 import net.papierkorb2292.command_crafter.helper.runWithValue
-import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RegistrySynchronizationAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.CommandsAccessor
@@ -63,9 +61,10 @@ import java.util.stream.Collectors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
-    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> = DynamicRegistries.getDynamicRegistries() + LootDataType.values().map {
-        createRegistryLoaderEntryForLootDataType(it)
-    }.toList()
+    fun getAllDatapackRegistries() = DynamicRegistries.getDynamicRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
+    // Without recipe and advancement, since those have some special handling
+    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> =
+        getAllDatapackRegistries().filter { it.key != Registries.RECIPE && it.key != Registries.ADVANCEMENT }
     fun getSyncedRegistries() = getAllDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
 
     private val currentConnections = mutableMapOf<ServerGamePacketListenerImpl, DirectServerConnection>()
@@ -341,9 +340,6 @@ object NetworkServerConnectionHandler {
         }
     }
 
-    private fun <T: Validatable> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
-        RegistryDataLoader.RegistryData(dataType.registryKey, dataType.codec, RegistryValidator.none())
-
     private fun sendConnectionRequestResponse(
         server: MinecraftServer,
         requestPacket: RequestNetworkServerConnectionC2SPacket,
@@ -386,7 +382,7 @@ object NetworkServerConnectionHandler {
         // Can be cast to this type, because that is the value assigned in the DataPackContents constructor
         val registryManager = server.reloadableRegistries().lookup() as RegistryAccess
 
-        val tagWrapperLookup = (server.recipeManager as RecipeManagerAccessor).registries
+        val tagWrapperLookup = server.lookupWithUpdatedTags
 
         val serializedRegistriesTags = serializeTags(tagWrapperLookup, registryManager)
         // Sync tags of non-dynamic registries first, because

@@ -45,10 +45,7 @@ class CommandCrafterDynamicRegistryS2CPacket(
         val CODEC: StreamCodec<FriendlyByteBuf, CommandCrafterDynamicRegistryS2CPacket> = StreamCodec.composite(
             UNLIMITED_DYNAMIC_REGISTRY_CODEC,
             CommandCrafterDynamicRegistryS2CPacket::dynamicRegistry,
-            StreamCodec.ofMember(
-                TagNetworkSerialization.NetworkPayload::write,
-                TagNetworkSerialization.NetworkPayload::read
-            ).optional(),
+            TagNetworkSerialization.NetworkPayload.STREAM_CODEC.optional(),
             CommandCrafterDynamicRegistryS2CPacket::tags.toOptional(),
         ) { dynamicRegistry, tags ->
             CommandCrafterDynamicRegistryS2CPacket(dynamicRegistry, tags.orElse(null))

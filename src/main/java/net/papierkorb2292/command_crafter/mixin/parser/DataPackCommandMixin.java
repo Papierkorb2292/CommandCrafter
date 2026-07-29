@@ -13,6 +13,7 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.commands.DataPackCommand;
 import net.minecraft.server.packs.FilePackResources;
+import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -75,20 +76,21 @@ public class DataPackCommandMixin {
 
     private static void command_crafter$buildDatapack(CommandContext<CommandSourceStack> context, DatapackBuildArgs.DatapackBuildArgsBuilder argsBuilder) throws CommandSyntaxException {
         var name = StringArgumentType.getString(context, "name");
+        var packUnknownError = ERROR_UNKNOWN_PACK.create(name);
         if(!name.startsWith("file/")) {
-            throw ERROR_UNKNOWN_PACK.create(name);
+            throw packUnknownError;
         }
         PackRepository resourcePackManager = context.getSource().getServer().getPackRepository();
         var packProfile = resourcePackManager.getPack(name);
         if(packProfile == null) {
-            throw ERROR_UNKNOWN_PACK.create(name);
+            throw packUnknownError;
         }
-        try(var pack = packProfile.open()) {
+        try(var pack = packProfile.open().findFirst().orElseThrow(() -> packUnknownError)) {
             var primaryPack = pack;
-            if(primaryPack instanceof CompositePackResourcesAccessor compositePackResources)
-                primaryPack = compositePackResources.getPrimaryPackResources();
+            if(primaryPack instanceof OverlayedPackResourcesAccessor compositePackResources)
+                primaryPack = (PackResources)compositePackResources.getPrimaryPackMetadataResources();
             if(!((primaryPack instanceof FilePackResources) || (primaryPack instanceof PathPackResources))) {
-                throw ERROR_UNKNOWN_PACK.create(name);
+                throw packUnknownError;
             }
             if(argsBuilder.getPermissions() == null) {
                 argsBuilder.setPermissions(context.getSource().getServer().getFunctionCompilationPermissions());

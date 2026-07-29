@@ -3,11 +3,11 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.core.Registry;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.RegistryFixedCodec;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.codec.RegistryFixedCodec;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.resources.ResourceKey;
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
@@ -34,7 +34,7 @@ public class RegistryFixedCodecMixin<E> {
             @NotNull
             @Override
             public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
-                var owner = ((RegistryOps<?>)ops).owner(registryKey);
+                var owner = ((RegistryOps<?>)ops).getter(registryKey);
                 if(owner.isEmpty()) return Stream.empty();
                 if(owner.get() instanceof HolderLookup<?> wrapper) {
                     return wrapper.listElementIds().map(key -> ops.createString(key.identifier().toString()));

@@ -11,17 +11,19 @@ import com.mojang.serialization.Codec;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceOrIdArgument;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.codec.RegistryFileCodec;
 import net.minecraft.nbt.EndTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.RegistryFileCodec;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
 import net.papierkorb2292.command_crafter.editor.processing.*;
-import net.papierkorb2292.command_crafter.editor.processing.helper.*;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
@@ -108,7 +110,7 @@ public class ResourceOrIdArgumentMixin<T> implements AnalyzingCommandNode {
         var isInline = parsed instanceof ResourceOrIdArgument.InlineResult<T, Tag>;
 
         if(command_crafter$inlineOrReferenceCodec == null)
-            command_crafter$inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec);
+            command_crafter$inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec, true);
 
         var tree = treeBuilder.build(treeRoot);
         var treeOperations = StringRangeTree.TreeOperations.Companion.forNbt(

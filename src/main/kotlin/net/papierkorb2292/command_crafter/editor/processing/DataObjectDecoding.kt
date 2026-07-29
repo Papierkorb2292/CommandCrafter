@@ -102,7 +102,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             when(dataObjectSource.kind) {
                 DataObjectSourceKind.ENTITY_REGISTRY_ENTRY -> {
                     @Suppress("UNCHECKED_CAST")
-                    dummyEntityDecoder[ResourceArgument.getEntityType(
+                    dummyEntityDecoder[ResourceArgument.getSummonableEntityType(
                         context as CommandContext<CommandSourceStack>,
                         dataObjectSource.argumentName
                     ).value()]

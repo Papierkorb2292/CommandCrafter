@@ -15,7 +15,7 @@
     "editor.KeyMappingAccessor",
     "editor.TextureAtlasAccessor",
     "editor.TranslatableContentsMixin",
-    "editor.shader.GlDeviceMixin",
+    "editor.shader.PipelineBuilderMixin",
     "editor.shader.ShaderManagerAccessor",
     "game.ItemStackMixin",
     "game.KeyboardHandlerMixin",

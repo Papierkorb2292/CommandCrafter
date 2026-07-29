@@ -2,31 +2,22 @@ package net.papierkorb2292.command_crafter.mixin.client.editor.shader;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.shaders.ShaderType;
-import com.mojang.blaze3d.opengl.GlRenderPipeline;
+import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.ShaderSource;
+import com.mojang.renderpearl.frontend.shaders.PipelineBuilder;
 import net.minecraft.client.renderer.ShaderManager;
-import com.mojang.blaze3d.shaders.ShaderSource;
-import net.minecraft.resources.Identifier;
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
 
-import java.util.Map;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-
-@Mixin(targets = "com/mojang/blaze3d/opengl/GlDevice")
-public class GlDeviceMixin {
+@Mixin(PipelineBuilder.class)
+public class PipelineBuilderMixin {
     @WrapMethod(method = "compilePipeline")
-    private GlRenderPipeline shader_reload$retryFailedShadersWithDefault(RenderPipeline pipeline, ShaderSource sourceRetriever, Operation<GlRenderPipeline> op) {
-        DirectMinecraftClientConnection.INSTANCE.setReloadingBuiltinShaders(false);
+    private CompiledRenderPipeline shader_reload$retryFailedShadersWithDefault(RenderPipeline pipeline, ShaderSource sourceRetriever, Operation<CompiledRenderPipeline> op) {
         var compiled = op.call(pipeline, sourceRetriever);
-        if(compiled.isValid())
+        if(compiled != null)
             return compiled;
 
-        DirectMinecraftClientConnection.INSTANCE.setReloadingBuiltinShaders(true);
         var vanillyOnlyDefinitions = DirectMinecraftClientConnection.INSTANCE.getVanillaOnlyShaders();
         return op.call(
                 pipeline,
@@ -35,7 +26,7 @@ public class GlDeviceMixin {
         );
     }
 
-    @WrapOperation(
+    /*@WrapOperation(
             method = "getOrCompileShader(Lnet/minecraft/resources/Identifier;Lcom/mojang/blaze3d/shaders/ShaderType;Lnet/minecraft/client/renderer/ShaderDefines;Lcom/mojang/blaze3d/shaders/ShaderSource;)Lcom/mojang/blaze3d/opengl/GlShaderModule;",
             at = @At(
                     value = "INVOKE",
@@ -46,5 +37,5 @@ public class GlDeviceMixin {
         if(DirectMinecraftClientConnection.INSTANCE.isReloadingBuiltinShaders())
             return mappingFunction.apply(key);
         return op.call(instance, key, mappingFunction);
-    }
+    }*/
 }

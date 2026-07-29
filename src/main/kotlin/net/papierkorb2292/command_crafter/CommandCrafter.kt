@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.advancements.Advancement
 import net.minecraft.commands.CommandSource
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
@@ -25,14 +24,10 @@ import net.minecraft.server.notifications.EmptyNotificationService
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagFile
 import net.minecraft.world.flag.FeatureFlagSet
-import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.level.gamerules.GameRule
 import net.minecraft.world.level.gamerules.GameRuleCategory
 import net.minecraft.world.level.gamerules.GameRuleType
 import net.minecraft.world.level.gamerules.GameRuleTypeVisitor
-import net.minecraft.world.level.storage.loot.LootTable
-import net.minecraft.world.level.storage.loot.functions.LootItemFunctions
-import net.minecraft.world.level.storage.loot.predicates.LootItemCondition
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
@@ -90,7 +85,6 @@ object CommandCrafter: ModInitializer {
     }
 
     private fun initializeEditor() {
-        StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(serversideStaticJsonResourceCodecs)
         MinecraftLanguageServer.addAnalyzer(FileTypeDispatchingAnalyzer)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
@@ -272,15 +266,8 @@ object CommandCrafter: ModInitializer {
         }
     )
 
-    val serversideStaticJsonResourceCodecs = mutableMapOf(
-        PackContentFileType.ADVANCEMENTS_FILE_TYPE to Advancement.CODEC,
-        PackContentFileType.ITEM_MODIFIER_FILE_TYPE to LootItemFunctions.ROOT_CODEC,
-        PackContentFileType.LOOT_TABLES_FILE_TYPE to LootTable.DIRECT_CODEC,
-        PackContentFileType.PREDICATES_FILE_TYPE to LootItemCondition.DIRECT_CODEC,
-        PackContentFileType.RECIPES_FILE_TYPE to Recipe.CODEC,
-    )
     fun registerDynamicRegistries() {
-        val registries = DynamicRegistries.getDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
+        val registries = DynamicRegistries.getDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES + RegistryDataLoader.RELOADABLE_REGISTRIES
         val dynamicJsonResourceCodecs = registries.associate { dynamicRegistry ->
             PackContentFileType.getOrCreateTypeForDynamicRegistry(dynamicRegistry.key) to dynamicRegistry.elementCodec
         }

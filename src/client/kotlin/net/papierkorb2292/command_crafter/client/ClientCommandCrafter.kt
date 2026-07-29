@@ -104,6 +104,8 @@ object ClientCommandCrafter : ClientModInitializer {
                 // Remove tags that were received from the server and apply the tags known to the client
                 loadedClientsideRegistries?.applyTagsAndComponents()
             }
+        }.exceptionally {
+            CommandCrafter.LOGGER.error("Failed to load clientside registries, services won't work as expected", it)
         }
 
         NetworkServerConnection.registerPacketHandlers()

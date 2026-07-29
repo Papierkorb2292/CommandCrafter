@@ -12,13 +12,13 @@ import net.minecraft.util.random.WeightedList
 import net.minecraft.world.Difficulty
 import net.minecraft.world.TickRateManager
 import net.minecraft.world.attribute.EnvironmentAttributeSystem
+import net.minecraft.world.clock.ClockInstance
 import net.minecraft.world.clock.ClockManager
 import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.flag.FeatureFlagSet
-import net.minecraft.world.item.alchemy.PotionBrewing
 import net.minecraft.world.item.crafting.RecipeAccess
 import net.minecraft.world.level.BlockGetter
 import net.minecraft.world.level.ExplosionDamageCalculator
@@ -26,7 +26,6 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.biome.Biome
 import net.minecraft.world.level.biome.Biomes
 import net.minecraft.world.level.block.Block
-import net.minecraft.world.level.block.entity.FuelValues
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.border.WorldBorder
 import net.minecraft.world.level.chunk.ChunkAccess
@@ -153,19 +152,11 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
         throw NotImplementedError("Not supported by dummy")
     }
 
-    override fun clockManager() = ClockManager { 0 }
+    override fun clockManager() = ClockManager { DummyClockInstance }
 
     private val dummyEnvironmentAttributes = EnvironmentAttributeSystem.builder().build()
 
     override fun environmentAttributes(): EnvironmentAttributeSystem = dummyEnvironmentAttributes
-
-    override fun potionBrewing(): PotionBrewing {
-        throw NotImplementedError("Not supported by dummy")
-    }
-
-    override fun fuelValues(): FuelValues {
-        throw NotImplementedError("Not supported by dummy")
-    }
 
     override fun getWorldBorder(): WorldBorder {
         throw NotImplementedError("Not supported by dummy")
@@ -190,5 +181,12 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
         override fun getLoadedChunksCount(): Int = 0
         override fun getLightEngine(): LevelLightEngine = LevelLightEngine.EMPTY
         override fun getLevel(): BlockGetter = this@DummyWorld
+    }
+
+    object DummyClockInstance : ClockInstance {
+        override fun totalTicks() = 0L
+        override fun partialTick() = 0f
+        override fun rate() = 0f
+        override fun isPaused() = false
     }
 }

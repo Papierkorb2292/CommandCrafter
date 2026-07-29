@@ -40,7 +40,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvi
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.helper.HoverCursorContainer
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
-import net.papierkorb2292.command_crafter.mixin.editor.processing.RecipeManagerAccessor
+import net.papierkorb2292.command_crafter.helper.lookupWithUpdatedTags
 import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
 import net.papierkorb2292.command_crafter.parser.helper.getCursorOffset
@@ -62,7 +62,7 @@ fun interface NodeEvaluator {
         // Specified separately instead of in one dispatcher to better handle ambiguity
         private val evaluationParsers = listOf<EvaluationParser>(
             EvaluationParser({ server ->
-                val registries = (server.recipeManager as RecipeManagerAccessor).registries // These registries contain loot data types
+                val registries = server.lookupWithUpdatedTags // These registries contain loot data types
                 val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
                 Commands.argument("predicate", ResourceOrIdArgument.lootPredicate(buildContext)).build()
             }),
@@ -200,7 +200,7 @@ fun interface NodeEvaluator {
             ) ?: return null
             return when(argument.type) {
                 is EntityArgument -> {
-                    EntityDataAccessor.PROVIDER.apply(argument.name).access(context)
+                    EntityDataAccessor.PROVIDER.create(argument.name).access(context)
                 }
 
                 is BlockPosArgument -> {
@@ -219,7 +219,7 @@ fun interface NodeEvaluator {
                 }
 
                 is IdentifierArgument -> {
-                    StorageDataAccessor.PROVIDER.apply(argument.name).access(context)
+                    StorageDataAccessor.PROVIDER.create(argument.name).access(context)
                 }
 
                 else -> throw AssertionError("Unhandled argument type for NBT path evaluation: ${argument.type.javaClass}")

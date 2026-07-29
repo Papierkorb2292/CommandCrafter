@@ -2,18 +2,17 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
-import net.minecraft.core.component.DataComponentInitializers;
-import net.minecraft.server.permissions.PermissionSet;
-import net.minecraft.core.LayeredRegistryAccess;
-import net.minecraft.core.Registry;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.server.RegistryLayer;
+import net.minecraft.core.Registry;
+import net.minecraft.server.ReloadableServerRegistries;
+import net.minecraft.server.ReloadableServerResources;
+import net.minecraft.server.ServerFunctionLibrary;
+import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.tags.TagLoader;
 import net.minecraft.world.flag.FeatureFlagSet;
-import net.minecraft.server.ReloadableServerResources;
-import net.minecraft.commands.Commands;
-import net.minecraft.server.ServerFunctionLibrary;
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
+import net.papierkorb2292.command_crafter.parser.helper.HolderLookupProviderContainer;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,19 +26,21 @@ import java.util.List;
 import java.util.Queue;
 
 @Mixin(ReloadableServerResources.class)
-public class ReloadableServerResourcesMixin implements ParsedResourceCreator.DataPackRefresher {
+public class ReloadableServerResourcesMixin implements ParsedResourceCreator.DataPackRefresher, HolderLookupProviderContainer {
 
     @Shadow @Final private ServerFunctionLibrary functionLibrary;
 
     @Shadow @Final private List<Registry.PendingTags<?>> postponedTags;
     private final Queue<Function0<Unit>> command_crafter$refresh_callbacks = new LinkedList<>();
+    private HolderLookup.Provider command_crafter$holderLookups;
 
     @Inject(
             method = "<init>",
             at = @At("TAIL")
     )
-    private void command_crafter$addResourceCreatorContextToFunctionLoader(LayeredRegistryAccess<RegistryLayer> dynamicRegistries, HolderLookup.Provider registries, FeatureFlagSet enabledFeatures, Commands.CommandSelection environment, List<Registry.PendingTags<?>> pendingTagLoads, PermissionSet permissions, List<DataComponentInitializers.PendingComponents<?>> newComponents, CallbackInfo ci){
+    private void command_crafter$addResourceCreatorContextToFunctionLoader(ReloadableServerRegistries.LoadResult loadingContext, FeatureFlagSet enabledFeatures, Commands.CommandSelection commandSelection, List postponedTags, PermissionSet functionCompilationPermissions, List newComponents, CallbackInfo ci){
         ((ParsedResourceCreator.ParseResourceContextContainer) functionLibrary).command_crafter$setResourceCreatorContext((ReloadableServerResources)(Object)this);
+        command_crafter$holderLookups = loadingContext.lookupWithUpdatedTags();
     }
 
     @Inject(
@@ -63,5 +64,10 @@ public class ReloadableServerResourcesMixin implements ParsedResourceCreator.Dat
     @Override
     public void command_crafter$addCallback(@NotNull Function0<Unit> callback) {
         command_crafter$refresh_callbacks.add(callback);
+    }
+
+    @Override
+    public HolderLookup.@NotNull Provider command_crafter$getHolderLookups() {
+        return command_crafter$holderLookups;
     }
 }

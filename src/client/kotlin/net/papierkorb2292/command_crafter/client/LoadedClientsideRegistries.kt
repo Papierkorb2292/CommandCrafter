@@ -1,25 +1,19 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.serialization.Lifecycle
+import net.fabricmc.fabric.impl.loot.LootUtil
 import net.fabricmc.fabric.impl.resource.pack.ModResourcePackCreator
-import net.minecraft.advancements.Advancement
-import net.minecraft.core.LayeredRegistryAccess
-import net.minecraft.core.MappedRegistry
-import net.minecraft.core.Registry
+import net.minecraft.core.*
 import net.minecraft.core.Registry.PendingTags
-import net.minecraft.core.RegistryAccess
 import net.minecraft.core.component.DataComponentInitializers
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.core.registries.Registries
 import net.minecraft.resources.RegistryDataLoader
-import net.minecraft.resources.RegistryValidator
 import net.minecraft.server.RegistryLayer
 import net.minecraft.server.packs.PackResources
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.repository.ServerPacksSource
 import net.minecraft.server.packs.resources.MultiPackResourceManager
 import net.minecraft.tags.TagLoader
-import net.minecraft.world.item.crafting.Recipe
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
@@ -31,22 +25,21 @@ class LoadedClientsideRegistries(
     private val pendingComponents: List<DataComponentInitializers.PendingComponents<*>>
 ) {
     companion object {
-        fun getParseableRegistries() = NetworkServerConnectionHandler.getAllDynamicRegistries() + listOf(
-            RegistryDataLoader.RegistryData(Registries.ADVANCEMENT, Advancement.CODEC, RegistryValidator.none()),
-            RegistryDataLoader.RegistryData(Registries.RECIPE, Recipe.CODEC, RegistryValidator.none())
-        )
+        fun getParseableRegistries() = NetworkServerConnectionHandler.getAllDatapackRegistries()
 
         fun load(executor: Executor): CompletableFuture<LoadedClientsideRegistries> {
             // Static registries are copied so tags don't modify the original registries
             val initialRegistries = getCopiedInitialRegistries(RegistryLayer.createRegistryAccess(), RegistryLayer.STATIC)
-            val resourcePacks = mutableListOf<PackResources>(ServerPacksSource.createVanillaPackSource())
-            ModResourcePackCreator(PackType.SERVER_DATA).loadPacks { resourcePacks += it.open() }
+            val resourcePacks = mutableListOf<PackResources>(ServerPacksSource.createVanillaPackSource().fullResources())
+            ModResourcePackCreator(PackType.SERVER_DATA).loadPacks { pack -> pack.open().forEach { resourcePacks += it } }
             return MultiPackResourceManager(PackType.SERVER_DATA, resourcePacks).use { resourceManager ->
                 val pendingTagLoads = TagLoader.loadTagsForExistingRegistries(
                     resourceManager, initialRegistries.getLayer(RegistryLayer.STATIC)
                 )
-                val precedingWorldgen = initialRegistries.getAccessForLoading(RegistryLayer.WORLDGEN)
+                val precedingWorldgen = initialRegistries.getAccessForLoading(RegistryLayer.WORLD)
                 val tagRegistries = TagLoader.buildUpdatedLookups(precedingWorldgen, pendingTagLoads)
+                // TODO: Maybe load reloadable registries through ReloadableServerRegistries instead?
+                LootUtil.startReload(resourceManager, HolderLookup.Provider.create(tagRegistries.stream()))
                 RegistryDataLoader.load(
                     resourceManager,
                     tagRegistries,
@@ -77,7 +70,7 @@ class LoadedClientsideRegistries(
                         registryLoader.applyTagsAndComponents()
                         registryLoader
                     }
-                }
+                }.whenComplete { _, _ -> LootUtil.endReload(resourceManager) }
             }
         }
 

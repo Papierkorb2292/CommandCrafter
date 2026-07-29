@@ -15,10 +15,9 @@ import java.util.concurrent.CompletableFuture
 
 object DirectMinecraftClientConnection : MinecraftClientConnection {
     private val client = Minecraft.getInstance()
-    var isReloadingBuiltinShaders = false
     val vanillaOnlyShaders by lazy {
         (client.shaderManager as ShaderManagerAccessor).callPrepare(
-            MultiPackResourceManager(PackType.CLIENT_RESOURCES, listOf(client.vanillaPackResources)),
+            MultiPackResourceManager(PackType.CLIENT_RESOURCES, listOf(client.vanillaPackResources.fullResources())),
             InactiveProfiler.INSTANCE
         )
     }

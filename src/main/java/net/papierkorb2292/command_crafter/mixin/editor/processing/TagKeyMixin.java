@@ -27,7 +27,7 @@ public class TagKeyMixin {
             @NotNull
             @Override
             public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
-                var owner = ((RegistryOps<?>)ops).owner(resourceKey);
+                var owner = ((RegistryOps<?>)ops).getter(resourceKey);
                 if(owner.isEmpty()) return Stream.empty();
                 if(owner.get() instanceof HolderLookup<?> wrapper) {
                     return wrapper.listTagIds().map(key -> ops.createString(key.location().toString()));
@@ -46,7 +46,7 @@ public class TagKeyMixin {
             @NotNull
             @Override
             public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
-                var owner = ((RegistryOps<?>)ops).owner(resourceKey);
+                var owner = ((RegistryOps<?>)ops).getter(resourceKey);
                 if(owner.isEmpty()) return Stream.empty();
                 if(owner.get() instanceof HolderLookup<?> wrapper) {
                     return wrapper.listTagIds().map(key -> ops.createString('#' + key.location().toString()));
