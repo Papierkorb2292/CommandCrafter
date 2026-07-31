@@ -35,15 +35,24 @@ fun Position.offsetBy(other: Position, zeroBased: Boolean = true): Position {
     )
 }
 
+fun Position.differenceTo(other: Position, zeroBased: Boolean = true): Position {
+    val oneBasedOffset = if(zeroBased) 0 else 1
+    return Position(
+        other.line - line + oneBasedOffset,
+        if(other.line != line) other.character
+        else other.character - character + oneBasedOffset
+    )
+}
+
 fun Range.offsetBy(other: Position, zeroBased: Boolean = true): Range {
     return Range(start.offsetBy(other, zeroBased), end.offsetBy(other, zeroBased))
 }
 fun Position.offsetRange(other: Range, zeroBased: Boolean = true): Range {
     return Range(offsetBy(other.start, zeroBased), offsetBy(other.end, zeroBased))
 }
-fun Position.negate(zeroBased: Boolean = true): Position =
-    if(zeroBased) Position(-line, -character)
-    else Position(2 - line, 2 - character)
+fun Position.differenceTo(other: Range, zeroBased: Boolean = true): Range {
+    return Range(differenceTo(other.start, zeroBased), differenceTo(other.end, zeroBased))
+}
 
 operator fun Position.compareTo(other: Position): Int =
     if(line != other.line) line.compareTo(other.line)

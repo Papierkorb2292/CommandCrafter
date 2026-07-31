@@ -31,7 +31,10 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer
-import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
+import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
+import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.helper.lootRegistries
@@ -426,38 +429,38 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testNegatePosition(context: GameTestHelper) {
+    fun testPositionDifference(context: GameTestHelper) {
         context.assertValueEqual(
-            Position(0, 0),
-            Position(0, 0).negate(true),
-            "negate zero-based identity"
+            Position(0, 5).differenceTo(Position(0, 25), true),
+            Position(0, 20),
+            "singleline difference on line 0, zero-based"
         )
         context.assertValueEqual(
-            Position(1, 1),
-            Position(1, 1).negate(false),
-            "negate one-based identity"
-        )
-
-        context.assertValueEqual(
-            Position(10, 20),
-            Position(2,5).negate(true).offsetBy(Position(2, 5).offsetBy(Position(10, 20), true), true),
-            "multiline zero-based inverse"
+            Position(5, 5).differenceTo(Position(5, 25), true),
+            Position(0, 20),
+            "singleline difference on line 5, zero-based"
         )
         context.assertValueEqual(
-            Position(10, 20),
-            Position(2,5).negate(false).offsetBy(Position(2, 5).offsetBy(Position(10, 20), false), false),
-            "multiline one-based inverse"
+            Position(5, 42).differenceTo(Position(10, 20), true),
+            Position(5, 20),
+            "multiline difference, zero-based"
         )
 
+
         context.assertValueEqual(
-            Position(10, 20),
-            Position(0,5).negate(true).offsetBy(Position(0, 5).offsetBy(Position(10, 20), true), true),
-            "singleline zero-based inverse"
+            Position(1, 5).differenceTo(Position(1, 25), false),
+            Position(1, 21),
+            "singleline difference on line 1, one-based"
         )
         context.assertValueEqual(
-            Position(10, 20),
-            Position(0,5).negate(false).offsetBy(Position(0, 5).offsetBy(Position(10, 20), false), false),
-            "singleline one-based inverse"
+            Position(5, 5).differenceTo(Position(5, 25), false),
+            Position(1, 21),
+            "singleline difference on line 5, one-based"
+        )
+        context.assertValueEqual(
+            Position(5, 42).differenceTo(Position(9, 21), false),
+            Position(5, 21),
+            "multiline difference, one-based"
         )
 
         context.succeed()

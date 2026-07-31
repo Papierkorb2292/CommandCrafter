@@ -90,7 +90,7 @@ class AnalyzingResult(
                     override val color = original.color
                     override val range = position.offsetRange(original.range)
                     override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
-                        params.range = position.negate().offsetRange(params.range)
+                        params.range = position.differenceTo(params.range)
                         val presentations =  original.getPresentation(params)
                         for(presentation in presentations) {
                             if(presentation.textEdit != null)
