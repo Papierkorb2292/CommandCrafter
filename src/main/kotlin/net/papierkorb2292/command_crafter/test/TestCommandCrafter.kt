@@ -85,10 +85,10 @@ object TestCommandCrafter {
         val arguments = listOf("What's up", "your highness")
         @Suppress("CAST_NEVER_SUCCEEDS")
         val cursorMapper = macroInvocation.getCursorMapper(arguments)
-        context.assertValueEqual(intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length), cursorMapper.sourceCursors,
+        context.assertValueEqual(cursorMapper.sourceCursors, intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length),
             Component.literal("source_cursors"))
-        context.assertValueEqual(intListOf("".length, "say What's up".length, "say What's up, your highness".length), cursorMapper.targetCursors, Component.literal("target_cursors"))
-        context.assertValueEqual(intListOf("say ".length, ", ".length, "!".length), cursorMapper.lengths, Component.literal("lengths"))
+        context.assertValueEqual(cursorMapper.targetCursors, intListOf("".length, "say What's up".length, "say What's up, your highness".length), Component.literal("target_cursors"))
+        context.assertValueEqual(cursorMapper.lengths, intListOf("say ".length, ", ".length, "!".length), Component.literal("lengths"))
         context.succeed()
     }
 
@@ -98,9 +98,9 @@ object TestCommandCrafter {
         val arguments = listOf("foo")
         @Suppress("CAST_NEVER_SUCCEEDS")
         val cursorMapper = macroInvocation.getCursorMapper(arguments)
-        context.assertValueEqual(intListOf("".length, "say $(message)".length), cursorMapper.sourceCursors, Component.literal("source_cursors"))
-        context.assertValueEqual(intListOf("".length, "say foo".length), cursorMapper.targetCursors, Component.literal("target_cursors"))
-        context.assertValueEqual(intListOf("say ".length, "".length), cursorMapper.lengths, Component.literal("lengths"))
+        context.assertValueEqual(cursorMapper.sourceCursors, intListOf("".length, "say $(message)".length), Component.literal("source_cursors"))
+        context.assertValueEqual(cursorMapper.targetCursors, intListOf("".length, "say foo".length), Component.literal("target_cursors"))
+        context.assertValueEqual(cursorMapper.lengths, intListOf("say ".length, "".length), Component.literal("lengths"))
         context.succeed()
     }
 
@@ -129,18 +129,18 @@ object TestCommandCrafter {
         )
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(lines)
 
-        context.assertValueEqual(listOf(
+        context.assertValueEqual(processedLines, listOf(
             "first line",
             "second line",
             "third line",
-        ), processedLines, Component.literal("Removing marker characters"))
+        ), Component.literal("Removing marker characters"))
 
-        context.assertValueEqual(listOf(
+        context.assertValueEqual(markedLocations, listOf(
             FileLocation(Position(0, 0), 0),
             FileLocation(Position(1, 6), 17),
             FileLocation(Position(1, 7), 18),
             FileLocation(Position(2, 10), 33)
-        ), markedLocations, Component.literal("Parsing marked locations"))
+        ), Component.literal("Parsing marked locations"))
 
         context.succeed()
     }
@@ -162,23 +162,23 @@ object TestCommandCrafter {
         )
 
         context.assertValueEqual(
-            markedLocations[0].position,
             markedLocations[1].position.clampCompletionToCursor(0, 0, mappingInfo),
+            markedLocations[0].position,
             Component.literal("Clamp to previous line without cursor mapper")
         )
         context.assertValueEqual(
-            markedLocations[3].position,
             markedLocations[1].position.clampCompletionToCursor(2, mappingInfo.accumulatedLineLengths[1], mappingInfo),
+            markedLocations[3].position,
             Component.literal("Clamp to later line without cursor mapper")
         )
         context.assertValueEqual(
-            markedLocations[2].position,
             markedLocations[3].position.clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            markedLocations[2].position,
             Component.literal("Clamp to previous line with cursor mapper")
         )
         context.assertValueEqual(
-            markedLocations[1].position,
             markedLocations[0].position.clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            markedLocations[1].position,
             Component.literal("Clamp to later line with cursor mapper")
         )
 
@@ -222,7 +222,7 @@ object TestCommandCrafter {
 
         baseTokens.overlay(listOf(overlayTokens).iterator())
 
-        context.assertValueEqual(expectedTokens.build().data, baseTokens.build().data, Component.literal("token data"))
+        context.assertValueEqual(baseTokens.build().data, expectedTokens.build().data, Component.literal("token data"))
         context.succeed()
     }
 
@@ -289,28 +289,28 @@ object TestCommandCrafter {
             val completionExamplePosition = firstFilePart.length + secondFilePart.length/2
 
             context.assertValueEqual(
-            fullResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
                 offsetResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
+                fullResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
                 Component.literal("completions from $description")
             )
             context.assertValueEqual(
-                fullResult.diagnostics,
                 offsetResult.diagnostics,
+                fullResult.diagnostics,
                 Component.literal("diagnostics from $description")
             )
             context.assertValueEqual(
-                fullResult.semanticTokens.build().data,
                 offsetResult.semanticTokens.build().data,
+                fullResult.semanticTokens.build().data,
                 Component.literal("semantic tokens from $description")
             )
             context.assertValueEqual(
-                fullResult.semanticTokens.lastLine,
                 offsetResult.semanticTokens.lastLine,
+                fullResult.semanticTokens.lastLine,
                 Component.literal("semantic tokens last line from $description")
             )
             context.assertValueEqual(
-                fullResult.semanticTokens.lastCursor,
                 offsetResult.semanticTokens.lastCursor,
+                fullResult.semanticTokens.lastCursor,
                 Component.literal("semantic tokens last cursor from $description")
             )
         }
@@ -626,10 +626,10 @@ object TestCommandCrafter {
 
         val analyzingResult = analyseCommand(context, processedLines)
 
-        context.assertValueEqual(3, analyzingResult.diagnostics.size, "Diagnostics count")
-        context.assertValueEqual(markedLocations[0].position, analyzingResult.diagnostics[0].range.start, "First diagnostic start")
-        context.assertValueEqual(markedLocations[1].position, analyzingResult.diagnostics[1].range.start, "Second diagnostic start")
-        context.assertValueEqual(markedLocations[2].position, analyzingResult.diagnostics[2].range.start, "Third diagnostic start")
+        context.assertValueEqual(analyzingResult.diagnostics.size, 3, "Diagnostics count")
+        context.assertValueEqual(analyzingResult.diagnostics[0].range.start, markedLocations[0].position, "First diagnostic start")
+        context.assertValueEqual(analyzingResult.diagnostics[1].range.start, markedLocations[1].position, "Second diagnostic start")
+        context.assertValueEqual(analyzingResult.diagnostics[2].range.start, markedLocations[2].position, "Third diagnostic start")
 
         context.succeed()
     }
@@ -658,16 +658,16 @@ object TestCommandCrafter {
         }
         val path = builder.buildStandalone(processedLines[0])
 
-        context.assertValueEqual(8, path.segments.size, "Path segments count")
+        context.assertValueEqual(path.segments.size, 8, "Path segments count")
         context.assertValueEqual(
-            listOf(StringRangePath.Collision(StringRange(markedLocations[1].absoluteCursor, markedLocations[2].absoluteCursor), ByteTag.ZERO)),
             path.collisions,
+            listOf(StringRangePath.Collision(StringRange(markedLocations[1].absoluteCursor, markedLocations[2].absoluteCursor), ByteTag.ZERO)),
             "Path collisions"
         )
         val indexTag = parser.parse(StringReader("foo[0].bar")).get(path.root).getOrNull(0)
         context.assertValueEqual(
-            listOf(indexTag, (indexTag as? ListTag)?.getOrNull(0)),
             path.segments[3].tree.orderedNodes,
+            listOf(indexTag, (indexTag as? ListTag)?.getOrNull(0)),
             "Index segment"
         )
         context.assertTrue(
@@ -693,9 +693,9 @@ object TestCommandCrafter {
         val tokenData = analyzingResult.semanticTokens.build().data
 
         fun testToken(tokenIndex: Int, expectedLineOffset: Int, expectedCursorOffset: Int, expectedLength: Int) {
-            context.assertValueEqual(expectedLineOffset,   tokenData[5 * tokenIndex + 0], Component.literal("Index $tokenIndex: token line"))
-            context.assertValueEqual(expectedCursorOffset, tokenData[5 * tokenIndex + 1], Component.literal("Index $tokenIndex: token cursor"))
-            context.assertValueEqual(expectedLength,       tokenData[5 * tokenIndex + 2], Component.literal("Index $tokenIndex: token length"))
+            context.assertValueEqual(tokenData[5 * tokenIndex + 0], expectedLineOffset, Component.literal("Index $tokenIndex: token line"))
+            context.assertValueEqual(tokenData[5 * tokenIndex + 1], expectedCursorOffset, Component.literal("Index $tokenIndex: token cursor"))
+            context.assertValueEqual(tokenData[5 * tokenIndex + 2], expectedLength, Component.literal("Index $tokenIndex: token length"))
         }
 
         testToken(0, 0, 0, 7)
@@ -829,8 +829,8 @@ object TestCommandCrafter {
             "Expected line 1 suggestions to be root commands"
         )
         context.assertValueEqual(
-            commandDispatcher.root.children.map { it.name }.toSet(),
             suggestions[1]?.map { it.label }?.toSet(),
+            commandDispatcher.root.children.map { it.name }.toSet(),
             "line 2 root suggestions"
         )
 
@@ -842,8 +842,8 @@ object TestCommandCrafter {
 
         val line3Suggestions = suggestions[3]?.map { it.label }?.toSet()
         context.assertValueEqual(
-            setOf("survival", "creative", "adventure", "spectator", "!survival", "!creative", "!adventure", "!spectator"),
             line3Suggestions,
+            setOf("survival", "creative", "adventure", "spectator", "!survival", "!creative", "!adventure", "!spectator"),
             "line 4 selector gamemode suggestions"
         )
 
@@ -1068,8 +1068,9 @@ object TestCommandCrafter {
     }
 
     // Because Minecraft's doesn't allow null
-    fun GameTestHelper.assertValueEqual(expected: Any?, actual: Any?, message: String) {
-        if(expected != actual)
+    // Note: signature is (actual, expected, message) so callers should pass the value under test first
+    fun GameTestHelper.assertValueEqual(actual: Any?, expected: Any?, message: String) {
+        if(actual != expected)
             throw this.assertionException("test.error.value_not_equal", message, expected ?: "null", actual ?: "null")
     }
 
