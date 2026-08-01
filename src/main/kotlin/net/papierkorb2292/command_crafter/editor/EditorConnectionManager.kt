@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.helper.CallbackExecutorService
+import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.helper.getType
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.jsonrpc.debug.json.DebugMessageJsonHandler
@@ -93,7 +93,7 @@ class EditorConnectionManager(
             minecraftServerConnection,
             minecraftClientConnection,
             connection,
-            CallbackExecutorService(
+            WrappingExecutorService.withFinishedCallback(
                 Executors.newCachedThreadPool(),
                 serviceRemover
             ),

@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
@@ -19,7 +20,9 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
-        val analyzerExecutor = Executors.newFixedThreadPool(5)
+        val analyzerExecutor = WrappingExecutorService.withErrorCallback(Executors.newFixedThreadPool(5)) { e ->
+            CommandCrafter.LOGGER.error("Analyzer task threw error", e)
+        }
 
         fun linesFromString(content: String) = linesFromStrings(content.lines())
         fun linesFromStrings(lines: List<String>): MutableList<StringBuilder> = lines.mapTo(ArrayList(lines.size), ::StringBuilder)
