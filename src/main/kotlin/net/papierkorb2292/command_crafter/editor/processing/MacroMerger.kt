@@ -142,9 +142,9 @@ object MacroMerger {
         if(str1 === str2) // Fast path, because OpenFile uses the same string instance if a line wasn't edited
             return str1.length
         val minLength = min(str1.length, str2.length)
-        for(i in minLength - 1 downTo 0) {
-            if(str1[i] != str2[i])
-                return minLength - i - 1
+        for(i in 1..minLength) {
+            if(str1[str1.length - i] != str2[str2.length - i])
+                return i - 1
         }
         return minLength
     }
