@@ -645,12 +645,23 @@ class AnalyzingResult(
         fun build(): AnalyzingResult {
             // Add syntax nodes after the last mapping
             val lastActualSyntaxNode = base.actualSyntaxNodes.lastOrNull()
-            if(lastActualSyntaxNode != null)
-                result.addActualSyntaxNode(StringRange(lastTargetEndCursor, lastActualSyntaxNode.cursorRange.end + lastCursorOffset), base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastSourcePosition))
+            if(lastActualSyntaxNode != null) {
+                val endCursor = lastActualSyntaxNode.cursorRange.end + lastCursorOffset
+                if(endCursor >= lastTargetEndCursor)
+                    result.addActualSyntaxNode(StringRange(lastTargetEndCursor, endCursor), base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastSourcePosition))
+            }
 
             val lastPotentialSyntaxNode = (base.buildingPotentialSyntaxNodes.values.asSequence() + base.finishedPotentialSyntaxNodes.asSequence()).maxByOrNull { it.lastOrNull()?.cursorRange?.end ?: 0 }
-            if(!lastPotentialSyntaxNode.isNullOrEmpty())
-                result.addPotentialSyntaxNode(LANGUAGE_COMPLETION_CHANNEL, StringRange(lastTargetEndCursor, lastPotentialSyntaxNode.last().cursorRange.end + lastCursorOffset), base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition).offsetPotentialOutput(lastSourcePosition))
+            if(!lastPotentialSyntaxNode.isNullOrEmpty()) {
+                val endCursor = lastPotentialSyntaxNode.last().cursorRange.end + lastCursorOffset
+                if(endCursor > lastTargetEndCursor)
+                    result.addPotentialSyntaxNode(
+                        LANGUAGE_COMPLETION_CHANNEL,
+                        StringRange(lastTargetEndCursor, endCursor),
+                        base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition)
+                            .offsetPotentialOutput(lastSourcePosition)
+                    )
+            }
             return result
         }
     }
