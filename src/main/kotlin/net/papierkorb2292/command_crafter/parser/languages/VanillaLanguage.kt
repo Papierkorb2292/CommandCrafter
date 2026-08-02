@@ -963,7 +963,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 else macro.string.cursorMapper
             )
             val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
-            val childResourceCreator = reader.resourceCreator.copyForMacro()
+            val childResourceCreator = reader.resourceCreator.copyForMacro(macroMappingInfo)
             val macroQueue = mutableListOf<AnalyzingResourceCreator.DelayedMacro>()
             childResourceCreator.macroQueue = macroQueue
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
@@ -1014,8 +1014,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 macroAnalyzingResult,
                 input,
                 macro.rangeInParent,
-                macro.absoluteRange,
-                childResourceCreator.newCache.macroCache
+                childResourceCreator.newCache.macroCache,
+                macroAnalyzingResult.mappingInfo,
             ))
         }
 

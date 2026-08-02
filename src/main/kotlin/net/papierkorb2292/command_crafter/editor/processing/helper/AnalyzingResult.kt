@@ -84,26 +84,7 @@ class AnalyzingResult(
                     data = original.data
                 }
             },
-            colorInfos.mapTo(mutableListOf()) { original ->
-                // Copy data. Original needs to stay the same because this method is used for caching
-                object : ColorInfo {
-                    override val color = original.color
-                    override val range = position.offsetRange(original.range)
-                    override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
-                        params.range = position.differenceTo(params.range)
-                        val presentations =  original.getPresentation(params)
-                        for(presentation in presentations) {
-                            if(presentation.textEdit != null)
-                                presentation.textEdit.range = position.offsetRange(presentation.textEdit.range)
-                            if(presentation.additionalTextEdits != null)
-                                for(textEdit in presentation.additionalTextEdits) {
-                                    textEdit.range = position.offsetRange(textEdit.range)
-                                }
-                        }
-                        return presentations
-                    }
-                }
-            },
+            colorInfos.mapTo(mutableListOf()) { OffsetColorInfo(it, position) },
             parent.filePosition,
             parent.documentation,
             getActualNodeCompressed(this.offsetActualInput(-cursorOffset).offsetActualOutput(position), cursorOffset),
@@ -443,6 +424,10 @@ class AnalyzingResult(
         return CompletableFuture.allOf(*completions.toTypedArray()).thenApply { completions.flatMap { it.join() } }
     }
 
+    fun createMapper(newFile: FileMappingInfo): MappedAnalyzingResultBuilder {
+        return MappedAnalyzingResultBuilder(this, newFile)
+    }
+
     companion object {
         const val LANGUAGE_COMPLETION_CHANNEL = "language"
         const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
@@ -592,6 +577,84 @@ class AnalyzingResult(
         }
     }
 
+    class MappedAnalyzingResultBuilder(private val base: AnalyzingResult, newFile: FileMappingInfo) {
+        private var lastCursorOffset = 0
+        private var lastTargetEndCursor = 0
+        private var lastSourcePosition = Position()
+        private var lastTargetPosition = Position()
+
+        private val result = AnalyzingResult(
+            newFile,
+            SemanticTokensBuilder(newFile),
+            ArrayList(base.diagnostics),
+            base.colorInfos.mapTo(mutableListOf(), ::OffsetColorInfo),
+            base.filePosition,
+            base.documentation,
+            mutableListOf(),
+            mutableListOf(),
+            mutableMapOf()
+        )
+
+        init {
+            result.semanticTokens.combineWith(base.semanticTokens)
+        }
+
+        private val tokenPositionMapper = result.semanticTokens.TokenPositionMapper()
+
+        /**
+         * Shifts all content of the analyzing result that is after the source position by the difference between
+         * source and target position. Multiple calls should only have increasing sourcePosition values
+         *
+         * If `addMapping` has been called before, then the source cursor/position of all following calls should already
+         * have that mapping applied to it. This means it always references the current state of the analyzing result, and
+         * not the state when the MappedAnalyzingResultBuilder was created.
+         *
+         * @param sourcePosition The position after which tokens should be shifted
+         * @param targetPosition The new position of sourcePosition
+         */
+        fun addMapping(startSourceCursor: Int, endSourceCursor: Int, startSourcePosition: Position, cursorOffset: Int, fileOffset: Position) {
+            val startTargetPosition = startSourcePosition.offsetBy(fileOffset)
+
+            // Add mapped syntax nodes between the previous mapping and this new mapping
+            val finishedTargetRange = StringRange(lastTargetEndCursor, startSourceCursor + cursorOffset)
+            result.addActualSyntaxNode(finishedTargetRange, base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastSourcePosition))
+            result.addPotentialSyntaxNode(LANGUAGE_COMPLETION_CHANNEL, finishedTargetRange, base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition).offsetPotentialOutput(lastSourcePosition))
+
+            // Shift semantic tokens
+            tokenPositionMapper.addMapping(startSourcePosition, startTargetPosition)
+
+            // Shift diagnostics
+            for(diagnostic in result.diagnostics) {
+                if(diagnostic.range.start > startSourcePosition)
+                    diagnostic.range.start = startTargetPosition.offsetBy(startSourcePosition.differenceTo(diagnostic.range.start))
+                if(diagnostic.range.end > startSourcePosition)
+                    diagnostic.range.end = startTargetPosition.offsetBy(startSourcePosition.differenceTo(diagnostic.range.end))
+            }
+            // Shift colors
+            for(color in result.colorInfos) {
+                if(color.range.start > startSourcePosition)
+                    (color as OffsetColorInfo).offset = startTargetPosition.offsetBy(startSourcePosition.differenceTo(color.offset))
+            }
+
+            lastCursorOffset += cursorOffset
+            lastTargetEndCursor = endSourceCursor + cursorOffset
+            lastSourcePosition = startSourcePosition
+            lastTargetPosition = startTargetPosition
+        }
+
+        fun build(): AnalyzingResult {
+            // Add syntax nodes after the last mapping
+            val lastActualSyntaxNode = base.actualSyntaxNodes.lastOrNull()
+            if(lastActualSyntaxNode != null)
+                result.addActualSyntaxNode(StringRange(lastTargetEndCursor, lastActualSyntaxNode.cursorRange.end + lastCursorOffset), base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastSourcePosition))
+
+            val lastPotentialSyntaxNode = (base.buildingPotentialSyntaxNodes.values.asSequence() + base.finishedPotentialSyntaxNodes.asSequence()).maxByOrNull { it.lastOrNull()?.cursorRange?.end ?: 0 }
+            if(!lastPotentialSyntaxNode.isNullOrEmpty())
+                result.addPotentialSyntaxNode(LANGUAGE_COMPLETION_CHANNEL, StringRange(lastTargetEndCursor, lastPotentialSyntaxNode.last().cursorRange.end + lastCursorOffset), base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition).offsetPotentialOutput(lastSourcePosition))
+            return result
+        }
+    }
+
     class FeatureFilteredActualSyntaxNode(private val delegate: ActualSyntaxNode, private val featureConfig: FeatureConfig, private val analyzerNameInserts: List<String>) : ActualSyntaxNode {
         override fun getDefinition(cursor: Int) =
             if(featureConfig.isEnabled(analyzerNameInserts.map(::getDefinitionsFeatureKey), true))
@@ -608,5 +671,26 @@ class AnalyzingResult(
             if(featureConfig.isEnabled(analyzerNameInserts.map(::getCompletionsFeatureKey), true))
                 delegate.getCompletions(cursor, context)
             else CompletableFuture.completedFuture(emptyList())
+    }
+
+    class OffsetColorInfo(val delegate: ColorInfo, var offset: Position = Position()) : ColorInfo {
+        override val range: Range
+            get() = offset.offsetRange(delegate.range)
+        override val color: Color
+            get() = delegate.color
+
+        override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
+            params.range = offset.differenceTo(params.range)
+            val presentations =  delegate.getPresentation(params)
+            for(presentation in presentations) {
+                if(presentation.textEdit != null)
+                    presentation.textEdit.range = offset.offsetRange(presentation.textEdit.range)
+                if(presentation.additionalTextEdits != null)
+                    for(textEdit in presentation.additionalTextEdits) {
+                        textEdit.range = offset.offsetRange(textEdit.range)
+                    }
+            }
+            return presentations
+        }
     }
 }

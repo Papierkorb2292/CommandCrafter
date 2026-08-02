@@ -60,33 +60,42 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
 
         fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
-            val result = AnalyzingResult(FileMappingInfo(lines), Position())
-            val concatenatedLines = lines.joinToString("\n")
-            val reader = StringReader(concatenatedLines)
-            val parsedStringRangeTree = try {
-                StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
-            } catch(e: IOException) {
-                return result
-            }
-
+            val mappingInfo = FileMappingInfo(lines)
             val directiveReader = DirectiveStringReader(
-                result.mappingInfo,
+                mappingInfo,
                 languageServer.minecraftServer.commandDispatcher,
-                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer)).apply {
+                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer), mappingInfo).apply {
                     loadCache(file, languageServer.minecraftServer.commandDispatcher)
                 }
             )
 
             DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
-                TreeOperations.forJson(
-                    parsedStringRangeTree,
-                    directiveReader,
-                    concatenatedLines
-                ).analyzeFull(result, fileDecoder)
-            }
+                var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(directiveReader)
+                if(result == null) {
+                    // No cache hit, parse JSON instead
+                    result = AnalyzingResult(mappingInfo, Position())
+                    val concatenatedLines = lines.joinToString("\n")
+                    val reader = StringReader(concatenatedLines)
+                    val parsedStringRangeTree = try {
+                        StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
+                    } catch(e: IOException) {
+                        return result
+                    }
 
-            directiveReader.resourceCreator.storeCache(file)
-            return directiveReader.resourceCreator.overlayMacros(result)
+                    TreeOperations.forJson(
+                        parsedStringRangeTree,
+                        directiveReader,
+                        concatenatedLines
+                    ).analyzeFull(result, fileDecoder)
+
+                    directiveReader.resourceCreator.storeCache(file, result)
+                    return directiveReader.resourceCreator.overlayMacros(result)
+                } else {
+                    // There is no new outermost analyzing result for the cache, since only a macro was changed
+                    directiveReader.resourceCreator.storeCacheKeepAnalyzingResult(file)
+                    return result
+                }
+            }
         }
 
         private val NULL_PROVIDER = { _: Any? -> null }

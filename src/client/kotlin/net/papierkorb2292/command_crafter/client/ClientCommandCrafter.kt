@@ -163,10 +163,11 @@ object ClientCommandCrafter : ClientModInitializer {
         // Make sure to use CommandCrafter's dispatcher, which has extra info
         val dispatcher = editorConnectionManager.minecraftServerConnection.commandDispatcher
         val source = AnalyzingClientCommandSource(Minecraft.getInstance(), editorConnectionManager.minecraftServerConnection.dynamicRegistryManager)
+        val mappingInfo = FileMappingInfo(listOf(input))
         val directiveReader = DirectiveStringReader(
-            FileMappingInfo(listOf(input)),
+            mappingInfo,
             dispatcher,
-            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager, source)
+            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager, source, mappingInfo)
         )
         directiveReader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
         if(directiveReader.canRead() && directiveReader.peek() == '/')

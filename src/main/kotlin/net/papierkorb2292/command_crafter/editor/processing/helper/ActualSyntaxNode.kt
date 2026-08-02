@@ -44,3 +44,21 @@ fun ActualSyntaxNode.offsetActualOutput(offset: Position) = object : ActualSynta
         hover
     }
 }
+
+fun ActualSyntaxNode.offsetActualOutputDifference(offset: Position) = object : ActualSyntaxNode {
+    override fun getDefinition(cursor: Int) = this@offsetActualOutputDifference.getDefinition(cursor)?.thenApply { definition ->
+        if(definition.isRight)
+            Either.forRight(definition.right.map { link ->
+                if(link.originSelectionRange != null)
+                    link.originSelectionRange = offset.differenceTo(link.originSelectionRange)
+                link
+            })
+        else definition
+    }
+
+    override fun getHover(cursor: Int) = this@offsetActualOutputDifference.getHover(cursor)?.thenApply { hover ->
+        if(hover.range != null)
+            hover.range = offset.differenceTo(hover.range)
+        hover
+    }
+}

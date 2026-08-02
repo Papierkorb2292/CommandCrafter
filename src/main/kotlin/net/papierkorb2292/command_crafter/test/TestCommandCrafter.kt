@@ -227,6 +227,73 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testTokenPositionMapper(context: GameTestHelper) {
+        // Test adding and removing characters (single-line shifts)
+        run {
+            val lines = listOf("0123456789")
+            val sample = SemanticTokensBuilder(FileMappingInfo(lines))
+            val expected = SemanticTokensBuilder(FileMappingInfo(lines))
+
+            // Two tokens: one before the mapping and one after
+            sample.add(0, 0, 1, TokenType.NUMBER, 0)
+            sample.add(0, 5, 1, TokenType.NUMBER, 0)
+
+            // Expect the second token to be shifted +2 chars
+            expected.add(0, 0, 1, TokenType.NUMBER, 0)
+            expected.add(0, 7, 1, TokenType.NUMBER, 0)
+
+            val mapper = sample.TokenPositionMapper()
+            // Move the source position from char 2 to char 4 (adds 2 characters)
+            mapper.addMapping(Position(0, 2), Position(0, 4))
+
+            context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: add characters"))
+        }
+
+        run {
+            val lines = listOf("0123456789")
+            val sample = SemanticTokensBuilder(FileMappingInfo(lines))
+            val expected = SemanticTokensBuilder(FileMappingInfo(lines))
+
+            sample.add(0, 0, 1, TokenType.NUMBER, 0)
+            sample.add(0, 5, 1, TokenType.NUMBER, 0)
+
+            // Expect the second token to be shifted -1 char
+            expected.add(0, 0, 1, TokenType.NUMBER, 0)
+            expected.add(0, 4, 1, TokenType.NUMBER, 0)
+
+            val mapper = sample.TokenPositionMapper()
+            // Move the source position from char 2 to char 1 (removes 1 character)
+            mapper.addMapping(Position(0, 2), Position(0, 1))
+
+            context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: remove characters"))
+        }
+
+        // Test adding multiple newlines by extending a previous token (splits into multiple tokens)
+        run {
+            val lines = listOf("012", "abcdefghij", "klmnopqrst")
+            val sample = SemanticTokensBuilder(FileMappingInfo(lines))
+            val expected = SemanticTokensBuilder(FileMappingInfo(lines))
+
+            // A token starting at line 0, char 1 with length 5 (so it contains the mapping at char 3)
+            sample.add(0, 1, 5, TokenType.NUMBER, 0)
+
+            // After mapping sourcePosition (0,3) -> targetPosition (2,2) the token should be
+            // extended to the end of the first line, then a full token for line 1 and a final
+            // token on line 2 with the remaining part.
+            expected.add(0, 1, lines[0].length - 1, TokenType.NUMBER, 0) // rest of line 0
+            expected.add(1, 0, lines[1].length, TokenType.NUMBER, 0) // full line 1
+            expected.add(2, 0,  5, TokenType.NUMBER, 0) // remaining part
+
+            val mapper = sample.TokenPositionMapper()
+            mapper.addMapping(Position(0, 3), Position(2, 2))
+
+            context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: add multiple newlines"))
+        }
+
+        context.succeed()
+    }
+
+    @GameTest
     fun testSplitProcessedInputCursorMapperCombineWith(context: GameTestHelper) {
         val sourceMapper = SplitProcessedInputCursorMapper()
         val targetMapper = SplitProcessedInputCursorMapper()
@@ -639,11 +706,13 @@ object TestCommandCrafter {
         val markedLine = "foo[{bar:[]}].bar[0].baz{qux:{quux:§false}}.qux{quux:§true§}"
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(listOf(markedLine))
         val parser = NbtPathArgument()
+        val mappingInfo = FileMappingInfo(processedLines)
         val resourceCreator = AnalyzingResourceCreator(
             null,
             "testPack/data/minecraft/function/test.mcfunction",
             context.level.server.lootRegistries,
-            getParsingCommandSource(context)
+            getParsingCommandSource(context),
+            mappingInfo
         )
         resourceCreator.macroTargetCursors += markedLocations[0].absoluteCursor
         val builder = StringRangePath.Builder(resourceCreator)
@@ -785,7 +854,8 @@ object TestCommandCrafter {
                     null,
                     "testPack/data/minecraft/function/test.mcfunction",
                     source.server.registryAccess(),
-                    source
+                    source,
+                    analyzingResult.mappingInfo
                 )
             ),
             source,
@@ -1018,7 +1088,8 @@ object TestCommandCrafter {
             null,
             "testPack/data/minecraft/function/test.mcfunction",
             source.server.lootRegistries,
-            source
+            source,
+            analyzingResult.mappingInfo
         )
         LanguageManager.analyse(
             DirectiveStringReader(

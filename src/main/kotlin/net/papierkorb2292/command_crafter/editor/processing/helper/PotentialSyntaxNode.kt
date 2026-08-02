@@ -45,6 +45,26 @@ fun PotentialSyntaxNode.offsetPotentialOutput(offset: Position) = object : Poten
     }
 }
 
+fun PotentialSyntaxNode.offsetPotentialOutputDifference(offset: Position) = object : PotentialSyntaxNode {
+    override fun getCompletions(cursor: Int, context: CompletionContext?) = this@offsetPotentialOutputDifference.getCompletions(cursor, context)?.thenApply { completions ->
+        completions.map { completion ->
+            completion.textEdit = completion.textEdit?.map({ left ->
+                left.range = offset.differenceTo(left.range)
+                Either.forLeft(left)
+            }, { right ->
+                right.insert = offset.differenceTo(right.insert)
+                right.replace = offset.differenceTo(right.replace)
+                Either.forRight(right)
+            })
+            completion.additionalTextEdits = completion.additionalTextEdits?.map { edit ->
+                edit.range = offset.differenceTo(edit.range)
+                edit
+            }
+            completion
+        }
+    }
+}
+
 fun PotentialSyntaxNode.withUniqueCompletions() = object : PotentialSyntaxNode {
     override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>>? {
         val completionFuture = this@withUniqueCompletions.getCompletions(cursor, context)

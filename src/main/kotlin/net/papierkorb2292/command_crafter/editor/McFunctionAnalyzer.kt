@@ -25,29 +25,37 @@ class McFunctionAnalyzer(
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
         val dispatcher = languageServer.minecraftServer.commandDispatcher
+        val mappingInfo = file.createFileMappingInfo()
         val reader = DirectiveStringReader(
-            file.createFileMappingInfo(),
+            mappingInfo,
             dispatcher,
-            AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, source).apply {
+            AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, source, mappingInfo).apply {
                 loadCache(file, dispatcher)
             }
         )
-        val result = AnalyzingResult(reader.fileMappingInfo, Position())
-        reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
-            LanguageManager.analyse(
-                reader,
-                source,
-                result,
-                Language.TopLevelClosure(VanillaLanguage())
-            )
+            var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(reader)
+            if(result == null) {
+                // No cache hit, parse function instead
+                result = AnalyzingResult(reader.fileMappingInfo, Position())
+                reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
+                LanguageManager.analyse(
+                    reader,
+                    source,
+                    result,
+                    Language.TopLevelClosure(VanillaLanguage())
+                )
+                reader.resourceCreator.resourceStack.pop()
+                reader.resourceCreator.storeCache(file, result)
+                result = reader.resourceCreator.overlayMacros(result)
+            } else {
+                // There is no new outermost analyzing result for the cache, since only a macro was changed
+                reader.resourceCreator.storeCacheKeepAnalyzingResult(file)
+            }
+            result = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
+            if(resultWrapper != null)
+                return resultWrapper(result)
+            return result
         }
-        reader.resourceCreator.resourceStack.pop()
-        val combinedResult = reader.resourceCreator.overlayMacros(result)
-        val filtered = combinedResult.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
-        reader.resourceCreator.storeCache(file)
-        if(resultWrapper != null)
-            return resultWrapper(filtered)
-        return filtered
     }
 }

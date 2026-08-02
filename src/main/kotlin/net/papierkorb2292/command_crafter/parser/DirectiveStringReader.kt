@@ -394,6 +394,21 @@ class DirectiveStringReader<out ResourceCreator>(
         return IoReader()
     }
 
+    companion object {
+        fun <ResourceCreator> createReaderAtAbsoluteCursor(
+            fileMappingInfo: FileMappingInfo,
+            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
+            resourceCreator: ResourceCreator,
+            absoluteCursor: Int
+        ) = DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
+            if(absoluteCursor > 0) {
+                val position = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo)
+                it.nextLine = position.line
+                it.readCharacters = it.fileMappingInfo.accumulatedLineLengths[position.line - 1]
+                it.cursor = position.character
+            }
+        }
+    }
 
     inner class IoReader : Reader() {
         private var isClosed = false
