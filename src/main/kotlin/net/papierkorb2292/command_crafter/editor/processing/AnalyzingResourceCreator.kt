@@ -52,7 +52,10 @@ class AnalyzingResourceCreator(
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
 
-    fun copyInput() = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, file, macroTargetCursors.copy(), previousCache, newCache)
+    fun copyInput() = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, file, macroTargetCursors.copy(), previousCache, newCache).also {
+        it.suggestionRequestInfo = suggestionRequestInfo
+        it.macroQueue = macroQueue
+    }
     fun copyForMacro(macroMappingInfo: FileMappingInfo) = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroMappingInfo, macroTargetCursors.copy(), previousCache, CacheData(macroMappingInfo, newCache.usedCommandDispatcher))
 
     fun loadCache(file: OpenFile, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
