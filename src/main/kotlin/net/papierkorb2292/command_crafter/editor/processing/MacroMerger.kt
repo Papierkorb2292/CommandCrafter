@@ -63,11 +63,12 @@ object MacroMerger {
             startLine++
         }
 
-        // Find the macro that encompasses the first change
+        // Find the macro that encompasses the first change. If the change is exactly at the start of the macro, there was no modification inside the macro so return false
         val targetCursor = prevFile.cursorMapper.mapToTarget(absoluteStartPosition)
-        val macroIndex = roundDownBinarySearch(oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(targetCursor) })
-        if(macroIndex < 0)
-            return false // No macro starts before this position
+        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(targetCursor) }
+        if(macroIndex >= -1)
+            return false // Exactly matched the start of a macro (>= 0) or no macro starts before this position (== -1)
+        macroIndex = roundDownBinarySearch(macroIndex)
         val oldMacroNode = oldMacros.orderedMacros[macroIndex]
         val oldMacroAbsoluteEnd = prevFile.cursorMapper.mapToSource(oldMacroNode.rangeInParent.end)
         if(oldMacroAbsoluteEnd < absoluteStartPosition)
