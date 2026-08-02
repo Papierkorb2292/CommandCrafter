@@ -478,7 +478,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$bootStrap$49",
+            method = "lambda$bootStrap$46",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
