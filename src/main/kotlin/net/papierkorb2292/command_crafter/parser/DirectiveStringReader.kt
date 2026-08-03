@@ -400,7 +400,7 @@ class DirectiveStringReader<out ResourceCreator>(
             dispatcher: CommandDispatcher<SharedSuggestionProvider>,
             resourceCreator: ResourceCreator,
             absoluteCursor: Int
-        ) = DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
+        ) = DirectiveStringReader(fileMappingInfo.copy(true), dispatcher, resourceCreator).also {
             if(absoluteCursor > 0) {
                 val position = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo)
                 it.nextLine = position.line
