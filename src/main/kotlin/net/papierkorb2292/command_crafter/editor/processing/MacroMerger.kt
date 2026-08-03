@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
 import net.papierkorb2292.command_crafter.helper.binarySearch
@@ -23,7 +24,7 @@ object MacroMerger {
             childResults += overlayMacros(child.analyzingResult, child.updatedFile, child.children).addOffset(analyzingResult, positionOffset, mappedOffset)
             val relativeOffset = macros.childModificationOffsets.get(i)
             if(relativeOffset != null && relativeOffset.isNonZero()) {
-                resultMapper.addMapping(child.rangeInParent.start, child.rangeInParent.end, positionOffset, relativeOffset.cursorOffset, relativeOffset.fileOffset)
+                resultMapper.addMapping(child.rangeInParent.start, positionOffset, child.rangeInParent.end, relativeOffset.cursorOffset, relativeOffset.fileOffset)
             }
         }
         return resultMapper.build().overlayAllCompressedSorted(childResults)
@@ -106,8 +107,14 @@ object MacroMerger {
             return false // Something changed the range of the macro relative to the rest of the file. Can't use the cache.
 
         // Before analyzing the new macro, add all the macros before it to the new cache
-        for(i in 0 until macroIndex)
-            newMacros.addMacro(oldMacros.orderedMacros[i])
+        for(i in 0 until macroIndex) {
+            val macro = oldMacros.orderedMacros[i]
+            val modificationOffset = oldMacros.childModificationOffsets.get(i)
+            // Add the macro with a mapped range, because newReader doesn't have the same mappings
+            newMacros.addMacro(macro.withRange(prevFile.cursorMapper.mapToSource(macro.rangeInParent)))
+            if(modificationOffset != null)
+                newMacros.childModificationOffsets.put(i, modificationOffset)
+        }
 
         // Analyze new macro
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(newDecodedMacro.absoluteRange.start, newDecodedMacro.absoluteRange.end, templateReader.fileMappingInfo)
@@ -120,8 +127,17 @@ object MacroMerger {
         newMacros.childModificationOffsets.put(macroIndex, oldMacros.childModificationOffsets.get(macroIndex)?.addAfter(newOffset) ?: newOffset)
 
         // Add all remaining cached macros with the new offset
-        for(i in macroIndex + 1 until oldMacros.orderedMacros.size)
-            newMacros.addMacro(oldMacros.orderedMacros[i].withOffset(newCursorOffset))
+        for(i in macroIndex + 1 until oldMacros.orderedMacros.size) {
+            val macro = oldMacros.orderedMacros[i]
+            val modificationOffset = oldMacros.childModificationOffsets.get(i)
+            // Add the macro with a mapped range, because newReader doesn't have the same mappings
+            newMacros.addMacro(macro.withRange(prevFile.cursorMapper.mapToSource(macro.rangeInParent) + (newDecodedMacro.rangeInParent.end - oldMacroAbsoluteEnd)))
+            if(modificationOffset != null) {
+                // This offset is still valid, because all modification offsets are added together by overlayMacros,
+                // so only the offset for the macro that changed has to be modified
+                newMacros.childModificationOffsets.put(i, modificationOffset)
+            }
+        }
 
         return true
     }

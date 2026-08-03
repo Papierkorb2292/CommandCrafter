@@ -8,7 +8,6 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
@@ -139,18 +138,12 @@ class AnalyzingResourceCreator(
         val children: MacroCache,
         val updatedFile: FileMappingInfo,
     ) {
-        fun copyForChildCacheHit(macro: DecodedMacro) = MacroNode(
-            analyzingResult,
-            input,
-            macro.rangeInParent,
-            children,
-            updatedFile
-        )
+        fun copyForChildCacheHit(macro: DecodedMacro) = withRange(macro.rangeInParent)
 
-        fun withOffset(cursorOffset: Int) = MacroNode(
+        fun withRange(newRangeInParent: StringRange) = MacroNode(
             analyzingResult,
             input,
-            rangeInParent + cursorOffset,
+            newRangeInParent,
             children,
             updatedFile
         )

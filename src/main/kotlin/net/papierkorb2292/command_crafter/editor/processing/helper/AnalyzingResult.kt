@@ -70,18 +70,10 @@ class AnalyzingResult(
                 combineWith(semanticTokens)
                 offset(position)
             },
-            diagnostics.mapTo(mutableListOf()) { original ->
-                // Copy data. Original needs to stay the same because this method is used for caching
-                Diagnostic().apply {
-                    range = position.offsetRange(original.range)
-                    severity = original.severity
-                    code = original.code
-                    codeDescription = original.codeDescription
-                    source = original.source
-                    message = original.message
-                    tags = original.tags
-                    relatedInformation = original.relatedInformation
-                    data = original.data
+            // Copy data. Original needs to stay the same because this method is used for caching
+            copyDiagnostics().also {
+                for(diagnostic in it) {
+                    diagnostic.range = position.offsetRange(diagnostic.range)
                 }
             },
             colorInfos.mapTo(mutableListOf()) { OffsetColorInfo(it, position) },
@@ -428,6 +420,20 @@ class AnalyzingResult(
         return MappedAnalyzingResultBuilder(this, newFile)
     }
 
+    fun copyDiagnostics(): MutableList<Diagnostic> = diagnostics.mapTo(mutableListOf()) { original ->
+        Diagnostic().apply {
+            range = Range(original.range.start, original.range.end)
+            severity = original.severity
+            code = original.code
+            codeDescription = original.codeDescription
+            source = original.source
+            message = original.message
+            tags = original.tags
+            relatedInformation = original.relatedInformation
+            data = original.data
+        }
+    }
+
     companion object {
         const val LANGUAGE_COMPLETION_CHANNEL = "language"
         const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
@@ -586,7 +592,8 @@ class AnalyzingResult(
         private val result = AnalyzingResult(
             newFile,
             SemanticTokensBuilder(newFile),
-            ArrayList(base.diagnostics),
+            // Copy data. Original needs to stay the same because this method is used for caching
+            base.copyDiagnostics(),
             base.colorInfos.mapTo(mutableListOf(), ::OffsetColorInfo),
             base.filePosition,
             base.documentation,
@@ -609,16 +616,19 @@ class AnalyzingResult(
          * have that mapping applied to it. This means it always references the current state of the analyzing result, and
          * not the state when the MappedAnalyzingResultBuilder was created.
          *
-         * @param sourcePosition The position after which tokens should be shifted
-         * @param targetPosition The new position of sourcePosition
+         * @param startSourceCursor The cursor position after which tokens should be shifted
+         * @param startSourcePosition The position of the start of the range to be shifted
+         * @param endTargetCursor The end position of the range to be shifted with the mapping already applied
+         * @param cursorOffset The offset by which to shift the tokens
+         * @param fileOffset The offset by which to shift the file position
          */
-        fun addMapping(startSourceCursor: Int, endSourceCursor: Int, startSourcePosition: Position, cursorOffset: Int, fileOffset: Position) {
+        fun addMapping(startSourceCursor: Int, startSourcePosition: Position, endTargetCursor: Int, cursorOffset: Int, fileOffset: Position) {
             val startTargetPosition = startSourcePosition.offsetBy(fileOffset)
 
             // Add mapped syntax nodes between the previous mapping and this new mapping
-            val finishedTargetRange = StringRange(lastTargetEndCursor, startSourceCursor + cursorOffset)
-            result.addActualSyntaxNode(finishedTargetRange, base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastSourcePosition))
-            result.addPotentialSyntaxNode(LANGUAGE_COMPLETION_CHANNEL, finishedTargetRange, base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition).offsetPotentialOutput(lastSourcePosition))
+            val finishedTargetRange = StringRange(lastTargetEndCursor, startSourceCursor)
+            result.addActualSyntaxNode(finishedTargetRange, base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastTargetPosition))
+            result.addPotentialSyntaxNode(LANGUAGE_COMPLETION_CHANNEL, finishedTargetRange, base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition).offsetPotentialOutput(lastTargetPosition))
 
             // Shift semantic tokens
             tokenPositionMapper.addMapping(startSourcePosition, startTargetPosition)
@@ -637,8 +647,9 @@ class AnalyzingResult(
             }
 
             lastCursorOffset += cursorOffset
-            lastTargetEndCursor = endSourceCursor + cursorOffset
-            lastSourcePosition = startSourcePosition
+            lastTargetEndCursor = endTargetCursor
+            // lastSourcePosition is the position in the original file, without previous mappings applied
+            lastSourcePosition = lastSourcePosition.offsetBy(lastTargetPosition.differenceTo(startSourcePosition))
             lastTargetPosition = startTargetPosition
         }
 
@@ -648,7 +659,7 @@ class AnalyzingResult(
             if(lastActualSyntaxNode != null) {
                 val endCursor = lastActualSyntaxNode.cursorRange.end + lastCursorOffset
                 if(endCursor >= lastTargetEndCursor)
-                    result.addActualSyntaxNode(StringRange(lastTargetEndCursor, endCursor), base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastSourcePosition))
+                    result.addActualSyntaxNode(StringRange(lastTargetEndCursor, endCursor), base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastTargetPosition))
             }
 
             val lastPotentialSyntaxNode = (base.buildingPotentialSyntaxNodes.values.asSequence() + base.finishedPotentialSyntaxNodes.asSequence()).maxByOrNull { it.lastOrNull()?.cursorRange?.end ?: 0 }
@@ -659,7 +670,7 @@ class AnalyzingResult(
                         LANGUAGE_COMPLETION_CHANNEL,
                         StringRange(lastTargetEndCursor, endCursor),
                         base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition)
-                            .offsetPotentialOutput(lastSourcePosition)
+                            .offsetPotentialOutput(lastTargetPosition)
                     )
             }
             return result

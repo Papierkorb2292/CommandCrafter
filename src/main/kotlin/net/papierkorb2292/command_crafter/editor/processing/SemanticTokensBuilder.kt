@@ -478,7 +478,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             // is the one at currentTokenIndex; all following tokens are relative to it.
             if(currentTokenIndex >= data.size)
                 return
-            val newTokenDelta = prevTokenPosition.differenceTo(targetPosition.offsetBy(sourcePosition.differenceTo(currentTokenPosition)))
+            currentTokenPosition = targetPosition.offsetBy(sourcePosition.differenceTo(currentTokenPosition))
+            val newTokenDelta = prevTokenPosition.differenceTo(currentTokenPosition)
             data[currentTokenIndex] = newTokenDelta.line
             data[currentTokenIndex + 1] = newTokenDelta.character
         }
