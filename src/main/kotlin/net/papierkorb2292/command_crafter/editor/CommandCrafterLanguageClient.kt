@@ -22,9 +22,6 @@ interface CommandCrafterLanguageClient : LanguageClient, EditorClientFileFinder 
     @JsonNotification
     fun logMinecraftMessage(message: ConsoleMessage)
 
-    @JsonNotification
-    fun modVersion(version: String)
-
     @JsonRequest
     fun getFileContent(path: String): CompletableFuture<String>
 

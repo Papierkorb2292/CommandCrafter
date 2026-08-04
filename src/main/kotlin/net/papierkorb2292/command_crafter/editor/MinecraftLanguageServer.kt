@@ -168,7 +168,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
 
             semanticTokensProvider = currentSemanticTokensRegistration
-        }, ServerInfo("Minecraft Language Server")))
+
+            experimental = CustomExperimentalServerCapabilities(
+                FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() }
+            )
+        }, ServerInfo("Minecraft Language Server", CommandCrafter.VERSION)))
     }
 
     override fun initialized(params: InitializedParams) {
@@ -186,8 +190,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         }
 
         connectServerConsole()
-
-        client.modVersion(CommandCrafter.VERSION)
     }
 
     override fun shutdown(): CompletableFuture<Any> {
@@ -525,6 +527,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         minecraftClient.reloadResources(params)
     }
 
+    @Deprecated("Since v0.7.0, the default feature config is now sent in the initialize response through the `experimental` field")
     @JsonRequest
     fun defaultFeatureConfig(): CompletableFuture<Map<String, String>> {
         return CompletableFuture.completedFuture(FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() })
@@ -692,4 +695,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
         }
     }
+
+    data class CustomExperimentalServerCapabilities(
+        val defaultFeatureConfig: Map<String, String>
+    )
 }
