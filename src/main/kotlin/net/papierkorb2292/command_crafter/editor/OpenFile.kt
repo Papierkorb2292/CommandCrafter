@@ -6,6 +6,7 @@ import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -13,9 +14,8 @@ import java.util.concurrent.Future
 class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var version: Int = 0) {
     val parsedUri = EditorURI.parseURI(uri)
     val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
-    var analyzingResult: CompletableFuture<AnalyzingResult>? = null
-    var analyzerFuture: Future<*>? = null
-    var keptAliveAnalyzers = mutableSetOf<Future<*>>()
+    var currentAnalyzer: RunningAnalyzer? = null
+    var runningAnalyzers = mutableSetOf<RunningAnalyzer>()
     var persistentAnalyzerData: Any? = null
 
     companion object {
@@ -125,20 +125,14 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
         }
     }
 
-    fun analyzeFileKeepAlive(languageServer: MinecraftLanguageServer): CompletableFuture<AnalyzingResult>? {
-        val completableFuture = analyzeFile(languageServer)
-        if(completableFuture != null) {
-            val future = analyzerFuture!!
-            keptAliveAnalyzers += future
-            completableFuture.thenRun {
-                keptAliveAnalyzers -= future
-            }
-        }
-        return completableFuture
+    fun analyzeFile(languageServer: MinecraftLanguageServer): RunningAnalyzer? {
+        val analyzer = startAnalyzingFile(languageServer) ?: return null
+        analyzer.onNewDependent()
+        return analyzer
     }
 
-    fun analyzeFile(languageServer: MinecraftLanguageServer): CompletableFuture<AnalyzingResult>? {
-        val runningAnalyzer = analyzingResult
+    fun startAnalyzingFile(languageServer: MinecraftLanguageServer): RunningAnalyzer? {
+        val runningAnalyzer = currentAnalyzer
         if(runningAnalyzer != null)
             return runningAnalyzer
         for(analyzer in MinecraftLanguageServer.analyzers) {
@@ -146,31 +140,56 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
                 val version = version
 
                 val completableFuture = CompletableFuture<AnalyzingResult>()
-                analyzerFuture = analyzer.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
-                analyzingResult = completableFuture.thenApply { result ->
-                    if(this.version != version)
-                        return@thenApply result
-
-                    MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
-                    languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
-                    result
+                val future = analyzer.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
+                val runningAnalyzer = RunningAnalyzer(future, completableFuture, 0)
+                currentAnalyzer = runningAnalyzer
+                runningAnalyzers += runningAnalyzer
+                completableFuture.thenRun {
+                    runningAnalyzers -= runningAnalyzer
                 }
-                return analyzingResult
+                completableFuture.thenAccept { result ->
+                    if(this.version == version) {
+                        MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
+                        languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
+                    }
+                }
+                return runningAnalyzer
             }
         }
         return null
     }
 
     fun stopAnalyzing(forceCancel: Boolean = false) {
-        if(analyzerFuture !in keptAliveAnalyzers)
-            analyzerFuture?.cancel(true)
-        if(forceCancel) {
-            keptAliveAnalyzers.forEach {
-                it.cancel(true)
-            }
-            keptAliveAnalyzers.clear()
+        runningAnalyzers.forEach {
+            if(forceCancel || it.dependents == 0)
+                it.future.cancel(true)
         }
-        analyzerFuture = null
-        analyzingResult = null
+        runningAnalyzers.clear()
+        currentAnalyzer = null
+    }
+
+    fun <T> registerAnalyzerCancel(analyzer: RunningAnalyzer, future: CompletableFuture<T>): CompletableFuture<T> {
+        future.whenComplete { _, throwable ->
+            if(throwable is CancellationException)
+                if(analyzer.onDependentCancelled(analyzer != currentAnalyzer))
+                    runningAnalyzers -= analyzer
+        }
+        // Make sure to return the original future, because that's the one that LSP4J will complete with a CancellationException.
+        // Completing the future returned by `whenComplete` wouldn't trigger the callback.
+        return future
+    }
+
+    class RunningAnalyzer(val future: Future<*>, val result: CompletableFuture<AnalyzingResult>, var dependents: Int) {
+        fun onNewDependent() {
+            dependents++
+        }
+
+        fun onDependentCancelled(canCancelAnalyzer: Boolean): Boolean {
+            if(--dependents == 0 && canCancelAnalyzer) {
+                future.cancel(true)
+                return true
+            }
+            return false
+        }
     }
 }
