@@ -1,5 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.mojang.serialization.Codec
+import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.helper.getType
@@ -151,9 +153,23 @@ class EditorConnectionManager(
         }
     }
 
+    /**
+     * The connection arguments send by the editor when connecting to a service. Note that the featureConfig and extensionVersion are not really used anymore,
+     * because the language server and the debug adapter sync those separately.
+     */
     class ConnectToServiceArgs(var service: String, var featureConfig: Map<String, FeatureConfig.Entry>?, var extensionVersion: String?){
         constructor() : this("", null, null)
     }
 
-    data class EditorInfo(val featureConfig: FeatureConfig, val extensionVersion: String?)
+    data class EditorInfo(val featureConfig: FeatureConfig, val extensionVersion: String?) {
+        companion object {
+            val DEFAULT = EditorInfo(FeatureConfig(mapOf()), null)
+            val CODEC = RecordCodecBuilder.create<EditorInfo> {
+                it.group(
+                    FeatureConfig.CODEC.fieldOf("featureConfig").forGetter { it.featureConfig },
+                    Codec.STRING.fieldOf("extensionVersion").forGetter { it.extensionVersion }
+                ).apply(it, ::EditorInfo)
+            }.optionalFieldOf("editorInfo", DEFAULT).codec()
+        }
+    }
 }

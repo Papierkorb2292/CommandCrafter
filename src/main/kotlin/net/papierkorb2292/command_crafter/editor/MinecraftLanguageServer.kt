@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.google.gson.JsonObject
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
+import com.mojang.serialization.JsonOps
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.resources.Identifier
@@ -29,8 +31,9 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
+import kotlin.jvm.optionals.getOrNull
 
-class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, editorInfo: EditorConnectionManager.EditorInfo)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?)
     : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
@@ -82,7 +85,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private var currentSemanticTokensRegistration: SemanticTokensWithRegistrationOptions? = null
 
-    var editorInfo = editorInfo
+    var editorInfo = EditorConnectionManager.EditorInfo.DEFAULT
         private set
     val featureConfig
         get() = editorInfo.featureConfig
@@ -147,6 +150,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
         clientCapabilities = params.capabilities
+        val initializationOptions = params.initializationOptions
+        if(initializationOptions is JsonObject)
+            editorInfo = EditorConnectionManager.EditorInfo.CODEC.parse(JsonOps.INSTANCE, initializationOptions).promotePartial {
+                CommandCrafter.LOGGER.warn("Error parsing editor info for language server: $it")
+            }.result().getOrNull() ?: editorInfo
+
         currentSemanticTokensRegistration = buildSemanticTokensRegistrationOptions()
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
             setTextDocumentSync(TextDocumentSyncOptions().apply {

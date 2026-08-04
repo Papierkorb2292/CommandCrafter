@@ -133,8 +133,8 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 "command": "connectToService",
                 "arguments": {
                     "service": "languageServer",
-                    "featureConfig": getFeatureConfig(),
-                    "extensionVersion": this.extensionVersion
+                    "featureConfig": getFeatureConfig(), // featureConfig and extensionVersion here are only for backwards compatiblity
+                    "extensionVersion": this.extensionVersion // Since v0.7.0 they are synced through the initialization options instead
                 }
             });
             streamInfo.writer.write(
@@ -146,6 +146,12 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 () => Promise.resolve(streamInfo),
                 {
                     documentSelector: [{ pattern: "**" }],
+                    initializationOptions: {
+                        editorInfo: {
+                            extensionVersion: this.extensionVersion,
+                            featureConfig: getFeatureConfig()
+                        }
+                    },
                     synchronize: {
                         fileEvents: vscode.workspace.createFileSystemWatcher("**")
                     },

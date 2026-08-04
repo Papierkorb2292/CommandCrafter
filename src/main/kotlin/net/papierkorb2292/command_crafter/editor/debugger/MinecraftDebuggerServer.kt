@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
+import com.mojang.serialization.JavaOps
 import kotlinx.atomicfu.locks.SynchronizedObject
 import net.minecraft.resources.Identifier
+import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConnection
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
@@ -16,10 +18,11 @@ import org.eclipse.lsp4j.debug.*
 import org.eclipse.lsp4j.debug.services.IDebugProtocolServer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Semaphore
+import kotlin.jvm.optionals.getOrNull
 import kotlin.math.max
 import kotlin.math.min
 
-class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnection, val editorInfo: EditorConnectionManager.EditorInfo) : IDebugProtocolServer, EditorService {
+class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnection) : IDebugProtocolServer, EditorService {
     companion object {
         const val BREAKPOINT_AT_NO_CODE_REJECTION_REASON = "No debuggable code at this location"
         const val SERVER_NOT_SUPPORTING_DEBUGGING_REJECTION_REASON = "Server does not support debugging"
@@ -54,6 +57,11 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     private var client: CommandCrafterDebugClient? = null
     private var workspaceFileFinder: WorkspaceFileFinder? = null
+
+    var editorInfo = EditorConnectionManager.EditorInfo.DEFAULT
+        private set
+    val featureConfig
+        get() = editorInfo.featureConfig
 
     private var debugPauseActions: DebugPauseActions? = null
     private var variablesReferencer: VariablesReferencer? = null
@@ -259,6 +267,9 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         if(suspendServerArg !is Boolean?)
             throw IllegalArgumentException("'suspendServer' must be a boolean")
         suspendServer = suspendServerArg ?: true
+        editorInfo = EditorConnectionManager.EditorInfo.CODEC.parse(JavaOps.INSTANCE, args).promotePartial {
+            CommandCrafter.LOGGER.warn("Error parsing editor info for debugger server: $it")
+        }.result().getOrNull() ?: editorInfo
         return CompletableFuture.completedFuture(null)
     }
 

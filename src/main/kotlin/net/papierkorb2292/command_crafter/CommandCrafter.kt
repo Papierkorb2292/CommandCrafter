@@ -219,7 +219,7 @@ object CommandCrafter: ModInitializer {
                 executorService: ExecutorService,
                 editorInfo: EditorConnectionManager.EditorInfo,
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftLanguageServer(serverConnection, clientConnection, editorInfo)
+                val server = MinecraftLanguageServer(serverConnection, clientConnection)
                 val generateLanguageServerTrace = getBooleanSystemProperty("cc_trace_language_server")
                 val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                     .setLocalService(server)
@@ -252,7 +252,7 @@ object CommandCrafter: ModInitializer {
                 executorService: ExecutorService,
                 editorInfo: EditorConnectionManager.EditorInfo,
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftDebuggerServer(serverConnection, editorInfo)
+                val server = MinecraftDebuggerServer(serverConnection)
                 val messageWrapper = InitializedEventEmittingMessageWrapper()
                 val launcher = DebugLauncher.Builder<CommandCrafterDebugClient>()
                     .setLocalService(server)

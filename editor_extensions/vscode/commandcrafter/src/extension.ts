@@ -46,6 +46,7 @@ export function deactivate() {}
 
 export interface LanguageClientRunner {
 	clientState: State
+	extensionVersion: string
 	startLanguageClient(): void;
 	stopLanguageClient(): void;
 }

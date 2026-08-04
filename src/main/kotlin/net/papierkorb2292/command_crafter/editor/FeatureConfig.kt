@@ -1,5 +1,8 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.mojang.serialization.Codec
+import net.minecraft.util.StringRepresentable
+
 class FeatureConfig(private val entries: Map<String, Entry>) {
     companion object {
         val DEFAULT_ENTRIES = mapOf(
@@ -13,6 +16,10 @@ class FeatureConfig(private val entries: Map<String, Entry>) {
             MinecraftLanguageServer.AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH to Entry.DISABLE,
             MinecraftLanguageServer.AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH to Entry.DISABLE
         )
+
+        val ENTRY_CODEC = StringRepresentable.fromEnum(Entry::values)
+        val CODEC = Codec.unboundedMap(Codec.STRING, ENTRY_CODEC)
+            .xmap(::FeatureConfig, FeatureConfig::entries)
     }
 
     /**
@@ -35,8 +42,10 @@ class FeatureConfig(private val entries: Map<String, Entry>) {
         return default
     }
 
-    enum class Entry {
+    enum class Entry : StringRepresentable {
         ENABLE,
-        DISABLE
+        DISABLE;
+
+        override fun getSerializedName() = name.lowercase()
     }
 }
