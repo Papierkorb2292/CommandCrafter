@@ -139,6 +139,11 @@
           "type": "boolean",
           "default": true,
           "description": "If enabled, CommandCrafter will check for other datapack extensions when loading a project and potentially ask you to disable features that might result in conflicts (namely semantic tokens)"
+        },
+        "CommandCrafter.SavedFileAutomaticReloadDelay": {
+          "type": "number",
+          "default": 0,
+          "description": "If automatic datapack reloading is enabled: How many seconds Minecraft should wait after saving a file before reloading. Useful when the files have to be synced over SFTP for example. This does not apply to manually triggering 'CommandCrafter: Reload Datapacks'"
         }
       }
     },

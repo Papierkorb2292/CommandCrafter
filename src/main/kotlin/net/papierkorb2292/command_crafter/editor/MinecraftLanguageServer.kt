@@ -1,9 +1,11 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
+import com.mojang.serialization.Codec
 import com.mojang.serialization.JsonOps
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
@@ -32,6 +34,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.jvm.optionals.getOrNull
 
 class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?)
@@ -54,6 +57,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
         val EDITOR_SETTINGS_SCOPE = "CommandCrafter"
         val FEATURE_CONFIG_SECTION = "FeatureConfig"
+        val AUTO_RELOAD_DELAY_SECTION = "SavedFileAutomaticReloadDelay"
 
         val semanticTokenLanguages = listOf("mcfunction", "json")
         val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
@@ -95,6 +99,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         private set
     val featureConfig
         get() = editorInfo.featureConfig
+    private var datapackAutoReloadDelayedExecutor = MoreExecutors.directExecutor()
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         val client = client ?: return
@@ -293,7 +298,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 return
                             }
                         }
-                        minecraftServer.datapackReloader?.invoke()
+                        datapackAutoReloadDelayedExecutor.execute {
+                            minecraftServer.datapackReloader?.invoke()
+                        }
                     }
                     PackContentFileType.PackType.RESOURCE -> {
                         if(!featureConfig.isEnabled(AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH, false))
@@ -567,6 +574,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     CommandCrafter.LOGGER.warn("Error parsing new feature config for language server: $it")
                 }.result().getOrNull() ?: featureConfig
             editorInfo = editorInfo.withFeatureConfig(newFeatureConfig)
+            val autoReloadDelay = Codec.FLOAT.fieldOf(AUTO_RELOAD_DELAY_SECTION).codec()
+                .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
+                    CommandCrafter.LOGGER.warn("Error parsing auto reload delay for language server: $it")
+                }
+                .result().getOrNull() ?: 0F
+            datapackAutoReloadDelayedExecutor = if(autoReloadDelay == 0F) {
+                MoreExecutors.directExecutor()
+            } else {
+                CompletableFuture.delayedExecutor((autoReloadDelay * TimeUnit.SECONDS.toMillis(1)).toLong(), TimeUnit.MILLISECONDS, MoreExecutors.directExecutor())
+            }
 
             analyzeAllFiles()
             if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
