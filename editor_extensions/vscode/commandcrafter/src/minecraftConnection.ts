@@ -128,10 +128,10 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
         this.connectionType?.connect().then((streamInfo) => {
             outputChannel?.appendLine(`Connecting to Minecraft Language server with feature config: ${JSON.stringify(getFeatureConfig())}`)
             const serviceRequest = JSON.stringify({
-                "seq": 1,
-                "type": "request",
-                "command": "connectToService",
-                "arguments": {
+                "id": 1,
+                "jsonrpc": "2.0",
+                "method": "connectToService",
+                "params": {
                     "service": "languageServer",
                     "featureConfig": getFeatureConfig(), // featureConfig and extensionVersion here are only for backwards compatiblity
                     "extensionVersion": this.extensionVersion // Since v0.7.0 they are synced through the initialization options instead

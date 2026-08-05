@@ -57,6 +57,9 @@ import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import org.eclipse.lsp4j.jsonrpc.debug.adapters.DebugEnumTypeAdapter
+import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugRequestMessage
+import org.eclipse.lsp4j.jsonrpc.messages.Message
+import org.eclipse.lsp4j.jsonrpc.messages.RequestMessage
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
@@ -217,7 +220,8 @@ object CommandCrafter: ModInitializer {
                 clientConnection: MinecraftClientConnection?,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
-                editorInfo: EditorConnectionManager.EditorInfo,
+                editorInfo: EditorConnectionManager.EditorInfo?,
+                initialMessage: Message?,
             ): EditorConnectionManager.LaunchedService {
                 val server = MinecraftLanguageServer(serverConnection, clientConnection)
                 val generateLanguageServerTrace = getBooleanSystemProperty("cc_trace_language_server")
@@ -237,12 +241,17 @@ object CommandCrafter: ModInitializer {
                         it.registerTypeAdapterFactory(FileSystemResult.TypeAdapterFactory)
                     }
                     .traceMessages(if(generateLanguageServerTrace) PrintWriter("logs/language_server_debug_trace") else null)
-                    .create();
+                    .create()
+                if(initialMessage != null)
+                    EditorConnectionManager.injectInitialMessage(launcher, initialMessage)
                 val launched = launcher.startListening()
                 server.connect(launcher.remoteProxy)
                 launcher.remoteProxy.showMessage(MessageParams(org.eclipse.lsp4j.MessageType.Info, "Connected to Minecraft"))
                 return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
             }
+
+            // Check that the class is exactly equal, so DebugRequestMessages don't match
+            override fun isInitialMessage(message: Message) = message.javaClass == RequestMessage::class.java && (message as RequestMessage).method == "initialize"
         },
         "debugger" to object : EditorConnectionManager.ServiceLauncher {
             override fun launch(
@@ -250,7 +259,8 @@ object CommandCrafter: ModInitializer {
                 clientConnection: MinecraftClientConnection?,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
-                editorInfo: EditorConnectionManager.EditorInfo,
+                editorInfo: EditorConnectionManager.EditorInfo?,
+                initialMessage: Message?,
             ): EditorConnectionManager.LaunchedService {
                 val server = MinecraftDebuggerServer(serverConnection)
                 val messageWrapper = InitializedEventEmittingMessageWrapper()
@@ -266,11 +276,14 @@ object CommandCrafter: ModInitializer {
                     }
                     .create();
                 messageWrapper.client = launcher.remoteProxy
+                if(initialMessage != null)
+                    EditorConnectionManager.injectInitialMessage(launcher, initialMessage)
                 val launched = launcher.startListening()
                 server.connect(launcher.remoteProxy)
                 return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
             }
 
+            override fun isInitialMessage(message: Message) = message.javaClass == DebugRequestMessage::class.java && (message as DebugRequestMessage).method == "initialize"
         }
     )
 

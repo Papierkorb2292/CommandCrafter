@@ -58,6 +58,8 @@
     "editor.debugger.TagLoaderMixin",
     "editor.debugger.VariableLineAccessor",
     "editor.debugger.VariableLineMixin",
+    "editor.lsp4j.ConcurrentMessageProcessorAccessor",
+    "editor.lsp4j.StandardLauncherAccessor",
     "editor.processing.AdvancementCommandsMixin",
     "editor.processing.ArgumentBuilderMixin",
     "editor.processing.ArgumentTypeInfosMixin",

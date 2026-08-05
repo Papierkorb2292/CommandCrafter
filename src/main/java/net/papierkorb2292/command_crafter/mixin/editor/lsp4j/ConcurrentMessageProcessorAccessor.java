@@ -1,0 +1,13 @@
+package net.papierkorb2292.command_crafter.mixin.editor.lsp4j;
+
+import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
+import org.eclipse.lsp4j.jsonrpc.json.ConcurrentMessageProcessor;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Accessor;
+
+@Mixin(ConcurrentMessageProcessor.class)
+public interface ConcurrentMessageProcessorAccessor {
+
+    @Accessor
+    MessageConsumer getMessageConsumer();
+}
