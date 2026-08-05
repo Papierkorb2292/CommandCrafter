@@ -569,12 +569,12 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
         ))).thenApply { settings ->
             val editorSettings = settings[0] as JsonElement
-            val newFeatureConfig = FeatureConfig.CODEC.fieldOf(FEATURE_CONFIG_SECTION).codec() //TODO: Make fields optional
+            val newFeatureConfig = FeatureConfig.CODEC.optionalFieldOf(FEATURE_CONFIG_SECTION, FeatureConfig.EMPTY).codec() //TODO: Make fields optional
                 .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
                     CommandCrafter.LOGGER.warn("Error parsing new feature config for language server: $it")
                 }.result().getOrNull() ?: featureConfig
             editorInfo = editorInfo.withFeatureConfig(newFeatureConfig)
-            val autoReloadDelay = Codec.FLOAT.fieldOf(AUTO_RELOAD_DELAY_SECTION).codec()
+            val autoReloadDelay = Codec.FLOAT.optionalFieldOf(AUTO_RELOAD_DELAY_SECTION, 0F).codec()
                 .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
                     CommandCrafter.LOGGER.warn("Error parsing auto reload delay for language server: $it")
                 }

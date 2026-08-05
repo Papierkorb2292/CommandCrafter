@@ -213,12 +213,12 @@ class EditorConnectionManager(
 
     data class EditorInfo(val featureConfig: FeatureConfig, val extensionVersion: String?) {
         companion object {
-            val DEFAULT = EditorInfo(FeatureConfig(mapOf()), null)
-            val CODEC = RecordCodecBuilder.create<EditorInfo> {
-                it.group(
-                    FeatureConfig.CODEC.fieldOf("featureConfig").forGetter { it.featureConfig },
-                    Codec.STRING.fieldOf("extensionVersion").forGetter { it.extensionVersion }
-                ).apply(it, ::EditorInfo)
+            val DEFAULT = EditorInfo(FeatureConfig.EMPTY, null)
+            val CODEC = RecordCodecBuilder.create<EditorInfo> { instance ->
+                instance.group(
+                    FeatureConfig.CODEC.optionalFieldOf("featureConfig", FeatureConfig.EMPTY).forGetter { it.featureConfig },
+                    Codec.STRING.optionalFieldOf("extensionVersion", null).forGetter { it.extensionVersion }
+                ).apply(instance, ::EditorInfo)
             }.optionalFieldOf("editorInfo", DEFAULT).codec()
         }
 

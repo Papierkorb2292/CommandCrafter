@@ -5,6 +5,7 @@ import net.minecraft.util.StringRepresentable
 
 class FeatureConfig(private val entries: Map<String, Entry>) {
     companion object {
+        val EMPTY = FeatureConfig(emptyMap())
         val DEFAULT_ENTRIES = mapOf(
             "analyzer.completions" to Entry.ENABLE,
             "analyzer.hovers" to Entry.ENABLE,
