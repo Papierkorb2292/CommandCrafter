@@ -221,5 +221,7 @@ class EditorConnectionManager(
                 ).apply(it, ::EditorInfo)
             }.optionalFieldOf("editorInfo", DEFAULT).codec()
         }
+
+        fun withFeatureConfig(featureConfig: FeatureConfig) = copy(featureConfig = featureConfig)
     }
 }

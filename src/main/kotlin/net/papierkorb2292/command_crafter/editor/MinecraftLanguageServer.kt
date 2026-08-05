@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
@@ -48,6 +49,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
         const val SEMANTIC_TOKENS_REGISTRATION_ID = "command_crafter_semantic_tokens"
         const val SEMANTIC_TOKENS_REGISTRATION_NAME = "textDocument/semanticTokens"
+        const val DID_CHANGE_CONFIGURATION_REGISTRATION_ID = "command_crafter_did_change_configuration"
+        const val DID_CHANGE_CONFIGURATION_REGISTRATION_NAME = "workspace/didChangeConfiguration"
+
+        val EDITOR_SETTINGS_SCOPE = "CommandCrafter"
+        val FEATURE_CONFIG_SECTION = "FeatureConfig"
 
         val semanticTokenLanguages = listOf("mcfunction", "json")
         val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
@@ -198,6 +204,13 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             })
         }
 
+        if(clientCapabilities?.workspace?.didChangeConfiguration?.dynamicRegistration == true) {
+            client.registerCapability(RegistrationParams(listOf(
+                Registration(DID_CHANGE_CONFIGURATION_REGISTRATION_ID, DID_CHANGE_CONFIGURATION_REGISTRATION_NAME, mapOf("sections" to listOf(EDITOR_SETTINGS_SCOPE)))
+            )))
+        }
+
+        fetchSettings()
         connectServerConsole()
     }
 
@@ -492,7 +505,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     override fun getWorkspaceService(): WorkspaceService {
         return object : WorkspaceService {
             override fun didChangeConfiguration(params: DidChangeConfigurationParams?) {
-
+                fetchSettings()
             }
 
             override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams?) {
@@ -542,12 +555,23 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         return CompletableFuture.completedFuture(FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() })
     }
 
-    @JsonNotification
-    fun updateFeatureConfig(params: UpdateFeatureConfigArgs) {
-        editorInfo = params.combineWithEditorInfo(editorInfo)
-        analyzeAllFiles()
-        if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
-            updateSemanticTokensRegistration()
+    fun fetchSettings() {
+        client!!.configuration(ConfigurationParams(listOf(
+            ConfigurationItem().apply {
+                section = EDITOR_SETTINGS_SCOPE
+            }
+        ))).thenApply { settings ->
+            val editorSettings = settings[0] as JsonElement
+            val newFeatureConfig = FeatureConfig.CODEC.fieldOf(FEATURE_CONFIG_SECTION).codec() //TODO: Make fields optional
+                .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
+                    CommandCrafter.LOGGER.warn("Error parsing new feature config for language server: $it")
+                }.result().getOrNull() ?: featureConfig
+            editorInfo = editorInfo.withFeatureConfig(newFeatureConfig)
+
+            analyzeAllFiles()
+            if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
+                updateSemanticTokensRegistration()
+        }
     }
 
     private fun updateSemanticTokensRegistration() {
