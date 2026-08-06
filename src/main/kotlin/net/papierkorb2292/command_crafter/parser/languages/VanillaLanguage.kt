@@ -1144,13 +1144,16 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro {
                 val absoluteCursor = reader.absoluteCursor
                 val skippingCursor = reader.skippingCursor
+                // The macro doesn't need to know about mappings elsewhere and vice versa, since its AnalyzingResult is combined completely separately
+                val macroReader = reader.copyWithoutMapping()
                 val content =  StringContent(
-                    readMacro(reader, easyNewLine),
+                    readMacro(macroReader, easyNewLine),
                     OffsetProcessedInputCursorMapper(absoluteCursor)
-                        .combineWith(reader.cursorMapper)
-                        .combineWith(OffsetProcessedInputCursorMapper(-skippingCursor)),
+                        .combineWith(macroReader.cursorMapper)
+                        .combineWith(OffsetProcessedInputCursorMapper(-absoluteCursor)),
                     StringEscaper.Identity
                 )
+                reader.copyFromWithoutMapping(macroReader) // Skip ahead in the original reader too
                 val endsInNewline = reader.cursor > 0 && reader.peek(-1) == '\n'
                 val rangeInParent = StringRange(skippingCursor, if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor)
                 return AnalyzingResourceCreator.DecodedMacro(content, reader.cursorMapper.mapToSource(rangeInParent), rangeInParent)

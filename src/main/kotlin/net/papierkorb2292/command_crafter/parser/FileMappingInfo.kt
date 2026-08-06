@@ -41,7 +41,9 @@ class FileMappingInfo(
     val readSkippingChars
         get() = readCharacters - skippedChars
 
-    fun copy(copyCursorMapper: Boolean = false) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
+    fun copy(copyCursorMapper: Boolean) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
+    fun copyWithoutMapping() = FileMappingInfo(lines, readCharacters = readCharacters, positionFromCursorLRUCache = positionFromCursorLRUCache)
 
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false

@@ -326,6 +326,26 @@ class DirectiveStringReader<out ResourceCreator>(
         furthestAccessedCursor = max(furthestAccessedCursor, other.furthestAccessedCursor)
     }
 
+    fun copyWithoutMapping(): DirectiveStringReader<ResourceCreator> {
+        return DirectiveStringReader(fileMappingInfo.copyWithoutMapping(), dispatcher, resourceCreator).also {
+            it.setString(string)
+            it.cursor = cursor
+            it.scopeStack.addAll(scopeStack)
+            it.updateLanguage()
+            it.currentIndentation = currentIndentation
+            it.nextLine = nextLine
+            it.furthestAccessedCursor = furthestAccessedCursor
+        }
+    }
+
+    fun copyFromWithoutMapping(other: DirectiveStringReader<*>) {
+        cursor = other.cursor
+        readCharacters = other.readCharacters
+        setString(other.string)
+        nextLine = other.nextLine
+        furthestAccessedCursor = max(furthestAccessedCursor, other.furthestAccessedCursor)
+    }
+
     fun onlyCurrentLine() : DirectiveStringReader<ResourceCreator> {
         while(canRead() && peek() != '\n')
             skip()
@@ -400,7 +420,7 @@ class DirectiveStringReader<out ResourceCreator>(
             dispatcher: CommandDispatcher<SharedSuggestionProvider>,
             resourceCreator: ResourceCreator,
             absoluteCursor: Int
-        ) = DirectiveStringReader(fileMappingInfo.copy(true), dispatcher, resourceCreator).also {
+        ) = DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
             if(absoluteCursor > 0) {
                 val position = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo)
                 it.nextLine = position.line
