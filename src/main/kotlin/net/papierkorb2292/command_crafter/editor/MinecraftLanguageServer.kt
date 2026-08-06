@@ -60,7 +60,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val AUTO_RELOAD_DELAY_SECTION = "SavedFileAutomaticReloadDelay"
 
         val semanticTokenLanguages = listOf("mcfunction", "json")
-        val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
+        val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$", "@")
         val jsonCompletionTriggerCharacters = setOf(":", "\"")
         val allCompletionTriggerCharacters = (mcfunctionCompletionTriggerCharacters + jsonCompletionTriggerCharacters).toList()
 
