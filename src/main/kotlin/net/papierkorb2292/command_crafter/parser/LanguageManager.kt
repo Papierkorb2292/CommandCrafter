@@ -192,7 +192,7 @@ object LanguageManager {
                             0
                         )
                         val annotationStart = reader.cursor - 1
-                        while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
+                        while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n' && reader.peek() != '\\')
                             reader.skip()
                         val annotationEnd = reader.cursor
                         result.semanticTokens.addMultiline(
