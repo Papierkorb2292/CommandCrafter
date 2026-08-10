@@ -347,7 +347,7 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = PackFormat::class, methodName = "packCodec")
     fun suggestCurrentPackFormat(codec: MapCodec<InclusiveRange<PackFormat>>, type: PackType): MapCodec<InclusiveRange<PackFormat>> {
-        val formatSuggestingCodec = CodecSuggestionWrapper.simple(PackFormat.BOTTOM_CODEC, object : SuggestionsProvider {
+        val bottomFormatSuggestingCodec = CodecSuggestionWrapper.simple(PackFormat.BOTTOM_CODEC, object : SuggestionsProvider {
             override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
                 val currentVersion = SharedConstants.getCurrentVersion().packVersion(type)
                 // Use TOP_CODEC, because it'll always encode the format as a list
@@ -362,10 +362,25 @@ object CodecTransformers {
                     completion.detail = "Minecraft's current pack version"
                 }
         })
+        val topFormatSuggestingCodec = CodecSuggestionWrapper.simple(PackFormat.TOP_CODEC, object : SuggestionsProvider {
+            override fun <T : Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
+                val currentVersion = SharedConstants.getCurrentVersion().packVersion(type)
+                // Only encode the major version so the pack can be forwards compatible
+                return Stream.of(ops.createInt(currentVersion.major))
+            }
+
+            override fun <T : Any> suggestionModifier(
+                suggestion: ExtraDecoderBehavior.PossibleValue<T>,
+                ops: DynamicOps<T>
+            ): ExtraDecoderBehavior.PossibleValue<T> =
+                suggestion.withCompletionModifier { completion ->
+                    completion.detail = "Minecraft's current pack version"
+                }
+        })
         return RecordCodecBuilder.mapCodec { instance ->
             instance.group(
-                formatSuggestingCodec.onlyAnalyzingRecord("min_format"),
-                formatSuggestingCodec.onlyAnalyzingRecord("max_format"),
+                bottomFormatSuggestingCodec.onlyAnalyzingRecord("min_format"),
+                topFormatSuggestingCodec.onlyAnalyzingRecord("max_format"),
                 codec.forGetterIdent()
             ).apply(instance, { _, _, format -> format })
         }
