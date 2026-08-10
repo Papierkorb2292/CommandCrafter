@@ -28,6 +28,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer
@@ -921,6 +922,83 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testOutermostMacroModificationTracker(context: GameTestHelper) {
+        val file = OpenFile.fromString("", $$"""
+            $execute $(sub) run §
+            $execute unless entity @e[gamemode=§creative] if entity @e[tag=$(anchor),distance=..10] run
+            advancement grant @a[§] everything
+        """.trimIndent())
+
+        fun modificationShouldBeOutsideMacro(modificationName: String, modifier: () -> Unit) {
+            val (prevProcessedLines, _) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val prevReader = buildCommandReader(context, prevProcessedLines)
+            analyseCommand(context, prevReader)
+            modifier()
+
+            val (newProcessedLines, _) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val newReader = buildCommandReader(context, newProcessedLines)
+            newReader.resourceCreator.previousCache = prevReader.resourceCreator.newCache
+
+            context.assertFalse(MacroMerger.trackOutermostMacroModification(
+                prevReader.fileMappingInfo,
+                newReader
+            ), "Expected $modificationName to not trigger a macro modification")
+        }
+
+        modificationShouldBeOutsideMacro("added newline") {
+            file.applyContentChange(0, 0, 0, 0, "\n")
+        }
+        modificationShouldBeOutsideMacro("two added newlines") {
+            file.applyContentChange(2, 2, 0, 0, "\n\n")
+        }
+        modificationShouldBeOutsideMacro("removed newline") {
+            file.applyContentChange(0, 1, 0, 0, "")
+        }
+        modificationShouldBeOutsideMacro("two removed newlines") {
+            file.applyContentChange(1, 3, 0, 0, "")
+        }
+
+        val (initialProcessedLines, initialFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
+        var lastReader = buildCommandReader(context, initialProcessedLines)
+        val expectedResult = analyseCommand(context, lastReader)
+        val initialResult = lastReader.resourceCreator.newCache.analyzingResult!!
+
+        fun testMacroModification(modificationName: String, modifier: () -> Unit) {
+            modifier()
+
+            val (newProcessedLines, newFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val newReader = buildCommandReader(context, newProcessedLines)
+            newReader.resourceCreator.previousCache = lastReader.resourceCreator.newCache
+
+            context.assertTrue(MacroMerger.trackOutermostMacroModification(
+                lastReader.fileMappingInfo,
+                newReader
+            ), "Expected $modificationName to trigger a macro modification")
+
+            val newResult = newReader.resourceCreator.overlayMacros(initialResult, newReader.fileMappingInfo)
+
+            for((initialLocation, newLocation) in initialFileLocations.zip(newFileLocations)) {
+                context.assertValueEqual(
+                    newResult.getCompletions(newLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
+                    expectedResult.getCompletions(initialLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
+                    Component.literal("Expected $modificationName to not change macro completions at initial position ${initialLocation.position}")
+                )
+            }
+
+            lastReader = newReader
+        }
+
+        testMacroModification("added newline") {
+            file.applyContentChange(0, 0, 16, 16, "\\\n    ")
+        }
+        testMacroModification("added two newlines") {
+            file.applyContentChange(2, 2, 9, 9, "\\\n    ")
+        }
+
+        context.succeed()
+    }
+
+    @GameTest
     fun testOpenFileApplyContentChange(context: GameTestHelper) {
         val initial = """
             first
@@ -1079,30 +1157,38 @@ object TestCommandCrafter {
         return parsed as T to joined
     }
 
-    private fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult {
+    fun buildCommandReader(context: GameTestHelper, lines: List<String>): DirectiveStringReader<AnalyzingResourceCreator> {
         val commandDispatcher = getCommandDispatcher(context)
         val source = getParsingCommandSource(context)
-        val analyzingResult = AnalyzingResult(FileMappingInfo(lines), Position())
-
         val resourceCreator = AnalyzingResourceCreator(
             null,
             "testPack/data/minecraft/function/test.mcfunction",
             source.server.lootRegistries,
             source,
-            analyzingResult.mappingInfo
+            FileMappingInfo(lines)
         )
+        return DirectiveStringReader(
+            resourceCreator.file,
+            commandDispatcher,
+            resourceCreator
+        )
+    }
+
+    private fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult =
+        analyseCommand(context, buildCommandReader(context, lines))
+
+    private fun analyseCommand(context: GameTestHelper, reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResult {
+        val source = getParsingCommandSource(context)
+        val analyzingResult = AnalyzingResult(reader.resourceCreator.file, Position())
+
         LanguageManager.analyse(
-            DirectiveStringReader(
-                analyzingResult.mappingInfo,
-                commandDispatcher,
-                resourceCreator
-            ),
+            reader,
             source,
             analyzingResult,
             Language.TopLevelClosure(VanillaLanguage())
         )
-
-        return resourceCreator.overlayMacros(analyzingResult)
+        reader.resourceCreator.newCache.analyzingResult = analyzingResult
+        return reader.resourceCreator.overlayMacros(analyzingResult)
     }
 
     private fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =
