@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## 0.7.0
 
 - Also escape &amp; in the Minecraft console
+- Some protocol changes (But compatible with older mod versions)
+- Added more logging
 
 ## 0.6.3
 
