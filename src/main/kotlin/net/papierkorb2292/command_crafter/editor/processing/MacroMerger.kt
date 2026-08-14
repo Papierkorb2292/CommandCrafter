@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
+import net.papierkorb2292.command_crafter.editor.processing.MacroMerger.getModifiedAbsoluteStart
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
 import net.papierkorb2292.command_crafter.helper.binarySearch
@@ -41,56 +42,31 @@ object MacroMerger {
      */
     fun trackOutermostMacroModification(prevFile: FileMappingInfo, newReader: DirectiveStringReader<AnalyzingResourceCreator>): Boolean {
         val oldMacros = newReader.resourceCreator.previousCache?.macroCache ?: return false
-        val newMacros = newReader.resourceCreator.newCache.macroCache
         if(oldMacros.orderedMacros.isEmpty()) return false
 
         val newFile = newReader.fileMappingInfo
-        val prevLines = prevFile.lines
-        val newLines = newFile.lines
+        val absoluteStartPosition = getModifiedAbsoluteStart(prevFile, newFile)
+        val absoluteEndDist = getModifiedAbsoluteEndDist(prevFile, newFile)
 
-        // Find the first line that's different
-        val minLineCount = min(prevLines.size, newLines.size)
-        var absoluteStartPosition = 0
-        var startLine = 0
-        while(startLine < minLineCount) {
-            val prevLine = prevLines[startLine]
-            val newLine = newLines[startLine]
-            val commonPrefixLen = getCommonPrefixLength(prevLine, newLine)
-            if(commonPrefixLen != prevLine.length || commonPrefixLen != newLine.length) {
-                absoluteStartPosition += commonPrefixLen
-                break
-            }
-            absoluteStartPosition += commonPrefixLen + 1 // Plus newline
-            startLine++
-        }
+        return trackMacroModification(prevFile, newReader, absoluteStartPosition, absoluteEndDist)
+    }
+
+    private fun trackMacroModification(prevFile: FileMappingInfo, newReader: DirectiveStringReader<AnalyzingResourceCreator>, modificationStartPos: Int, modificationEndDist: Int): Boolean {
+        val oldMacros = newReader.resourceCreator.previousCache?.macroCache ?: return false
+        val newMacros = newReader.resourceCreator.newCache.macroCache
 
         // Find the macro that encompasses the first change. If the change is exactly at the start of the macro, there was no modification inside the macro so return false
-        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(absoluteStartPosition) }
+        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(modificationStartPos) }
         if(macroIndex >= -1)
             return false // Exactly matched the start of a macro (>= 0) or no macro starts before this position (== -1)
         macroIndex = roundDownBinarySearch(macroIndex)
         val oldMacroNode = oldMacros.orderedMacros[macroIndex]
         val oldMacroAbsoluteEnd = oldMacroNode.fileRangeInParent.end
-        if(oldMacroAbsoluteEnd < absoluteStartPosition)
+        if(oldMacroAbsoluteEnd < modificationStartPos)
             return false // The position is after the end of the macro
 
-        // Now find the last line that's different
-        var absoluteEndDist = 0
-        var matchedEndLines = 0
-        while(matchedEndLines < minLineCount) {
-            val prevLine = prevLines[prevLines.size - 1 - matchedEndLines]
-            val newLine = newLines[newLines.size - 1 - matchedEndLines]
-            val commonSuffixLen = getCommonSuffixLength(prevLine, newLine)
-            if(commonSuffixLen != prevLine.length || commonSuffixLen != newLine.length) {
-                absoluteEndDist += commonSuffixLen
-                break
-            }
-            absoluteEndDist += commonSuffixLen + 1 // Plus newline
-            matchedEndLines++
-        }
-
         val oldMacroEndDist = prevFile.accumulatedLineLengths.last() - oldMacroAbsoluteEnd
-        if(oldMacroEndDist > absoluteEndDist)
+        if(oldMacroEndDist > modificationEndDist)
             return false // There's a change after the end of the macro
 
         // Parse the macro template
@@ -137,6 +113,53 @@ object MacroMerger {
         }
 
         return true
+    }
+
+    /**
+     * Returns the amount of characters before the first change between the two files
+     */
+    fun getModifiedAbsoluteStart(prevFile: FileMappingInfo, newFile: FileMappingInfo): Int {
+        val prevLines = prevFile.lines
+        val newLines = newFile.lines
+        val minLineCount = min(prevLines.size, newLines.size)
+        var absoluteStartPosition = 0
+        var startLine = 0
+        while(startLine < minLineCount) {
+            val prevLine = prevLines[startLine]
+            val newLine = newLines[startLine]
+            val commonPrefixLen = getCommonPrefixLength(prevLine, newLine)
+            if(commonPrefixLen != prevLine.length || commonPrefixLen != newLine.length) {
+                absoluteStartPosition += commonPrefixLen
+                break
+            }
+            absoluteStartPosition += commonPrefixLen + 1 // Plus newline
+            startLine++
+        }
+        return absoluteStartPosition
+    }
+    /**
+     * Returns the amount of characters after the last change between the two files.
+     * Note that the position of the last change could be before the return value of [getModifiedAbsoluteStart],
+     * for example if there are consecutive equal characters and the only change is that another equal character was added/removed.
+     */
+    fun getModifiedAbsoluteEndDist(prevFile: FileMappingInfo, newFile: FileMappingInfo): Int {
+        val prevLines = prevFile.lines
+        val newLines = newFile.lines
+        val minLineCount = min(prevLines.size, newLines.size)
+        var absoluteEndDist = 0
+        var matchedEndLines = 0
+        while(matchedEndLines < minLineCount) {
+            val prevLine = prevLines[prevLines.size - 1 - matchedEndLines]
+            val newLine = newLines[newLines.size - 1 - matchedEndLines]
+            val commonSuffixLen = getCommonSuffixLength(prevLine, newLine)
+            if(commonSuffixLen != prevLine.length || commonSuffixLen != newLine.length) {
+                absoluteEndDist += commonSuffixLen
+                break
+            }
+            absoluteEndDist += commonSuffixLen + 1 // Plus newline
+            matchedEndLines++
+        }
+        return absoluteEndDist
     }
 
     private fun getCommonPrefixLength(str1: String, str2: String): Int {
