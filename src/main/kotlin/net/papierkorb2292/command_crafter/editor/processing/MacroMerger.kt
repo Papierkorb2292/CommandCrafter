@@ -19,12 +19,12 @@ object MacroMerger {
         val resultMapper = analyzingResult.createMapper(newFile)
         val childResults = ArrayList<AnalyzingResult>(macros.orderedMacros.size)
         for((i, child) in macros.orderedMacros.withIndex()) {
-            val mappedOffset = newFile.cursorMapper.mapToSource(child.rangeInParent.start)
-            val positionOffset = AnalyzingResult.getPositionFromCursor(mappedOffset, newFile)
-            childResults += overlayMacros(child.analyzingResult, child.updatedFile, child.children).addOffset(analyzingResult, positionOffset, mappedOffset)
+            val absoluteOffset = child.fileRangeInParent.start
+            val positionOffset = AnalyzingResult.getPositionFromCursor(absoluteOffset, newFile)
+            childResults += overlayMacros(child.analyzingResult, child.updatedFile, child.children).addOffset(analyzingResult, positionOffset, absoluteOffset)
             val relativeOffset = macros.childModificationOffsets.get(i)
             if(relativeOffset != null && relativeOffset.isNonZero()) {
-                resultMapper.addMapping(child.rangeInParent.start, positionOffset, child.rangeInParent.end, relativeOffset.cursorOffset, relativeOffset.fileOffset)
+                resultMapper.addMapping(child.fileRangeInParent.start, positionOffset, child.fileRangeInParent.end, relativeOffset.cursorOffset, relativeOffset.fileOffset)
             }
         }
         return resultMapper.build().overlayAllCompressedSorted(childResults)
@@ -65,13 +65,12 @@ object MacroMerger {
         }
 
         // Find the macro that encompasses the first change. If the change is exactly at the start of the macro, there was no modification inside the macro so return false
-        val targetCursor = prevFile.cursorMapper.mapToTarget(absoluteStartPosition)
-        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(targetCursor) }
+        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(absoluteStartPosition) }
         if(macroIndex >= -1)
             return false // Exactly matched the start of a macro (>= 0) or no macro starts before this position (== -1)
         macroIndex = roundDownBinarySearch(macroIndex)
         val oldMacroNode = oldMacros.orderedMacros[macroIndex]
-        val oldMacroAbsoluteEnd = prevFile.cursorMapper.mapToSource(oldMacroNode.rangeInParent.end)
+        val oldMacroAbsoluteEnd = oldMacroNode.fileRangeInParent.end
         if(oldMacroAbsoluteEnd < absoluteStartPosition)
             return false // The position is after the end of the macro
 
@@ -99,7 +98,7 @@ object MacroMerger {
             newReader.fileMappingInfo,
             newReader.dispatcher,
             newReader.resourceCreator,
-            prevFile.cursorMapper.mapToSource(oldMacroNode.rangeInParent.start)
+            oldMacroNode.fileRangeInParent.start
         )
         val newDecodedMacro = oldMacroNode.input.parser.parse(templateReader) ?: return false
         val newMacroEndDist = templateReader.fileMappingInfo.accumulatedLineLengths.last() - newDecodedMacro.absoluteRange.end
@@ -110,8 +109,7 @@ object MacroMerger {
         for(i in 0 until macroIndex) {
             val macro = oldMacros.orderedMacros[i]
             val modificationOffset = oldMacros.childModificationOffsets.get(i)
-            // Add the macro with a mapped range, because newReader doesn't have the same mappings
-            newMacros.addMacro(macro.withRange(prevFile.cursorMapper.mapToSource(macro.rangeInParent)))
+            newMacros.addMacro(macro)
             if(modificationOffset != null)
                 newMacros.childModificationOffsets.put(i, modificationOffset)
         }
@@ -130,8 +128,7 @@ object MacroMerger {
         for(i in macroIndex + 1 until oldMacros.orderedMacros.size) {
             val macro = oldMacros.orderedMacros[i]
             val modificationOffset = oldMacros.childModificationOffsets.get(i)
-            // Add the macro with a mapped range, because newReader doesn't have the same mappings
-            newMacros.addMacro(macro.withRange(prevFile.cursorMapper.mapToSource(macro.rangeInParent) + (newDecodedMacro.rangeInParent.end - oldMacroAbsoluteEnd)))
+            newMacros.addMacro(macro.withRange(macro.fileRangeInParent + (newDecodedMacro.absoluteRange.end - oldMacroAbsoluteEnd)))
             if(modificationOffset != null) {
                 // This offset is still valid, because all modification offsets are added together by overlayMacros,
                 // so only the offset for the macro that changed has to be modified

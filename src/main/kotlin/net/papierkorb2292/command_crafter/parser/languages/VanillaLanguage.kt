@@ -1013,7 +1013,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             reader.resourceCreator.newCache.macroCache.addMacro(AnalyzingResourceCreator.MacroNode(
                 macroAnalyzingResult,
                 input,
-                macro.rangeInParent,
+                macro.absoluteRange,
                 childResourceCreator.newCache.macroCache,
                 macroAnalyzingResult.mappingInfo,
             ))
@@ -1155,8 +1155,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 )
                 reader.copyFromWithoutMapping(macroReader) // Skip ahead in the original reader too
                 val endsInNewline = reader.cursor > 0 && reader.peek(-1) == '\n'
-                val rangeInParent = StringRange(skippingCursor, if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor)
-                return AnalyzingResourceCreator.DecodedMacro(content, reader.cursorMapper.mapToSource(rangeInParent), rangeInParent)
+                val macroTargetRange = StringRange(skippingCursor, if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor)
+                return AnalyzingResourceCreator.DecodedMacro(content, reader.cursorMapper.mapToSource(macroTargetRange))
             }
         }
 

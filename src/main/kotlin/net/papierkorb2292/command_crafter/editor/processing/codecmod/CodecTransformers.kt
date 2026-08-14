@@ -642,7 +642,7 @@ object CodecTransformers {
                         reader.string,
                         OffsetProcessedInputCursorMapper(absoluteRange.start).combineWith(reader.cursorMapper), // Map cursor relative to the beginning of the string
                         string.escaper
-                    ), absoluteRange, analyzingBehavior.range + analyzingBehavior.baseMappingInfo.readSkippingChars
+                    ), absoluteRange
                 )
                 val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
                 if(cachedNode != null) {

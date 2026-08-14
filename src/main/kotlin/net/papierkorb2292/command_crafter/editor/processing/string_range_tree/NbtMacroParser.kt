@@ -29,7 +29,7 @@ object NbtMacroParser : AnalyzingResourceCreator.MacroParser {
             content.escaper
         )
 
-        val rangeInParent = StringRange(skippingCursor, reader.skippingCursor)
-        return AnalyzingResourceCreator.DecodedMacro(mappedContent, reader.cursorMapper.mapToSource(rangeInParent), rangeInParent)
+        val macroTargetRange = StringRange(skippingCursor, reader.skippingCursor)
+        return AnalyzingResourceCreator.DecodedMacro(mappedContent, reader.cursorMapper.mapToSource(macroTargetRange))
     }
 }

@@ -127,18 +127,21 @@ class AnalyzingResourceCreator(
         fun addMacro(macro: MacroNode) {
             macrosByInput[macro.input] = macro
             orderedMacros += macro
-            orderedMacroStartInParent += macro.rangeInParent.start
+            orderedMacroStartInParent += macro.fileRangeInParent.start
         }
     }
 
     class MacroNode(
         val analyzingResult: AnalyzingResult,
         val input: MacroInput,
-        val rangeInParent: StringRange,
+        /**
+         * The absolute range of the macro minus the absolute start position of the parent
+         */
+        val fileRangeInParent: StringRange,
         val children: MacroCache,
         val updatedFile: FileMappingInfo,
     ) {
-        fun copyForChildCacheHit(macro: DecodedMacro) = withRange(macro.rangeInParent)
+        fun copyForChildCacheHit(macro: DecodedMacro) = withRange(macro.absoluteRange)
 
         fun withRange(newRangeInParent: StringRange) = MacroNode(
             analyzingResult,
@@ -164,7 +167,7 @@ class AnalyzingResourceCreator(
         fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): DecodedMacro?
     }
 
-    data class DecodedMacro(val string: StringContent, val absoluteRange: StringRange, val rangeInParent: StringRange)
+    data class DecodedMacro(val string: StringContent, val absoluteRange: StringRange)
 
     class SuggestionRequestInfo(
         /**
