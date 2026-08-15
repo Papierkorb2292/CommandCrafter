@@ -368,6 +368,17 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastLine += position.line
     }
 
+    fun undoOffset(position: Position) {
+        if(data.isEmpty()) return
+        lastLine -= position.line
+        if(lastLine == 0)
+            lastCursor -= position.character
+        data[0] -= position.line
+        if(data[0] == 0)
+            // First token is on first line, so it's affected by the first line being moved to the right
+            data[1] -= position.character
+    }
+
     fun clear() {
         data.clear()
         lastLine = 0

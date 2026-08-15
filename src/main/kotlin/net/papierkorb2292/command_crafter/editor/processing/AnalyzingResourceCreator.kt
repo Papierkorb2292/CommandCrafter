@@ -133,6 +133,11 @@ class AnalyzingResourceCreator(
 
     class MacroNode(
         val analyzingResult: AnalyzingResult,
+        /**
+         * The semantic tokens from the macro variables that are only overlayed when combining the final AnalyzingResult.
+         * These are saved separately so they can be updated when a child macro is modified.
+         */
+        val variablesSemanticTokensOverlay: SemanticTokensBuilder?,
         val input: MacroInput,
         /**
          * The absolute range of the macro minus the absolute start position of the parent
@@ -145,6 +150,7 @@ class AnalyzingResourceCreator(
 
         fun withRange(newRangeInParent: StringRange) = MacroNode(
             analyzingResult,
+            variablesSemanticTokensOverlay,
             input,
             newRangeInParent,
             children,

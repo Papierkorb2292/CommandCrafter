@@ -991,8 +991,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     true
                 }
             }
-            if(variablesSemanticTokens != null)
-                macroAnalyzingResult.semanticTokens.overlay(listOf(variablesSemanticTokens).iterator())
             macroAnalyzingResult.diagnostics += diagnostics
             if(logMacroAnalyzingTime) {
                 val duration = (Util.getNanos() - startTime) / 1000
@@ -1012,6 +1010,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
             reader.resourceCreator.newCache.macroCache.addMacro(AnalyzingResourceCreator.MacroNode(
                 macroAnalyzingResult,
+                variablesSemanticTokens,
                 input,
                 macro.absoluteRange,
                 childResourceCreator.newCache.macroCache,

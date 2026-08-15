@@ -22,7 +22,10 @@ object MacroMerger {
         for((i, child) in macros.orderedMacros.withIndex()) {
             val absoluteOffset = child.fileRangeInParent.start
             val positionOffset = AnalyzingResult.getPositionFromCursor(absoluteOffset, newFile)
-            childResults += overlayMacros(child.analyzingResult, child.updatedFile, child.children).addOffset(analyzingResult, positionOffset, absoluteOffset)
+            val overlayedResult = overlayMacros(child.analyzingResult, child.updatedFile, child.children)
+            if(child.variablesSemanticTokensOverlay != null)
+                overlayedResult.semanticTokens.overlay(listOf(child.variablesSemanticTokensOverlay).iterator())
+            childResults += overlayedResult.addOffset(analyzingResult, positionOffset, absoluteOffset)
             val relativeOffset = macros.childModificationOffsets.get(i)
             if(relativeOffset != null && relativeOffset.isNonZero()) {
                 resultMapper.addMapping(child.fileRangeInParent.start, positionOffset, child.fileRangeInParent.end, relativeOffset.cursorOffset, relativeOffset.fileOffset)
