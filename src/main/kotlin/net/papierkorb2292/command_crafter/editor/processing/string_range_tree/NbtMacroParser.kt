@@ -12,20 +12,19 @@ object NbtMacroParser : AnalyzingResourceCreator.MacroParser {
     private val parser = TagParser.create(NbtOps.INSTANCE)
 
     override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro? {
-        val absoluteCursor = reader.absoluteCursor
         val skippingCursor = reader.skippingCursor
         val startCursor = reader.cursor
         val parsed = try {
-            parser.parseFully(reader)
+            parser.parseAsArgument(reader)
         } catch(_: CommandSyntaxException) {
             return null
         }
         val content = NbtStringContentGetter.getStringContent(parsed, reader.string, StringRange(startCursor, reader.cursor)) ?: return null
+        content.cursorMapper.mapAllToTargetSorted(reader.resourceCreator.macroTargetCursors, false)
         val mappedContent = StringContent(
             content.content,
-            OffsetProcessedInputCursorMapper(absoluteCursor)
-                .combineWith(content.cursorMapper)
-                .combineWith(OffsetProcessedInputCursorMapper(-skippingCursor)),
+            OffsetProcessedInputCursorMapper(reader.fileMappingInfo.cursorMapper.mapToSource(skippingCursor))
+                .combineWith(AnalyzingDynamicOps.buildCombinedStringMapper(reader.fileMappingInfo, content)),
             content.escaper
         )
 

@@ -939,7 +939,7 @@ object TestCommandCrafter {
             val newReader = buildCommandReader(context, newProcessedLines)
             newReader.resourceCreator.previousCache = prevReader.resourceCreator.newCache
 
-            context.assertFalse(MacroMerger.trackOutermostMacroModification(
+            context.assertFalse(MacroMerger.trackMacroModification(
                 prevReader.fileMappingInfo,
                 newReader
             ), "Expected $modificationName to not trigger a macro modification")
@@ -970,7 +970,7 @@ object TestCommandCrafter {
             val newReader = buildCommandReader(context, newProcessedLines)
             newReader.resourceCreator.previousCache = lastReader.resourceCreator.newCache
 
-            context.assertTrue(MacroMerger.trackOutermostMacroModification(
+            context.assertTrue(MacroMerger.trackMacroModification(
                 lastReader.fileMappingInfo,
                 newReader
             ), "Expected $modificationName to trigger a macro modification")

@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOp
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.Position
 import java.nio.ByteBuffer
 import java.util.*
@@ -66,6 +67,17 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             analyzingOps.accessedKeysWatcher = accessedKeysWatcher
             analyzingOps.parentLinks = operations.getParentLinks(analyzingOps.onlyContextOps).withFallback(accessedKeysWatcher.getParentLinks(analyzingOps.onlyContextOps))
             return analyzingOps to wrappedAccessedKeysWatcherOps
+        }
+
+        fun buildCombinedStringMapper(file: FileMappingInfo, stringContent: StringContent): SplitProcessedInputCursorMapper {
+            val absoluteContentMapper = OffsetProcessedInputCursorMapper(-file.readSkippingChars)
+                .combineWith(stringContent.cursorMapper)
+            return if(file.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
+                file.cursorMapper.combineWith(absoluteContentMapper)
+            } else {
+                OffsetProcessedInputCursorMapper(-file.skippedChars)
+                    .combineWith(absoluteContentMapper)
+            }
         }
     }
 
@@ -320,17 +332,9 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             }
 
             override fun createStringAnalyzingResultOverlay(stringContent: StringContent): AnalyzingResult {
-                var absoluteContentMapper = OffsetProcessedInputCursorMapper(-baseResult.mappingInfo.readSkippingChars)
-                    .combineWith(stringContent.cursorMapper)
-                if(baseResult.mappingInfo.cursorMapper.containsTargetCursor(absoluteContentMapper.sourceCursors[0])) {
-                    absoluteContentMapper = baseResult.mappingInfo.cursorMapper.combineWith(absoluteContentMapper)
-                } else {
-                    absoluteContentMapper = OffsetProcessedInputCursorMapper(-baseResult.mappingInfo.skippedChars)
-                        .combineWith(absoluteContentMapper)
-                }
                 val stringMappingInfo = FileMappingInfo(
                     baseResult.mappingInfo.lines,
-                    absoluteContentMapper
+                    buildCombinedStringMapper(baseResult.mappingInfo, stringContent)
                 )
                 val stringAnalyzingResult = AnalyzingResult(stringMappingInfo, Position())
                 potentialResults += stringAnalyzingResult to stringContent.escaper

@@ -41,44 +41,47 @@ object MacroMerger {
      *
      * @param prevFile The old content of the entire source file, for which macros have been cached
      * @param newReader The reader for the new content of the source file
+     * @param modifiedRange The range that was modified between [prevFile] and [newReader]. If not present, it will be calculated from the two inputs
+     * @param isNested Whether the macros are inside another macro. If `true`, [newReader] is expected to contain the mapped input string.
      * @return true if only one macro was modified, which has now been analyzed again, false otherwise
      */
-    fun trackOutermostMacroModification(prevFile: FileMappingInfo, newReader: DirectiveStringReader<AnalyzingResourceCreator>): Boolean {
-        val oldMacros = newReader.resourceCreator.previousCache?.macroCache ?: return false
-        if(oldMacros.orderedMacros.isEmpty()) return false
-
-        val newFile = newReader.fileMappingInfo
-        val absoluteStartPosition = getModifiedAbsoluteStart(prevFile, newFile)
-        val absoluteEndDist = getModifiedAbsoluteEndDist(prevFile, newFile)
-
-        return trackMacroModification(prevFile, newReader, absoluteStartPosition, absoluteEndDist)
-    }
-
-    private fun trackMacroModification(prevFile: FileMappingInfo, newReader: DirectiveStringReader<AnalyzingResourceCreator>, modificationStartPos: Int, modificationEndDist: Int): Boolean {
+    fun trackMacroModification(
+        prevFile: FileMappingInfo,
+        newReader: DirectiveStringReader<AnalyzingResourceCreator>,
+        modifiedRange: MacroModificationRange = getModifiedRange(prevFile, newReader.fileMappingInfo),
+        isNested: Boolean = false
+    ): Boolean {
         val oldMacros = newReader.resourceCreator.previousCache?.macroCache ?: return false
         val newMacros = newReader.resourceCreator.newCache.macroCache
 
         // Find the macro that encompasses the first change. If the change is exactly at the start of the macro, there was no modification inside the macro so return false
-        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(modificationStartPos) }
+        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(modifiedRange.absoluteStartPosition) }
         if(macroIndex >= -1)
             return false // Exactly matched the start of a macro (>= 0) or no macro starts before this position (== -1)
         macroIndex = roundDownBinarySearch(macroIndex)
         val oldMacroNode = oldMacros.orderedMacros[macroIndex]
         val oldMacroAbsoluteEnd = oldMacroNode.fileRangeInParent.end
-        if(oldMacroAbsoluteEnd < modificationStartPos)
+        if(oldMacroAbsoluteEnd < modifiedRange.absoluteStartPosition)
             return false // The position is after the end of the macro
 
         val oldMacroEndDist = prevFile.accumulatedLineLengths.last() - oldMacroAbsoluteEnd
-        if(oldMacroEndDist > modificationEndDist)
+        if(oldMacroEndDist > modifiedRange.absoluteEndDist)
             return false // There's a change after the end of the macro
 
         // Parse the macro template
-        val templateReader = DirectiveStringReader.createReaderAtAbsoluteCursor(
-            newReader.fileMappingInfo,
-            newReader.dispatcher,
-            newReader.resourceCreator,
-            oldMacroNode.fileRangeInParent.start
-        )
+        val templateReader = if(isNested) {
+            // The reader already contains the entire macro as a string, so just set the cursor
+            newReader.copy().also {
+                it.cursor = newReader.fileMappingInfo.cursorMapper.mapToTarget(oldMacroNode.fileRangeInParent.start)
+            }
+        } else {
+            DirectiveStringReader.createReaderAtAbsoluteCursor(
+                newReader.fileMappingInfo,
+                newReader.dispatcher,
+                newReader.resourceCreator,
+                oldMacroNode.fileRangeInParent.start
+            )
+        }
         val newDecodedMacro = oldMacroNode.input.parser.parse(templateReader) ?: return false
         val newMacroEndDist = templateReader.fileMappingInfo.accumulatedLineLengths.last() - newDecodedMacro.absoluteRange.end
         if(newMacroEndDist != oldMacroEndDist)
@@ -93,10 +96,21 @@ object MacroMerger {
                 newMacros.childModificationOffsets.put(i, modificationOffset)
         }
 
-        // Analyze new macro
+        // Analyze new macro. `analyzeMacroString` also checks if the modification is within a child and allows recursion
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(newDecodedMacro.absoluteRange.start, newDecodedMacro.absoluteRange.end, templateReader.fileMappingInfo)
         val newInput = oldMacroNode.input.copy(lines = relevantLines)
-        VanillaLanguage.analyzeMacroString(newInput, newDecodedMacro, oldMacroNode.children, newReader, newReader.resourceCreator.source)
+        VanillaLanguage.analyzeMacroString(
+            newInput,
+            newDecodedMacro,
+            oldMacroNode.children,
+            newReader,
+            newReader.resourceCreator.source,
+            FileModificationData(
+                oldMacroNode.updatedFile,
+                oldMacroNode.analyzingResult,
+                modifiedRange.relativeToChild(oldMacroNode.fileRangeInParent.start, oldMacroEndDist)
+            )
+        )
         val newCursorOffset = newReader.fileMappingInfo.accumulatedLineLengths.last() - prevFile.accumulatedLineLengths.last()
         val newFileOffset = AnalyzingResult.getPositionFromCursor(oldMacroAbsoluteEnd, prevFile)
             .differenceTo(AnalyzingResult.getPositionFromCursor(newDecodedMacro.absoluteRange.end, newReader.fileMappingInfo))
@@ -118,10 +132,16 @@ object MacroMerger {
         return true
     }
 
+    private fun getModifiedRange(prevFile: FileMappingInfo, newFile: FileMappingInfo): MacroModificationRange =
+        MacroModificationRange(
+            getModifiedAbsoluteStart(prevFile, newFile),
+            getModifiedAbsoluteEndDist(prevFile, newFile)
+        )
+
     /**
      * Returns the amount of characters before the first change between the two files
      */
-    fun getModifiedAbsoluteStart(prevFile: FileMappingInfo, newFile: FileMappingInfo): Int {
+    private fun getModifiedAbsoluteStart(prevFile: FileMappingInfo, newFile: FileMappingInfo): Int {
         val prevLines = prevFile.lines
         val newLines = newFile.lines
         val minLineCount = min(prevLines.size, newLines.size)
@@ -145,7 +165,7 @@ object MacroMerger {
      * Note that the position of the last change could be before the return value of [getModifiedAbsoluteStart],
      * for example if there are consecutive equal characters and the only change is that another equal character was added/removed.
      */
-    fun getModifiedAbsoluteEndDist(prevFile: FileMappingInfo, newFile: FileMappingInfo): Int {
+    private fun getModifiedAbsoluteEndDist(prevFile: FileMappingInfo, newFile: FileMappingInfo): Int {
         val prevLines = prevFile.lines
         val newLines = newFile.lines
         val minLineCount = min(prevLines.size, newLines.size)
@@ -187,5 +207,14 @@ object MacroMerger {
                 return i - 1
         }
         return minLength
+    }
+
+    data class FileModificationData(val oldFile: FileMappingInfo, val oldResult: AnalyzingResult, val modificationRange: MacroModificationRange)
+    data class MacroModificationRange(val absoluteStartPosition: Int, val absoluteEndDist: Int) {
+        fun relativeToChild(absoluteChildStartPos: Int, absoluteChildEndDist: Int) =
+            MacroModificationRange(
+                absoluteStartPosition - absoluteChildStartPos,
+                absoluteEndDist - absoluteChildEndDist
+            )
     }
 }

@@ -87,7 +87,7 @@ class AnalyzingResourceCreator(
             val resourceCreator = newReader.resourceCreator
             val prevCache = resourceCreator.previousCache ?: return null
             val prevAnalyzingResult = prevCache.analyzingResult ?: return null
-            if(!MacroMerger.trackOutermostMacroModification(prevCache.file, newReader))
+            if(!MacroMerger.trackMacroModification(prevCache.file, newReader))
                 return null
             return resourceCreator.overlayMacros(prevAnalyzingResult, newReader.fileMappingInfo)
         }

@@ -11,7 +11,6 @@ import java.io.StringReader
 
 object JsonMacroParser : AnalyzingResourceCreator.MacroParser {
     override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro? {
-        val absoluteCursor = reader.absoluteCursor
         val skippingCursor = reader.skippingCursor
         val sourceLines = StringBuilder(reader.readString())
         while(reader.canRead()) {
@@ -25,11 +24,11 @@ object JsonMacroParser : AnalyzingResourceCreator.MacroParser {
             return null
         }
         val content = StringRangeTreeJsonReader.StringContentGetter(parsed, input).getStringContent(parsed.root) ?: return null
+        content.cursorMapper.mapAllToTargetSorted(reader.resourceCreator.macroTargetCursors, false)
         val mappedContent = StringContent(
             content.content,
-            OffsetProcessedInputCursorMapper(absoluteCursor)
-                .combineWith(content.cursorMapper)
-                .combineWith(OffsetProcessedInputCursorMapper(-skippingCursor)),
+            OffsetProcessedInputCursorMapper(reader.fileMappingInfo.cursorMapper.mapToSource(skippingCursor))
+                .combineWith(AnalyzingDynamicOps.buildCombinedStringMapper(reader.fileMappingInfo, content)),
             content.escaper
         )
 

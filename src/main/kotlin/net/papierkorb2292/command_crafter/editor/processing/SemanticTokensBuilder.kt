@@ -447,7 +447,7 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     inner class TokenPositionMapper {
         private var currentTokenIndex = 0
         private var prevTokenPosition = Position()
-        private var currentTokenPosition = if(data.isEmpty()) Position() else Position(data[0], data[1])
+        private var currentTokenPosition = if(data.isEmpty()) Position(Int.MAX_VALUE, Int.MAX_VALUE) else Position(data[0], data[1])
 
         /**
          * Shifts all semantic tokens after the source position by the difference between

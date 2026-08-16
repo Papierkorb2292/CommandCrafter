@@ -55,6 +55,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
@@ -901,6 +902,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             cache: AnalyzingResourceCreator.MacroCache?,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: SharedSuggestionProvider,
+            fileModificationData: MacroMerger.FileModificationData? = null
         ) {
             // Skip irrelevant macros when generating suggestions
             if(reader.resourceCreator.canSuggestionsSkipRange(macro.absoluteRange.start, macro.absoluteRange.end))
@@ -962,50 +964,58 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 if(resolvedMacroCursorMapper != null) macro.string.cursorMapper.combineWith(resolvedMacroCursorMapper)
                 else macro.string.cursorMapper
             )
-            val macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
+            val macroAnalyzingResult: AnalyzingResult
             val childResourceCreator = reader.resourceCreator.copyForMacro(macroMappingInfo)
-            val macroQueue = mutableListOf<AnalyzingResourceCreator.DelayedMacro>()
-            childResourceCreator.macroQueue = macroQueue
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
             if(resolvedMacroCursorMapper != null)
                 resolvedMacroCursorMapper.mapAllToTargetSorted(childResourceCreator.macroTargetCursors, true)
             childResourceCreator.macroTargetCursors.addAllSorted(macroVariableLocations)
-            analyzeMacroCommand(
-                DirectiveStringReader(
-                    macroMappingInfo,
-                    reader.dispatcher,
-                    childResourceCreator
-                ).apply {
-                   // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
-                    toCompleted()
-                    string = replacedMacro
-                },
-                source,
-                macroAnalyzingResult,
-            ) { sourceCursor ->
-                if(resolvedMacroCursorMapper != null) {
-                    // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
-                    val unresolvedMacroCursor = macro.string.cursorMapper.mapToTarget(sourceCursor, true)
-                    resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
-                } else {
-                    true
-                }
-            }
-            macroAnalyzingResult.diagnostics += diagnostics
-            if(logMacroAnalyzingTime) {
-                val duration = (Util.getNanos() - startTime) / 1000
-                println("Took ${duration}µs to analyze macro: ${macro.string.content}")
+            val macroReader = DirectiveStringReader(
+                macroMappingInfo,
+                reader.dispatcher,
+                childResourceCreator
+            ).apply {
+                // Only read the actual macro, don't consume any of the original lines (they are still necessary for correct file positions though)
+                toCompleted()
+                string = replacedMacro
             }
 
-            for(delayedMacro in macroQueue) {
-                delayedMacro.reader.resourceCreator.macroQueue = null
-                analyzeMacroString(
-                    delayedMacro.input,
-                    delayedMacro.macro,
-                    delayedMacro.cache,
-                    delayedMacro.reader,
-                    source
-                )
+            if(fileModificationData == null || !MacroMerger.trackMacroModification(fileModificationData.oldFile, macroReader, fileModificationData.modificationRange, true)) {
+                macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
+                val macroQueue = mutableListOf<AnalyzingResourceCreator.DelayedMacro>()
+                childResourceCreator.macroQueue = macroQueue
+                analyzeMacroCommand(
+                    macroReader,
+                    source,
+                    macroAnalyzingResult,
+                ) { sourceCursor ->
+                    if(resolvedMacroCursorMapper != null) {
+                        // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
+                        val unresolvedMacroCursor = macro.string.cursorMapper.mapToTarget(sourceCursor, true)
+                        resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
+                    } else {
+                        true
+                    }
+                }
+                macroAnalyzingResult.diagnostics += diagnostics
+                if(logMacroAnalyzingTime) {
+                    val duration = (Util.getNanos() - startTime) / 1000
+                    println("Took ${duration}µs to analyze macro: ${macro.string.content}")
+                }
+
+                for(delayedMacro in macroQueue) {
+                    delayedMacro.reader.resourceCreator.macroQueue = null
+                    analyzeMacroString(
+                        delayedMacro.input,
+                        delayedMacro.macro,
+                        delayedMacro.cache,
+                        delayedMacro.reader,
+                        source
+                    )
+                }
+            } else {
+                // Use the cached result
+                macroAnalyzingResult = fileModificationData.oldResult
             }
 
             reader.resourceCreator.newCache.macroCache.addMacro(AnalyzingResourceCreator.MacroNode(
@@ -1014,7 +1024,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 input,
                 macro.absoluteRange,
                 childResourceCreator.newCache.macroCache,
-                macroAnalyzingResult.mappingInfo,
+                macroMappingInfo,
             ))
         }
 
