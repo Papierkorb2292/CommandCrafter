@@ -449,8 +449,10 @@ object CodecTransformers {
                 Codec.FLOAT.lenientOptionalFieldOf("Health").forEmptyGetter(),
                 Codec.INT.lenientOptionalFieldOf("Age").forEmptyGetter(),
                 Codec.BOOL.lenientOptionalFieldOf("AgeLocked").forEmptyGetter(),
+                Codec.INT.lenientOptionalFieldOf("age").forEmptyGetter(), // Sulfur cube uses snake_case
+                Codec.BOOL.lenientOptionalFieldOf("age_locked").forEmptyGetter(),
                 Codec.LONG.lenientOptionalFieldOf("HuntingCooldown").forEmptyGetter(),
-            ).apply(it) { _, _, _, _, _, _, _, _, _ -> }
+            ).apply(it) { _, _, _, _, _, _, _, _, _, _, _, -> }
         }))
 
     val TYPED_ENTITY_DATA_FIELD_BLACKLIST = ThreadLocal<List<String>>()
