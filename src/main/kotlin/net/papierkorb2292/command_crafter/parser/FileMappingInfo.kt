@@ -40,6 +40,8 @@ class FileMappingInfo(
 
     val readSkippingChars
         get() = readCharacters - skippedChars
+    val totalCharacters
+        get() = if(accumulatedLineLengths.isEmpty()) 0 else accumulatedLineLengths.last() - 1 // Remove final newline, since it's not actually part of the file content
 
     fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
     fun copy(copyCursorMapper: Boolean) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)

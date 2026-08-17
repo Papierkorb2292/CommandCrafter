@@ -64,7 +64,7 @@ object MacroMerger {
         if(oldMacroAbsoluteEnd < modifiedRange.absoluteStartPosition)
             return false // The position is after the end of the macro
 
-        val oldMacroEndDist = prevFile.accumulatedLineLengths.last() - oldMacroAbsoluteEnd
+        val oldMacroEndDist = prevFile.totalCharacters - oldMacroAbsoluteEnd
         if(oldMacroEndDist > modifiedRange.absoluteEndDist)
             return false // There's a change after the end of the macro
 
@@ -83,7 +83,7 @@ object MacroMerger {
             )
         }
         val newDecodedMacro = oldMacroNode.input.parser.parse(templateReader) ?: return false
-        val newMacroEndDist = templateReader.fileMappingInfo.accumulatedLineLengths.last() - newDecodedMacro.absoluteRange.end
+        val newMacroEndDist = templateReader.fileMappingInfo.totalCharacters - newDecodedMacro.absoluteRange.end
         if(newMacroEndDist != oldMacroEndDist)
             return false // Something changed the range of the macro relative to the rest of the file. Can't use the cache.
 
@@ -111,7 +111,7 @@ object MacroMerger {
                 modifiedRange.relativeToChild(oldMacroNode.fileRangeInParent.start, oldMacroEndDist)
             )
         )
-        val newCursorOffset = newReader.fileMappingInfo.accumulatedLineLengths.last() - prevFile.accumulatedLineLengths.last()
+        val newCursorOffset = newReader.fileMappingInfo.totalCharacters - prevFile.totalCharacters
         val newFileOffset = AnalyzingResult.getPositionFromCursor(oldMacroAbsoluteEnd, prevFile)
             .differenceTo(AnalyzingResult.getPositionFromCursor(newDecodedMacro.absoluteRange.end, newReader.fileMappingInfo))
         val newOffset = AnalyzingResourceCreator.MacroOffset(newCursorOffset, newFileOffset)
