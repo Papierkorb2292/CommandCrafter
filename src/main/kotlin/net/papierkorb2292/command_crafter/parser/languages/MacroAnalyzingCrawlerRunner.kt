@@ -26,6 +26,7 @@ import net.minecraft.network.FriendlyByteBuf
 import net.minecraft.util.Util
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator.DelayedMacro
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
@@ -77,7 +78,8 @@ import kotlin.math.min
 class MacroAnalyzingCrawlerRunner(
     private val baseContext: CommandContextBuilder<SharedSuggestionProvider>,
     private val reader: DirectiveStringReader<AnalyzingResourceCreator>,
-    private val baseAnalyzingResult: AnalyzingResult
+    private val baseAnalyzingResult: AnalyzingResult,
+    private val childMacroQueue: MutableList<DelayedMacro>
 ) {
     private val variableLocations = reader.resourceCreator.macroTargetCursors
     private val attemptPositions = IntList()
@@ -246,6 +248,9 @@ class MacroAnalyzingCrawlerRunner(
             // cause issues because the node is given to markInvalidAttemptPositions but might contain valid attempt positions
             attemptBaseContext.withNode(rootNode, StringRange.at(startCursor - 1)) // Subtracts one to exclude space
 
+        val attemptMacroQueue = mutableListOf<DelayedMacro>()
+        reader.resourceCreator.macroQueue = attemptMacroQueue
+
         val commandParseResults: ParseResults<SharedSuggestionProvider>
         @Suppress("UNCHECKED_CAST")
         commandParseResults = (baseContext.dispatcher as CommandDispatcherAccessor<SharedSuggestionProvider>).callParseNodes(
@@ -301,13 +306,13 @@ class MacroAnalyzingCrawlerRunner(
         if(!hasAccessedMacro || !reader.canRead())
             // Don't parse further, because there was either an error before a macro was encountered (these errors are not handled gracefully, just like when analyzing normal commands)
             // or because the command is done
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, attemptMacroQueue, spawner, attemptIndex, skippedNodeCount, null)
 
         val onlyFoundWhitespace = reader.string.subSequence(startCursor, reader.furthestAccessedCursor).all { it == ' ' }
         if(onlyFoundWhitespace && spawner.parent != null)
             // The parser doesn't seem to have found anything, there's no need to create a new spawner, since the parent spawner is also going to try
             // the following whitespaces
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, attemptMacroQueue, spawner, attemptIndex, skippedNodeCount, null)
 
         // The last argument had a macro variable so it might not be correct to continue with the next node like normal,
         // since the macro could have contained any data whatsoever. Create a new spawner to find the best match to continue parsing.
@@ -320,7 +325,7 @@ class MacroAnalyzingCrawlerRunner(
 
         val nextAttemptIndex = getAttemptIndexForCursor(reader.cursor)
         if(nextAttemptIndex >= attemptPositions.size || invalidAttemptPositionsMarker[nextAttemptIndex])
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, attemptMacroQueue, spawner, attemptIndex, skippedNodeCount, null)
         val childSpawner = Spawner(
             spawner,
             lastNode.resolveRedirect().children.filter { it.resolveRedirect().children.isNotEmpty() }, // Only take nodes that have children, because otherwise they won't be able to parse anything anyway
@@ -328,7 +333,7 @@ class MacroAnalyzingCrawlerRunner(
             commandParseResults.context.lastChild
         )
         if(childSpawner.nextNodes.isEmpty())
-            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, null)
+            return convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, attemptMacroQueue, spawner, attemptIndex, skippedNodeCount, null)
         childSpawner.pushCrawler()
 
         // Use the difference in the attempt index from the parent spawner to add the child spawner instead of just using nextAttemptIndex
@@ -341,7 +346,7 @@ class MacroAnalyzingCrawlerRunner(
         }
         weightedSpawners[childSpawnerIndex] += childSpawner
 
-        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, spawner, attemptIndex, skippedNodeCount, childSpawner)
+        val crawlerResult = convertParseResultsToCrawlerResult(commandParseResults, attemptBaseContext, analyzingResult, attemptMacroQueue, spawner, attemptIndex, skippedNodeCount, childSpawner)
         childSpawner.baseResult = crawlerResult
         return crawlerResult
     }
@@ -575,6 +580,7 @@ class MacroAnalyzingCrawlerRunner(
             }
             crawlerAnalyzingResult.cutAfterTargetCursor(cutTargetCursor)
             parentAnalyzingResult.combineWith(crawlerAnalyzingResult)
+            childMacroQueue += result.attemptMacroQueue // Only take the macro queue from the best match, so there are no duplicates
             return parentAnalyzingResult
         }
 
@@ -661,6 +667,7 @@ class MacroAnalyzingCrawlerRunner(
         val semanticTokensCount: Int,
         val contextBuilder: CommandContextBuilder<SharedSuggestionProvider>,
         val analyzingResult: AnalyzingResult,
+        val attemptMacroQueue: MutableList<DelayedMacro>,
         val parentSpawner: Spawner,
         val baseAttemptIndex: Int,
         val baseSkippedNodeCount: Int,
@@ -755,6 +762,7 @@ class MacroAnalyzingCrawlerRunner(
         parseResults: ParseResults<SharedSuggestionProvider>,
         baseContext: CommandContextBuilder<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
+        attemptMacroQueue: MutableList<DelayedMacro>,
         parentSpawner: Spawner,
         baseAttemptIndex: Int,
         baseSkippedNodeCount: Int,
@@ -780,6 +788,7 @@ class MacroAnalyzingCrawlerRunner(
             semanticTokensCount,
             parseResults.context,
             analyzingResult,
+            attemptMacroQueue,
             parentSpawner,
             baseAttemptIndex,
             baseSkippedNodeCount,

@@ -983,11 +983,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(fileModificationData == null || !MacroMerger.trackMacroModification(fileModificationData.oldFile, macroReader, fileModificationData.modificationRange, true)) {
                 macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
                 val macroQueue = mutableListOf<AnalyzingResourceCreator.DelayedMacro>()
-                childResourceCreator.macroQueue = macroQueue
                 analyzeMacroCommand(
                     macroReader,
                     source,
                     macroAnalyzingResult,
+                    macroQueue
                 ) { sourceCursor ->
                     if(resolvedMacroCursorMapper != null) {
                         // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
@@ -1092,7 +1092,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         }
 
         //TODO: Error on trailing data
-        fun analyzeMacroCommand(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, baseAnalyzingResult: AnalyzingResult, completionPredicate: (Int) -> Boolean) {
+        fun analyzeMacroCommand(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            source: SharedSuggestionProvider,
+            baseAnalyzingResult: AnalyzingResult,
+            macroQueue: MutableList<AnalyzingResourceCreator.DelayedMacro>,
+            completionPredicate: (Int) -> Boolean,
+        ) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
             // Don't let parsers enable escaped multiline, since there already are mappings
             reader.onlyReadEscapedMultiline = true
@@ -1101,7 +1107,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             val crawlerRunner = MacroAnalyzingCrawlerRunner(
                 CommandContextBuilder(reader.dispatcher, source, reader.dispatcher.root, reader.cursor),
                 reader,
-                baseAnalyzingResult
+                baseAnalyzingResult,
+                macroQueue
             )
             val analyzingResult = crawlerRunner.run()
 
