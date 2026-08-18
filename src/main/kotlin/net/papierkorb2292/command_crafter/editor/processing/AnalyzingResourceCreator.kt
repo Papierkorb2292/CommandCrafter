@@ -15,6 +15,7 @@ import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.Position
 import java.util.*
 
@@ -160,7 +161,7 @@ class AnalyzingResourceCreator(
         override fun toString() = input.lines.joinToString("\n")
     }
 
-    data class MacroInput(val lines: List<String>, val parser: MacroParser, val isTemplate: Boolean, val hasTemplatePrefix: Boolean, val addMissingVariablesError: Boolean)
+    data class MacroInput(val lines: List<String>, val parser: MacroParser, val isTemplate: Boolean, val hasTemplatePrefix: Boolean, val addMissingVariablesError: Boolean, val illegalChatCharactersSeverity: DiagnosticSeverity?)
 
     data class DelayedMacro(val input: MacroInput, val macro: DecodedMacro, val cache: MacroCache?, val reader: DirectiveStringReader<AnalyzingResourceCreator>)
 

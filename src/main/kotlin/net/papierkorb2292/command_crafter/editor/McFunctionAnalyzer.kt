@@ -34,28 +34,30 @@ class McFunctionAnalyzer(
             }
         )
         DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
-            var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(reader)
-            if(result == null) {
-                // No cache hit, parse function instead
-                result = AnalyzingResult(reader.fileMappingInfo, Position())
-                reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
-                LanguageManager.analyse(
-                    reader,
-                    source,
-                    result,
-                    Language.TopLevelClosure(VanillaLanguage())
-                )
-                reader.resourceCreator.resourceStack.pop()
-                reader.resourceCreator.storeCache(file, result)
-                result = reader.resourceCreator.overlayMacros(result)
-            } else {
-                // There is no new outermost analyzing result for the cache, since only a macro was changed
-                reader.resourceCreator.storeCacheKeepAnalyzingResult(file)
+            VanillaLanguage.IS_ANALYZING_COMMANDS.runWithValueSwap(true) {
+                var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(reader)
+                if(result == null) {
+                    // No cache hit, parse function instead
+                    result = AnalyzingResult(reader.fileMappingInfo, Position())
+                    reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
+                    LanguageManager.analyse(
+                        reader,
+                        source,
+                        result,
+                        Language.TopLevelClosure(VanillaLanguage())
+                    )
+                    reader.resourceCreator.resourceStack.pop()
+                    reader.resourceCreator.storeCache(file, result)
+                    result = reader.resourceCreator.overlayMacros(result)
+                } else {
+                    // There is no new outermost analyzing result for the cache, since only a macro was changed
+                    reader.resourceCreator.storeCacheKeepAnalyzingResult(file)
+                }
+                result = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
+                if(resultWrapper != null)
+                    return resultWrapper(result)
+                return result
             }
-            result = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
-            if(resultWrapper != null)
-                return resultWrapper(result)
-            return result
         }
     }
 }

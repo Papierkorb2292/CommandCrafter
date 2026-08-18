@@ -19,6 +19,7 @@ import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness
 import org.eclipse.lsp4j.Position
 import java.io.IOException
@@ -70,30 +71,32 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             )
 
             DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
-                var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(directiveReader)
-                if(result == null) {
-                    // No cache hit, parse JSON instead
-                    result = AnalyzingResult(mappingInfo, Position())
-                    val concatenatedLines = lines.joinToString("\n")
-                    val reader = StringReader(concatenatedLines)
-                    val parsedStringRangeTree = try {
-                        StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
-                    } catch(e: IOException) {
+                VanillaLanguage.IS_ANALYZING_COMMANDS.runWithValueSwap(true) {
+                    var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(directiveReader)
+                    if(result == null) {
+                        // No cache hit, parse JSON instead
+                        result = AnalyzingResult(mappingInfo, Position())
+                        val concatenatedLines = lines.joinToString("\n")
+                        val reader = StringReader(concatenatedLines)
+                        val parsedStringRangeTree = try {
+                            StringRangeTreeJsonReader(reader).read(Strictness.LENIENT, true)
+                        } catch(e: IOException) {
+                            return result
+                        }
+
+                        TreeOperations.forJson(
+                            parsedStringRangeTree,
+                            directiveReader,
+                            concatenatedLines
+                        ).analyzeFull(result, fileDecoder)
+
+                        directiveReader.resourceCreator.storeCache(file, result)
+                        return directiveReader.resourceCreator.overlayMacros(result)
+                    } else {
+                        // There is no new outermost analyzing result for the cache, since only a macro was changed
+                        directiveReader.resourceCreator.storeCacheKeepAnalyzingResult(file)
                         return result
                     }
-
-                    TreeOperations.forJson(
-                        parsedStringRangeTree,
-                        directiveReader,
-                        concatenatedLines
-                    ).analyzeFull(result, fileDecoder)
-
-                    directiveReader.resourceCreator.storeCache(file, result)
-                    return directiveReader.resourceCreator.overlayMacros(result)
-                } else {
-                    // There is no new outermost analyzing result for the cache, since only a macro was changed
-                    directiveReader.resourceCreator.storeCacheKeepAnalyzingResult(file)
-                    return result
                 }
             }
         }

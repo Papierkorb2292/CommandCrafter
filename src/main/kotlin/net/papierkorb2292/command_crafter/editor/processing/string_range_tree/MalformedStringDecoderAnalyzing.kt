@@ -44,6 +44,17 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
         }
     }
 
+    fun <A> wrapCodecWithoutError(delegate: Codec<A>): Codec<A> = object : Codec<A> {
+        override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> =
+            delegate.encode(input, ops, prefix)
+
+        override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
+            val result = delegate.decode(ops, input)
+            onParsedGeneric(Dynamic(ops, input), Int.MAX_VALUE, null)
+            return result
+        }
+    }
+
     fun <A : Any> wrapCommandParserHelper(delegate: CompilableString.CommandParserHelper<A>): CompilableString.CommandParserHelper<A> {
         @Suppress("UNCHECKED_CAST")
         val accessor = delegate as CompilableStringCommandParserHelperAccessor<A>

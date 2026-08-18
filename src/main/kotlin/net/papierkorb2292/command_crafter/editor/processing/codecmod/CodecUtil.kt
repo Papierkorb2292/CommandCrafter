@@ -167,6 +167,15 @@ fun <T, K> Decoder<T>.encodedFieldOf(key: K, keyDecoder: Decoder<K>) = object : 
         }
 }
 
+fun <T> Codec<T>.conditionalDecode(condition: () -> Boolean, otherwise: Decoder<T>) = object : Codec<T> {
+    override fun <A> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
+        this@conditionalDecode.encode(input, ops, prefix)
+
+    override fun <A> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> =
+        if(condition()) this@conditionalDecode.decode(ops, input) else otherwise.decode(ops, input)
+
+}
+
 interface BeforeDecodeCallback {
     fun <TNode: Any> invoke(input: TNode, ops: DynamicOps<TNode>)
 }

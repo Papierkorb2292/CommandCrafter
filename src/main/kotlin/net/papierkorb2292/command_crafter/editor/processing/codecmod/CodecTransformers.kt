@@ -33,12 +33,16 @@ import net.minecraft.network.chat.contents.TranslatableContents
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.dialog.action.CommandTemplate
+import net.minecraft.server.dialog.action.ParsedTemplate
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.pack.PackFormat
 import net.minecraft.tags.TagEntry
 import net.minecraft.tags.TagKey
-import net.minecraft.util.*
+import net.minecraft.util.ARGB
+import net.minecraft.util.ExtraCodecs
+import net.minecraft.util.InclusiveRange
+import net.minecraft.util.StringRepresentable
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.item.FallingBlockEntity
 import net.minecraft.world.item.DyeColor
@@ -582,19 +586,19 @@ object CodecTransformers {
     @JvmStatic
     @CodecMod(target = ClickEvent.RunCommand::class, codecField = "command")
     fun analyzeRunCommandClickEvent(codec: Codec<String>): Codec<String> =
-        wrapCommandStringCodec(codec, isTemplate = false, isSuggestCommand = false)
+        wrapCommandStringCodec(codec, isTemplate = false, isSuggestCommand = false, "")
 
     @JvmStatic
     @CodecMod(target = ClickEvent.SuggestCommand::class, codecField = "command")
     fun analyzeSuggestCommandClickEvent(codec: Codec<String>): Codec<String> =
-        wrapCommandStringCodec(codec, isTemplate = false, isSuggestCommand = true)
+        wrapCommandStringCodec(codec, isTemplate = false, isSuggestCommand = true, "")
 
     @JvmStatic
     @CodecMod(target = CommandTemplate::class, codecField = "template")
-    fun analyzeCommandTemplate(codec: Codec<String>): Codec<String> =
-        wrapCommandStringCodec(codec, isTemplate = true, isSuggestCommand = false)
+    fun analyzeCommandTemplate(codec: Codec<ParsedTemplate>): Codec<ParsedTemplate> =
+        wrapCommandStringCodec(codec, isTemplate = true, isSuggestCommand = false, ParsedTemplate.CODEC.parse(JavaOps.INSTANCE, "$(placeholder)").result().orElseThrow())
 
-    private fun <A> wrapCommandStringCodec(codec: Codec<A>, isTemplate: Boolean, isSuggestCommand: Boolean): Codec<A> {
+    private fun <A> wrapCommandStringCodec(codec: Codec<A>, isTemplate: Boolean, isSuggestCommand: Boolean, defaultValue: A): Codec<A> {
         fun getContextChainError(parseResults: ParseResults<*>, input: String): CommandSyntaxException? {
             val flattened = ContextChain.tryFlatten(parseResults.context.build(input))
             return if(flattened.isEmpty) CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader) else null
@@ -615,6 +619,7 @@ object CodecTransformers {
                 @Suppress("UNCHECKED_CAST")
                 val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
                 VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, result, resultReader)
+                VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, result.mappingInfo, result.diagnostics, DiagnosticSeverity.Error)
                 val commandException = Commands.getParseException(parseResults)
                     ?: getContextChainError(parseResults, reader.string)
                 // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
@@ -634,10 +639,13 @@ object CodecTransformers {
                 val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range + analyzingBehavior.baseMappingInfo.readSkippingChars)
                 val relevantLines = AnalyzingResult.getLinesBetweenCursors(absoluteRange.start, absoluteRange.end, analyzingBehavior.baseMappingInfo)
 
+                // Don't add errors if we're in a nested macro, since no errors should show inside macros
+                val hasMacroParent = reader.resourceCreator.macroQueue != null
                 val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser,
                     isTemplate = isTemplate,
                     hasTemplatePrefix = false,
-                    addMissingVariablesError = false,
+                    addMissingVariablesError = !hasMacroParent,
+                    illegalChatCharactersSeverity = if(hasMacroParent) null else if(isTemplate) DiagnosticSeverity.Warning else DiagnosticSeverity.Error // Templates don't check for illegal characters, but it should still be a warning
                 )
                 val macro = AnalyzingResourceCreator.DecodedMacro(
                     StringContent(
@@ -654,15 +662,10 @@ object CodecTransformers {
                 }
             }
         })
-        return analyzing.wrapCodecWithError(codec, Codec.STRING.map { string ->
-            // From ExtraCodecs.CHAT_STRING
-            for((i, c) in string.withIndex()) {
-                if(!StringUtil.isAllowedChatCharacter(c.code)) {
-                    return@map Optional.of(i to "Disallowed chat character: '$c'")
-                }
-            }
-            Optional.empty()
-        }, isTemplate) // Templates don't check for illegal characters, but it should still be a warning
+        // Don't use the decoder that could return errors while analyzing, all errors are handled by the above analyzer instead. This is
+        // because it is not known whether the command is a template, which would be cached so it must be possible to add/remove errors without
+        // reparsing this command
+        return analyzing.wrapCodecWithoutError(codec.conditionalDecode({ VanillaLanguage.IS_ANALYZING_COMMANDS.getOrNull() != true }, unitDecoder(defaultValue)))
     }
 
     private fun idContextGetter(): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<Nothing>> = { node, behavior ->

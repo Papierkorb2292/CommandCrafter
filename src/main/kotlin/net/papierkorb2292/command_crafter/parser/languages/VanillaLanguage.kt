@@ -42,6 +42,7 @@ import net.minecraft.tags.TagEntry
 import net.minecraft.tags.TagKey
 import net.minecraft.util.Mth
 import net.minecraft.util.StringRepresentable
+import net.minecraft.util.StringUtil
 import net.minecraft.util.Util
 import net.minecraft.util.parsing.packrat.ParseState
 import net.minecraft.util.parsing.packrat.Rule
@@ -265,6 +266,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             isTemplate = true,
             hasTemplatePrefix = true,
             addMissingVariablesError = true,
+            illegalChatCharactersSeverity = null,
         )
         val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
@@ -890,6 +892,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
+        val IS_ANALYZING_COMMANDS = ThreadLocal<Boolean>()
         val shouldDisplayWarningOnMacroTimeout = false
         val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")
 
@@ -964,6 +967,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 if(resolvedMacroCursorMapper != null) macro.string.cursorMapper.combineWith(resolvedMacroCursorMapper)
                 else macro.string.cursorMapper
             )
+            if(input.illegalChatCharactersSeverity != null)
+                addIllegalCharactersDiagnostic(replacedMacro, macroMappingInfo, diagnostics, input.illegalChatCharactersSeverity)
             val macroAnalyzingResult: AnalyzingResult
             val childResourceCreator = reader.resourceCreator.copyForMacro(macroMappingInfo)
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
@@ -1189,6 +1194,23 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 indentStartCursor = reader.cursor
             }
             return macroBuilder.toString()
+        }
+
+        fun addIllegalCharactersDiagnostic(input: String, mappingInfo: FileMappingInfo, diagnostics: MutableList<Diagnostic>, severity: DiagnosticSeverity) {
+            // From ExtraCodecs.CHAT_STRING
+            for((i, c) in input.withIndex()) {
+                if(!StringUtil.isAllowedChatCharacter(c.code)) {
+                    val diagnostic = Diagnostic(
+                        Range(
+                            AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(i + mappingInfo.readSkippingChars), mappingInfo),
+                            AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(i + mappingInfo.readSkippingChars + 1), mappingInfo),
+                        ),
+                        "Disallowed chat character: '$c'"
+                    )
+                    diagnostic.severity = severity
+                    diagnostics += diagnostic
+                }
+            }
         }
 
         fun isReaderVanilla(reader: ImmutableStringReader): Boolean {
