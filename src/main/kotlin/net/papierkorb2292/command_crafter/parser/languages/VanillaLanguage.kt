@@ -1153,29 +1153,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
         }
 
-        enum class TopLevelMacroParser(val easyNewLine: Boolean) : AnalyzingResourceCreator.MacroParser {
-            VANILLA(false),
-            EASY_NEW_LINE(true);
-
-            override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro {
-                val absoluteCursor = reader.absoluteCursor
-                val skippingCursor = reader.skippingCursor
-                // The macro doesn't need to know about mappings elsewhere and vice versa, since its AnalyzingResult is combined completely separately
-                val macroReader = reader.copyWithoutMapping()
-                val content =  StringContent(
-                    readMacro(macroReader, easyNewLine),
-                    OffsetProcessedInputCursorMapper(absoluteCursor)
-                        .combineWith(macroReader.cursorMapper)
-                        .combineWith(OffsetProcessedInputCursorMapper(-absoluteCursor)),
-                    StringEscaper.Identity
-                )
-                reader.copyFromWithoutMapping(macroReader) // Skip ahead in the original reader too
-                val endsInNewline = reader.cursor > 0 && reader.peek(-1) == '\n'
-                val macroTargetRange = StringRange(skippingCursor, if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor)
-                return AnalyzingResourceCreator.DecodedMacro(content, reader.cursorMapper.mapToSource(macroTargetRange))
-            }
-        }
-
         private fun readMacro(reader: DirectiveStringReader<*>, easyNewLine: Boolean): String {
             if(!reader.canRead()) return ""
             if(!easyNewLine) {
@@ -1595,6 +1572,29 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             reader.cursor = cursor
             return false
+        }
+    }
+
+    enum class TopLevelMacroParser(val easyNewLine: Boolean) : AnalyzingResourceCreator.MacroParser {
+        VANILLA(false),
+        EASY_NEW_LINE(true);
+
+        override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro {
+            val absoluteCursor = reader.absoluteCursor
+            val skippingCursor = reader.skippingCursor
+            // The macro doesn't need to know about mappings elsewhere and vice versa, since its AnalyzingResult is combined completely separately
+            val macroReader = reader.copyWithoutMapping()
+            val content =  StringContent(
+                readMacro(macroReader, easyNewLine),
+                OffsetProcessedInputCursorMapper(absoluteCursor)
+                    .combineWith(macroReader.cursorMapper)
+                    .combineWith(OffsetProcessedInputCursorMapper(-absoluteCursor)),
+                StringEscaper.Identity
+            )
+            reader.copyFromWithoutMapping(macroReader) // Skip ahead in the original reader too
+            val endsInNewline = reader.cursor > 0 && reader.peek(-1) == '\n'
+            val macroTargetRange = StringRange(skippingCursor, if(endsInNewline) max(skippingCursor, reader.skippingCursor - 1) else reader.skippingCursor)
+            return AnalyzingResourceCreator.DecodedMacro(content, reader.cursorMapper.mapToSource(macroTargetRange))
         }
     }
 
