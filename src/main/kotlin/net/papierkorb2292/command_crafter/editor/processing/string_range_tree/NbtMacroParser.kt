@@ -5,8 +5,11 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.TagParser
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
+import org.eclipse.lsp4j.Position
 
 object NbtMacroParser : AnalyzingResourceCreator.MacroParser {
     private val parser = TagParser.create(NbtOps.INSTANCE)
@@ -14,6 +17,8 @@ object NbtMacroParser : AnalyzingResourceCreator.MacroParser {
     override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro? {
         val skippingCursor = reader.skippingCursor
         val startCursor = reader.cursor
+        val semanticTokensAnalyzingResult = AnalyzingResult(reader.fileMappingInfo, Position())
+        (parser as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(semanticTokensAnalyzingResult)
         val parsed = try {
             parser.parseAsArgument(reader)
         } catch(_: CommandSyntaxException) {
@@ -29,6 +34,6 @@ object NbtMacroParser : AnalyzingResourceCreator.MacroParser {
         )
 
         val macroTargetRange = StringRange(skippingCursor, reader.skippingCursor)
-        return AnalyzingResourceCreator.DecodedMacro(mappedContent, reader.cursorMapper.mapToSource(macroTargetRange))
+        return AnalyzingResourceCreator.DecodedMacro(mappedContent, reader.cursorMapper.mapToSource(macroTargetRange), semanticTokensAnalyzingResult.semanticTokens)
     }
 }

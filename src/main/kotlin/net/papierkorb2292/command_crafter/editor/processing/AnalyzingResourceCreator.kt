@@ -123,7 +123,12 @@ class AnalyzingResourceCreator(
          * Stores how the size of child changed since the last time the parent was parsed. The keys
          * correspond to indices in [orderedMacros]. If an index isn't present, the macro has an offset of zero.
          */
-        val childModificationOffsets: Int2ObjectMap<MacroOffset> = Int2ObjectArrayMap()
+        val childModificationOffsets: Int2ObjectMap<MacroOffset> = Int2ObjectArrayMap(),
+        /**
+         * Stores an additional SemanticTokensBuilder for children that the child's semantic tokens are overlayed on top
+         * off (to color strings behind modified children)
+         */
+        val childBackgroundSemanticTokens: Int2ObjectMap<SemanticTokensBuilder> = Int2ObjectArrayMap()
     ) {
         fun addMacro(macro: MacroNode) {
             macrosByInput[macro.input] = macro
@@ -174,7 +179,7 @@ class AnalyzingResourceCreator(
         fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): DecodedMacro?
     }
 
-    data class DecodedMacro(val string: StringContent, val absoluteRange: StringRange)
+    data class DecodedMacro(val string: StringContent, val absoluteRange: StringRange, val backgroundTokens: SemanticTokensBuilder? = null)
 
     class SuggestionRequestInfo(
         /**

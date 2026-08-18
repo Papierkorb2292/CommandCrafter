@@ -302,28 +302,6 @@ object TestCommandCrafter {
             context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: remove characters"))
         }
 
-        // Test adding multiple newlines by extending a previous token (splits into multiple tokens)
-        run {
-            val lines = listOf("012", "abcdefghij", "klmnopqrst")
-            val sample = SemanticTokensBuilder(FileMappingInfo(lines))
-            val expected = SemanticTokensBuilder(FileMappingInfo(lines))
-
-            // A token starting at line 0, char 1 with length 5 (so it contains the mapping at char 3)
-            sample.add(0, 1, 5, TokenType.NUMBER, 0)
-
-            // After mapping sourcePosition (0,3) -> targetPosition (2,2) the token should be
-            // extended to the end of the first line, then a full token for line 1 and a final
-            // token on line 2 with the remaining part.
-            expected.add(0, 1, lines[0].length - 1, TokenType.NUMBER, 0) // rest of line 0
-            expected.add(1, 0, lines[1].length, TokenType.NUMBER, 0) // full line 1
-            expected.add(2, 0,  5, TokenType.NUMBER, 0) // remaining part
-
-            val mapper = sample.TokenPositionMapper()
-            mapper.addMapping(Position(0, 3), Position(2, 2))
-
-            context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: add multiple newlines"))
-        }
-
         context.succeed()
     }
 

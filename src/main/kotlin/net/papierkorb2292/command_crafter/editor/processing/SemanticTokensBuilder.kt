@@ -555,6 +555,8 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
          * have that mapping applied to it. This means `sourcePosition` always references the current state of the semantic tokens,
          * not the state when the `TokenPositionMapper` was created.
          *
+         * If the [sourcePosition] is within a token, the token's length will *not* be adjusted. This method only shifts the start of tokens.
+         *
          * @param sourcePosition The position after which tokens should be shifted
          * @param targetPosition The new position of sourcePosition
          */
@@ -580,9 +582,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
                 }
             }
 
-            if(currentTokenIndex >= 5)
-                extendPrevTokenIfItContainsMapping(sourcePosition, targetPosition)
-
             // Now shift all remaining tokens. The only token that must be adjusted
             // is the one at currentTokenIndex; all following tokens are relative to it.
             if(currentTokenIndex >= data.size)
@@ -591,46 +590,6 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
             val newTokenDelta = prevTokenPosition.differenceTo(currentTokenPosition)
             data[currentTokenIndex] = newTokenDelta.line
             data[currentTokenIndex + 1] = newTokenDelta.character
-        }
-
-        private fun extendPrevTokenIfItContainsMapping(sourcePosition: Position, targetPosition: Position) {
-            val index = currentTokenIndex - 5
-            val startPos = prevTokenPosition
-            val length = data[index + 2]
-            val endPos = Position(startPos.line, startPos.character + length)
-            if(sourcePosition < startPos || sourcePosition > endPos) return
-
-            if(sourcePosition.line == targetPosition.line) {
-                // Only need to change the length of the existing token
-                data[index + 2] = length + (targetPosition.character - startPos.character)
-                return
-            }
-            // First token should cover the rest of the line
-            data[index + 2] = mappingInfo.lines[startPos.line].length - startPos.character
-
-            // Add tokens for all new lines
-            val tokenTypeId = data[index + 3]
-            val tokenModifiers = data[index + 4]
-
-            val newData = ArrayList<Int>(5 * (targetPosition.line - sourcePosition.line))
-            for(i in sourcePosition.line + 1 until targetPosition.line) {
-                newData.add(1)
-                newData.add(0)
-                newData.add(mappingInfo.lines[i].length)
-                newData.add(tokenTypeId)
-                newData.add(tokenModifiers)
-            }
-            // Last line
-            newData.add(1)
-            newData.add(0)
-            newData.add(endPos.character - sourcePosition.character + targetPosition.character)
-            newData.add(tokenTypeId)
-            newData.add(tokenModifiers)
-
-            data.addAll(currentTokenIndex, newData)
-
-            currentTokenIndex += newData.size
-            prevTokenPosition = Position(targetPosition.line, 0)
         }
     }
 }

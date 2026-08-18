@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import org.eclipse.lsp4j.Range
 import kotlin.math.min
 
 object MacroMerger {
@@ -17,8 +18,31 @@ object MacroMerger {
      * This takes into account file modifications made to the macros and maps all analyzing results accordingly.
      */
     fun overlayMacros(analyzingResult: AnalyzingResult, newFile: FileMappingInfo, macros: AnalyzingResourceCreator.MacroCache): AnalyzingResult {
-        val resultMapper = analyzingResult.createMapper(newFile)
+        val filteredResult = analyzingResult.copy()
+
+        // Remove semantic tokens behind all macros that have their own background tokens
+        var tokenCursorOffset = 0
+        val overridenTokenRanges = mutableListOf<Range>()
+        for((i, child) in macros.orderedMacros.withIndex()) {
+            val startCursor = child.fileRangeInParent.start - tokenCursorOffset
+            val relativeOffset = macros.childModificationOffsets.get(i)
+            if(relativeOffset != null)
+                tokenCursorOffset += relativeOffset.cursorOffset
+            val endCursor = child.fileRangeInParent.end - tokenCursorOffset
+
+            if(macros.childBackgroundSemanticTokens.containsKey(i)) {
+                overridenTokenRanges += Range(
+                    AnalyzingResult.getPositionFromCursor(startCursor, filteredResult.mappingInfo),
+                    AnalyzingResult.getPositionFromCursor(endCursor, filteredResult.mappingInfo)
+                )
+            }
+        }
+        filteredResult.semanticTokens.removeTokensInRanges(overridenTokenRanges)
+
+        // Overlay macros
+        val resultMapper = filteredResult.createMapper(newFile)
         val childResults = ArrayList<AnalyzingResult>(macros.orderedMacros.size)
+        val backgroundTokensList = mutableListOf<SemanticTokensBuilder>()
         for((i, child) in macros.orderedMacros.withIndex()) {
             val absoluteOffset = child.fileRangeInParent.start
             val positionOffset = AnalyzingResult.getPositionFromCursor(absoluteOffset, newFile)
@@ -30,8 +54,13 @@ object MacroMerger {
             if(relativeOffset != null && relativeOffset.isNonZero()) {
                 resultMapper.addMapping(child.fileRangeInParent.start, positionOffset, child.fileRangeInParent.end, relativeOffset.cursorOffset, relativeOffset.fileOffset)
             }
+            val backgroundTokens = macros.childBackgroundSemanticTokens.get(i)
+            if(backgroundTokens != null)
+                backgroundTokensList += backgroundTokens
         }
-        return resultMapper.build().overlayAllCompressedSorted(childResults)
+        val mappedResult = resultMapper.build()
+        mappedResult.semanticTokens.overlay(backgroundTokensList.iterator())
+        return mappedResult.overlayAllCompressedSorted(childResults)
     }
 
     /**
@@ -116,6 +145,8 @@ object MacroMerger {
             .differenceTo(AnalyzingResult.getPositionFromCursor(newDecodedMacro.absoluteRange.end, newReader.fileMappingInfo))
         val newOffset = AnalyzingResourceCreator.MacroOffset(newCursorOffset, newFileOffset)
         newMacros.childModificationOffsets.put(macroIndex, oldMacros.childModificationOffsets.get(macroIndex)?.addAfter(newOffset) ?: newOffset)
+        if(newDecodedMacro.backgroundTokens != null)
+            newMacros.childBackgroundSemanticTokens.put(macroIndex, newDecodedMacro.backgroundTokens)
 
         // Add all remaining cached macros with the new offset
         for(i in macroIndex + 1 until oldMacros.orderedMacros.size) {
