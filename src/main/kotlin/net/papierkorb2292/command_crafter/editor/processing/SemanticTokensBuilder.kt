@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.SemanticTokens
 import kotlin.math.min
 
@@ -388,6 +389,103 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     fun isEmpty() = data.isEmpty()
 
     fun build() = SemanticTokens(data)
+
+    /**
+     * Removes all semantic tokens that lie within any of the provided sorted ranges.
+     *
+     * @param sortedRanges A sorted list of ranges to remove tokens from. Ranges must not overlap.
+     */
+    fun removeTokensInRanges(sortedRanges: List<Range>) {
+        if(sortedRanges.isEmpty() || data.isEmpty())
+            return
+
+        var currentTokenIndex = 0
+        var lastTokenPosition = Position(0, 0)
+        var rangeIndex = 0
+
+        while(currentTokenIndex < data.size && rangeIndex < sortedRanges.size) {
+            val tokenLineDelta = data[currentTokenIndex]
+            val tokenCharDelta = data[currentTokenIndex + 1]
+            val tokenLength = data[currentTokenIndex + 2]
+            val tokenTypeId = data[currentTokenIndex + 3]
+            val tokenModifiers = data[currentTokenIndex + 4]
+
+            val tokenStart = lastTokenPosition.offsetBy(Position(tokenLineDelta, tokenCharDelta))
+            val tokenEnd = Position(tokenStart.line, tokenStart.character + tokenLength)
+
+            val range = sortedRanges[rangeIndex]
+            val rangeStart = range.start
+            val rangeEnd = range.end
+
+            if(tokenEnd <= rangeStart) {
+                // Token ends before this range, move to next token
+                currentTokenIndex += 5
+                lastTokenPosition = tokenStart
+                continue
+            }
+
+            if(tokenStart >= rangeEnd) {
+                // Token starts after this range, try next range
+                rangeIndex++
+                continue
+            }
+
+            if(tokenStart >= rangeStart && tokenEnd <= rangeEnd) {
+                // Token is completely within the range, remove it
+                data.subList(currentTokenIndex, currentTokenIndex + 5).clear()
+                // Adjust next token position (which is now at currentTokenIndex)
+                if(currentTokenIndex < data.size) {
+                    if(data[currentTokenIndex] == 0)
+                        data[currentTokenIndex + 1] += tokenCharDelta
+                    data[currentTokenIndex] += tokenLineDelta
+                }
+                continue
+            }
+
+            // Token partially overlaps with the range, need to split it
+            if(tokenStart < rangeStart) {
+                // token start and range start must be on same line. Keep the part before the range
+                val keepLength = rangeStart.character - tokenStart.character
+                data[currentTokenIndex + 2] = keepLength
+                currentTokenIndex += 5
+                lastTokenPosition = tokenStart
+
+                if(rangeEnd < tokenEnd) {
+                    // Add the remaining part after the range
+                    val remainingLength = tokenEnd.character - rangeEnd.character
+                    val skippedCharacters = rangeEnd.character - tokenStart.character
+                    data.add(currentTokenIndex, 0)
+                    data.add(currentTokenIndex + 1, skippedCharacters)
+                    data.add(currentTokenIndex + 2, remainingLength)
+                    data.add(currentTokenIndex + 3, tokenTypeId)
+                    data.add(currentTokenIndex + 4, tokenModifiers)
+                    // Adjust next token position
+                    if(currentTokenIndex + 5 < data.size && data[currentTokenIndex + 5] == 0) {
+                        data[currentTokenIndex + 6] -= skippedCharacters
+                    }
+                    rangeIndex++
+                }
+            } else {
+                // Keep the part after the range
+                val remainingLength = tokenEnd.character - rangeEnd.character
+                val skippedCharacters = tokenLength - remainingLength
+                data[currentTokenIndex + 1] += skippedCharacters
+                data[currentTokenIndex + 2] = remainingLength
+                // Adjust next token position
+                if(currentTokenIndex + 5 < data.size && data[currentTokenIndex + 5] == 0) {
+                    data[currentTokenIndex + 6] -= skippedCharacters
+                }
+                lastTokenPosition = tokenStart
+                currentTokenIndex += 5
+                rangeIndex++
+            }
+        }
+
+        if(currentTokenIndex >= sortedRanges.size) {
+            lastLine = lastTokenPosition.line
+            lastCursor = lastTokenPosition.character
+        }
+    }
 
     object PrettyJacksonSerializer : JsonSerializer<SemanticTokensBuilder>() {
         override fun serialize(

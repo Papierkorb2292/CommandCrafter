@@ -228,6 +228,39 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testRemoveTokensInRanges(context: GameTestHelper) {
+        val actualTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+        val expectedTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+
+        actualTokens.add(0, 0, 5, TokenType.NUMBER, 0)
+        actualTokens.add(0, 10, 5, TokenType.STRING, 0)
+        actualTokens.add(0, 20, 5, TokenType.NUMBER, 0)
+        actualTokens.add(1, 0, 10, TokenType.STRING, 0)
+        actualTokens.add(1, 15, 10, TokenType.NUMBER, 0)
+        actualTokens.add(2, 0, 10, TokenType.STRING, 0)
+        actualTokens.add(3, 0, 20, TokenType.NUMBER, 0)
+        actualTokens.add(4, 5, 5, TokenType.STRING, 0)
+
+        expectedTokens.add(0, 0, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(0, 10, 2, TokenType.STRING, 0)
+        expectedTokens.add(0, 22, 3, TokenType.NUMBER, 0)
+        expectedTokens.add(1, 0, 5, TokenType.STRING, 0)
+        expectedTokens.add(2, 5, 5, TokenType.STRING, 0)
+        expectedTokens.add(3, 0, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(3, 15, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(4, 5, 5, TokenType.STRING, 0)
+
+        actualTokens.removeTokensInRanges(listOf(
+            Range(Position(0, 12), Position(0, 22)),
+            Range(Position(1, 5), Position(2, 5)),
+            Range(Position(3, 5), Position(3, 15))
+        ))
+
+        context.assertValueEqual(actualTokens.build().data, expectedTokens.build().data, Component.literal("token data"))
+        context.succeed()
+    }
+
+    @GameTest
     fun testTokenPositionMapper(context: GameTestHelper) {
         // Test adding and removing characters (single-line shifts)
         run {
