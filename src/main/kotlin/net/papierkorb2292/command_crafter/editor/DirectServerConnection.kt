@@ -237,7 +237,8 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
             val resetReader = DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator)
             resetReader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(fullInput.cursor, true)
             LanguageManager.analyse(resetReader, server.createCommandSourceStack(), analyzingResult, LanguageManager.DEFAULT_CLOSURE)
-            return analyzingResult.getCompletions(fullInput.cursor, context) ?: CompletableFuture.completedFuture(listOf())
+            val completeResult = fullInput.resourceCreator.overlayMacros(analyzingResult)
+            return completeResult.getCompletions(fullInput.cursor, context) ?: CompletableFuture.completedFuture(listOf())
         }
     }
 
