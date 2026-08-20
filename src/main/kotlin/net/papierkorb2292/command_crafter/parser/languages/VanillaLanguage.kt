@@ -613,14 +613,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         analyzeReader.cursor = parsedNode.range.start
         try {
             val nodeAnalyzingResult = analyzingResult.copyInput()
-            var hasCustomCompletions = false
+            val hasCustomCompletions = node is ArgumentCommandNode<*, *> && CommandArgumentAnalyzerService.getAnalyzerForType(node.type::class.java)!!.hasCustomCompletions(context, node.name)
             // Skip analyzing when generating serverside suggestions, because everything but the vanilla
-            // suggestions has already been done by the client and shouldn't be done twice
-            if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true) {
+            // suggestions has already been done by the client and shouldn't be done twice. Custom completions
+            // have to be added so suggestions inside inline functions are added.
+            if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true || hasCustomCompletions) {
                 val range = StringRange(
                     parsedNode.range.start,
                     Mth.clamp(parsedNode.range.end, parsedNode.range.start, context.input.length)
-
                 )
                 try {
                     if(node is LiteralCommandNode<*>) {
@@ -631,7 +631,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         )
                     } else if(node is ArgumentCommandNode<*, *>) {
                         val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(node.type::class.java)!!
-                        hasCustomCompletions = analyzer.hasCustomCompletions(context, node.name)
                         callArgumentAnalyzerUnchecked(
                             analyzer,
                             context,
