@@ -754,9 +754,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             analyzeReader.cursor = parsedNode.range.start
             try {
                 val nodeAnalyzingResult = analyzingResult.copyInput()
+                val hasCustomCompletions = node is CustomCompletionsCommandNode && node.`command_crafter$hasCustomCompletions`(context, node.name)
                 // Skip analyzing when generating serverside suggestions, because everything but the vanilla
-                // suggestions has already been done by the client and shouldn't be done twice
-                if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true) {
+                // suggestions has already been done by the client and shouldn't be done twice. Custom completions
+                // have to be added so suggestions inside inline functions are added.
+                if(reader.resourceCreator.suggestionRequestInfo?.isServersideSuggestionRequest != true || hasCustomCompletions) {
                     DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.set(reader.resourceCreator.languageServer?.dynamicRegistryManager)
                     try {
                         node.`command_crafter$analyze`(
@@ -781,7 +783,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
                 }
                 analyzingResult.combineWithExceptCompletions(nodeAnalyzingResult)
-                val hasCustomCompletions = node is CustomCompletionsCommandNode && node.`command_crafter$hasCustomCompletions`(context, node.name)
                 if(hasCustomCompletions)
                     analyzingResult.combineWithCompletionProviders(nodeAnalyzingResult, "_customSuggestions")
 
