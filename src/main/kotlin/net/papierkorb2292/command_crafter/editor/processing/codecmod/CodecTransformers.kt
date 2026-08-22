@@ -616,12 +616,13 @@ object CodecTransformers {
             if(!isMacro) {
                 reader.enterClosure(TopLevelClosure(VanillaLanguage.DEFAULT))
                 val parseResults = reader.dispatcher.parse(reader, reader.resourceCreator.source)
-                @Suppress("UNCHECKED_CAST")
-                val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
-                VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, result, resultReader)
-                VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, result.mappingInfo, result.diagnostics, DiagnosticSeverity.Error)
                 val commandException = Commands.getParseException(parseResults)
                     ?: getContextChainError(parseResults, reader.string)
+                @Suppress("UNCHECKED_CAST")
+                val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
+                val commandAnalyzingResult = result.copyInput()
+                VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader)
+                VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, commandAnalyzingResult.mappingInfo, commandAnalyzingResult.diagnostics, DiagnosticSeverity.Error)
                 // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
                 if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
                     result.diagnostics += Diagnostic(
