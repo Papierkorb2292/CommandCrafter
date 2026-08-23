@@ -66,6 +66,7 @@ import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapp
 import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
+import net.papierkorb2292.command_crafter.editor.processing.helper.withCompletionThreadLocal
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
@@ -625,7 +626,7 @@ object CodecTransformers {
                 VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, commandAnalyzingResult.mappingInfo, commandAnalyzingResult.diagnostics, DiagnosticSeverity.Error)
                 // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
                 if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
-                    result.diagnostics += Diagnostic(
+                    commandAnalyzingResult.diagnostics += Diagnostic(
                         Range(
                             AnalyzingResult.getPositionFromCursor(resultReader.cursorMapper.mapToSource(resultReader.readSkippingChars + commandException.cursor), resultReader.fileMappingInfo),
                             AnalyzingResult.getPositionFromCursor(resultReader.cursorMapper.mapToSource(resultReader.readSkippingChars + resultReader.string.length), resultReader.fileMappingInfo)
@@ -634,6 +635,11 @@ object CodecTransformers {
                         DiagnosticSeverity.Warning,
                         null
                     )
+                }
+                result.combineWithActual(commandAnalyzingResult)
+                result.combineWithPotentialWrapped(commandAnalyzingResult) { potentialNode ->
+                    // Use the vanilla suggestions request
+                    potentialNode.withCompletionThreadLocal(VanillaLanguage.SERVERSIDE_SUGGESTION_GETTER) { cursor, context -> null }
                 }
             } else {
                 val parser = behavior.macroParser ?: return@MalformedStringDecoderAnalyzing

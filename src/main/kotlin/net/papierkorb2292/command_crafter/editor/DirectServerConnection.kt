@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.context.StringRange
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
@@ -32,9 +33,10 @@ import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
-import org.eclipse.lsp4j.CompletionContext
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.debug.*
@@ -229,16 +231,35 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
     }
 
     override val contextCompletionProvider = object : ContextCompletionProvider {
-        override fun getCompletions(fullInput: DirectiveStringReader<AnalyzingResourceCreator>, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
-            val resetMappingInfo = fullInput.fileMappingInfo.copy()
-            resetMappingInfo.readCharacters = 0
-            resetMappingInfo.skippedChars = 0
-            val analyzingResult = AnalyzingResult(resetMappingInfo, Position())
-            val resetReader = DirectiveStringReader(resetMappingInfo, fullInput.dispatcher, fullInput.resourceCreator)
-            resetReader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(fullInput.cursor, true)
-            LanguageManager.analyse(resetReader, server.createCommandSourceStack(), analyzingResult, LanguageManager.DEFAULT_CLOSURE)
-            val completeResult = fullInput.resourceCreator.overlayMacros(analyzingResult)
-            return completeResult.getCompletions(fullInput.cursor, context) ?: CompletableFuture.completedFuture(listOf())
+        override fun getFunctionCompletions(completionInfo: ContextCompletionProvider.FunctionCompletionInfo): CompletableFuture<List<CompletionItem>> {
+            val mappingInfo = FileMappingInfo(completionInfo.completeFile)
+            @Suppress("UNCHECKED_CAST")
+            val reader = DirectiveStringReader(mappingInfo, server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, "", server.registryAccess(), server.createCommandSourceStack(), mappingInfo))
+            val analyzingResult = AnalyzingResult(mappingInfo, Position())
+            reader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(completionInfo.absoluteCursor, true)
+            LanguageManager.analyse(reader, server.createCommandSourceStack(), analyzingResult, LanguageManager.DEFAULT_CLOSURE)
+            val completeResult = reader.resourceCreator.overlayMacros(analyzingResult)
+            return completeResult.getCompletions(completionInfo.absoluteCursor, completionInfo.completionContext) ?: CompletableFuture.completedFuture(listOf())
+        }
+
+        override fun getMacroCompletions(completionInfo: ContextCompletionProvider.MacroCompletionInfo): CompletableFuture<List<CompletionItem>> {
+            val mappingInfo = FileMappingInfo(completionInfo.macroInput.lines)
+            @Suppress("UNCHECKED_CAST")
+            val reader = DirectiveStringReader(mappingInfo, server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, "", server.registryAccess(), server.createCommandSourceStack(), mappingInfo))
+            reader.resourceCreator.macroTargetCursors.addAll(completionInfo.macroTargetCursors)
+            reader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(completionInfo.absoluteCursor, true)
+            VanillaLanguage.analyzeMacroString(
+                completionInfo.macroInput,
+                AnalyzingResourceCreator.DecodedMacro(
+                    completionInfo.stringContent,
+                    StringRange(0, mappingInfo.totalCharacters)
+                ),
+                null,
+                reader,
+                reader.resourceCreator.source
+            )
+            val completeResult = reader.resourceCreator.overlayMacros(AnalyzingResult(mappingInfo, Position()))
+            return completeResult.getCompletions(completionInfo.absoluteCursor, completionInfo.completionContext) ?: CompletableFuture.completedFuture(listOf())
         }
     }
 

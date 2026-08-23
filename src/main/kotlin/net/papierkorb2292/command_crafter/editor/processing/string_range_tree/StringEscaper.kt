@@ -1,17 +1,41 @@
 package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
-fun interface StringEscaper {
-    companion object {
-        fun StringEscaper.andThen(other: StringEscaper) =
-            if(other == Identity) this
-            else if(this == Identity) other
-            else StringEscaper { string -> other.escape(this@andThen.escape(string)) }
+import com.mojang.serialization.Codec
+import com.mojang.serialization.MapCodec
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.resources.Identifier
 
-        fun escapeForQuotes(quotes: String) =
-            StringEscaper { string -> string.replace("\\", "\\\\").replace(quotes, "\\$quotes") }
+interface StringEscaper {
+    val typeId: Identifier
+    fun escape(string: String): String
+
+    companion object {
+        val IDENTITY_TYPE = Identifier.withDefaultNamespace("identity")
+        val IDENTITY_CODEC = MapCodec.unit(Identity)
+        val QUOTE_TYPE = Identifier.withDefaultNamespace("quote")
+        val QUOTE_CODEC = Codec.STRING.fieldOf("quote").xmap(::QuoteEscaper, QuoteEscaper::quotes)
+
+        val CODECS_BY_ID = mapOf(
+            IDENTITY_TYPE to IDENTITY_CODEC,
+            QUOTE_TYPE to QUOTE_CODEC,
+        )
+
+        val CODEC = Identifier.CODEC.dispatch(StringEscaper::typeId, CODECS_BY_ID::get)
+        val PACKET_CODEC = ByteBufCodecs.fromCodec(CODEC)
+
+        fun escapeForQuotes(quotes: String) = QuoteEscaper(quotes)
     }
+
     object Identity : StringEscaper {
+        override val typeId: Identifier
+            get() = IDENTITY_TYPE
         override fun escape(string: String) = string
     }
-    fun escape(string: String): String
+
+    class QuoteEscaper(val quotes: String) : StringEscaper {
+        override val typeId: Identifier
+            get() = QUOTE_TYPE
+        override fun escape(string: String) =
+            string.replace("\\", "\\\\").replace(quotes, "\\$quotes")
+    }
 }

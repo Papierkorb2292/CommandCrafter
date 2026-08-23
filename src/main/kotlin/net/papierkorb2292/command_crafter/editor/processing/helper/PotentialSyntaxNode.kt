@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import org.eclipse.lsp4j.CompletionContext
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.CompletionTriggerKind
@@ -87,4 +88,11 @@ fun PotentialSyntaxNode.filterCompletionTrigger(triggerCharacters: Set<String>) 
             return null
         return this@filterCompletionTrigger.getCompletions(cursor, context)
     }
+}
+
+fun <T> PotentialSyntaxNode.withCompletionThreadLocal(threadLocal: ThreadLocal<T>, valueGetter: (cursor: Int, context: CompletionContext?) -> T?) = object : PotentialSyntaxNode {
+    override fun getCompletions(cursor: Int, context: CompletionContext?) =
+        threadLocal.runWithValueSwap(valueGetter(cursor, context)) {
+            this@withCompletionThreadLocal.getCompletions(cursor, context)
+        }
 }

@@ -55,10 +55,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.Bre
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionElementDebugInformation
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
-import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.ResourceOrIdArgumentAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
@@ -713,13 +710,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             try {
                                 val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
                                 child.listSuggestions(
-                                    contextBuilder.withSource(
-                                        completionCommandSourceProvider(
-                                            contextBuilder.source,
-                                            fullInput,
-                                            context
-                                        )
-                                    ).build(extendedTruncatedInput),
+                                    contextBuilder.build(extendedTruncatedInput),
                                     SuggestionsBuilder(
                                         extendedTruncatedInput, truncatedInputLowerCase,
                                         min(parsedNodeRange.start, extendedTruncatedInput.length)
@@ -892,6 +883,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val IS_ANALYZING_COMMANDS = ThreadLocal<Boolean>()
+        val SERVERSIDE_SUGGESTION_GETTER = ThreadLocal<() -> CompletableFuture<Suggestions>>()
         val shouldDisplayWarningOnMacroTimeout = false
         val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")
 
@@ -969,7 +961,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(input.illegalChatCharactersSeverity != null)
                 addIllegalCharactersDiagnostic(replacedMacro, macroMappingInfo, diagnostics, input.illegalChatCharactersSeverity)
             val macroAnalyzingResult: AnalyzingResult
-            val childResourceCreator = reader.resourceCreator.copyForMacro(macroMappingInfo)
+            val childResourceCreator = reader.resourceCreator.copyForMacro(macroMappingInfo, macro.absoluteRange.start)
             childResourceCreator.previousCache = reader.resourceCreator.previousCache?.copyForMacro(cache ?: AnalyzingResourceCreator.MacroCache())
             if(resolvedMacroCursorMapper != null)
                 resolvedMacroCursorMapper.mapAllToTargetSorted(childResourceCreator.macroTargetCursors, true)
@@ -992,13 +984,34 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     source,
                     macroAnalyzingResult,
                     macroQueue
-                ) { sourceCursor ->
-                    if(resolvedMacroCursorMapper != null) {
-                        // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
-                        val unresolvedMacroCursor = macro.string.cursorMapper.mapToTarget(sourceCursor, true)
-                        resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
-                    } else {
-                        true
+                ) { potentialNode ->
+                    potentialNode.filterPotentialCursor { sourceCursor ->
+                        if(resolvedMacroCursorMapper != null) {
+                            // Check if resolved macro mapper contains source cursor, so there are no command completion inside macro variables
+                            val unresolvedMacroCursor = macro.string.cursorMapper.mapToTarget(sourceCursor, true)
+                            resolvedMacroCursorMapper.containsSourceCursor(unresolvedMacroCursor, true)
+                        } else {
+                            true
+                        }
+                    }.withCompletionThreadLocal(SERVERSIDE_SUGGESTION_GETTER) { cursor, context ->
+                        val serverCompletionProvider = childResourceCreator.languageServer?.minecraftServer?.contextCompletionProvider
+                            ?: return@withCompletionThreadLocal null
+                        return@withCompletionThreadLocal {
+                            serverCompletionProvider.getMacroCompletions(
+                                ContextCompletionProvider.MacroCompletionInfo(
+                                    input,
+                                    cursor,
+                                    macro.string.copy(escaper = StringEscaper.Identity), // Don't escape on the server, because the client already escapes everything
+                                    reader.resourceCreator.macroTargetCursors,
+                                    context
+                                )
+                            ).thenApply { completions ->
+                                Suggestions(StringRange.at(0), emptyList()).also {
+                                    @Suppress("KotlinConstantConditions")
+                                    (it as CompletionItemsContainer).`command_crafter$setCompletionItem`(completions)
+                                }
+                            }
+                        }
                     }
                 }
                 macroAnalyzingResult.diagnostics += diagnostics
@@ -1101,7 +1114,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             source: SharedSuggestionProvider,
             baseAnalyzingResult: AnalyzingResult,
             macroQueue: MutableList<AnalyzingResourceCreator.DelayedMacro>,
-            completionPredicate: (Int) -> Boolean,
+            potentialNodeWrapper: (PotentialSyntaxNode) -> PotentialSyntaxNode
         ) {
             reader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
             // Don't let parsers enable escaped multiline, since there already are mappings
@@ -1133,12 +1146,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             baseAnalyzingResult.addContinuouslyMappedPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
                 StringRange(0, reader.string.length),
-                analyzingResult.withUniqueCompletions().filterPotentialCursor(completionPredicate)
+                potentialNodeWrapper(analyzingResult.withUniqueCompletions())
             )
             baseAnalyzingResult.combineWithActual(analyzingResult)
         }
-
-        var completionCommandSourceProvider: (SharedSuggestionProvider, DirectiveStringReader<AnalyzingResourceCreator>?, CompletionContext?) -> SharedSuggestionProvider = { source, _, _ -> source }
 
         fun skipComments(reader: DirectiveStringReader<*>): Boolean {
             var foundAny = false

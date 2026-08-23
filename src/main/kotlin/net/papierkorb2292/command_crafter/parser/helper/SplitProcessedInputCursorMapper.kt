@@ -1,9 +1,12 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
+import net.papierkorb2292.command_crafter.networking.list
 import kotlin.math.max
 import kotlin.math.min
 
@@ -229,5 +232,39 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         result = 31 * result + lengths.hashCode()
         result = 31 * result + expandedCharEnds.hashCode()
         return result
+    }
+
+    companion object {
+        val PACKET_CODEC = StreamCodec.composite(
+            IntList.PACKET_CODEC,
+            SplitProcessedInputCursorMapper::sourceCursors,
+            IntList.PACKET_CODEC,
+            SplitProcessedInputCursorMapper::targetCursors,
+            IntList.PACKET_CODEC,
+            SplitProcessedInputCursorMapper::lengths,
+            ByteBufCodecs.VAR_INT,
+            SplitProcessedInputCursorMapper::prevSourceEnd,
+            ByteBufCodecs.VAR_INT,
+            SplitProcessedInputCursorMapper::prevTargetEnd,
+            StreamCodec.composite(
+                ByteBufCodecs.VAR_INT,
+                Pair<Int, Int>::first,
+                ByteBufCodecs.VAR_INT,
+                Pair<Int, Int>::second,
+                ::Pair
+            ).list(),
+            { mapper -> mapper.expandedCharEnds.int2IntEntrySet().map { it.intKey to it.intValue } }
+        ) { sourceCursors, targetCursors, lengths, prevSourceEnd, prevTargetEnd, expandedCharEnds ->
+            SplitProcessedInputCursorMapper().also {
+                it.sourceCursors.addAll(sourceCursors)
+                it.targetCursors.addAll(targetCursors)
+                it.lengths.addAll(lengths)
+                it.prevSourceEnd = prevSourceEnd
+                it.prevTargetEnd = prevTargetEnd
+                for((key, value) in expandedCharEnds) {
+                    it.expandedCharEnds[key] = value
+                }
+            }
+        }
     }
 }

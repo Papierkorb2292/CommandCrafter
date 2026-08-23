@@ -63,6 +63,10 @@ class AnalyzingResult(
         finishedPotentialSyntaxNodes += other.finishedPotentialSyntaxNodes + other.buildingPotentialSyntaxNodes.values
     }
 
+    fun combineWithPotentialWrapped(other: AnalyzingResult, wrapper: (PotentialSyntaxNode) -> PotentialSyntaxNode) {
+        finishedPotentialSyntaxNodes += other.getPotentialNodeCompressed(wrapper(other))
+    }
+
     fun addOffset(parent: AnalyzingResult, position: Position, cursorOffset: Int): AnalyzingResult {
         return AnalyzingResult(
             parent.mappingInfo,
@@ -252,21 +256,14 @@ class AnalyzingResult(
         )
     }
 
-    fun withStringEscaperPotential(escaper: StringEscaper): AnalyzingResult {
-        return AnalyzingResult(
-            mappingInfo,
-            semanticTokens,
-            diagnostics,
-            colorInfos,
-            filePosition,
-            documentation,
-            actualSyntaxNodes,
-            getPotentialNodeCompressed(object : PotentialSyntaxNode {
+    fun withStringEscaperPotential(escaper: StringEscaper): AnalyzingResult =
+        wrapPotentialNodes { original ->
+            object : PotentialSyntaxNode {
                 override fun getCompletions(
                     cursor: Int,
                     context: CompletionContext?,
                 ): CompletableFuture<List<CompletionItem>>? =
-                    this@AnalyzingResult.getCompletions(cursor, context)?.thenApply { completions ->
+                    original.getCompletions(cursor, context)?.thenApply { completions ->
                         for(completion in completions) {
                             completion.textEdit.map({ textEdit ->
                                 textEdit.newText = escaper.escape(textEdit.newText)
@@ -280,7 +277,19 @@ class AnalyzingResult(
                         }
                         completions
                     }
-            }),
+            }
+        }
+
+    fun wrapPotentialNodes(wrapper: (PotentialSyntaxNode) -> PotentialSyntaxNode): AnalyzingResult {
+        return AnalyzingResult(
+            mappingInfo,
+            semanticTokens,
+            diagnostics,
+            colorInfos,
+            filePosition,
+            documentation,
+            actualSyntaxNodes,
+            getPotentialNodeCompressed(wrapper(this)),
             mutableMapOf()
         )
     }

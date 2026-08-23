@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
+import io.netty.buffer.ByteBuf
+import net.minecraft.network.VarInt
+import net.minecraft.network.codec.StreamCodec
 import java.util.*
 import kotlin.math.max
 
@@ -19,6 +22,24 @@ class IntList(capacity: Int) {
         }
 
         fun intListOfZeros(size: Int) = IntList(size).also { it.size = size }
+
+        val PACKET_CODEC = object : StreamCodec<ByteBuf, IntList> {
+            override fun decode(input: ByteBuf): IntList {
+                val length = VarInt.read(input)
+                val result = intListOfZeros(length)
+                for(i in 0 until length) {
+                    result[i] = VarInt.read(input)
+                }
+                return result
+            }
+
+            override fun encode(output: ByteBuf, value: IntList) {
+                VarInt.write(output, value.size)
+                for(i in 0 until value.size) {
+                    VarInt.write(output, value[i])
+                }
+            }
+        };
     }
 
     private var entries = IntArray(capacity)

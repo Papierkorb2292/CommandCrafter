@@ -13,7 +13,7 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Position
 
 class McFunctionAnalyzer(
-    private val resultWrapper: ((AnalyzingResult) -> AnalyzingResult)? = null
+    private val resultWrapper: ((MinecraftLanguageServer, AnalyzingResult) -> AnalyzingResult)? = null
 ) : FileAnalyseHandler {
     val ANALYZER_CONFIG_PATH = ".mcfunction"
 
@@ -55,7 +55,7 @@ class McFunctionAnalyzer(
                 }
                 result = result.filterDisabledFeatures(languageServer.featureConfig, listOf(ANALYZER_CONFIG_PATH, ""))
                 if(resultWrapper != null)
-                    return resultWrapper(result)
+                    return resultWrapper(languageServer, result)
                 return result
             }
         }

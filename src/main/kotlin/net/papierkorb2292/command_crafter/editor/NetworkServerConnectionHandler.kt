@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.editor
 
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.ints.IntList
@@ -10,7 +9,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
@@ -37,7 +35,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvi
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
@@ -52,8 +49,6 @@ import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFi
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileRequestC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileResponseS2CPacket
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
@@ -317,15 +312,11 @@ object NetworkServerConnectionHandler {
         registerAsyncServerPacketHandler(ContextCompletionRequestC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler
             val serverConnection = currentConnections[context.player.connection] ?: return@registerAsyncServerPacketHandler
-            val server = context.server
-            val mappingInfo = FileMappingInfo(payload.inputLines)
 
-            @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(mappingInfo, server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(null, "", context.server.registryAccess(), server.createCommandSourceStack(), mappingInfo))
-            reader.cursor = payload.cursor
-            serverConnection.contextCompletionProvider.getCompletions(reader, payload.context).thenAccept {
-                context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
-            }
+            payload.completionInfo.map(serverConnection.contextCompletionProvider::getFunctionCompletions, serverConnection.contextCompletionProvider::getMacroCompletions)
+                .thenAccept {
+                    context.sendPacket(ContextCompletionResponseS2CPacket(payload.requestId, it))
+                }
         }
         registerAsyncServerPacketHandler(ReloadDatapacksC2SPacket.ID) { payload, context ->
             if(!isPlayerAllowedConnection(context.player)) return@registerAsyncServerPacketHandler

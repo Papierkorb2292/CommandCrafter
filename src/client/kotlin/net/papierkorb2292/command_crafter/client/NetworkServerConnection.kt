@@ -4,6 +4,7 @@ import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.datafixers.util.Either
 import io.netty.channel.local.LocalChannel
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
@@ -33,7 +34,6 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.EditorDebugConn
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
@@ -46,8 +46,6 @@ import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFi
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileRequestC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileResponseS2CPacket
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import org.eclipse.lsp4j.CompletionContext
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.debug.*
 import java.util.*
@@ -372,12 +370,22 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
         }
     }
     override val contextCompletionProvider = object : ContextCompletionProvider {
-        override fun getCompletions(fullInput: DirectiveStringReader<AnalyzingResourceCreator>, context: CompletionContext): CompletableFuture<List<CompletionItem>> {
+        override fun getFunctionCompletions(completionInfo: ContextCompletionProvider.FunctionCompletionInfo): CompletableFuture<List<CompletionItem>> {
             val future = CompletableFuture<List<CompletionItem>>()
             val requestId = UUID.randomUUID()
             currentContextCompletionRequests[requestId] = future
             ClientPlayNetworking.send(
-                ContextCompletionRequestC2SPacket(requestId, fullInput.lines, fullInput.cursorMapper.mapToSource(fullInput.skippingCursor), context)
+                ContextCompletionRequestC2SPacket(requestId, Either.left(completionInfo))
+            )
+            return future
+        }
+
+        override fun getMacroCompletions(completionInfo: ContextCompletionProvider.MacroCompletionInfo): CompletableFuture<List<CompletionItem>> {
+            val future = CompletableFuture<List<CompletionItem>>()
+            val requestId = UUID.randomUUID()
+            currentContextCompletionRequests[requestId] = future
+            ClientPlayNetworking.send(
+                ContextCompletionRequestC2SPacket(requestId, Either.right(completionInfo))
             )
             return future
         }

@@ -56,7 +56,9 @@ class AnalyzingResourceCreator(
         it.suggestionRequestInfo = suggestionRequestInfo
         it.macroQueue = macroQueue
     }
-    fun copyForMacro(macroMappingInfo: FileMappingInfo) = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroMappingInfo, macroTargetCursors.copy(), previousCache, CacheData(macroMappingInfo, newCache.usedCommandDispatcher))
+    fun copyForMacro(macroMappingInfo: FileMappingInfo, absoluteStart: Int) = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroMappingInfo, macroTargetCursors.copy(), previousCache, CacheData(macroMappingInfo, newCache.usedCommandDispatcher)).also {
+        it.suggestionRequestInfo = suggestionRequestInfo?.let { info -> SuggestionRequestInfo(info.absoluteCursor - absoluteStart, info.isServersideSuggestionRequest) }
+    }
 
     fun loadCache(file: OpenFile, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
         (file.persistentAnalyzerData as? CacheData)?.let { persistentCache ->
