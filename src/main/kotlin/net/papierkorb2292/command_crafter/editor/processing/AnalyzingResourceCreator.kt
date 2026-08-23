@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -151,16 +152,26 @@ class AnalyzingResourceCreator(
          * The absolute range of the macro minus the absolute start position of the parent
          */
         val fileRangeInParent: StringRange,
+        val stringEscaper: StringEscaper,
         val children: MacroCache,
         val updatedFile: FileMappingInfo,
     ) {
-        fun copyForChildCacheHit(macro: DecodedMacro) = withRange(macro.absoluteRange)
+        fun copyForChildCacheHit(macro: DecodedMacro) = MacroNode(
+            analyzingResult,
+            variablesSemanticTokensOverlay,
+            input,
+            macro.absoluteRange,
+            macro.string.escaper,
+            children,
+            updatedFile
+        )
 
         fun withRange(newRangeInParent: StringRange) = MacroNode(
             analyzingResult,
             variablesSemanticTokensOverlay,
             input,
             newRangeInParent,
+            stringEscaper,
             children,
             updatedFile
         )

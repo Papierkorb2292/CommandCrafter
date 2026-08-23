@@ -1040,6 +1040,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 variablesSemanticTokens,
                 input,
                 macro.absoluteRange,
+                macro.string.escaper,
                 childResourceCreator.newCache.macroCache,
                 macroMappingInfo,
             ))
