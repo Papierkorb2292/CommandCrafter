@@ -34,6 +34,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.jvm.optionals.getOrNull
 
@@ -94,6 +95,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private var serverCommandExecutor: CommandExecutor? = null
 
     private var currentSemanticTokensRegistration: SemanticTokensWithRegistrationOptions? = null
+
+    val fileResultProcessing = Executors.newSingleThreadExecutor() // AnalyzingResults are processed on the same thread to make sure caches are not corrupted
 
     var editorInfo = EditorConnectionManager.EditorInfo.DEFAULT
         private set
@@ -314,7 +317,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val file = openFiles[params.textDocument.uri] ?: return emptyCompletionsDefault
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
-                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync { analyzingResult ->
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({ analyzingResult ->
                     val completions = DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(dynamicRegistryManager) {
                         analyzingResult.getCompletions(cursor, params.context)
                     } ?: return@thenComposeAsync emptyCompletionsDefault
@@ -336,7 +339,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                             }
                         )
                     }
-                })
+                }, fileResultProcessing))
             }
 
             override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {
@@ -383,16 +386,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     ?: return CompletableFuture.completedFuture(emptyList())
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
                     ?: return CompletableFuture.completedFuture(emptyList())
-                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply { result ->
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApplyAsync({ result ->
                     val colorInfo = result.colorInfos.find { info ->
                         // Find color that intersects the requested range.
                         // Don't check for complete equality, because color presentations might change the range (for example when a color argument is replaced with a hex color argument)
                         if(params.range.end < info.range.start) false
                         else if(params.range.start > info.range.end) false
                         else true
-                    } ?: return@thenApply emptyList()
+                    } ?: return@thenApplyAsync emptyList()
                     colorInfo.getPresentation(params)
-                })
+                }, fileResultProcessing))
             }
 
             override fun hover(params: HoverParams): CompletableFuture<Hover> {
@@ -400,9 +403,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyHoverDefault
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
-                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenCompose {
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({
                     it.getHover(cursor) ?: emptyHoverDefault
-                })
+                }, fileResultProcessing))
             }
 
             override fun definition(params: DefinitionParams): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
@@ -410,9 +413,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyDefinitionDefault
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
-                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenCompose {
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({
                     it.getDefinition(cursor) ?: emptyDefinitionDefault
-                })
+                }, fileResultProcessing))
             }
         }
     }

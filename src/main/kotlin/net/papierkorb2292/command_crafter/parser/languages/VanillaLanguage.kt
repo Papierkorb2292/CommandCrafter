@@ -729,9 +729,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         }
                     } }
                     val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
-                    val commandCompletionsFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
+                    val combinedFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                         CompletableFuture.failedFuture(it)
-                    }.thenApply {
+                    }
+                    val commandCompletionsFuture = combinedFuture.thenApplyAsync({
                         val completionItems = suggestionInfo.flatMap { (future, analyzer) ->
                             val suggestionList = future.get().list
                             suggestionList.map { suggestion ->
@@ -754,7 +755,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 )
                             )
                         } else completionItems
-                    }
+                    }, completionReader.resourceCreator.languageServer?.fileResultProcessing ?: combinedFuture.defaultExecutor())
                     if(additionalCompletions == null)
                         return commandCompletionsFuture
                     val additionalCompletionsProvider = additionalCompletions.getCompletions(cursor, context)
