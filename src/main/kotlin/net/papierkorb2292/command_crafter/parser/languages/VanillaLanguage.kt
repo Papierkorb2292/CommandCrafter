@@ -259,7 +259,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         // Get only the relevant lines for caching
         val relevantLines = AnalyzingResult.getLinesBetweenCursors(macro.absoluteRange.start, macro.absoluteRange.end, reader.fileMappingInfo)
-        val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser,
+        val input = AnalyzingResourceCreator.MacroInput(relevantLines, listOf(parser),
             isTemplate = true,
             hasTemplatePrefix = true,
             addMissingVariablesError = true,
@@ -268,12 +268,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
 
         if(cachedNode != null) {
-            reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro))
+            reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro, IntList.intListOf(macro.absoluteRange.start)))
             return
         }
         analyzeMacroString(
             input,
             macro,
+            IntList.intListOf(macro.absoluteRange.start),
+            StringEscaper.Identity,
             null, // There is no cache, since this macro is new (modifications of existing macros are detected by AnalyzingResourceCreator)
             reader,
             source
@@ -893,6 +895,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         fun analyzeMacroString(
             input: AnalyzingResourceCreator.MacroInput,
             macro: AnalyzingResourceCreator.DecodedMacro,
+            parserStartCursors: IntList,
+            stringEscaper: StringEscaper,
             cache: AnalyzingResourceCreator.MacroCache?,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             source: SharedSuggestionProvider,
@@ -904,7 +908,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
             // If this is a nested macro, wait until the outer macro finishes, since there's a time limit for the outer macro that shouldn't be exhausted by the nested macro
             reader.resourceCreator.macroQueue?.let { queue ->
-                queue += AnalyzingResourceCreator.DelayedMacro(input, macro, cache, reader)
+                queue += AnalyzingResourceCreator.DelayedMacro(input, macro, parserStartCursors, stringEscaper, cache, reader)
                 return
             }
 
@@ -1001,7 +1005,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 ContextCompletionProvider.MacroCompletionInfo(
                                     input,
                                     cursor,
-                                    macro.string.copy(escaper = StringEscaper.Identity), // Don't escape on the server, because the client already escapes everything
+                                    macro.string,
                                     reader.resourceCreator.macroTargetCursors,
                                     context
                                 )
@@ -1025,6 +1029,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     analyzeMacroString(
                         delayedMacro.input,
                         delayedMacro.macro,
+                        delayedMacro.parserStartCursors,
+                        delayedMacro.stringEscaper,
                         delayedMacro.cache,
                         delayedMacro.reader,
                         source
@@ -1040,7 +1046,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 variablesSemanticTokens,
                 input,
                 macro.absoluteRange,
-                macro.string.escaper,
+                parserStartCursors,
+                stringEscaper,
                 childResourceCreator.newCache.macroCache,
                 macroMappingInfo,
             ))

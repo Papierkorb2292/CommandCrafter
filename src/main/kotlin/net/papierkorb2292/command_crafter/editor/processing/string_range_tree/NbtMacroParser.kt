@@ -8,15 +8,37 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.Language
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Position
 
-object NbtMacroParser : AnalyzingResourceCreator.MacroParser {
-    private val parser = TagParser.create(NbtOps.INSTANCE)
+data class NbtMacroParser constructor(private val parsingLanguage: VanillaLanguage?) : AnalyzingResourceCreator.MacroParser {
+    companion object {
+        private val parser = TagParser.create(NbtOps.INSTANCE)
+
+        // Determine how to parse newlines in the string. But if there already is a parent macro parser, the string can be parsed like in vanilla
+        private fun getLanguageForReader(originalReader: DirectiveStringReader<AnalyzingResourceCreator>) =
+            if(originalReader.resourceCreator.macroParserStack.isEmpty() && originalReader.resourceCreator.macroQueue == null)
+                originalReader.currentLanguage as? VanillaLanguage
+                    ?: throw IllegalArgumentException("NbtMacroParser must be called with a VanillaLanguage reader")
+            else null
+    }
+
+    constructor(originalReader: DirectiveStringReader<AnalyzingResourceCreator>): this(getLanguageForReader(originalReader))
 
     override fun parse(reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResourceCreator.DecodedMacro? {
         val skippingCursor = reader.skippingCursor
         val startCursor = reader.cursor
+        if(parsingLanguage != null) {
+            reader.enterClosure(Language.TopLevelClosure(parsingLanguage))
+            if(!parsingLanguage.easyNewLine) {
+                // Parse escaped multiline
+                reader.convertInputToEscapedMultiline()
+                reader.peek() // Update mappings
+                reader.disableTrimmingFromEscapedMultiline()
+            }
+        }
         val semanticTokensAnalyzingResult = AnalyzingResult(reader.fileMappingInfo, Position())
         (parser as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(semanticTokensAnalyzingResult)
         val parsed = try {

@@ -45,7 +45,7 @@ interface ContextCompletionProvider {
             ByteBufCodecs.INT.optional(),
             { input: MacroInput -> input.illegalChatCharactersSeverity?.value}.toOptional()
         ) { lines, isTemplate, hasTemplatePrefix, addMisingVariablesError, severityValue ->
-            MacroInput(lines, VanillaLanguage.TopLevelMacroParser.VANILLA, isTemplate, hasTemplatePrefix, addMisingVariablesError, severityValue.map(DiagnosticSeverity::forValue).getOrNull())
+            MacroInput(lines, listOf(VanillaLanguage.TopLevelMacroParser.VANILLA), isTemplate, hasTemplatePrefix, addMisingVariablesError, severityValue.map(DiagnosticSeverity::forValue).getOrNull())
         }
 
         val MACRO_COMPLETION_INFO_PACKET_CODEC = StreamCodec.composite(

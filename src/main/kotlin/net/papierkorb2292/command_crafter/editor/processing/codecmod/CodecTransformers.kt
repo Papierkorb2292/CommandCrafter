@@ -71,6 +71,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOp
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
@@ -642,13 +643,13 @@ object CodecTransformers {
                     potentialNode.withCompletionThreadLocal(VanillaLanguage.SERVERSIDE_SUGGESTION_GETTER) { cursor, context -> null }
                 }
             } else {
-                val parser = behavior.macroParser ?: return@MalformedStringDecoderAnalyzing
                 val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range + analyzingBehavior.baseMappingInfo.readSkippingChars)
                 val relevantLines = AnalyzingResult.getLinesBetweenCursors(absoluteRange.start, absoluteRange.end, analyzingBehavior.baseMappingInfo)
 
                 // Don't add errors if we're in a nested macro, since no errors should show inside macros
                 val hasMacroParent = reader.resourceCreator.macroQueue != null
-                val input = AnalyzingResourceCreator.MacroInput(relevantLines, parser,
+                // The macro parser was already added to the stack by MalformedStringDecoderAnalyzing
+                val input = AnalyzingResourceCreator.MacroInput(relevantLines, reader.resourceCreator.macroParserStack.map { it.parser },
                     isTemplate = isTemplate,
                     hasTemplatePrefix = false,
                     addMissingVariablesError = !hasMacroParent,
@@ -663,9 +664,9 @@ object CodecTransformers {
                 )
                 val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
                 if(cachedNode != null) {
-                    reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro))
+                    reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro, reader.resourceCreator.getMacroParserStartCursors()))
                 } else {
-                    VanillaLanguage.analyzeMacroString(input, macro, null, reader, reader.resourceCreator.source)
+                    VanillaLanguage.analyzeMacroString(input, macro, reader.resourceCreator.getMacroParserStartCursors(), StringEscaper.combine(reader.resourceCreator.macroParserStack.map { it.escaper }), null, reader, reader.resourceCreator.source)
                 }
             }
         })

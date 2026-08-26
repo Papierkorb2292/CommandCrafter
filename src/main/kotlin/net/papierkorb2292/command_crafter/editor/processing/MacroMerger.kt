@@ -1,9 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.MacroMerger.getModifiedAbsoluteStart
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
+import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -101,21 +102,8 @@ object MacroMerger {
             return false // There's a change after the end of the macro
 
         // Parse the macro template
-        val templateReader = if(isNested) {
-            // The reader already contains the entire macro as a string, so just set the cursor
-            newReader.copy().also {
-                it.cursor = newReader.fileMappingInfo.cursorMapper.mapToTarget(oldMacroNode.fileRangeInParent.start)
-            }
-        } else {
-            DirectiveStringReader.createReaderAtAbsoluteCursor(
-                newReader.fileMappingInfo,
-                newReader.dispatcher,
-                newReader.resourceCreator,
-                oldMacroNode.fileRangeInParent.start
-            )
-        }
-        val newDecodedMacro = oldMacroNode.input.parser.parse(templateReader) ?: return false
-        val newMacroEndDist = templateReader.fileMappingInfo.totalCharacters - newDecodedMacro.absoluteRange.end
+        val newDecodedMacro = parseMacroInput(newReader, oldMacroNode.input.parserStack, oldMacroNode.parserStartCursorsInParent, isNested) ?: return false
+        val newMacroEndDist = newReader.fileMappingInfo.totalCharacters - newDecodedMacro.absoluteRange.end
         if(newMacroEndDist != oldMacroEndDist)
             return false // Something changed the range of the macro relative to the rest of the file. Can't use the cache.
 
@@ -129,11 +117,13 @@ object MacroMerger {
         }
 
         // Analyze new macro. `analyzeMacroString` also checks if the modification is within a child and allows recursion
-        val relevantLines = AnalyzingResult.getLinesBetweenCursors(newDecodedMacro.absoluteRange.start, newDecodedMacro.absoluteRange.end, templateReader.fileMappingInfo)
+        val relevantLines = AnalyzingResult.getLinesBetweenCursors(newDecodedMacro.absoluteRange.start, newDecodedMacro.absoluteRange.end, newReader.fileMappingInfo)
         val newInput = oldMacroNode.input.copy(lines = relevantLines)
         VanillaLanguage.analyzeMacroString(
             newInput,
             newDecodedMacro,
+            oldMacroNode.parserStartCursorsInParent,
+            oldMacroNode.stringEscaper,
             oldMacroNode.children,
             newReader,
             newReader.resourceCreator.source,
@@ -155,7 +145,7 @@ object MacroMerger {
         for(i in macroIndex + 1 until oldMacros.orderedMacros.size) {
             val macro = oldMacros.orderedMacros[i]
             val modificationOffset = oldMacros.childModificationOffsets.get(i)
-            newMacros.addMacro(macro.withRange(macro.fileRangeInParent + (newDecodedMacro.absoluteRange.end - oldMacroAbsoluteEnd)))
+            newMacros.addMacro(macro.withOffset(newDecodedMacro.absoluteRange.start, newDecodedMacro.absoluteRange.end - oldMacroAbsoluteEnd))
             if(modificationOffset != null) {
                 // This offset is still valid, because all modification offsets are added together by overlayMacros,
                 // so only the offset for the macro that changed has to be modified
@@ -164,6 +154,47 @@ object MacroMerger {
         }
 
         return true
+    }
+
+    private fun parseMacroInput(baseReader: DirectiveStringReader<AnalyzingResourceCreator>, parsers: List<AnalyzingResourceCreator.MacroParser>, startCursors: IntList, isNested: Boolean): AnalyzingResourceCreator.DecodedMacro? {
+        var isFirstParser = !isNested
+        var lastReader = baseReader
+        var decodedMacro: AnalyzingResourceCreator.DecodedMacro? = null
+        val stringEscapers = mutableListOf<StringEscaper>()
+        for((i, parser) in parsers.withIndex()) {
+            val startCursor = startCursors[i]
+
+            val newReader = if(isFirstParser) {
+                isFirstParser = false
+                DirectiveStringReader.createReaderAtAbsoluteCursor(
+                    lastReader.fileMappingInfo,
+                    lastReader.dispatcher,
+                    lastReader.resourceCreator,
+                    startCursor
+                )
+            } else {
+                // The reader already contains the entire macro as a string, so just set the cursor
+                lastReader.also {
+                    it.cursor = lastReader.fileMappingInfo.cursorMapper.mapToTarget(startCursor)
+                }
+            }
+            newReader.peek() // Update string, for example for reading escaped multiline
+
+            decodedMacro = parser.parse(newReader) ?: return null
+
+            lastReader = DirectiveStringReader(
+                lastReader.fileMappingInfo.copyWithoutMapping(),
+                lastReader.dispatcher,
+                lastReader.resourceCreator,
+            )
+            lastReader.fileMappingInfo.cursorMapper.copyFrom(decodedMacro.string.cursorMapper)
+            lastReader.toCompleted()
+            lastReader.string = decodedMacro.string.content
+            if(decodedMacro.string.escaper != StringEscaper.Identity)
+                stringEscapers += decodedMacro.string.escaper
+        }
+
+        return decodedMacro?.copy(string = decodedMacro.string.copy(escaper = StringEscaper.combine(stringEscapers)))
     }
 
     private fun getModifiedRange(prevFile: FileMappingInfo, newFile: FileMappingInfo): MacroModificationRange =

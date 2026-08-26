@@ -44,7 +44,7 @@ data class TreeOperations<TNode: Any>(
                 NbtSuggestionResolver(reader),
                 NbtStringContentGetter(nbtTree, reader.string),
                 reader,
-                NbtMacroParser
+                NbtMacroParser(reader)
             )
     }
 

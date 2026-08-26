@@ -242,8 +242,9 @@ class AnalyzingResult(
         )
     }
 
-    fun withStringEscaperActual(escaper: StringEscaper): AnalyzingResult {
-        return AnalyzingResult(
+    fun withStringEscaperActual(escaper: StringEscaper): AnalyzingResult =
+        if(escaper == StringEscaper.Identity) this
+        else AnalyzingResult(
             mappingInfo,
             semanticTokens,
             diagnostics,
@@ -254,10 +255,10 @@ class AnalyzingResult(
             finishedPotentialSyntaxNodes,
             buildingPotentialSyntaxNodes
         )
-    }
 
     fun withStringEscaperPotential(escaper: StringEscaper): AnalyzingResult =
-        wrapPotentialNodes { original ->
+        if(escaper == StringEscaper.Identity) this
+        else wrapPotentialNodes { original ->
             object : PotentialSyntaxNode {
                 override fun getCompletions(
                     cursor: Int,

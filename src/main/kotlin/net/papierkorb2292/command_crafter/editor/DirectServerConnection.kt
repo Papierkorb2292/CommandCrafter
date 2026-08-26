@@ -27,7 +27,9 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
+import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.memoizeLast
@@ -254,6 +256,8 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                     completionInfo.stringContent,
                     StringRange(0, mappingInfo.totalCharacters)
                 ),
+                IntList.intListOf(0),
+                StringEscaper.Identity, // Escaping happens clientside
                 null,
                 reader,
                 reader.resourceCreator.source

@@ -96,6 +96,14 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
                 originalReader.dispatcher,
                 originalReader.resourceCreator.copyInput().apply {
                     stringContent.cursorMapper.mapAllToTargetSorted(macroTargetCursors, false)
+                    val macroParser = extraBehavior.macroParser
+                    if(macroParser != null) {
+                        macroParserStack += AnalyzingResourceCreator.MacroParserStackEntry(
+                            macroParser,
+                            stringContent.escaper,
+                            analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range.start + analyzingBehavior.baseMappingInfo.readSkippingChars)
+                        )
+                    }
                 }
             )
             directiveReader.toCompleted()

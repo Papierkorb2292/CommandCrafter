@@ -424,7 +424,8 @@ class DirectiveStringReader<out ResourceCreator>(
             if(absoluteCursor > 0) {
                 val position = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo)
                 it.nextLine = position.line
-                it.readCharacters = it.fileMappingInfo.accumulatedLineLengths[position.line - 1]
+                if(position.line > 0)
+                    it.readCharacters = it.fileMappingInfo.accumulatedLineLengths[position.line - 1]
                 it.cursor = position.character
             }
         }

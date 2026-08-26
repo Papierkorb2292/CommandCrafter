@@ -35,7 +35,7 @@ data class PathOperations(
         private val keyCharactersRequireQuoted = CharSet.of(' ', '"', '\'', '[', ']', '.', '{', '}')
 
         fun forReader(path: StringRangePath, reader: DirectiveStringReader<AnalyzingResourceCreator>) =
-            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false }, reader, NbtMacroParser)
+            PathOperations(path, reader.string, NbtSuggestionResolver(reader) { false }, reader, NbtMacroParser(reader))
     }
 
     val nodeToKeySegment = path.segments.filter { it.key != null }.associateByTo(IdentityHashMap()) { it.tree.root }
