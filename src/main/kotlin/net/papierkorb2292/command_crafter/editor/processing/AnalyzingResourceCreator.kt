@@ -190,7 +190,7 @@ class AnalyzingResourceCreator(
             input,
             fileRangeInParent + offset,
             parserStartCursorsInParent.map {
-                if(it > startCursor) it - offset else it
+                if(it > startCursor) it + offset else it
             },
             stringEscaper,
             children,
