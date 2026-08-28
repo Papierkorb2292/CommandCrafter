@@ -15,7 +15,6 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.CompilableStri
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Range
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 
@@ -120,10 +119,7 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
                 val mappingInfo = analyzingResult.mappingInfo
                 val diagnostic = Diagnostic().apply {
                     message = errorMsg
-                    range = Range(
-                        AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(errorCursor + mappingInfo.readSkippingChars, false), mappingInfo, true),
-                        AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(stringContent.content.length + mappingInfo.readSkippingChars, false), mappingInfo, true)
-                    )
+                    range = mappingInfo.mapToDiagnosticFileRange(errorCursor, stringContent.content.length)
                     if(errorIsWarning)
                         severity = DiagnosticSeverity.Warning
                 }

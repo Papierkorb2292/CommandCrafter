@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -11,6 +12,7 @@ import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import java.io.IOException
 import java.io.Reader
 import java.util.*
@@ -46,6 +48,12 @@ class FileMappingInfo(
     fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
     fun copy(copyCursorMapper: Boolean) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
     fun copyWithoutMapping() = FileMappingInfo(lines, readCharacters = readCharacters, positionFromCursorLRUCache = positionFromCursorLRUCache)
+
+    fun mapToDiagnosticFileRange(range: StringRange) = mapToDiagnosticFileRange(range.start, range.end)
+    fun mapToDiagnosticFileRange(start: Int, end: Int) = Range(
+        AnalyzingResult.getPositionFromCursor(cursorMapper.mapToSource(start + readSkippingChars), this),
+        AnalyzingResult.getPositionFromCursor(cursorMapper.mapToSource(end + readSkippingChars), this)
+    )
 
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false

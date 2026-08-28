@@ -82,7 +82,6 @@ import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCurs
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Range
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
@@ -628,10 +627,7 @@ object CodecTransformers {
                 // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
                 if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
                     commandAnalyzingResult.diagnostics += Diagnostic(
-                        Range(
-                            AnalyzingResult.getPositionFromCursor(resultReader.cursorMapper.mapToSource(resultReader.readSkippingChars + commandException.cursor), resultReader.fileMappingInfo),
-                            AnalyzingResult.getPositionFromCursor(resultReader.cursorMapper.mapToSource(resultReader.readSkippingChars + resultReader.string.length), resultReader.fileMappingInfo)
-                        ),
+                        resultReader.fileMappingInfo.mapToDiagnosticFileRange(commandException.cursor, resultReader.string.length),
                         commandException.message,
                         DiagnosticSeverity.Warning,
                         null

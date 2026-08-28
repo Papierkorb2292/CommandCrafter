@@ -8,13 +8,11 @@ import com.mojang.serialization.DynamicOps
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Range
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
 
@@ -333,10 +331,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
                     return null
                 val stringRange = ranges.getErrorRange(node) ?: return null
                 return Diagnostic().also {
-                    it.range = Range(
-                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(stringRange.start + fileMappingInfo.readSkippingChars), fileMappingInfo),
-                        AnalyzingResult.getPositionFromCursor(fileMappingInfo.cursorMapper.mapToSource(stringRange.end + fileMappingInfo.readSkippingChars), fileMappingInfo)
-                    )
+                    it.range = fileMappingInfo.mapToDiagnosticFileRange(stringRange)
                     it.message = message
                     it.severity = severity
                 }

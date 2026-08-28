@@ -18,7 +18,6 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.CompletionItemKind
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Range
 import java.util.*
 import java.util.stream.Stream
 
@@ -155,10 +154,7 @@ data class PathOperations(
                 else -> collision.present.toString()
             }
             analyzingResult.diagnostics += Diagnostic(
-                Range(
-                    AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(collision.range.start + mappingInfo.readSkippingChars), mappingInfo),
-                    AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(collision.range.end + mappingInfo.readSkippingChars), mappingInfo),
-                ),
+                mappingInfo.mapToDiagnosticFileRange(collision.range),
                 "Path is impossible to fulfill. Value is already known to be $presentValue"
             ).apply {
                 severity = DiagnosticSeverity.Warning

@@ -7,7 +7,6 @@ import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.player.Player
-import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -18,7 +17,6 @@ import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Range
 
 class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
     companion object {
@@ -44,13 +42,9 @@ class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
 
 
             if(!allowPlayers && allowedEntities.size == 1 && allowedEntities.first().type == EntityTypes.PLAYER) {
-                val sourceRange = result.mappingInfo.cursorMapper.mapToSource(range + reader.readSkippingChars)
                 result.diagnostics.add(
                     Diagnostic(
-                        Range(
-                            AnalyzingResult.getPositionFromCursor(sourceRange.start, result.mappingInfo),
-                            AnalyzingResult.getPositionFromCursor(sourceRange.end, result.mappingInfo),
-                        ),
+                        result.mappingInfo.mapToDiagnosticFileRange(range),
                         "Selector targets only players, but players can't be modified"
                     ).apply {
                         severity = DiagnosticSeverity.Warning

@@ -1082,16 +1082,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         if(!StringTemplate.isValidVariableName(c.toString())) {
                             // Add diagnostic starting at the first invalid char so it's easy to tell where the problem lies
                             diagnostics += Diagnostic(
-                                Range(
-                                    AnalyzingResult.getPositionFromCursor(
-                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameStart + i),
-                                        macroSourceFileInfo
-                                    ),
-                                    AnalyzingResult.getPositionFromCursor(
-                                        macroSourceFileInfo.cursorMapper.mapToSource(variableNameEnd),
-                                        macroSourceFileInfo
-                                    )
-                                ),
+                                macroSourceFileInfo.mapToDiagnosticFileRange(variableNameStart + i, variableNameEnd),
                                 "Invalid macro variable name '$variable'"
                             )
                             break
@@ -1145,10 +1136,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(crawlerRunner.hasHitTimeout && shouldDisplayWarningOnMacroTimeout)
                 analyzingResult.diagnostics += Diagnostic().apply {
                     message = "Macro took unexpectedly long to analyze"
-                    range = Range(
-                        AnalyzingResult.getPositionFromCursor(baseAnalyzingResult.mappingInfo.cursorMapper.mapToSource(0), baseAnalyzingResult.mappingInfo),
-                        AnalyzingResult.getPositionFromCursor(baseAnalyzingResult.mappingInfo.cursorMapper.mapToSource(reader.string.length), baseAnalyzingResult.mappingInfo)
-                    )
+                    range = baseAnalyzingResult.mappingInfo.mapToDiagnosticFileRange(0, reader.string.length)
                     severity = DiagnosticSeverity.Hint
                 }
 
@@ -1220,10 +1208,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             for((i, c) in input.withIndex()) {
                 if(!StringUtil.isAllowedChatCharacter(c.code)) {
                     val diagnostic = Diagnostic(
-                        Range(
-                            AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(i + mappingInfo.readSkippingChars), mappingInfo),
-                            AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.mapToSource(i + mappingInfo.readSkippingChars + 1), mappingInfo),
-                        ),
+                        mappingInfo.mapToDiagnosticFileRange(i, i + 1),
                         "Disallowed chat character: '$c'"
                     )
                     diagnostic.severity = severity
