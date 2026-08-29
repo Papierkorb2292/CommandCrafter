@@ -668,8 +668,8 @@ object CodecTransformers {
         })
         // Don't use the decoder that could return errors while analyzing, all errors are handled by the above analyzer instead. This is
         // because it is not known whether the command is a template, which would be cached so it must be possible to add/remove errors without
-        // reparsing this command
-        return analyzing.wrapCodecWithoutError(codec.conditionalDecode({ VanillaLanguage.IS_ANALYZING_COMMANDS.getOrNull() != true }, unitDecoder(defaultValue)))
+        // reparsing this command. Still try to read in a string, so errors for non-string values are added and the string autocompletion is added.
+        return analyzing.wrapCodecWithoutError(codec.conditionalDecode({ VanillaLanguage.IS_ANALYZING_COMMANDS.getOrNull() != true }, Codec.STRING.map { defaultValue }))
     }
 
     private fun idContextGetter(): CodecSuggestionWrapper.ContextGetter<IdSuggestionContext<Nothing>> = { node, behavior ->
