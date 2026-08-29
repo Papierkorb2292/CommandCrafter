@@ -463,26 +463,7 @@ class AnalyzingResult(
                 return Position(cached.line + 1, cached.character + 1)
             }
 
-            val oneBasedOffset = if(zeroBased) 0 else 1
-            var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
-                mappingInfo.accumulatedLineLengths[index].compareTo(cursor)
-            }
-            if(lineIndex < 0) {
-                // No line has the exact accumulated length, so select the previous line
-                lineIndex = -lineIndex - 2
-            }
-            val pos =if (lineIndex == -1) {
-                // Position is on the first line
-                Position(oneBasedOffset, cursor + oneBasedOffset)
-            } else {
-                val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
-                Position(
-                    // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
-                    // start of the next line, so the actual line that the position is on is also the next line
-                    lineIndex + 1 + oneBasedOffset,
-                    cursor - accumulatedLineLength + oneBasedOffset
-                )
-            }
+            val pos = getPositionFromCursorUncached(cursor, mappingInfo, zeroBased)
 
             if(mappingInfo.positionFromCursorLRUCache.size >= 7)
                 mappingInfo.positionFromCursorLRUCache.removeFirst()
@@ -492,6 +473,28 @@ class AnalyzingResult(
                 // Only cache zero-based position
                 mappingInfo.positionFromCursorLRUCache.put(cursor, Position(pos.line - 1, pos.character - 1))
             return pos
+        }
+
+        fun getPositionFromCursorUncached(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
+            val oneBasedOffset = if(zeroBased) 0 else 1
+            var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
+                mappingInfo.accumulatedLineLengths[index].compareTo(cursor)
+            }
+            if(lineIndex < 0) {
+                // No line has the exact accumulated length, so select the previous line
+                lineIndex = -lineIndex - 2
+            }
+            if(lineIndex == -1) {
+                // Position is on the first line
+                return Position(oneBasedOffset, cursor + oneBasedOffset)
+            }
+            val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
+            return Position(
+                // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
+                // start of the next line, so the actual line that the position is on is also the next line
+                lineIndex + 1 + oneBasedOffset,
+                cursor - accumulatedLineLength + oneBasedOffset
+            )
         }
 
         @Deprecated("Replaced with an overload using FileMappingInfo for better performance")

@@ -33,8 +33,9 @@ object MacroMerger {
 
             if(macros.childBackgroundSemanticTokens.containsKey(i)) {
                 overridenTokenRanges += Range(
-                    AnalyzingResult.getPositionFromCursor(startCursor, filteredResult.mappingInfo),
-                    AnalyzingResult.getPositionFromCursor(endCursor, filteredResult.mappingInfo)
+                    // Don't cache the position, because that could access the cache from multiple threads
+                    AnalyzingResult.getPositionFromCursorUncached(startCursor, filteredResult.mappingInfo),
+                    AnalyzingResult.getPositionFromCursorUncached(endCursor, filteredResult.mappingInfo)
                 )
             }
         }
@@ -46,7 +47,7 @@ object MacroMerger {
         val backgroundTokensList = mutableListOf<SemanticTokensBuilder>()
         for((i, child) in macros.orderedMacros.withIndex()) {
             val absoluteOffset = child.fileRangeInParent.start
-            val positionOffset = AnalyzingResult.getPositionFromCursor(absoluteOffset, newFile)
+            val positionOffset = AnalyzingResult.getPositionFromCursorUncached(absoluteOffset, newFile)
             val overlayedResult = overlayMacros(child.analyzingResult, child.updatedFile, child.children)
             if(child.variablesSemanticTokensOverlay != null)
                 overlayedResult.semanticTokens.overlay(listOf(child.variablesSemanticTokensOverlay).iterator())
@@ -134,8 +135,8 @@ object MacroMerger {
             )
         )
         val newCursorOffset = newReader.fileMappingInfo.totalCharacters - prevFile.totalCharacters
-        val newFileOffset = AnalyzingResult.getPositionFromCursor(oldMacroAbsoluteEnd, prevFile)
-            .differenceTo(AnalyzingResult.getPositionFromCursor(newDecodedMacro.absoluteRange.end, newReader.fileMappingInfo))
+        val newFileOffset = AnalyzingResult.getPositionFromCursorUncached(oldMacroAbsoluteEnd, prevFile)
+            .differenceTo(AnalyzingResult.getPositionFromCursorUncached(newDecodedMacro.absoluteRange.end, newReader.fileMappingInfo))
         val newOffset = AnalyzingResourceCreator.MacroOffset(newCursorOffset, newFileOffset)
         newMacros.childModificationOffsets.put(macroIndex, oldMacros.childModificationOffsets.get(macroIndex)?.addAfter(newOffset) ?: newOffset)
         if(newDecodedMacro.backgroundTokens != null)
