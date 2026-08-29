@@ -316,6 +316,20 @@ class DirectiveStringReader<out ResourceCreator>(
         }
     }
 
+    fun copy(copyCursorMapper: Boolean) : DirectiveStringReader<ResourceCreator> {
+        return DirectiveStringReader(fileMappingInfo.copy(copyCursorMapper), dispatcher, resourceCreator).also {
+            it.setString(string)
+            it.cursor = cursor
+            it.scopeStack.addAll(scopeStack)
+            it.updateLanguage()
+            it.currentIndentation = currentIndentation
+            it.nextLine = nextLine
+            it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
+            it.escapedMultilineTrimmed = escapedMultilineTrimmed
+            it.furthestAccessedCursor = furthestAccessedCursor
+        }
+    }
+
     fun copyFrom(other: DirectiveStringReader<*>) {
         cursor = other.cursor
         readCharacters = other.readCharacters

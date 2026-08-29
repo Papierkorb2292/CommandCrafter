@@ -981,7 +981,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 string = replacedMacro
             }
 
-            if(fileModificationData == null || !MacroMerger.trackMacroModification(fileModificationData.oldFile, macroReader, fileModificationData.modificationRange, true)) {
+            if(fileModificationData == null || !MacroMerger.trackMacroModification(fileModificationData.oldFile, macroReader.copy(copyCursorMapper = true), fileModificationData.modificationRange, true)) {
                 macroAnalyzingResult = AnalyzingResult(macroMappingInfo, Position())
                 val macroQueue = mutableListOf<AnalyzingResourceCreator.DelayedMacro>()
                 analyzeMacroCommand(
