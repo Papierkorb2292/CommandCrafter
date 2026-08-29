@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.blocks.BlockPredicateArgument
 import net.minecraft.core.registries.Registries
@@ -26,6 +27,8 @@ class BlockPredicateArgumentAnalyzer : CommandArgumentAnalyzerService<BlockPredi
         val blocks = reader.resourceCreator.registries.lookup(Registries.BLOCK).get()
         val blockArgumentParser = BlockStateParserAccessor.callInit(blocks, reader, true, true)
         (blockArgumentParser as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
-        (blockArgumentParser as BlockStateParserAccessor).callParse()
+        try {
+            (blockArgumentParser as BlockStateParserAccessor).callParse()
+        } catch(_: CommandSyntaxException) { }
     }
 }

@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.EntityArgument
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
@@ -37,7 +38,9 @@ class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
                     else allowedEntities.filter { it !is Player }
                 )
             ) {
-                selectorReader.parse()
+                try {
+                    selectorReader.parse()
+                } catch(_: CommandSyntaxException) { }
             }
 
 

@@ -10,6 +10,7 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 
 class ResourceKeyArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceKeyArgument<*>> {
@@ -27,7 +28,7 @@ class ResourceKeyArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceKeyAr
         val fileType = (type as PackContentFileTypeContainer).`command_crafter$getPackContentFileType`()
         if(fileType != null) {
             IdArgumentTypeAnalyzer.analyzeForId(
-                context.getArgument(name, ResourceKey::class.java).identifier(),
+                context.getArgumentOrNull<ResourceKey<*>, _>(name)?.identifier() ?: return,
                 fileType,
                 range,
                 result,

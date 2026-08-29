@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.FUNCTIONS_FILE_TYPE
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.FUNCTION_TAGS_FILE_TYPE
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.AnalyzedFunctionArgument
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -29,7 +30,7 @@ class FunctionArgumentAnalyzer : CommandArgumentAnalyzerService<FunctionArgument
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         result: AnalyzingResult,
     ) {
-        val argument = context.getArgument(name, FunctionArgument.Result::class.java)
+        val argument = context.getArgumentOrNull<FunctionArgument.Result, _>(name) ?: return
         if(argument is AnalyzedFunctionArgument) {
             result.combineWith(argument.result)
             return

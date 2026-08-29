@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestion
 import com.mojang.brigadier.suggestion.Suggestions
@@ -11,6 +12,7 @@ import net.minecraft.util.parsing.packrat.Atom
 import net.minecraft.util.parsing.packrat.Dictionary
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.DelegatingOpsAccessor
 import net.papierkorb2292.command_crafter.mixin.packrat.DictionaryAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -300,6 +302,9 @@ fun createCursorMapperForEscapedCharacters(sourceString: String, startSourceCurs
     )
     return cursorMapper
 }
+
+inline fun <reified V, S> CommandContext<S>.getArgumentOrNull(name: String): V?
+    = (this as CommandContextAccessor).arguments[name]?.result as? V
 
 /**
  * Wraps the given dynamic ops with the given wrapper function and returns the wrapped ops.

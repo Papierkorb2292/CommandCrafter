@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.item.ItemArgument
 import net.minecraft.commands.arguments.item.ItemParser
@@ -28,6 +29,10 @@ class ItemArgumentAnalyzer : CommandArgumentAnalyzerService<ItemArgument> {
         val parser = ItemParser(reader.resourceCreator.registries)
         (parser as AnalyzingResultDataContainer).`command_crafter$setAnalyzingResult`(result)
         (parser as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
-        (parser as ItemParserAccessor).callParse(reader)
+        try {
+            (parser as ItemParserAccessor).callParse(reader, DummyVisitor) // With DummyVisitor, because the normal parse() method might throw a NPE if no item can be parsed
+        } catch(_: CommandSyntaxException) { }
     }
+
+    private object DummyVisitor : ItemParser.Visitor
 }

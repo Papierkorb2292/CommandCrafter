@@ -10,6 +10,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.ColorInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
+import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Color
 import org.eclipse.lsp4j.ColorPresentation
@@ -28,7 +29,7 @@ class HexColorArgumentAnalyzer : CommandArgumentAnalyzerService<HexColorArgument
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         result: AnalyzingResult,
     ) {
-        val packedColor = context.getArgument(name, Int::class.java)
+        val packedColor = context.getArgumentOrNull<Int, _>(name) ?: return
         result.colorInfos += object : ColorInfo {
             override val range = Range(
                 AnalyzingResult.getPositionFromCursor(result.mappingInfo.cursorMapper.mapToSource(range.start + result.mappingInfo.readSkippingChars), result.mappingInfo),

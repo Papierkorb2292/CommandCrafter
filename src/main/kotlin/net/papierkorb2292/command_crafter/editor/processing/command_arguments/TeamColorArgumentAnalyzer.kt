@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.ColorInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
+import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.*
 
@@ -26,7 +27,7 @@ class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService<TeamColorArgume
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         result: AnalyzingResult,
     ) {
-        val teamColor = context.getArgument(name, TeamColor::class.java)
+        val teamColor = context.getArgumentOrNull<TeamColor, _>(name) ?: return
         val packedColor = teamColor.rgb()
         result.colorInfos += object : ColorInfo {
             override val range = Range(
