@@ -23,7 +23,7 @@ object JsonMacroParser : AnalyzingResourceCreator.MacroParser {
         val length = parsed.ranges[parsed.root]!!.end
         reader.cursor = startCursor + length
         val content = StringRangeTreeJsonReader.StringContentGetter(parsed, reader.string.substring(startCursor, reader.cursor)).getStringContent(parsed.root) ?: return null
-        content.cursorMapper.mapAllToTargetSorted(reader.resourceCreator.macroTargetCursors, false)
+        content.cursorMapper.mapAllToTargetSorted(reader.resourceCreator.macroTargetCursors, true)
         val mappedContent = StringContent(
             content.content,
             OffsetProcessedInputCursorMapper(reader.fileMappingInfo.cursorMapper.mapToSource(skippingCursor) - startCursor) // Subtract start cursor here, because it is the offset that is missing from the node's StringRange

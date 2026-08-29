@@ -47,7 +47,7 @@ data class NbtMacroParser constructor(private val parsingLanguage: VanillaLangua
             return null
         }
         val content = NbtStringContentGetter.getStringContent(parsed, reader.string, StringRange(startCursor, reader.cursor)) ?: return null
-        content.cursorMapper.mapAllToTargetSorted(reader.resourceCreator.macroTargetCursors, false)
+        content.cursorMapper.mapAllToTargetSorted(reader.resourceCreator.macroTargetCursors, true)
         val mappedContent = StringContent(
             content.content,
             OffsetProcessedInputCursorMapper(reader.fileMappingInfo.cursorMapper.mapToSource(skippingCursor))
