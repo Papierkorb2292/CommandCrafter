@@ -933,11 +933,17 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testOutermostMacroModificationTracker(context: GameTestHelper) {
+    fun testMacroModificationTracker(context: GameTestHelper) {
         val file = OpenFile.fromString("", $$"""
             $execute $(sub) run §
             $execute unless entity @e[gamemode=§creative] if entity @e[tag=$(anchor),distance=..10] run
             advancement grant @a[§] everything
+            dialog show @a {type:"notice",title:"Test",action:{label:"ok",action:{type:"dynamic/run_command",template:\
+                "execute as @a run §say $(msg)"\
+            }}}
+            $tellraw @a {text:"Hi",§click_event:{\
+                action:"run_command",command:"execute as @a run say $(msg)"\
+            }}}
         """.trimIndent())
 
         fun modificationShouldBeOutsideMacro(modificationName: String, modifier: () -> Unit) {
@@ -1004,6 +1010,12 @@ object TestCommandCrafter {
         }
         testMacroModification("added two newlines") {
             file.applyContentChange(2, 2, 9, 9, "\\\n    ")
+        }
+        testMacroModification("change nested macro (in command)") {
+            file.applyContentChange(6, 6, 16, 18, "@p")
+        }
+        testMacroModification("change nested macro (in macro)") {
+            file.applyContentChange(9, 9, 45, 47, "@p")
         }
 
         context.succeed()
