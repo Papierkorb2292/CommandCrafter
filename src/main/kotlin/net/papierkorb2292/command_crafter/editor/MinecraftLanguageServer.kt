@@ -571,11 +571,14 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 section = EDITOR_SETTINGS_SCOPE
             }
         ))).thenApply { settings ->
+            var needsAnalyzerRestart = false
             val editorSettings = settings[0] as JsonElement
-            val newFeatureConfig = FeatureConfig.CODEC.optionalFieldOf(FEATURE_CONFIG_SECTION, FeatureConfig.EMPTY).codec() //TODO: Make fields optional
+            val newFeatureConfig = FeatureConfig.CODEC.optionalFieldOf(FEATURE_CONFIG_SECTION, FeatureConfig.EMPTY).codec()
                 .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
                     CommandCrafter.LOGGER.warn("Error parsing new feature config for language server: $it")
                 }.result().getOrNull() ?: featureConfig
+            if(newFeatureConfig != editorInfo.featureConfig)
+                needsAnalyzerRestart = true
             editorInfo = editorInfo.withFeatureConfig(newFeatureConfig)
             val autoReloadDelay = Codec.FLOAT.optionalFieldOf(AUTO_RELOAD_DELAY_SECTION, 0F).codec()
                 .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
@@ -587,8 +590,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             } else {
                 CompletableFuture.delayedExecutor((autoReloadDelay * TimeUnit.SECONDS.toMillis(1)).toLong(), TimeUnit.MILLISECONDS, MoreExecutors.directExecutor())
             }
+            // Auto reload delay doesn't require analyzer restart, they're unaffected
 
-            analyzeAllFiles()
+            if(needsAnalyzerRestart)
+                analyzeAllFiles()
             if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
                 updateSemanticTokensRegistration()
         }

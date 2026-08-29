@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.editor
 import com.mojang.serialization.Codec
 import net.minecraft.util.StringRepresentable
 
-class FeatureConfig(private val entries: Map<String, Entry>) {
+data class FeatureConfig(private val entries: Map<String, Entry>) {
     companion object {
         val EMPTY = FeatureConfig(emptyMap())
         val DEFAULT_ENTRIES = mapOf(
