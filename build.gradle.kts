@@ -68,6 +68,8 @@ loom {
     }
 
     runs {
+        if(!Files.isDirectory(Path.of("build/gametest")))
+            Files.createDirectory(Path.of("build/gametest"))
         create("gametest") {
             server()
             ideConfigGenerated(true)
@@ -75,6 +77,19 @@ loom {
             name("Game Test")
             vmArg("-Dfabric-api.gametest")
             vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
+            vmArg("-Dfabric-api.gametest.filter=command_crafter:test_command_crafter_*")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
+            runDir("build/gametest")
+        }
+
+        create("benchmark") {
+            server()
+            ideConfigGenerated(true)
+            source(sourceSets["main"])
+            name("Benchmark")
+            vmArg("-Dfabric-api.gametest")
+            vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
+            vmArg("-Dfabric-api.gametest.filter=command_crafter:benchmark_command_crafter_*")
             vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
             runDir("build/gametest")
         }

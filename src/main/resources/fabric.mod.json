@@ -32,6 +32,10 @@
       {
         "adapter": "kotlin",
         "value": "net.papierkorb2292.command_crafter.test.TestCommandCrafter"
+      },
+      {
+        "adapter": "kotlin",
+        "value": "net.papierkorb2292.command_crafter.test.BenchmarkCommandCrafter"
       }
     ],
     "preLaunch": [

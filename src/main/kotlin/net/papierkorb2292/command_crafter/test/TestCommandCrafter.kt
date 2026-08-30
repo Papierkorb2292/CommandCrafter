@@ -1197,10 +1197,10 @@ object TestCommandCrafter {
         )
     }
 
-    private fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult =
+    fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult =
         analyseCommand(context, buildCommandReader(context, lines))
 
-    private fun analyseCommand(context: GameTestHelper, reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResult {
+    fun analyseCommand(context: GameTestHelper, reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResult {
         val source = getParsingCommandSource(context)
         val analyzingResult = AnalyzingResult(reader.resourceCreator.file, Position())
 
@@ -1214,19 +1214,19 @@ object TestCommandCrafter {
         return reader.resourceCreator.overlayMacros(analyzingResult)
     }
 
-    private fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =
+    fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =
         context.level.server!!.createCommandSourceStack()
             .withPosition(Vec3.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
 
     @Suppress("UNCHECKED_CAST")
-    private fun getCommandDispatcher(context: GameTestHelper): CommandDispatcher<SharedSuggestionProvider> =
+    fun getCommandDispatcher(context: GameTestHelper): CommandDispatcher<SharedSuggestionProvider> =
         context.level.server!!.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>
 
     /**
      * To make it easier to reference locations in lines, this method can find any location marked with '§'.
      * Those locations will be returned in order and the '§' characters will be removed from the returned lines.
      */
-    private fun getAndRemoveMarkedLocations(lines: List<String>): Pair<List<String>, List<FileLocation>> {
+    fun getAndRemoveMarkedLocations(lines: List<String>): Pair<List<String>, List<FileLocation>> {
         val processedLines = mutableListOf<String>()
         val foundLocations = mutableListOf<FileLocation>()
 
@@ -1254,5 +1254,5 @@ object TestCommandCrafter {
             throw this.assertionException("test.error.value_not_equal", message, expected ?: "null", actual ?: "null")
     }
 
-    private data class FileLocation(val position: Position, val absoluteCursor: Int)
+    data class FileLocation(val position: Position, val absoluteCursor: Int)
 }
