@@ -56,7 +56,12 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
     @Suppress("UNCHECKED_CAST")
     override fun <T: Any> read(key: String, codec: Codec<T>) =
         readKeyCache.getOrPut(key to codec) {
-            read(codec.optionalFieldOf(key)).flatten()
+            lateAdditionRunner.acceptLateAddition {
+                map.flatMap {
+                    val optional = codec.optionalFieldOf(key).decode(dynamic.ops, it).resultOrPartial()
+                    if(alwaysReturnEmpty) Optional.empty() else optional
+                }
+            }.flatten()
         } as Optional<T>
 
     private val readMapCodecCache = mutableMapOf<MapCodec<*>, Optional<*>>()
