@@ -545,20 +545,16 @@ class MacroAnalyzingCrawlerRunner(
             if(nextNodes.isEmpty())
                 return
             val redirectedSet = ReferenceOpenHashSet<CommandNode<SharedSuggestionProvider>>(nextNodes.size)
+            val distinctRedirected = ArrayList<CommandNode<SharedSuggestionProvider>>(nextNodes.size)
+            val nodesWithSpaces = ArrayList<CommandNode<SharedSuggestionProvider>>()
             for(node in nextNodes) {
-                redirectedSet += node.resolveRedirect()
+                val redirected = node.resolveRedirect()
+                if(redirectedSet.add(redirected))
+                    distinctRedirected += redirected
+                if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirected))
+                    nodesWithSpaces += redirected
             }
-            val distinctRedirected = redirectedSet.toList()
-            crawlers += Crawler(
-                distinctRedirected,
-                nextNodes.mapNotNull { node ->
-                    val redirect = node.resolveRedirect()
-                    if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirect))
-                        redirect
-                    else null
-                },
-                skippedNodeCount++
-            )
+            crawlers += Crawler(distinctRedirected, nodesWithSpaces, skippedNodeCount++)
             nextNodes = distinctRedirected.flatMap { it.children }.filter(accessedChildNodes::add)
         }
 
