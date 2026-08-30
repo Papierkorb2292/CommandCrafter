@@ -14,6 +14,8 @@ import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.Int2ByteLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet
 import net.fabricmc.fabric.api.networking.v1.FriendlyByteBufs
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.*
@@ -420,8 +422,8 @@ class MacroAnalyzingCrawlerRunner(
         val startAttemptIndex: Int,
         val baseContext: CommandContextBuilder<SharedSuggestionProvider>
     ) {
-        val consumedCrawlerNodes = mutableSetOf<CommandNode<SharedSuggestionProvider>>()
-        val accessedChildNodes = mutableSetOf<CommandNode<SharedSuggestionProvider>>()
+        val consumedCrawlerNodes = ReferenceOpenHashSet<CommandNode<SharedSuggestionProvider>>()
+        val accessedChildNodes = ReferenceOpenHashSet<CommandNode<SharedSuggestionProvider>>()
         val crawlers = mutableListOf<Crawler>()
 
         /**
@@ -542,13 +544,17 @@ class MacroAnalyzingCrawlerRunner(
         fun pushCrawler() {
             if(nextNodes.isEmpty())
                 return
-            val redirectedNodes = nextNodes.map { it.resolveRedirect() }
-            val distinctRedirected = redirectedNodes.distinct()
+            val redirectedSet = ReferenceOpenHashSet<CommandNode<SharedSuggestionProvider>>(nextNodes.size)
+            for(node in nextNodes) {
+                redirectedSet += node.resolveRedirect()
+            }
+            val distinctRedirected = redirectedSet.toList()
             crawlers += Crawler(
                 distinctRedirected,
-                nextNodes.mapIndexedNotNull { i, node ->
-                    if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirectedNodes[i]))
-                        redirectedNodes[i]
+                nextNodes.mapNotNull { node ->
+                    val redirect = node.resolveRedirect()
+                    if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirect))
+                        redirect
                     else null
                 },
                 skippedNodeCount++
@@ -648,10 +654,12 @@ class MacroAnalyzingCrawlerRunner(
             fun filterNodesByLiteralCount(attemptIndex: Int) {
                 val goalLiteralCount = getRequiredLiteralCountToMatchBest()
 
-                val removedNodes = nodes.asSequence().filter { node ->
+                val removedNodes = ReferenceOpenHashSet<CommandNode<SharedSuggestionProvider>>()
+                for(node in nodes) {
                     val maxCount = attemptLiteralCounter.getMaxPossibleLiteralsForAttempt(node, attemptIndex).toInt()
-                    maxCount != LITERAL_COUNT_INFINITY.toInt() && maxCount < goalLiteralCount
-                }.toSet()
+                    if(maxCount != LITERAL_COUNT_INFINITY.toInt() && maxCount < goalLiteralCount)
+                        removedNodes.add(node)
+                }
 
                 if(removedNodes.isEmpty())
                     return
@@ -1043,7 +1051,7 @@ class MacroAnalyzingCrawlerRunner(
 
     class NodeIdentifier {
         private val serializedNodeIds = Object2IntOpenHashMap<SerializedNode>()
-        private val assignedIds = Object2IntOpenHashMap<CommandNode<SharedSuggestionProvider>>()
+        private val assignedIds = Reference2IntOpenHashMap<CommandNode<SharedSuggestionProvider>>()
         // Literals are given a second id that is used for calculating how many literals a given
         // node can match at maximum in the remaining input
         private val literalIds = Object2IntOpenHashMap<String>()
