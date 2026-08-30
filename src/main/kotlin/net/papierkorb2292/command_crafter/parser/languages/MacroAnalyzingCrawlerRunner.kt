@@ -543,8 +543,9 @@ class MacroAnalyzingCrawlerRunner(
             if(nextNodes.isEmpty())
                 return
             val redirectedNodes = nextNodes.map { it.resolveRedirect() }
+            val distinctRedirected = redirectedNodes.distinct()
             crawlers += Crawler(
-                redirectedNodes.distinct(),
+                distinctRedirected,
                 nextNodes.mapIndexedNotNull { i, node ->
                     if(canNodeHaveSpaces(node) && consumedCrawlerNodes.add(redirectedNodes[i]))
                         redirectedNodes[i]
@@ -552,7 +553,7 @@ class MacroAnalyzingCrawlerRunner(
                 },
                 skippedNodeCount++
             )
-            nextNodes = redirectedNodes.flatMap { it.children }.filter(accessedChildNodes::add)
+            nextNodes = distinctRedirected.flatMap { it.children }.filter(accessedChildNodes::add)
         }
 
         // Root node for the start of the command is added separately, because it is known that this node
