@@ -108,6 +108,7 @@
     "editor.processing.MacroAndExpandedMacroMixin",
     "editor.processing.MemoizedDataMixin",
     "editor.processing.MinecraftServerMixin",
+    "editor.processing.MobMixin",
     "editor.processing.NbtContentsMixin",
     "editor.processing.NbtPathArgumentMixin",
     "editor.processing.NbtPathArgumentNbtPathMixin",

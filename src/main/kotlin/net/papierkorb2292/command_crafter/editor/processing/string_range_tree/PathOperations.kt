@@ -105,7 +105,7 @@ data class PathOperations(
 
     private fun suggestKeys(segment: StringRangePath.Segment, analyzingResult: AnalyzingResult, analyzingDynamicOps: AnalyzingDynamicOps<Tag>) {
         val keySuggestions = analyzingDynamicOps.mapKeySuggestions[segment.tree.root]
-            .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeys[segment.tree.root]
+            .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeyNodes[segment.tree.root]
                 ?.flatMap { mapKeyNode -> analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList() })
         if(!keySuggestions.isNullOrEmpty() && segment.key != null) {
             analyzingResult.addContinuouslyMappedPotentialSyntaxNode(

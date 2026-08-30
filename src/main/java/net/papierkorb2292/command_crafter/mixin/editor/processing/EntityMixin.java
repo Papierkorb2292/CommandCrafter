@@ -6,16 +6,21 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DynamicOpsReadView;
 import net.papierkorb2292.command_crafter.helper.DummyWorld;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 
 @Mixin(Entity.class)
-public class EntityMixin {
+public abstract class EntityMixin {
 
     @Shadow
     private Level level;
+
+    @Shadow
+    protected abstract void readAdditionalSaveData(ValueInput input);
 
     @WrapMethod(method = "registryAccess")
     private RegistryAccess command_crafter$allowDummyWorldForPlayer(Operation<RegistryAccess> original) {
@@ -31,5 +36,18 @@ public class EntityMixin {
     )
     private boolean command_crafter$skipSetGlowingInDummyWorld(Entity instance, boolean value) {
         return !(level instanceof DummyWorld);
+    }
+
+    @WrapMethod(method = "load")
+    private void command_crafter$deduplicateEntityAnalyzing(ValueInput input, Operation<Void> original) {
+        if(!(input instanceof DynamicOpsReadView<?> readView) || readView.getDeduplicationMarkers().add("Entity")) {
+            original.call(input);
+            return;
+        }
+        try {
+            readAdditionalSaveData(input);
+        } catch (Throwable _) {
+            // Don't build crash report, it's not necessary
+        }
     }
 }

@@ -192,7 +192,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
     private fun addMapUnknownKeyDiagnostics(map: TNode, nodeDiagnostics: NodeDiagnostics<TNode>) {
         if(map in completelyAccessedNodes)
             return
-        val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toSet() ?: emptySet() // Convert to set so we don't use IdentityHashMap and so it's not modified
+        val accessed = accessedKeysWatcherDynamicOps.accessedKeys[map]?.toHashSet() ?: emptySet() // Convert to set so we can look up keys later
         // Use accessedKeysWatcherDynamicOps, so the NodeErrorRangeProvider will work with the keys
         accessedKeysWatcherDynamicOps.getMapEntries(map).result().getOrNull()?.accept { key, child: TNode? ->
             if(child == null) return@accept

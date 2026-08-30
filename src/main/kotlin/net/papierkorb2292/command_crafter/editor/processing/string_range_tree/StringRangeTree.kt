@@ -149,7 +149,7 @@ class StringRangeTree<TNode: Any>(
                     nodeSuggestions += range to suggestion
             }
             analyzingDynamicOps.mapKeySuggestions[node]
-                .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeys[node]?.flatMap { mapKeyNode ->
+                .concatNullable(analyzingDynamicOps.accessedKeysWatcher?.accessedKeyNodes[node]?.flatMap { mapKeyNode ->
                     analyzingDynamicOps.nodeStartSuggestions[mapKeyNode] ?: emptyList()
                 })?.let { suggestionProviders ->
                     val ranges = internalNodeRangesBetweenEntries[node]
@@ -200,7 +200,7 @@ class StringRangeTree<TNode: Any>(
             val keys = mapKeyRanges[node] ?: continue
             // Make sure to use the key instances from the dynamic ops
             val mappedKeys: MutableMap<TNode, TNode?> = keys.associateTo(mutableMapOf()) { it.first to null }
-            for(key in accessedKeysWatcher?.accessedKeys[node] ?: continue) {
+            for(key in accessedKeysWatcher?.accessedKeyNodes[node] ?: continue) {
                 if(key in mappedKeys)
                     mappedKeys[key] = key
             }

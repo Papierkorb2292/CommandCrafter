@@ -11,12 +11,20 @@ import java.util.function.Consumer
 import java.util.stream.Stream
 
 class AccessedKeysWatcherDynamicOps<T>(override val delegate: DynamicOps<T>): DelegatingDynamicOps<T> {
-    val accessedKeys = IdentityHashMap<T, MutableSet<T>>()
+    // accessedKeyNodes uses an identity hash set, accessedKey uses a normal hash set
+    val accessedKeyNodes = IdentityHashMap<T, MutableSet<T>>()
+    val accessedKeys = IdentityHashMap<T, MutableList<T>>()
     val keyToMap = IdentityHashMap<T, T>()
 
     private fun addAccessedKey(map: T, key: T) {
-        accessedKeys.getOrPut(map) { Collections.newSetFromMap(IdentityHashMap()) } += key
+        accessedKeys.getOrPut(map) { ArrayList() } += key
+        accessedKeyNodes.getOrPut(map) { Collections.newSetFromMap(IdentityHashMap()) } += key
         keyToMap[key] = map
+    }
+
+    private fun addAccessedKey(map: T, key: String) {
+        accessedKeys.getOrPut(map) { ArrayList() } += delegate.createString(key)
+        // No need to add it to the other maps, since this instance isn't used anywhere else
     }
 
     override fun getMapValues(input: T): DataResult<Stream<Pair<T, T>>> =
@@ -42,8 +50,8 @@ class AccessedKeysWatcherDynamicOps<T>(override val delegate: DynamicOps<T>): De
                     addAccessedKey(input, key)
                     return delegateMap.get(key)
                 }
-                override fun get(key: String?): T? {
-                    addAccessedKey(input, delegate.createString(key))
+                override fun get(key: String): T? {
+                    addAccessedKey(input, key)
                     return delegateMap.get(key)
                 }
 
