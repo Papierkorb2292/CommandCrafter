@@ -7,21 +7,18 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Dynamic;
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.tags.TagEntry;
 import net.minecraft.tags.TagFile;
 import net.minecraft.tags.TagLoader;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.resources.Identifier;
 import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler;
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.TagFinalEntriesValueGetter;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonReader;
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
-import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import net.papierkorb2292.command_crafter.string_range_gson.Strictness;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
@@ -36,7 +33,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -66,7 +66,7 @@ public class TagLoaderMixin<T> implements FinalTagContentProvider {
             try {
                 command_crafter$tagFileLines.put(
                         new PackagedId(id, PackagedId.Companion.getPackIdWithoutPrefix(resource.sourcePackId())),
-                        new FileMappingInfo(resource.openAsReader().lines().toList(), new SplitProcessedInputCursorMapper(), 0, 0, new Int2ObjectLinkedOpenHashMap<>(), new Object2ObjectLinkedOpenHashMap<>())
+                        FileMappingInfo.Companion.fromLines(resource.openAsReader().lines().toList())
                 );
             } catch (IOException ignored) {
                 // The IO error will be handled once the TagGroupLoader tries to open the file as well

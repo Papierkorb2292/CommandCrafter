@@ -25,18 +25,20 @@ class FileMappingInfo(
     @JsonIgnore
     val positionFromCursorLRUCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
     @JsonIgnore
-    val completionItemToPositionLRUCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
+    val completionItemToPositionLRUCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F),
+    val accumulatedLineLengths: IntList = computeAccumulatedLineLengths(lines)
 ) {
     companion object {
         fun fromLines(lines: List<String>) = FileMappingInfo(lines)
-    }
 
-    val accumulatedLineLengths = IntList(lines.size)
-    init {
-        var accumulatedLength = 0
-        for(line in lines) {
-            accumulatedLength += line.length + 1
-            accumulatedLineLengths.add(accumulatedLength)
+        fun computeAccumulatedLineLengths(lines: List<String>): IntList {
+            val result = IntList(lines.size)
+            var accumulatedLength = 0
+            for(line in lines) {
+                accumulatedLength += line.length + 1
+                result.add(accumulatedLength)
+            }
+            return result
         }
     }
 
@@ -45,9 +47,9 @@ class FileMappingInfo(
     val totalCharacters
         get() = if(accumulatedLineLengths.isEmpty()) 0 else accumulatedLineLengths.last() - 1 // Remove final newline, since it's not actually part of the file content
 
-    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
-    fun copy(copyCursorMapper: Boolean) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache)
-    fun copyWithoutMapping() = FileMappingInfo(lines, readCharacters = readCharacters, positionFromCursorLRUCache = positionFromCursorLRUCache)
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache, accumulatedLineLengths)
+    fun copy(copyCursorMapper: Boolean) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache, accumulatedLineLengths)
+    fun copyWithoutMapping() = FileMappingInfo(lines, readCharacters = readCharacters, positionFromCursorLRUCache = positionFromCursorLRUCache, accumulatedLineLengths = accumulatedLineLengths)
 
     fun mapToDiagnosticFileRange(range: StringRange) = mapToDiagnosticFileRange(range.start, range.end)
     fun mapToDiagnosticFileRange(start: Int, end: Int) = Range(
