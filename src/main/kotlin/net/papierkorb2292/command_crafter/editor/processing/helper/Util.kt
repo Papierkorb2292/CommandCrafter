@@ -12,6 +12,7 @@ import net.minecraft.util.parsing.packrat.Atom
 import net.minecraft.util.parsing.packrat.Dictionary
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.DelegatingOpsAccessor
 import net.papierkorb2292.command_crafter.mixin.packrat.DictionaryAccessor
@@ -80,17 +81,12 @@ fun Position.clampCompletionToCursor(requestedLine: Int, requestedSourceCursor: 
             return lineStart
         // Find the first mapping in the line
         val lineStartCursor = AnalyzingResult.getCursorFromPosition(lineStart, mappingInfo, zeroBased)
-        var mappingIndex = mappingInfo.cursorMapper.sourceCursors.binarySearch { index ->
-            if(mappingInfo.cursorMapper.sourceCursors[index] > lineStartCursor) 1
-            else if (mappingInfo.cursorMapper.sourceCursors[index] + mappingInfo.cursorMapper.lengths[index] <= lineStartCursor) -1
-            else 0
-        }
-        if(mappingIndex >= 0)
+        val mappingIndex = roundDownBinarySearch(mappingInfo.cursorMapper.sourceCursors.binarySearch(lineStartCursor))
+        if(mappingIndex >= 0 && mappingInfo.cursorMapper.sourceCursors[mappingIndex] + mappingInfo.cursorMapper.lengths[mappingIndex] >= lineStartCursor)
             // This mapping directly contains the start of the line
             return lineStart
         // No mapping contains the start of the line, use the start of the next mapping instead (it must be in the same line since requestedSourceCursor does have a mapping)
-        mappingIndex = -(mappingIndex + 1)
-        return AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.sourceCursors[mappingIndex], mappingInfo, zeroBased)
+        return AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.sourceCursors[mappingIndex + 1], mappingInfo, zeroBased)
     }
 
     val oneBasedOffset = if(zeroBased) 0 else 1
@@ -98,16 +94,11 @@ fun Position.clampCompletionToCursor(requestedLine: Int, requestedSourceCursor: 
     if(!hasMapping)
         return lineEnd
     val lineEndCursor = AnalyzingResult.getCursorFromPosition(lineEnd, mappingInfo, zeroBased)
-    var mappingIndex = mappingInfo.cursorMapper.sourceCursors.binarySearch { index ->
-        if(mappingInfo.cursorMapper.sourceCursors[index] > lineEndCursor) 1
-        else if (mappingInfo.cursorMapper.sourceCursors[index] + mappingInfo.cursorMapper.lengths[index] <= lineEndCursor) -1
-        else 0
-    }
-    if(mappingIndex >= 0)
+    val mappingIndex = roundDownBinarySearch(mappingInfo.cursorMapper.sourceCursors.binarySearch(lineEndCursor))
+    if(mappingIndex >= 0 && mappingInfo.cursorMapper.sourceCursors[mappingIndex] + mappingInfo.cursorMapper.lengths[mappingIndex] >= lineEndCursor)
         // This mapping directly contains the end of the line
         return lineEnd
     // No mapping contains the end of the line, use the end of the previous mapping instead (it must be in the same line since requestedSourceCursor does have a mapping)
-    mappingIndex = -(mappingIndex + 2)
     return AnalyzingResult.getPositionFromCursor(mappingInfo.cursorMapper.sourceCursors[mappingIndex] + mappingInfo.cursorMapper.lengths[mappingIndex], mappingInfo, zeroBased)
 }
 

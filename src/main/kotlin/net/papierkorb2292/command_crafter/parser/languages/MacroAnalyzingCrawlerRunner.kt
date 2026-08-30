@@ -32,6 +32,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundUpBinarySearch
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -212,13 +213,8 @@ class MacroAnalyzingCrawlerRunner(
         addRootCrawler(baseContext.dispatcher.root)
     }
 
-    private fun getAttemptIndexForCursor(cursor: Int): Int {
-        val index = attemptPositions.binarySearch { attemptPositions[it].compareTo(cursor) }
-        return if(index >= 0)
-            index
-        else
-            -(index + 1) // Get the next attempt position
-    }
+    private fun getAttemptIndexForCursor(cursor: Int): Int =
+        roundUpBinarySearch(attemptPositions.binarySearch(cursor))
 
     private fun tryParse(
         rootNode: CommandNode<SharedSuggestionProvider>,
@@ -233,12 +229,7 @@ class MacroAnalyzingCrawlerRunner(
 
         // Only let the parser read up to the next variable location, because what comes after that doesn't matter in this call anyway, it will only be parsed later
         // (either when analyzing the last node of this segment or when trying to parse nodes in other segments)
-        var nextVariableLocationIndex = variableLocations.binarySearch {
-            variableLocations[it].compareTo(startCursor)
-        }
-        if(nextVariableLocationIndex < 0) {
-            nextVariableLocationIndex = -(nextVariableLocationIndex + 1)
-        }
+        val nextVariableLocationIndex = roundUpBinarySearch(variableLocations.binarySearch(startCursor))
         val nextVariableLocation = if(nextVariableLocationIndex >= variableLocations.size) originalString.length else variableLocations[nextVariableLocationIndex]
         reader.setString(originalString.substring(0, nextVariableLocation))
 

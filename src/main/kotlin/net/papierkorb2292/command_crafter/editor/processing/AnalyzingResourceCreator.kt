@@ -15,6 +15,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundUpBinarySearch
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.DiagnosticSeverity
@@ -48,10 +49,8 @@ class AnalyzingResourceCreator(
     }
 
     fun macroInRange(targetStart: Int, targetEndInclusive: Int): Boolean {
-        var index = macroTargetCursors.binarySearch { macroTargetCursors[it].compareTo(targetStart) }
-        if(index >= 0) return true // Found exact match
-        // Test if the next macro after targetStart is still before targetEndInclusive
-        index = -(index + 1)
+        val index = roundUpBinarySearch(macroTargetCursors.binarySearch(targetStart))
+        // Test if the next macro after targetStart is before targetEndInclusive
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
 

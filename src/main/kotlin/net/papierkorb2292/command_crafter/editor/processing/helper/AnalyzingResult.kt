@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
@@ -153,18 +154,10 @@ class AnalyzingResult(
     }
 
     private fun getEarliestSourceCursorWithInclusiveEndMapping(targetCursor: Int): Int {
-        // Find the matching mapping with exclusive end like normal
-        var mappingIndex = mappingInfo.cursorMapper.targetCursors.binarySearch { index ->
-            if(mappingInfo.cursorMapper.targetCursors[index] > targetCursor) 1
-            else if (mappingInfo.cursorMapper.targetCursors[index] + mappingInfo.cursorMapper.lengths[index] <= targetCursor) -1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            if(mappingIndex == -1) {
-                return targetCursor
-            }
-            mappingIndex = -(mappingIndex + 2)
-        }
+        // Find the matching mapping like normal
+        var mappingIndex = roundDownBinarySearch(mappingInfo.cursorMapper.targetCursors.binarySearch(targetCursor))
+        if(mappingIndex < 0)
+            return targetCursor
 
         // Find the earliest mapping where an inclusive end includes the target cursor
         while(mappingIndex > 0 && mappingInfo.cursorMapper.targetCursors[mappingIndex - 1] + mappingInfo.cursorMapper.lengths[mappingIndex - 1] >= targetCursor)
@@ -348,18 +341,15 @@ class AnalyzingResult(
 
         val cursorMapper = mappingInfo.cursorMapper
 
-        var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
-            if(cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= startCursor) -1
-            else if (cursorMapper.targetCursors[index] > startCursor) 1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            mappingIndex = -(mappingIndex + 2)
-        }
+        var mappingIndex = roundDownBinarySearch(cursorMapper.targetCursors.binarySearch(startCursor))
+
+        // Multiple mappings might have the same start (length can be 0), this method selects the last one
+        while(mappingIndex + 1 < cursorMapper.targetCursors.size && cursorMapper.targetCursors[mappingIndex + 1] == startCursor)
+            mappingIndex++
+
         var mappingRelativeCursor = startCursor
-        if(mappingIndex >= 0) {
+        if(mappingIndex >= 0)
             mappingRelativeCursor -= cursorMapper.targetCursors[mappingIndex]
-        }
 
         var remainingLength = unmappedRange.length
         while(mappingIndex < cursorMapper.targetCursors.size) {
@@ -477,13 +467,7 @@ class AnalyzingResult(
 
         fun getPositionFromCursorUncached(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
             val oneBasedOffset = if(zeroBased) 0 else 1
-            var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
-                mappingInfo.accumulatedLineLengths[index].compareTo(cursor)
-            }
-            if(lineIndex < 0) {
-                // No line has the exact accumulated length, so select the previous line
-                lineIndex = -lineIndex - 2
-            }
+            val lineIndex = roundDownBinarySearch(mappingInfo.accumulatedLineLengths.binarySearch(cursor))
             if(lineIndex == -1) {
                 // Position is on the first line
                 return Position(oneBasedOffset, cursor + oneBasedOffset)

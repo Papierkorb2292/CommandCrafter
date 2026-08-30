@@ -311,7 +311,7 @@ class StringRangeTree<TNode: Any>(
         val result = mutableSetOf<TNode>()
         val macroTargetCursors = resourceCreator.macroTargetCursors
         val startCursor = ranges[orderedNodes[0]]!!.start // Don't use root here, because nbt tag arguments using a path might not have a range for root
-        var macroIndex = roundUpBinarySearch(macroTargetCursors.binarySearch { macroTargetCursors[it].compareTo(startCursor) })
+        var macroIndex = roundUpBinarySearch(macroTargetCursors.binarySearch(startCursor))
         for(node in orderedNodes) {
             val range = ranges[node]!!
             while(macroIndex < macroTargetCursors.size && macroTargetCursors[macroIndex] < range.start)

@@ -89,7 +89,7 @@ object MacroMerger {
         val newMacros = newReader.resourceCreator.newCache.macroCache
 
         // Find the macro that encompasses the first change. If the change is exactly at the start of the macro, there was no modification inside the macro so return false
-        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch { oldMacros.orderedMacroStartInParent[it].compareTo(modifiedRange.absoluteStartPosition) }
+        var macroIndex = oldMacros.orderedMacroStartInParent.binarySearch(modifiedRange.absoluteStartPosition)
         if(macroIndex >= -1)
             return false // Exactly matched the start of a macro (>= 0) or no macro starts before this position (== -1)
         macroIndex = roundDownBinarySearch(macroIndex)

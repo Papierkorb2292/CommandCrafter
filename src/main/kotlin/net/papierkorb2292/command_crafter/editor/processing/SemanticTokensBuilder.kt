@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
 import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
@@ -64,18 +65,15 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         val offsetCursor = cursor + mappingInfo.readSkippingChars
         val cursorMapper = mappingInfo.cursorMapper
         // Map the command cursor to an absolute cursor
-        var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
-            if(cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= offsetCursor) -1
-            else if (cursorMapper.targetCursors[index] > offsetCursor) 1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            mappingIndex = -(mappingIndex + 2)
-        }
+        var mappingIndex = roundDownBinarySearch(cursorMapper.targetCursors.binarySearch(offsetCursor))
+
+        // Multiple mappings might have the same start (length can be 0), this method selects the last one
+        while(mappingIndex + 1 < cursorMapper.targetCursors.size && cursorMapper.targetCursors[mappingIndex + 1] == offsetCursor)
+            mappingIndex++
+
         var mappingRelativeCursor = offsetCursor
-        if(mappingIndex >= 0) {
+        if(mappingIndex >= 0)
             mappingRelativeCursor -= cursorMapper.targetCursors[mappingIndex]
-        }
 
         // Get the corresponding line for the absolute cursor
         var lineNumber = 0

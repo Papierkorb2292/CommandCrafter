@@ -12,11 +12,15 @@ import java.lang.reflect.Type
 import java.util.*
 import java.util.concurrent.Semaphore
 
-fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
+inline fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
     return (fromIndex until toIndex).binarySearch(comparison)
 }
 
-fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
+fun IntList.binarySearch(value: Int, fromIndex: Int = 0, toIndex: Int = size): Int {
+    return binarySearch(fromIndex, toIndex) { this[it].compareTo(value) }
+}
+
+inline fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
     var low = this.start
     var high = this.endInclusive
 
@@ -31,7 +35,7 @@ fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
         }
     }
 
-    return -(low + 1)
+    return low.inv()
 }
 
 fun roundUpBinarySearch(index: Int): Int {
