@@ -51,13 +51,13 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
 
     val deduplicationMarkers = mutableSetOf<Any>()
 
-    private val readKeyCache = mutableMapOf<kotlin.Pair<String, Codec<*>>, Optional<*>>()
+    private val readKeyCache = mutableMapOf<FieldCodecCacheKey, Optional<*>>()
 
     @Suppress("UNCHECKED_CAST")
     override fun <T: Any> read(key: String, codec: Codec<T>) =
-        readKeyCache.getOrPut(key to codec) {
-            lateAdditionRunner.acceptLateAddition {
-                map.flatMap {
+        readKeyCache.getOrPut(FieldCodecCacheKey(key, codec)) {
+            map.flatMap {
+                lateAdditionRunner.acceptLateAddition {
                     val optional = codec.optionalFieldOf(key).decode(dynamic.ops, it).resultOrPartial()
                     if(alwaysReturnEmpty) Optional.empty() else optional
                 }
@@ -179,5 +179,12 @@ class DynamicOpsReadView<TNode : Any>(val dynamic: Dynamic<TNode>, private val r
             reader(dynamicOpsReadView.result().get().first)
             return DataResult.success(Pair.of(Unit, ops.emptyList()))
         }
+    }
+
+    // Pair of field and codec, but the codec uses reference equality to make it faster
+    class FieldCodecCacheKey(val field: String, val codec: Codec<*>) {
+        override fun hashCode(): Int =
+            31 * field.hashCode() + System.identityHashCode(codec)
+        override fun equals(other: Any?): Boolean = other is FieldCodecCacheKey && field == other.field && codec === other.codec
     }
 }
