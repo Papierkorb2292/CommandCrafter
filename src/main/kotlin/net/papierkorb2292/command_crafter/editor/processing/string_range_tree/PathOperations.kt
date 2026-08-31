@@ -195,11 +195,11 @@ data class PathOperations(
                     provider.getValue().flatMap {
                         when(it.element) {
                             is CompoundTag -> {
-                                // Suggest dot as string. The suggestion resolver is configured to suggest it without quotes
-                                if(segment.allowsCompoundFilter)
-                                    Stream.of(it, ExtraDecoderBehavior.PossibleValue(StringTag.valueOf(".")))
-                                else
-                                    Stream.of(ExtraDecoderBehavior.PossibleValue(StringTag.valueOf(".")))
+                                listOfNotNull(
+                                    // Suggest dot as string. The suggestion resolver is configured to suggest it without quotes
+                                    if(segment != path.segments[0]) ExtraDecoderBehavior.PossibleValue(StringTag.valueOf(".")) else null,
+                                    if(segment.allowsCompoundFilter) it else null,
+                                ).stream()
                             }
                             is ListTag -> if(it.element.isEmpty) Stream.of(it) else Stream.of()
                             else -> Stream.of()
