@@ -26,6 +26,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ResourceOrIdArgumentAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrIdArgument<*>> {
     companion object {
@@ -41,6 +42,7 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val grammar = (type as ResourceOrIdArgumentAccessor).grammar
@@ -102,19 +104,21 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
             }
         }
 
-        val isInline = parsed is ResourceOrIdArgument.InlineResult
+        analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
+            val isInline = parsed is ResourceOrIdArgument.InlineResult
 
-        val inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec)
+            val inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec)
 
-        val tree = treeBuilder.build(treeRoot)
-        var treeOperations = TreeOperations.forNbt(
-            tree,
-            reader
-        ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
-            Identifier.tryParse(nbtString.value()) == null
-        })
-        if(!isInline)
-            treeOperations = treeOperations.withDiagnosticSeverity(null)
-        treeOperations.analyzeFull(result, inlineOrReferenceCodec)
+            val tree = treeBuilder.build(treeRoot)
+            var treeOperations = TreeOperations.forNbt(
+                tree,
+                reader
+            ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
+                Identifier.tryParse(nbtString.value()) == null
+            })
+            if(!isInline)
+                treeOperations = treeOperations.withDiagnosticSeverity(null)
+            treeOperations.analyzeFull(result, inlineOrReferenceCodec)
+        }
     }
 }

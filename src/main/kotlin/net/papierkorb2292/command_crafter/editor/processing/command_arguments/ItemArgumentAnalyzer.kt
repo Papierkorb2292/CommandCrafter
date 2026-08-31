@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer
 import net.papierkorb2292.command_crafter.mixin.editor.processing.ItemParserAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class ItemArgumentAnalyzer : CommandArgumentAnalyzerService<ItemArgument> {
     override val argumentTypes: List<Class<out ItemArgument>>
@@ -24,6 +25,7 @@ class ItemArgumentAnalyzer : CommandArgumentAnalyzerService<ItemArgument> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val parser = ItemParser(reader.resourceCreator.registries)

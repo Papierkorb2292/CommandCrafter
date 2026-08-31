@@ -16,6 +16,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSe
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
 
@@ -65,6 +66,7 @@ class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val nonPlayerSelector = (type as IsNonPlayerSelector).`command_crafter$getIsNonPlayerSelector`()

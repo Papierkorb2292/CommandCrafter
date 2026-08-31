@@ -43,6 +43,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.helper.getContextAtCursor
 import net.papierkorb2292.command_crafter.parser.helper.getNodeAtCursor
 import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
@@ -197,6 +198,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 parsedNode.range,
                 node.name,
                 directiveReader,
+                NodeAnalyzingExecutor.Immediate,
                 analyzingResult,
             )
         } catch(e: Exception) {

@@ -8,6 +8,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class StringArgumentAnalyzer : CommandArgumentAnalyzerService<StringArgumentType> {
     override val argumentTypes
@@ -19,6 +20,7 @@ class StringArgumentAnalyzer : CommandArgumentAnalyzerService<StringArgumentType
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         result.semanticTokens.addMultiline(range, TokenType.STRING, 0)

@@ -15,6 +15,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.AnalyzedFunctionArgument
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage.Companion.isReaderInlineResources
 
@@ -28,6 +29,7 @@ class FunctionArgumentAnalyzer : CommandArgumentAnalyzerService<FunctionArgument
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val argument = context.getArgumentOrNull<FunctionArgument.Result, _>(name) ?: return

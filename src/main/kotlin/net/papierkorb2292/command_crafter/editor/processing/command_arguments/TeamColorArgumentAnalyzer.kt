@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.ColorInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.*
 
 class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService<TeamColorArgument> {
@@ -25,6 +26,7 @@ class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService<TeamColorArgume
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val teamColor = context.getArgumentOrNull<TeamColor, _>(name) ?: return

@@ -21,6 +21,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTr
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
 class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument> {
@@ -33,6 +34,7 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val parameterDecoder = try {
@@ -69,12 +71,17 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
         (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
         (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
         val nbt: Tag = nbtReader.parseAsArgument(optionsReader)!!
-        val tree = treeBuilder.build(nbt)
 
-        val ignoreErrors = !hasNbt && parameterDecoder != null && parameterDecoder.decode(NbtOps.INSTANCE, NbtOps.INSTANCE.emptyMap()).isSuccess
+        analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens
+            val tree = treeBuilder.build(nbt)
+            val ignoreErrors = !hasNbt && parameterDecoder != null && parameterDecoder.decode(
+                NbtOps.INSTANCE,
+                NbtOps.INSTANCE.emptyMap()
+            ).isSuccess
 
-        TreeOperations.forNbt(tree, optionsReader)
-            .withDiagnosticSeverity(if(ignoreErrors) null else DiagnosticSeverity.Error)
-            .analyzeFull(result, parameterDecoder)
+            TreeOperations.forNbt(tree, optionsReader)
+                .withDiagnosticSeverity(if(ignoreErrors) null else DiagnosticSeverity.Error)
+                .analyzeFull(result, parameterDecoder)
+        }
     }
 }

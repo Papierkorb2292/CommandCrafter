@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockStateParserAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class BlockPredicateArgumentAnalyzer : CommandArgumentAnalyzerService<BlockPredicateArgument> {
     override val argumentTypes: List<Class<out BlockPredicateArgument>>
@@ -22,6 +23,7 @@ class BlockPredicateArgumentAnalyzer : CommandArgumentAnalyzerService<BlockPredi
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val blocks = reader.resourceCreator.registries.lookup(Registries.BLOCK).get()

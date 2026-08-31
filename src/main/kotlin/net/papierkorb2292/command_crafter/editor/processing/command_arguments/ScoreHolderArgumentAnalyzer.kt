@@ -11,6 +11,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class ScoreHolderArgumentAnalyzer : CommandArgumentAnalyzerService<ScoreHolderArgument> {
     override val argumentTypes: List<Class<out ScoreHolderArgument>>
@@ -22,6 +23,7 @@ class ScoreHolderArgumentAnalyzer : CommandArgumentAnalyzerService<ScoreHolderAr
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         if(!reader.canRead() || reader.peek() != '@') {

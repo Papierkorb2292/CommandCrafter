@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
 class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
@@ -25,6 +26,7 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val nbtReader = TagParser.create(NbtOps.INSTANCE)
@@ -34,15 +36,16 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
         (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
         (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
         val nbt = nbtReader.parseAsArgument(reader)
-        val originalTree: StringRangeTree<Tag> = treeBuilder.build(nbt)
 
         val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
         val isPath = dataObjectSource?.isPathReference() ?: false
-        if(isPath) {
+        if(!isPath) return
+        analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
             val pathArgument = (context as CommandContextAccessor).arguments[dataObjectSource.argumentName]
             if(pathArgument != null) {
                 val pathInput = pathArgument.range.get(context.input)
                 val path = NbtPathArgumentAnalyzer.readNbtPath(StringReader(pathInput), reader.resourceCreator, null)
+                val originalTree: StringRangeTree<Tag> = treeBuilder.build(nbt)
                 val mutatingTree = path.buildMutating(originalTree) { pathTag ->
                     //TODO: Warning when tag type doesn't match the operation
                     when(dataObjectSource.kind) {

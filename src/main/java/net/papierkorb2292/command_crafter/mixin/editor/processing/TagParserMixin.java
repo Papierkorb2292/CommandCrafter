@@ -19,6 +19,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.*;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -105,7 +106,8 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
                             reader,
                             result,
                             decoderData != null ? decoderData.getBranchBehaviorModifier().apply(BranchBehaviorProvider.Decode.INSTANCE) : null,
-                            decoderData != null ? decoderData.getDecoder() : null
+                            decoderData != null ? decoderData.getDecoder() : null,
+                            NodeAnalyzingExecutor.Immediate.INSTANCE
                     );
                 }
         );

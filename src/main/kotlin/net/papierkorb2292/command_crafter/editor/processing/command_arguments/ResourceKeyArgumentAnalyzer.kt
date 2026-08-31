@@ -12,6 +12,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class ResourceKeyArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceKeyArgument<*>> {
     override val argumentTypes
@@ -23,6 +24,7 @@ class ResourceKeyArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceKeyAr
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val fileType = (type as PackContentFileTypeContainer).`command_crafter$getPackContentFileType`()

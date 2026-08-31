@@ -78,6 +78,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEn
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.Language.TopLevelClosure
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Diagnostic
@@ -622,7 +623,7 @@ object CodecTransformers {
                 @Suppress("UNCHECKED_CAST")
                 val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
                 val commandAnalyzingResult = result.copyInput()
-                VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader)
+                VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader, NodeAnalyzingExecutor.Immediate)
                 VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, commandAnalyzingResult.mappingInfo, commandAnalyzingResult.diagnostics, DiagnosticSeverity.Error)
                 // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
                 if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {

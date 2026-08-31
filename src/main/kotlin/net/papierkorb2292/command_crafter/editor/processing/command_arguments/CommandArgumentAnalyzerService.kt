@@ -8,6 +8,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.CompletionItem
 import java.util.*
 
@@ -34,6 +35,7 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
                     range: StringRange,
                     name: String,
                     reader: DirectiveStringReader<AnalyzingResourceCreator>,
+                    analyzingExecutor: NodeAnalyzingExecutor,
                     result: AnalyzingResult,
                 ) {
                     result.semanticTokens.addMultiline(range, TokenType.PARAMETER, 0)
@@ -79,6 +81,7 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     )
 

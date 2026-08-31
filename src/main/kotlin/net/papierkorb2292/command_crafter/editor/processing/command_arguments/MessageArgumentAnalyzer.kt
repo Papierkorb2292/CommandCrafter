@@ -8,6 +8,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.ENUM_MEMBER
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
 class MessageArgumentAnalyzer : CommandArgumentAnalyzerService<MessageArgument> {
     override val argumentTypes
@@ -19,6 +20,7 @@ class MessageArgumentAnalyzer : CommandArgumentAnalyzerService<MessageArgument> 
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         // TODO: Analyze selectors

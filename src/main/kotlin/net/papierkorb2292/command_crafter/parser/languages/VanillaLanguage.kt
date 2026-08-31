@@ -175,7 +175,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     // Add back trimmed chars so suggestions are placed correctly
                     reader.disableTrimmingFromEscapedMultiline()
                 }
-                analyzeParsedCommand(parseResults, result, reader)
+                analyzeParsedCommand(parseResults, result, reader, NodeAnalyzingExecutor.Immediate)
                 // Skip any spaces from disableTrimmingFromEscapedMultiline so they aren't interpreted as trailing data
                 reader.skipSpaces()
 
@@ -523,11 +523,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         result: ParseResults<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        firstContextSkipNodesAmount: Int = 0
+        analyzingExecutor: NodeAnalyzingExecutor,
+        firstContextSkipNodesAmount: Int = 0,
     ): CommandAnalyzingFootprint {
         var skipNodesAmount = firstContextSkipNodesAmount
         var contextBuilder = result.context
         var parentNode = getAnalyzingParsedRootNode(contextBuilder.rootNode, contextBuilder.range.start)
+        val footprint = CommandAnalyzingFootprint(0, null)
         while(contextBuilder != null) {
             for(parsedNode in contextBuilder.nodes) {
                 if(skipNodesAmount == 0) {
@@ -536,7 +538,9 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                         parentNode,
                         contextBuilder,
                         analyzingResult,
-                        reader
+                        reader,
+                        analyzingExecutor,
+                        footprint
                     )
                 } else {
                     --skipNodesAmount
@@ -545,13 +549,15 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             }
             contextBuilder = contextBuilder.child
         }
-        val nextNode = tryAnalyzeNextNode(
+        tryAnalyzeNextNode(
             analyzingResult,
             buildParentNodeForNextNodeAttempt(parentNode, reader.dispatcher),
             result.context.lastChild,
-            reader
+            reader,
+            analyzingExecutor,
+            footprint
         )
-        return CommandAnalyzingFootprint(nextNode)
+        return footprint
     }
 
     // Add root suggestions at the start of new lines for easyNewLine commands,
@@ -591,6 +597,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         contextBuilder: CommandContextBuilder<SharedSuggestionProvider>,
         analyzingResult: AnalyzingResult,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
+        footprint: CommandAnalyzingFootprint? = null,
         skipAnalyzedChars: Boolean = false,
     ) {
         val initialReadCharacters = reader.readCharacters
@@ -637,6 +645,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             range,
                             node.name,
                             analyzeReader,
+                            analyzingExecutor,
                             nodeAnalyzingResult
                         )
                     }
@@ -649,20 +658,24 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 reader.cursor = max(reader.cursor, analyzeReader.cursor)
                 reader.furthestAccessedCursor = max(reader.furthestAccessedCursor, analyzeReader.furthestAccessedCursor)
             }
-            analyzingResult.combineWithActual(nodeAnalyzingResult)
-            if(hasCustomCompletions)
-                analyzingResult.combineWithPotential(nodeAnalyzingResult, "_customSuggestions")
+            footprint?.semanticTokenCount += nodeAnalyzingResult.semanticTokens.multilineTokenCount
 
-            addNodeSuggestions(
-                parentNode,
-                analyzingResult,
-                if(skipAnalyzedChars) StringRange(parsedNode.range.start, max(parsedNode.range.end, reader.cursor)) else parsedNode.range, // Range could have increased if easyNewLine read following lines,
-                analyzeReader,
-                contextBuilder,
-                !easyNewLine,
-                if(!hasCustomCompletions) nodeAnalyzingResult else null,
-                rootSuggestionsResult
-            )
+            analyzingExecutor.submit {
+                analyzingResult.combineWithActual(nodeAnalyzingResult)
+                if(hasCustomCompletions)
+                    analyzingResult.combineWithPotential(nodeAnalyzingResult, "_customSuggestions")
+
+                addNodeSuggestions(
+                    parentNode,
+                    analyzingResult,
+                    if(skipAnalyzedChars) StringRange(parsedNode.range.start, max(parsedNode.range.end, reader.cursor)) else parsedNode.range, // Range could have increased if easyNewLine read following lines,
+                    analyzeReader,
+                    contextBuilder,
+                    !easyNewLine,
+                    if(!hasCustomCompletions) nodeAnalyzingResult else null,
+                    rootSuggestionsResult
+                )
+            }
         } finally {
             reader.readCharacters = initialReadCharacters
             reader.skippedChars = initialSkippedChars
@@ -768,7 +781,14 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         )
     }
 
-    private fun tryAnalyzeNextNode(analyzingResult: AnalyzingResult, parentNode: ParsedCommandNode<SharedSuggestionProvider>, context: CommandContextBuilder<SharedSuggestionProvider>, reader: DirectiveStringReader<AnalyzingResourceCreator>): CommandNode<SharedSuggestionProvider>? {
+    private fun tryAnalyzeNextNode(
+        analyzingResult: AnalyzingResult,
+        parentNode: ParsedCommandNode<SharedSuggestionProvider>,
+        context: CommandContextBuilder<SharedSuggestionProvider>,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
+        footprint: CommandAnalyzingFootprint
+    ) {
         val initialCursor = reader.cursor
         if(isReaderEasyNextLine(reader)) {
             // Don't skip more if a whitespace was already skipped, because the command parser won't skip both
@@ -825,7 +845,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             || furthestParsedContext.nodes.last().range <= parentNode.range
             ) {
             reader.cursor = initialCursor
-            return null
+            return
         }
         analyzeCommandNode(
             furthestParsedContext.nodes.last(),
@@ -833,10 +853,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             furthestParsedContext,
             analyzingResult,
             furthestParsedReader,
+            analyzingExecutor,
+            footprint,
             true // Ensure that the next command only starts after the end of this argument, so their AnalyzingResult contents don't intersect
         )
         reader.copyFrom(furthestParsedReader)
-        return furthestParsedContext.nodes.last().node
+        footprint.triedNextNode = furthestParsedContext.nodes.last().node
     }
 
     private fun buildParentNodeForNextNodeAttempt(parsedNode: ParsedCommandNode<SharedSuggestionProvider>, dispatcher: CommandDispatcher<SharedSuggestionProvider>): ParsedCommandNode<SharedSuggestionProvider> {
@@ -852,7 +874,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         return parsedNode
     }
 
-    data class CommandAnalyzingFootprint(val triedNextNode: CommandNode<SharedSuggestionProvider>?)
+    class CommandAnalyzingFootprint(var semanticTokenCount: Int, var triedNextNode: CommandNode<SharedSuggestionProvider>?)
 
     object VanillaLanguageType : LanguageManager.LanguageType {
         enum class VanillaLanguageOptions(val optionName: String) : StringRepresentable {
@@ -1236,10 +1258,11 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             range: StringRange,
             name: String,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            analyzingExecutor: NodeAnalyzingExecutor,
             result: AnalyzingResult,
         ) {
             @Suppress("UNCHECKED_CAST")
-            analyzer.analyze(context, type as TArgumentType, range, name, reader, result)
+            analyzer.analyze(context, type as TArgumentType, range, name, reader, analyzingExecutor, result)
         }
 
         private val tagEntryListCodec = TagEntry.CODEC.listOf()
@@ -1692,6 +1715,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
     interface CursorAwareException {
         fun `command_crafter$getCursor`(): Int
     }
+
     class CursorAwareExceptionWrapper(exception: Exception, val cursor: Int) : Exception(exception.message, exception), CursorAwareException {
         override fun `command_crafter$getCursor`(): Int {
             return cursor

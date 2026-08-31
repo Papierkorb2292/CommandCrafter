@@ -362,8 +362,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
 
         if(actualResult != null) {
             baseResult.semanticTokens.overlay(listOf(actualResult.semanticTokens).iterator())
-            actualResult.semanticTokens.clear()
-            baseResult.combineWithActual(actualResult)
+            baseResult.combineWithActualExceptTokens(actualResult)
         }
         for((potentialResult, escaper) in potentialResults) {
             baseResult.combineWithPotentialFinished(if(escaper != null) potentialResult.withStringEscaperPotential(escaper) else potentialResult)

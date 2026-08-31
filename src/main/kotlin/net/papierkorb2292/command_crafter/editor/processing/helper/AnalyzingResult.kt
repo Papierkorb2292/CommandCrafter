@@ -48,6 +48,10 @@ class AnalyzingResult(
 
     fun combineWithActual(other: AnalyzingResult) {
         semanticTokens.combineWith(other.semanticTokens)
+        combineWithActualExceptTokens(other)
+    }
+
+    fun combineWithActualExceptTokens(other: AnalyzingResult) {
         diagnostics += other.diagnostics
         colorInfos += other.colorInfos
         addSyntaxNodes(actualSyntaxNodes, other.actualSyntaxNodes)

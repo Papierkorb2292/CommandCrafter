@@ -15,6 +15,7 @@ import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.util.CompilableString;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing;
 import net.papierkorb2292.command_crafter.parser.Language;
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -47,6 +48,8 @@ public class EntitySelectorMixin {
                             new CommandContextBuilder<>(reader.getDispatcher(), reader.getResourceCreator().getSource(), rootNode, reader.getCursor()),
                             result,
                             reader,
+                            NodeAnalyzingExecutor.Immediate.INSTANCE,
+                            null,
                             false
                     );
                 }

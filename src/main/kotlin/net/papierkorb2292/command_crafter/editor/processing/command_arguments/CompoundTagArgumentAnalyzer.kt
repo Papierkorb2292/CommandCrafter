@@ -15,11 +15,18 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.Da
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
 class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagArgument> {
     companion object {
-        fun analyzeReader(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, branchBehaviorProvider: BranchBehaviorProvider<Tag>?, decoder: Decoder<*>?) {
+        fun analyzeReader(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            result: AnalyzingResult,
+            branchBehaviorProvider: BranchBehaviorProvider<Tag>?,
+            decoder: Decoder<*>?,
+            analyzingExecutor: NodeAnalyzingExecutor,
+        ) {
             val nbtReader = TagParser.create(NbtOps.INSTANCE)
             (nbtReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
             (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
@@ -27,7 +34,8 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
             @Suppress("UNCHECKED_CAST")
             (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
             val nbt: Tag = nbtReader.parseAsArgument(reader)
-            if(decoder != null) {
+            if(decoder == null) return
+            analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
                 val tree: StringRangeTree<Tag> = treeBuilder.build(nbt)
                 TreeOperations.forNbt(tree, reader)
                     .withDiagnosticSeverity(DiagnosticSeverity.Warning)
@@ -46,6 +54,7 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
         val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
@@ -54,7 +63,8 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
             reader,
             result,
             dataObjectSource?.getNBTBranchBehavior(),
-            decoder
+            decoder,
+            analyzingExecutor,
         )
     }
 }
