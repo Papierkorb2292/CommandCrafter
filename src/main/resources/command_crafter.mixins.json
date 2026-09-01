@@ -112,6 +112,7 @@
     "editor.processing.NbtContentsMixin",
     "editor.processing.NbtPathArgumentMixin",
     "editor.processing.NbtPathArgumentNbtPathMixin",
+    "editor.processing.ObjectiveCriteriaArgumentMixin",
     "editor.processing.ParserBasedArgumentMixin",
     "editor.processing.ParticleArgumentMixin",
     "editor.processing.PlaceCommandMixin",
