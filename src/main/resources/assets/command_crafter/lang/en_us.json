@@ -8,5 +8,9 @@
   "command_crafter.reload.shaders": "[CommandCrafter] Reloading shaders...",
   "command_crafter.debug.inspect.item": "[CommandCrafter] Copied item data to clipboard",
   "command_crafter.debug.inspect.item.default": "[CommandCrafter] Copied Default item data to clipboard",
+  "commands.command_crafter.datagen.no_path_abort": "[CommandCrafter] No directory selected, aborting data export",
+  "commands.command_crafter.datagen.clientside.success": "[CommandCrafter] Successfully exported clientside data to %s",
+  "commands.command_crafter.datagen.serverside.success": "[CommandCrafter] Successfully exported serverside data to %s",
+  "commands.command_crafter.datagen.open": " (Open folder)",
   "gamerule.command_crafter.shorten_nbt": "CommandCrafter: Shorten NBT"
 }

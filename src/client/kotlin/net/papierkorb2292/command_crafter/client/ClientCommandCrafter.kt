@@ -9,8 +9,11 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import net.fabricmc.api.ClientModInitializer
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
+import net.minecraft.ChatFormatting
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.font.FontManager
 import net.minecraft.client.renderer.PostChainConfig
@@ -22,6 +25,10 @@ import net.minecraft.client.resources.metadata.language.LanguageMetadataSection
 import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.FileToIdConverter
+import net.minecraft.resources.Identifier
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.world.flag.FeatureFlags
 import net.minecraft.world.item.ItemStack
@@ -29,6 +36,7 @@ import net.minecraft.world.item.equipment.ArmorType
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
 import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
+import net.papierkorb2292.command_crafter.datagen.ModdedDatagenRunner
 import net.papierkorb2292.command_crafter.editor.EditorConnectionManager
 import net.papierkorb2292.command_crafter.editor.McFunctionAnalyzer
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
@@ -51,8 +59,13 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
+import org.lwjgl.util.tinyfd.TinyFileDialogs
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import kotlin.io.path.createDirectories
 
 object ClientCommandCrafter : ClientModInitializer {
     override fun onInitializeClient() {
@@ -60,6 +73,7 @@ object ClientCommandCrafter : ClientModInitializer {
             // Delay initialization to ensure that the game is fully loaded when the dynamicRegistryManager is created
             initializeEditor()
         }
+        registerDatagenCommand()
     }
 
     val defaultFeatureSet = FeatureFlags.REGISTRY.allFlags()
@@ -247,6 +261,85 @@ object ClientCommandCrafter : ClientModInitializer {
                 parsedNode = ParsedCommandNode(parsedNode.node, StringRange(parsedNode.range.start, reader.string.length))
         }
         return if(parsedNode != null && context != null) parsedNode to context else null
+    }
+
+    fun registerDatagenCommand() {
+        ClientCommandRegistrationCallback.EVENT.register { clientDispatcher, buildContext ->
+            clientDispatcher.register(
+                ClientCommands.literal("commandcrafter:datagen")
+                    .executes { context ->
+                        val pathRaw = TinyFileDialogs.tinyfd_selectFolderDialog("Export location", null)
+                        if(pathRaw == null) {
+                            context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                            return@executes 0
+                        }
+                        val path = try {
+                            Path.of(pathRaw)
+                        } catch(_: InvalidPathException) {
+                            context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                            return@executes 0
+                        }
+                        if(!Files.exists(path))
+                            path.createDirectories()
+                        if(!Files.isDirectory(path)) {
+                            context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                            return@executes 0
+                        }
+                        val hasServerConnection = editorConnectionManager.minecraftServerConnection !is ClientDummyServerConnection
+                        val playerConnection = Minecraft.getInstance().player!!.connection
+                        val dispatcher = if(hasServerConnection) {
+                            editorConnectionManager.minecraftServerConnection.commandDispatcher
+                        } else {
+                            // Use the player's dispatcher as fallback, because that one might still have some server commands (assuming the player is admin)
+                            // If the user is not an admin and doesn't want the server commands, they could export it in a singleplayer world instead
+                            playerConnection.commands
+                        }
+                        val datagenPath = Path.of("datagen")
+                        ModdedDatagenRunner.exportToDirectory(
+                            dispatcher,
+                            editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
+                                    path.resolve(datagenPath),
+                            false,
+                            getAdditionalDatagenRegistries()
+                        )
+                        ModdedDatagenRunner.generateSpyglassConfig(path, datagenPath)
+                        val successTranslation = if(hasServerConnection) "commands.command_crafter.datagen.serverside.success" else "commands.command_crafter.datagen.clientside.success"
+                        val pathComponent = Component.literal("")
+                            .append(Component.translatable(path.toAbsolutePath().toString())
+                                .withStyle(ChatFormatting.UNDERLINE))
+                            .append(Component.translatable("commands.command_crafter.datagen.open")
+                                .withStyle(ChatFormatting.AQUA))
+                            .withStyle {
+                                it.withClickEvent(ClickEvent.OpenFile(path.toAbsolutePath().toString()))
+                            }
+                        context.getSource().sendFeedback(Component.translatable(successTranslation, pathComponent).withStyle(ChatFormatting.GREEN))
+                        1
+                    }
+            )
+        }
+    }
+
+    private fun getAdditionalDatagenRegistries(): Map<Identifier, List<Identifier>> {
+        // Query all necessary assets
+        val assets = mapOf(
+            "atlas" to "atlases",
+            "block_definition" to "blockstates",
+            "equipment" to "equipment",
+            "font" to "font",
+            "item_definition" to "items",
+            "lang" to "lang",
+            "model" to "models",
+            "post_effect" to "post_effect",
+        )
+        val resourceManager = Minecraft.getInstance().resourceManager
+        return assets
+            .mapKeys { Identifier.withDefaultNamespace(it.key) }
+            .mapValues {
+                val converter = FileToIdConverter.json(it.value)
+                converter.listMatchingResources(resourceManager)
+                    .keys
+                    .map(converter::fileToId)
+            }
     }
 
     val clientsideJsonResourceCodecs = mutableMapOf(

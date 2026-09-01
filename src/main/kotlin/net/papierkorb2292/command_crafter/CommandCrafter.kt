@@ -19,6 +19,7 @@ import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
 import net.minecraft.server.notifications.EmptyNotificationService
 import net.minecraft.server.permissions.LevelBasedPermissionSet
@@ -35,6 +36,7 @@ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
+import net.papierkorb2292.command_crafter.datagen.ModdedDatagenRunner
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler.isPlayerAllowedConnection
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
@@ -47,6 +49,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.Scorebo
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ReadDirectoryResultEntry
 import net.papierkorb2292.command_crafter.helper.UnitTypeAdapter
+import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.networking.packets.NotifyCanReloadWorldgenS2CPacket
 import net.papierkorb2292.command_crafter.parser.*
@@ -65,7 +68,10 @@ import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
 import java.io.PrintWriter
 import java.lang.reflect.InvocationTargetException
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.ExecutorService
+import kotlin.io.path.createDirectories
 
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"
@@ -116,6 +122,11 @@ object CommandCrafter: ModInitializer {
                 // Delayed to every mod had time to add its own registries
                 registerDynamicRegistries()
                 registerRegistryTags()
+
+                val serverDatagen = System.getProperty("cc_server_datagen_dir")
+                if(serverDatagen != null) {
+                    runServersideDatagen(serverDatagen, it)
+                }
             }
 
             if(config.runDedicatedServerServices) {
@@ -334,6 +345,31 @@ object CommandCrafter: ModInitializer {
             if(!key.startsWith('/')) continue
             literalsIt.remove()
             children.remove(key)
+        }
+    }
+
+    fun runServersideDatagen(pathRaw: String, server: MinecraftServer) {
+        try {
+            val path = Path.of(pathRaw)
+            if(!Files.exists(path))
+                path.createDirectories()
+            if(!Files.isDirectory(path)) {
+                LOGGER.error("Error running serverside datagen: No directory at destination")
+                return
+            }
+
+            val datagenPath = Path.of("datagen")
+            ModdedDatagenRunner.exportToDirectory(
+                server.commands.dispatcher,
+                server.lootRegistries,
+                path.resolve(datagenPath),
+                false,
+            )
+            ModdedDatagenRunner.generateSpyglassConfig(path, datagenPath)
+
+            LOGGER.info("Successfully exported serverside data to {}", path.toAbsolutePath())
+        } catch(e: Exception) {
+            LOGGER.error("Error running serverside datagen", e)
         }
     }
 }
