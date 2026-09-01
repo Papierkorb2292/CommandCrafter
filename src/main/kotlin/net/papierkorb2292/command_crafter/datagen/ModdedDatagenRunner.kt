@@ -118,7 +118,10 @@ object ModdedDatagenRunner {
     }
 
     fun generateSpyglassConfig(outputPath: Path, relativeDatagenPath: Path) {
-        getJsonWriter(outputPath.resolve("spyglass.json")).use { writer ->
+        val configPath = outputPath.resolve("spyglass.json")
+        if(Files.exists(configPath))
+            return // Don't overwrite existing config, since it might already contain data
+        getJsonWriter(configPath).use { writer ->
             val json = JsonObject()
 
             val env = JsonObject()
