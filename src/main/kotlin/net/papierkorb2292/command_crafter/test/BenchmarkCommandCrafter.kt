@@ -17,7 +17,7 @@ object BenchmarkCommandCrafter {
     val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
     val benchmarkResults = mutableListOf<BenchmarkResult>()
 
-    @GameTest
+    //@GameTest
     fun benchmarkMacros(context: GameTestHelper) {
         val lines = $$"""
             $execute $(this_is_slow)run dialog show @a {type:"notice",title:"Test",action:{action:{\
@@ -26,6 +26,16 @@ object BenchmarkCommandCrafter {
         """.trimIndent().lines()
         benchmark("Test Macros", 500, 500) {
             TestCommandCrafter.analyseCommand(context, lines)
+        }
+        context.succeed()
+    }
+
+    @GameTest
+    fun benchmarkMacroExhaustiveCompletions(context: GameTestHelper) {
+        val lines = listOf("$$() ")
+        val analyzingResult = TestCommandCrafter.analyseCommand(context, lines)
+        benchmark("Test Macro Completions", 500, 500) {
+            analyzingResult.getCompletions(5, null)!!.get()
         }
         context.succeed()
     }
