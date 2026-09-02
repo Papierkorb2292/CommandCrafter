@@ -1,0 +1,75 @@
+package net.papierkorb2292.command_crafter.editor.processing.command_arguments
+
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.EntityArgument
+import net.minecraft.commands.arguments.selector.EntitySelectorParser
+import net.minecraft.world.entity.EntityTypes
+import net.minecraft.world.entity.player.Player
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
+import org.eclipse.lsp4j.Diagnostic
+import org.eclipse.lsp4j.DiagnosticSeverity
+
+class EntityArgumentAnalyzer : CommandArgumentAnalyzerService<EntityArgument> {
+    companion object {
+        fun analyzeReader(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, range: StringRange, allowPlayers: Boolean) {
+            val dataObjectDecoding = DataObjectDecoding.getForReader(reader)
+            val filterReader = EntitySelectorParser(reader.copy(), true)
+            @Suppress("KotlinConstantConditions")
+            (filterReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
+            val allowedEntities = try {
+                dataObjectDecoding.getEntityChangeCandidates(filterReader, true)
+            } catch(_: Exception) { dataObjectDecoding.dummyEntities.values }
+            val selectorReader = EntitySelectorParser(reader, true)
+            (selectorReader as AnalyzingResultDataContainer).`command_crafter$setAnalyzingResult`(result)
+            (selectorReader as AllowMalformedContainer).`command_crafter$setAllowMalformed`(true)
+            DataObjectDecoding.SELECTOR_NBT_DECODER.runWithValueSwap(
+                dataObjectDecoding.getConditionDecoderForEntities(
+                    if(allowPlayers) allowedEntities
+                    else allowedEntities.filter { it !is Player }
+                )
+            ) {
+                try {
+                    selectorReader.parse()
+                } catch(_: CommandSyntaxException) { }
+            }
+
+
+            if(!allowPlayers && allowedEntities.size == 1 && allowedEntities.first().type == EntityTypes.PLAYER) {
+                result.diagnostics.add(
+                    Diagnostic(
+                        result.mappingInfo.mapToDiagnosticFileRange(range),
+                        "Selector targets only players, but players can't be modified"
+                    ).apply {
+                        severity = DiagnosticSeverity.Warning
+                    })
+            }
+        }
+    }
+
+    override val argumentTypes: List<Class<out EntityArgument>>
+        get() = listOf(EntityArgument::class.java)
+
+    override fun analyze(
+        context: CommandContext<SharedSuggestionProvider>,
+        type: EntityArgument,
+        range: StringRange,
+        name: String,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
+        result: AnalyzingResult,
+    ) {
+        val nonPlayerSelector = (type as IsNonPlayerSelector).`command_crafter$getIsNonPlayerSelector`()
+        analyzeReader(reader, result, range, !nonPlayerSelector)
+    }
+}

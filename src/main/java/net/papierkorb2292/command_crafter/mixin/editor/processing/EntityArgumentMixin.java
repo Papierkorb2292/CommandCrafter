@@ -4,21 +4,12 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.context.StringRange;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingCommandNode;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
-import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
+import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
-import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,15 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(EntityArgument.class)
-public class EntityArgumentMixin implements AnalyzingCommandNode {
-
-    @Override
-    public void command_crafter$analyze(@NotNull CommandContext<SharedSuggestionProvider> context, @NotNull StringRange range, @NotNull DirectiveStringReader<AnalyzingResourceCreator> reader, @NotNull AnalyzingResult result, @NotNull String name) throws CommandSyntaxException {
-        var selectorReader = new EntitySelectorParser(reader, true);
-        ((AnalyzingResultDataContainer)selectorReader).command_crafter$setAnalyzingResult(result);
-        ((AllowMalformedContainer)selectorReader).command_crafter$setAllowMalformed(true);
-        selectorReader.parse();
-    }
+public class EntityArgumentMixin implements IsNonPlayerSelector {
 
     @ModifyExpressionValue(
             method = "listSuggestions",
@@ -69,5 +52,17 @@ public class EntityArgumentMixin implements AnalyzingCommandNode {
     private int command_crafter$fixMC272429(int cursor, @Share("startCursor") LocalIntRef startPos) {
         // Minecraft would reset the cursor all the way to zero, which leads to bad error messages
         return cursor == 0 ? startPos.get() : cursor;
+    }
+
+    private boolean command_crafter$isNonPlayerSelector;
+
+    @Override
+    public void command_crafter$setIsNonPlayerSelector(boolean isNonPlayerSelector) {
+        command_crafter$isNonPlayerSelector = isNonPlayerSelector;
+    }
+
+    @Override
+    public boolean command_crafter$getIsNonPlayerSelector() {
+        return command_crafter$isNonPlayerSelector;
     }
 }

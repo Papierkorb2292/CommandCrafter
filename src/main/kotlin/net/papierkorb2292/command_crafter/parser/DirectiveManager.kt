@@ -5,7 +5,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
-import net.papierkorb2292.command_crafter.editor.processing.CombinedCompletionItemProvider
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.CombinedPotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.SimpleCompletionItemProvider
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -31,7 +32,7 @@ class DirectiveManager {
         reader.skip()
     }
 
-    fun readDirectiveAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
+    fun readDirectiveAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, analyzingResult: AnalyzingResult) {
         fun endDirective() {
             if(!reader.canRead()) return
             if(reader.peek() != '\n') {
@@ -96,9 +97,10 @@ class DirectiveManager {
      * and don't replace any text.
      */
     fun suggestDirectives(range: StringRange, analyzingResult: AnalyzingResult, replaceRange: Boolean = false) {
-        analyzingResult.addCompletionProviderWithContinuosMapping(
+        analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
             AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
-            AnalyzingResult.RangedDataProvider(range, CombinedCompletionItemProvider(
+            range,
+            CombinedPotentialSyntaxNode(
                 DIRECTIVES.keySet().map {
                     SimpleCompletionItemProvider(
                         "@" + it.toShortString(),
@@ -107,12 +109,12 @@ class DirectiveManager {
                         analyzingResult.mappingInfo.copy(),
                     )
                 }
-            ))
+            )
         )
     }
 
     interface DirectiveType {
         fun read(reader: DirectiveStringReader<*>)
-        fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult)
+        fun readAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, analyzingResult: AnalyzingResult)
     }
 }

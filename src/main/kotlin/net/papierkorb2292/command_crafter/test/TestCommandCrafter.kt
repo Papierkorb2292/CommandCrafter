@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.test
 
 import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
@@ -20,20 +21,30 @@ import net.minecraft.commands.arguments.item.ItemArgument
 import net.minecraft.commands.arguments.item.ItemPredicateArgument
 import net.minecraft.commands.functions.StringTemplate
 import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.nbt.ByteTag
+import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.Vec3
+import net.papierkorb2292.command_crafter.editor.OpenFile
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
+import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
+import net.papierkorb2292.command_crafter.helper.lootRegistries
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.*
-import net.papierkorb2292.command_crafter.parser.helper.MacroCursorMapperProvider
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.StringifiableCommandNode
+import net.papierkorb2292.command_crafter.parser.helper.getCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
@@ -48,6 +59,8 @@ object TestCommandCrafter {
     val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
     val snapshotDirectory = projectDirectory.resolve("tests/__snapshots__")
     val inputDirectory = projectDirectory.resolve("tests/inputs")
+
+    val dummyCompletionContext = CompletionContext(CompletionTriggerKind.Invoked)
 
     @GameTest
     fun exampleTest(context: GameTestHelper) {
@@ -72,11 +85,11 @@ object TestCommandCrafter {
         val macroInvocation = StringTemplate.fromString("say $(greeting), $(name)!")
         val arguments = listOf("What's up", "your highness")
         @Suppress("CAST_NEVER_SUCCEEDS")
-        val cursorMapper = (macroInvocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(arguments)
-        context.assertValueEqual(intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length), cursorMapper.sourceCursors,
+        val cursorMapper = macroInvocation.getCursorMapper(arguments)
+        context.assertValueEqual(cursorMapper.sourceCursors, intListOf("".length, "say $(greeting)".length, "say $(greeting), $(name)".length),
             Component.literal("source_cursors"))
-        context.assertValueEqual(intListOf("".length, "say What's up".length, "say What's up, your highness".length), cursorMapper.targetCursors, Component.literal("target_cursors"))
-        context.assertValueEqual(intListOf("say ".length, ", ".length, "!".length), cursorMapper.lengths, Component.literal("lengths"))
+        context.assertValueEqual(cursorMapper.targetCursors, intListOf("".length, "say What's up".length, "say What's up, your highness".length), Component.literal("target_cursors"))
+        context.assertValueEqual(cursorMapper.lengths, intListOf("say ".length, ", ".length, "!".length), Component.literal("lengths"))
         context.succeed()
     }
 
@@ -85,10 +98,10 @@ object TestCommandCrafter {
         val macroInvocation = StringTemplate.fromString("say $(message)")
         val arguments = listOf("foo")
         @Suppress("CAST_NEVER_SUCCEEDS")
-        val cursorMapper = (macroInvocation as MacroCursorMapperProvider).`command_crafter$getCursorMapper`(arguments)
-        context.assertValueEqual(intListOf("".length, "say $(message)".length), cursorMapper.sourceCursors, Component.literal("source_cursors"))
-        context.assertValueEqual(intListOf("".length, "say foo".length), cursorMapper.targetCursors, Component.literal("target_cursors"))
-        context.assertValueEqual(intListOf("say ".length, "".length), cursorMapper.lengths, Component.literal("lengths"))
+        val cursorMapper = macroInvocation.getCursorMapper(arguments)
+        context.assertValueEqual(cursorMapper.sourceCursors, intListOf("".length, "say $(message)".length), Component.literal("source_cursors"))
+        context.assertValueEqual(cursorMapper.targetCursors, intListOf("".length, "say foo".length), Component.literal("target_cursors"))
+        context.assertValueEqual(cursorMapper.lengths, intListOf("say ".length, "".length), Component.literal("lengths"))
         context.succeed()
     }
 
@@ -117,18 +130,18 @@ object TestCommandCrafter {
         )
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(lines)
 
-        context.assertValueEqual(listOf(
+        context.assertValueEqual(processedLines, listOf(
             "first line",
             "second line",
             "third line",
-        ), processedLines, Component.literal("Removing marker characters"))
+        ), Component.literal("Removing marker characters"))
 
-        context.assertValueEqual(listOf(
+        context.assertValueEqual(markedLocations, listOf(
             FileLocation(Position(0, 0), 0),
             FileLocation(Position(1, 6), 17),
             FileLocation(Position(1, 7), 18),
             FileLocation(Position(2, 10), 33)
-        ), markedLocations, Component.literal("Parsing marked locations"))
+        ), Component.literal("Parsing marked locations"))
 
         context.succeed()
     }
@@ -150,23 +163,23 @@ object TestCommandCrafter {
         )
 
         context.assertValueEqual(
-            markedLocations[0].position,
             markedLocations[1].position.clampCompletionToCursor(0, 0, mappingInfo),
+            markedLocations[0].position,
             Component.literal("Clamp to previous line without cursor mapper")
         )
         context.assertValueEqual(
-            markedLocations[3].position,
             markedLocations[1].position.clampCompletionToCursor(2, mappingInfo.accumulatedLineLengths[1], mappingInfo),
+            markedLocations[3].position,
             Component.literal("Clamp to later line without cursor mapper")
         )
         context.assertValueEqual(
-            markedLocations[2].position,
             markedLocations[3].position.clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            markedLocations[2].position,
             Component.literal("Clamp to previous line with cursor mapper")
         )
         context.assertValueEqual(
-            markedLocations[1].position,
             markedLocations[0].position.clampCompletionToCursor(1, mappingInfo.cursorMapper.sourceCursors[0], mappingInfo),
+            markedLocations[1].position,
             Component.literal("Clamp to later line with cursor mapper")
         )
 
@@ -210,7 +223,85 @@ object TestCommandCrafter {
 
         baseTokens.overlay(listOf(overlayTokens).iterator())
 
-        context.assertValueEqual(expectedTokens.build().data, baseTokens.build().data, Component.literal("token data"))
+        context.assertValueEqual(baseTokens.build().data, expectedTokens.build().data, Component.literal("token data"))
+        context.succeed()
+    }
+
+    @GameTest
+    fun testRemoveTokensInRanges(context: GameTestHelper) {
+        val actualTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+        val expectedTokens = SemanticTokensBuilder(FileMappingInfo(listOf()))
+
+        actualTokens.add(0, 0, 5, TokenType.NUMBER, 0)
+        actualTokens.add(0, 10, 5, TokenType.STRING, 0)
+        actualTokens.add(0, 20, 5, TokenType.NUMBER, 0)
+        actualTokens.add(1, 0, 10, TokenType.STRING, 0)
+        actualTokens.add(1, 15, 10, TokenType.NUMBER, 0)
+        actualTokens.add(2, 0, 10, TokenType.STRING, 0)
+        actualTokens.add(3, 0, 20, TokenType.NUMBER, 0)
+        actualTokens.add(4, 5, 5, TokenType.STRING, 0)
+
+        expectedTokens.add(0, 0, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(0, 10, 2, TokenType.STRING, 0)
+        expectedTokens.add(0, 22, 3, TokenType.NUMBER, 0)
+        expectedTokens.add(1, 0, 5, TokenType.STRING, 0)
+        expectedTokens.add(2, 5, 5, TokenType.STRING, 0)
+        expectedTokens.add(3, 0, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(3, 15, 5, TokenType.NUMBER, 0)
+        expectedTokens.add(4, 5, 5, TokenType.STRING, 0)
+
+        actualTokens.removeTokensInRanges(listOf(
+            Range(Position(0, 12), Position(0, 22)),
+            Range(Position(1, 5), Position(2, 5)),
+            Range(Position(3, 5), Position(3, 15))
+        ))
+
+        context.assertValueEqual(actualTokens.build().data, expectedTokens.build().data, Component.literal("token data"))
+        context.succeed()
+    }
+
+    @GameTest
+    fun testTokenPositionMapper(context: GameTestHelper) {
+        // Test adding and removing characters (single-line shifts)
+        run {
+            val lines = listOf("0123456789")
+            val sample = SemanticTokensBuilder(FileMappingInfo(lines))
+            val expected = SemanticTokensBuilder(FileMappingInfo(lines))
+
+            // Two tokens: one before the mapping and one after
+            sample.add(0, 0, 1, TokenType.NUMBER, 0)
+            sample.add(0, 5, 1, TokenType.NUMBER, 0)
+
+            // Expect the second token to be shifted +2 chars
+            expected.add(0, 0, 1, TokenType.NUMBER, 0)
+            expected.add(0, 7, 1, TokenType.NUMBER, 0)
+
+            val mapper = sample.TokenPositionMapper()
+            // Move the source position from char 2 to char 4 (adds 2 characters)
+            mapper.addMapping(Position(0, 2), Position(0, 4))
+
+            context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: add characters"))
+        }
+
+        run {
+            val lines = listOf("0123456789")
+            val sample = SemanticTokensBuilder(FileMappingInfo(lines))
+            val expected = SemanticTokensBuilder(FileMappingInfo(lines))
+
+            sample.add(0, 0, 1, TokenType.NUMBER, 0)
+            sample.add(0, 5, 1, TokenType.NUMBER, 0)
+
+            // Expect the second token to be shifted -1 char
+            expected.add(0, 0, 1, TokenType.NUMBER, 0)
+            expected.add(0, 4, 1, TokenType.NUMBER, 0)
+
+            val mapper = sample.TokenPositionMapper()
+            // Move the source position from char 2 to char 1 (removes 1 character)
+            mapper.addMapping(Position(0, 2), Position(0, 1))
+
+            context.assertValueEqual(sample.build().data, expected.build().data, Component.literal("token position mapper: remove characters"))
+        }
+
         context.succeed()
     }
 
@@ -242,10 +333,14 @@ object TestCommandCrafter {
             val fileRange = StringRange(0, fileInfo.accumulatedLineLengths.last())
 
             // An example completion that just inserts "Example" at the cursor position everywhere in the file
-            result.addCompletionProvider(
+            result.addPotentialSyntaxNode(
                 AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
-                AnalyzingResult.RangedDataProvider(fileRange) { cursor ->
-                    CompletableFuture.completedFuture(listOf(CompletionItem().apply {
+                fileRange,
+                object : PotentialSyntaxNode {
+                    override fun getCompletions(
+                        cursor: Int,
+                        context: CompletionContext?
+                    ) = CompletableFuture.completedFuture(listOf(CompletionItem().apply {
                         label = "Example"
                         textEdit = Either.forLeft(TextEdit().apply {
                             newText = "Example"
@@ -254,7 +349,6 @@ object TestCommandCrafter {
                         })
                     }))
                 },
-                false
             )
             val lastPos = AnalyzingResult.getPositionFromCursor(fileRange.end, fileInfo)
             // An example error at the end of the file
@@ -274,28 +368,28 @@ object TestCommandCrafter {
             val completionExamplePosition = firstFilePart.length + secondFilePart.length/2
 
             context.assertValueEqual(
-                fullResult.getCompletionProviderForCursor(completionExamplePosition)!!.dataProvider(completionExamplePosition).get(),
-                offsetResult.getCompletionProviderForCursor(completionExamplePosition)!!.dataProvider(completionExamplePosition).get(),
+                offsetResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
+                fullResult.getCompletions(completionExamplePosition, dummyCompletionContext)!!.get(),
                 Component.literal("completions from $description")
             )
             context.assertValueEqual(
-                fullResult.diagnostics,
                 offsetResult.diagnostics,
+                fullResult.diagnostics,
                 Component.literal("diagnostics from $description")
             )
             context.assertValueEqual(
-                fullResult.semanticTokens.build().data,
                 offsetResult.semanticTokens.build().data,
+                fullResult.semanticTokens.build().data,
                 Component.literal("semantic tokens from $description")
             )
             context.assertValueEqual(
-                fullResult.semanticTokens.lastLine,
                 offsetResult.semanticTokens.lastLine,
+                fullResult.semanticTokens.lastLine,
                 Component.literal("semantic tokens last line from $description")
             )
             context.assertValueEqual(
-                fullResult.semanticTokens.lastCursor,
                 offsetResult.semanticTokens.lastCursor,
+                fullResult.semanticTokens.lastCursor,
                 Component.literal("semantic tokens last cursor from $description")
             )
         }
@@ -414,6 +508,44 @@ object TestCommandCrafter {
     }
 
     @GameTest
+    fun testPositionDifference(context: GameTestHelper) {
+        context.assertValueEqual(
+            Position(0, 5).differenceTo(Position(0, 25), true),
+            Position(0, 20),
+            "singleline difference on line 0, zero-based"
+        )
+        context.assertValueEqual(
+            Position(5, 5).differenceTo(Position(5, 25), true),
+            Position(0, 20),
+            "singleline difference on line 5, zero-based"
+        )
+        context.assertValueEqual(
+            Position(5, 42).differenceTo(Position(10, 20), true),
+            Position(5, 20),
+            "multiline difference, zero-based"
+        )
+
+
+        context.assertValueEqual(
+            Position(1, 5).differenceTo(Position(1, 25), false),
+            Position(1, 21),
+            "singleline difference on line 1, one-based"
+        )
+        context.assertValueEqual(
+            Position(5, 5).differenceTo(Position(5, 25), false),
+            Position(1, 21),
+            "singleline difference on line 5, one-based"
+        )
+        context.assertValueEqual(
+            Position(5, 42).differenceTo(Position(9, 21), false),
+            Position(5, 21),
+            "multiline difference, one-based"
+        )
+
+        context.succeed()
+    }
+
+    @GameTest
     fun testCommandSuggestions(context: GameTestHelper) {
         val markedLines = """
             §execute §\
@@ -439,8 +571,7 @@ object TestCommandCrafter {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
                 analyzingResult
-                    .getCompletionProviderForCursor(absoluteCursor)!!
-                    .dataProvider(absoluteCursor)
+                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
                     .any { it.label == "execute" },
                 Component.literal("Root suggestions for marker at index $rootIndex")
@@ -450,8 +581,7 @@ object TestCommandCrafter {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
                 analyzingResult
-                    .getCompletionProviderForCursor(absoluteCursor)!!
-                    .dataProvider(absoluteCursor)
+                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
                     .any { it.label == "if" },
                 Component.literal("Subcommand suggestions for marker at index $rootIndex")
@@ -461,8 +591,7 @@ object TestCommandCrafter {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
                 analyzingResult
-                    .getCompletionProviderForCursor(absoluteCursor)!!
-                    .dataProvider(absoluteCursor)
+                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
                     .any { it.label == "condition" },
                 Component.literal("Predicate suggestions for marker at index $rootIndex")
@@ -484,8 +613,7 @@ object TestCommandCrafter {
 
         for((i, location) in markedLocations.withIndex()) {
             context.assertFalse(
-                analyzingResult.getCompletionProviderForCursor(location.absoluteCursor)
-                    ?.dataProvider(location.absoluteCursor)
+                analyzingResult.getCompletions(location.absoluteCursor, dummyCompletionContext)
                     ?.get()
                     .isNullOrEmpty(),
                 Component.literal("Item predicate suggestions for marker at $i")
@@ -493,41 +621,139 @@ object TestCommandCrafter {
         }
 
         context.assertFalse(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[4].absoluteCursor)!!
-                .dataProvider(markedLocations[4].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[4].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "!" || it.label == "," },
             Component.literal("Suggestion leaking into item predicate nbt")
         )
         context.assertTrue(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[1].absoluteCursor)!!
-                .dataProvider(markedLocations[1].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[1].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "!" },
             Component.literal("No '!' suggestion in item predicate")
         )
         context.assertFalse(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[8].absoluteCursor)!!
-                .dataProvider(markedLocations[8].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[8].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "!" || it.label == "," },
             Component.literal("Suggestion leaking into item argument nbt")
         )
         context.assertTrue(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[10].absoluteCursor)!!
-                .dataProvider(markedLocations[10].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[10].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "!" },
             Component.literal("No '!' suggestion in item argument")
         )
         context.assertTrue(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[6].absoluteCursor)!!
-                .dataProvider(markedLocations[6].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[6].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "minecraft:diamond" },
             Component.literal("No item suggestion in item argument")
         )
 
         context.assertFalse(
-            analyzingResult.getCompletionProviderForCursor(markedLocations[3].absoluteCursor)!!
-                .dataProvider(markedLocations[3].absoluteCursor).get()
+            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get()
                 .any { it.label == "~" },
             Component.literal("Item predicate '~' suggestion after '='")
+        )
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testEntityMergeNbtAnalyzing(context: GameTestHelper) {
+        val markedLines = """
+            data merge entity @s {§NoAI:1b,CustomName:[§{}]}
+            # This can't be combined with the first command, because you wouldn't get all click_event suggestions inside a list, where no merging can happen
+            data merge entity @s {CustomName:{click_event:{§}}}
+            data merge entity @s {Item:{components:{entity_data:{Passengers:[{CustomName:{click_event:{§}}}]}}}}
+            data merge entity @s {Item:{components:{entity_data:{Passengers:[§{}]}}}}
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val analyzingResult = analyseCommand(context, processedLines)
+        val multipleSuggestionsLocationIndices = listOf(0, 2)
+        for(index in multipleSuggestionsLocationIndices) {
+            val absoluteCursor = markedLocations[index].absoluteCursor
+            context.assertTrue(
+                analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!!.get().size >= 5,
+                "Multiple suggestions at index $index"
+            )
+        }
+
+        context.assertValueEqual(
+            1,
+            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get().size,
+            "Suggestion count for click_event inside list"
+        )
+
+        context.assertTrue(
+            analyzingResult.diagnostics.any { it.range.start == markedLocations[1].position },
+            "Error for missing keys inside a merged list"
+        )
+        context.assertTrue(
+            analyzingResult.diagnostics.any { it.range.start == markedLocations[4].position },
+            "Error for missing passenger id"
+        )
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testDecoderErrorTracking(context: GameTestHelper) {
+        val markedLines = """
+            execute if predicate {condition:"location_check",predicate:{block:{blocks:"chest",nbt:"{§"}}}
+            give @a[nbt={RootVehicle:{Entity:{NoAI:§""}},equipment:{chest:{components:{"minecraft:custom_data":{my_val:true}}}}}] \
+                minecraft:diamond[custom_name=§{color:"blue"}]
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
+
+        val analyzingResult = analyseCommand(context, processedLines)
+
+        context.assertValueEqual(analyzingResult.diagnostics.size, 3, "Diagnostics count")
+        context.assertValueEqual(analyzingResult.diagnostics[0].range.start, markedLocations[0].position, "First diagnostic start")
+        context.assertValueEqual(analyzingResult.diagnostics[1].range.start, markedLocations[1].position, "Second diagnostic start")
+        context.assertValueEqual(analyzingResult.diagnostics[2].range.start, markedLocations[2].position, "Third diagnostic start")
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testNbtPathAnalyzing(context: GameTestHelper) {
+        val markedLine = "foo[{bar:[]}].bar[0].baz{qux:{quux:§false}}.qux{quux:§true§}"
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(listOf(markedLine))
+        val parser = NbtPathArgument()
+        val mappingInfo = FileMappingInfo(processedLines)
+        val resourceCreator = AnalyzingResourceCreator(
+            null,
+            "testPack/data/minecraft/function/test.mcfunction",
+            context.level.server.lootRegistries,
+            getParsingCommandSource(context),
+            mappingInfo
+        )
+        resourceCreator.macroTargetCursors += markedLocations[0].absoluteCursor
+        val builder = StringRangePath.Builder(resourceCreator)
+        NbtPathArgumentAnalyzer.currentPathBuilder.runWithValue(builder) {
+            parser.parse(
+                DirectiveStringReader(
+                    FileMappingInfo(processedLines),
+                    getCommandDispatcher(context),
+                    resourceCreator
+                )
+            )
+        }
+        val path = builder.buildStandalone(processedLines[0])
+
+        context.assertValueEqual(path.segments.size, 8, "Path segments count")
+        context.assertValueEqual(
+            path.collisions,
+            listOf(StringRangePath.Collision(StringRange(markedLocations[1].absoluteCursor, markedLocations[2].absoluteCursor), ByteTag.ZERO)),
+            "Path collisions"
+        )
+        val indexTag = parser.parse(StringReader("foo[0].bar")).get(path.root).getOrNull(0)
+        context.assertValueEqual(
+            path.segments[3].tree.orderedNodes,
+            listOf(indexTag, (indexTag as? ListTag)?.getOrNull(0)),
+            "Index segment"
+        )
+        context.assertTrue(
+            path.macroNodes.any { it == ByteTag.ZERO },
+            "false didn't contain macro"
         )
 
         context.succeed()
@@ -548,9 +774,9 @@ object TestCommandCrafter {
         val tokenData = analyzingResult.semanticTokens.build().data
 
         fun testToken(tokenIndex: Int, expectedLineOffset: Int, expectedCursorOffset: Int, expectedLength: Int) {
-            context.assertValueEqual(expectedLineOffset,   tokenData[5 * tokenIndex + 0], Component.literal("Index $tokenIndex: token line"))
-            context.assertValueEqual(expectedCursorOffset, tokenData[5 * tokenIndex + 1], Component.literal("Index $tokenIndex: token cursor"))
-            context.assertValueEqual(expectedLength,       tokenData[5 * tokenIndex + 2], Component.literal("Index $tokenIndex: token length"))
+            context.assertValueEqual(tokenData[5 * tokenIndex + 0], expectedLineOffset, Component.literal("Index $tokenIndex: token line"))
+            context.assertValueEqual(tokenData[5 * tokenIndex + 1], expectedCursorOffset, Component.literal("Index $tokenIndex: token cursor"))
+            context.assertValueEqual(tokenData[5 * tokenIndex + 2], expectedLength, Component.literal("Index $tokenIndex: token length"))
         }
 
         testToken(0, 0, 0, 7)
@@ -638,7 +864,10 @@ object TestCommandCrafter {
                 commandDispatcher,
                 AnalyzingResourceCreator(
                     null,
-                    "testPack/data/minecraft/function/test.mcfunction"
+                    "testPack/data/minecraft/function/test.mcfunction",
+                    source.server.registryAccess(),
+                    source,
+                    analyzingResult.mappingInfo
                 )
             ),
             source,
@@ -653,25 +882,24 @@ object TestCommandCrafter {
         val lines = Files.readAllLines(inputDirectory.resolve("macros.mcfunction"))
 
         val result = analyseCommand(context, lines)
-        context.assertEqualsSnapshot(result.semanticTokens.build().data, "semantic_tokens")
+        context.assertEqualsSnapshot(result.semanticTokens, "semantic_tokens")
         context.succeed()
     }
 
     @GameTest
     fun testMacroSuggestions(context: GameTestHelper) {
-        val markedLines = """
-            ${'$'}execute $(sub) run §
-            ${'$'}execute if entity $(selector) run §execute run execute run $(something)
-            ${'$'}execute $(sub) §
-            ${'$'}execute as @a at @s positioned $(Offset) unless entity @e[tag=a,distance=..0.1,gamemode=§] if entity @e[tag=$(anchor),distance=..10] run
+        val markedLines = $$"""
+            $execute $(sub) run §
+            $execute if entity $(selector) run §execute run execute run $(something)
+            $execute $(sub) §
+            $execute as @a at @s positioned $(Offset) unless entity @e[tag=a,distance=..0.1,gamemode=§] if entity @e[tag=$(anchor),distance=..10] run
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(markedLines)
         val commandDispatcher = getCommandDispatcher(context)
         val result = analyseCommand(context, processedLines)
 
         val suggestions = markedLocations.map { location ->
-            result.getCompletionProviderForCursor(location.absoluteCursor)
-                ?.dataProvider?.invoke(location.absoluteCursor)?.get()
+            result.getCompletions(location.absoluteCursor, dummyCompletionContext)?.get()
         }
 
         val line1Suggestions = suggestions[0]?.map { it.label }?.toSet()
@@ -683,8 +911,8 @@ object TestCommandCrafter {
             "Expected line 1 suggestions to be root commands"
         )
         context.assertValueEqual(
-            commandDispatcher.root.children.map { it.name }.toSet(),
             suggestions[1]?.map { it.label }?.toSet(),
+            commandDispatcher.root.children.map { it.name }.toSet(),
             "line 2 root suggestions"
         )
 
@@ -696,10 +924,169 @@ object TestCommandCrafter {
 
         val line3Suggestions = suggestions[3]?.map { it.label }?.toSet()
         context.assertValueEqual(
-            setOf("survival", "creative", "adventure", "spectator", "!survival", "!creative", "!adventure", "!spectator"),
             line3Suggestions,
+            setOf("survival", "creative", "adventure", "spectator", "!survival", "!creative", "!adventure", "!spectator"),
             "line 4 selector gamemode suggestions"
         )
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testMacroModificationTracker(context: GameTestHelper) {
+        val file = OpenFile.fromString("", $$"""
+            $execute $(sub) run §
+            $execute unless entity @e[gamemode=§creative] if entity @e[tag=$(anchor),distance=..10] run
+            advancement grant @a[§] everything
+            dialog show @a {type:"notice",title:"Test",action:{label:"ok",action:{type:"dynamic/run_command",template:\
+                "execute as @a run §say $(msg)"\
+            }}}
+            $tellraw @a {text:"Hi",§click_event:{\
+                action:"run_command",command:"execute as @a run say $(msg)"\
+            }}}
+        """.trimIndent())
+
+        fun modificationShouldBeOutsideMacro(modificationName: String, modifier: () -> Unit) {
+            val (prevProcessedLines, _) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val prevReader = buildCommandReader(context, prevProcessedLines)
+            analyseCommand(context, prevReader)
+            modifier()
+
+            val (newProcessedLines, _) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val newReader = buildCommandReader(context, newProcessedLines)
+            newReader.resourceCreator.previousCache = prevReader.resourceCreator.newCache
+
+            context.assertFalse(MacroMerger.trackMacroModification(
+                prevReader.fileMappingInfo,
+                newReader
+            ), "Expected $modificationName to not trigger a macro modification")
+        }
+
+        modificationShouldBeOutsideMacro("added newline") {
+            file.applyContentChange(0, 0, 0, 0, "\n")
+        }
+        modificationShouldBeOutsideMacro("two added newlines") {
+            file.applyContentChange(2, 2, 0, 0, "\n\n")
+        }
+        modificationShouldBeOutsideMacro("removed newline") {
+            file.applyContentChange(0, 1, 0, 0, "")
+        }
+        modificationShouldBeOutsideMacro("two removed newlines") {
+            file.applyContentChange(1, 3, 0, 0, "")
+        }
+
+        val (initialProcessedLines, initialFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
+        var lastReader = buildCommandReader(context, initialProcessedLines)
+        val expectedResult = analyseCommand(context, lastReader)
+        val initialResult = lastReader.resourceCreator.newCache.analyzingResult!!
+
+        fun testMacroModification(modificationName: String, modifier: () -> Unit) {
+            modifier()
+
+            val (newProcessedLines, newFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val newReader = buildCommandReader(context, newProcessedLines)
+            newReader.resourceCreator.previousCache = lastReader.resourceCreator.newCache
+
+            context.assertTrue(MacroMerger.trackMacroModification(
+                lastReader.fileMappingInfo,
+                newReader
+            ), "Expected $modificationName to trigger a macro modification")
+
+            val newResult = newReader.resourceCreator.overlayMacros(initialResult, newReader.fileMappingInfo)
+
+            for((initialLocation, newLocation) in initialFileLocations.zip(newFileLocations)) {
+                context.assertValueEqual(
+                    newResult.getCompletions(newLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
+                    expectedResult.getCompletions(initialLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
+                    Component.literal("Expected $modificationName to not change macro completions at initial position ${initialLocation.position}")
+                )
+            }
+
+            lastReader = newReader
+        }
+
+        testMacroModification("added newline") {
+            file.applyContentChange(0, 0, 16, 16, "\\\n    ")
+        }
+        testMacroModification("added two newlines") {
+            file.applyContentChange(2, 2, 9, 9, "\\\n    ")
+        }
+        testMacroModification("change nested macro (in command)") {
+            file.applyContentChange(6, 6, 16, 18, "@p")
+        }
+        testMacroModification("change nested macro (in macro)") {
+            file.applyContentChange(9, 9, 45, 47, "@p")
+        }
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testOpenFileApplyContentChange(context: GameTestHelper) {
+        val initial = """
+            first
+            second
+            third
+            fourth
+        """.trimIndent()
+
+        val openFile = OpenFile.fromString("test.mcfunction", initial)
+
+        // Initial content
+        var result = openFile.stringifyLines()
+        var expected = listOf("first", "second", "third", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("initial content"))
+
+        // Test replacing second and third line with multiple new lines (more than before), but keep the first and last character
+        val newMiddle = """
+            SECOND1
+            SECOND2
+            SECOND3
+        """.trimIndent()
+        val endChar1 = openFile.stringifyLines()[2].length
+        openFile.applyContentChange(1, 2, 1, endChar1 - 1, newMiddle)
+        result = openFile.stringifyLines()
+        expected = listOf("first", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("multi -> multi (more)"))
+
+        // Test replacing first line with multiple new lines, but keep the first and last character
+        val newFirst = """
+            FIRST-A
+            FIRST-B
+        """.trimIndent()
+        val endChar2 = openFile.stringifyLines()[0].length
+        openFile.applyContentChange(0, 0, 1, endChar2 - 1, newFirst)
+        result = openFile.stringifyLines()
+        expected = listOf("fFIRST-A", "FIRST-Bt", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("single -> multi"))
+
+        // Test collapsing all SECOND lines into one line, but keep the two first and last characters
+        val collapse = "replaced middle"
+        val endChar3 = openFile.stringifyLines()[4].length
+        openFile.applyContentChange(2, 4, 2, endChar3 - 2, collapse)
+        result = openFile.stringifyLines()
+        expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "fourth")
+        context.assertValueEqual(result, expected, Component.literal("multi -> single"))
+
+        // Test a single line modification on the last line, keeping the first two and last characters
+        val insert = "abcde"
+        val endChar4 = openFile.stringifyLines()[3].length
+        openFile.applyContentChange(3, 3, 2, endChar4 - 2, insert)
+        result = openFile.stringifyLines()
+        expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "foabcdeth")
+        context.assertValueEqual(result, expected, Component.literal("single -> single"))
+
+        // Test replacing all lines with multiple new lines (less than before), but keep the first and last character
+        val newContent = """
+            1
+            2
+            3
+        """.trimIndent()
+        val endChar5 = openFile.stringifyLines()[3].length
+        openFile.applyContentChange(0, 3, 1, endChar5 - 1, newContent)
+        result = openFile.stringifyLines()
+        expected = listOf("f1", "2", "3h")
+        context.assertValueEqual(result, expected, Component.literal("multi -> multi (less)"))
 
         context.succeed()
     }
@@ -793,41 +1180,53 @@ object TestCommandCrafter {
         return parsed as T to joined
     }
 
-    private fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult {
+    fun buildCommandReader(context: GameTestHelper, lines: List<String>): DirectiveStringReader<AnalyzingResourceCreator> {
         val commandDispatcher = getCommandDispatcher(context)
         val source = getParsingCommandSource(context)
-        val analyzingResult = AnalyzingResult(FileMappingInfo(lines), Position())
+        val resourceCreator = AnalyzingResourceCreator(
+            null,
+            "testPack/data/minecraft/function/test.mcfunction",
+            source.server.lootRegistries,
+            source,
+            FileMappingInfo(lines)
+        )
+        return DirectiveStringReader(
+            resourceCreator.file,
+            commandDispatcher,
+            resourceCreator
+        )
+    }
+
+    fun analyseCommand(context: GameTestHelper, lines: List<String>): AnalyzingResult =
+        analyseCommand(context, buildCommandReader(context, lines))
+
+    fun analyseCommand(context: GameTestHelper, reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResult {
+        val source = getParsingCommandSource(context)
+        val analyzingResult = AnalyzingResult(reader.resourceCreator.file, Position())
 
         LanguageManager.analyse(
-            DirectiveStringReader(
-                analyzingResult.mappingInfo,
-                commandDispatcher,
-                AnalyzingResourceCreator(
-                    null,
-                    "testPack/data/minecraft/function/test.mcfunction"
-                )
-            ),
+            reader,
             source,
             analyzingResult,
             Language.TopLevelClosure(VanillaLanguage())
         )
-
-        return analyzingResult
+        reader.resourceCreator.newCache.analyzingResult = analyzingResult
+        return reader.resourceCreator.overlayMacros(analyzingResult)
     }
 
-    private fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =
+    fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =
         context.level.server!!.createCommandSourceStack()
             .withPosition(Vec3.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
 
     @Suppress("UNCHECKED_CAST")
-    private fun getCommandDispatcher(context: GameTestHelper): CommandDispatcher<SharedSuggestionProvider> =
+    fun getCommandDispatcher(context: GameTestHelper): CommandDispatcher<SharedSuggestionProvider> =
         context.level.server!!.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>
 
     /**
      * To make it easier to reference locations in lines, this method can find any location marked with '§'.
      * Those locations will be returned in order and the '§' characters will be removed from the returned lines.
      */
-    private fun getAndRemoveMarkedLocations(lines: List<String>): Pair<List<String>, List<FileLocation>> {
+    fun getAndRemoveMarkedLocations(lines: List<String>): Pair<List<String>, List<FileLocation>> {
         val processedLines = mutableListOf<String>()
         val foundLocations = mutableListOf<FileLocation>()
 
@@ -849,10 +1248,11 @@ object TestCommandCrafter {
     }
 
     // Because Minecraft's doesn't allow null
-    fun GameTestHelper.assertValueEqual(expected: Any?, actual: Any?, message: String) {
-        if(expected != actual)
+    // Note: signature is (actual, expected, message) so callers should pass the value under test first
+    fun GameTestHelper.assertValueEqual(actual: Any?, expected: Any?, message: String) {
+        if(actual != expected)
             throw this.assertionException("test.error.value_not_equal", message, expected ?: "null", actual ?: "null")
     }
 
-    private data class FileLocation(val position: Position, val absoluteCursor: Int)
+    data class FileLocation(val position: Position, val absoluteCursor: Int)
 }

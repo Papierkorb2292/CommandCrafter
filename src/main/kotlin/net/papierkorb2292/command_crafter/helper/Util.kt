@@ -6,18 +6,21 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
 import net.minecraft.server.MinecraftServer
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.AnalyzingDynamicOps
-import net.papierkorb2292.command_crafter.mixin.MinecraftServerAccessor
-import net.papierkorb2292.command_crafter.parser.helper.HolderLookupProviderContainer
+import net.minecraft.core.RegistryAccess
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import java.lang.reflect.Type
 import java.util.*
 import java.util.concurrent.Semaphore
 
-fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
+inline fun IntList.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (index: Int) -> Int): Int {
     return (fromIndex until toIndex).binarySearch(comparison)
 }
 
-fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
+fun IntList.binarySearch(value: Int, fromIndex: Int = 0, toIndex: Int = size): Int {
+    return binarySearch(fromIndex, toIndex) { this[it].compareTo(value) }
+}
+
+inline fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
     var low = this.start
     var high = this.endInclusive
 
@@ -32,7 +35,17 @@ fun IntRange.binarySearch(comparison: (Int) -> Int): Int {
         }
     }
 
-    return -(low + 1)
+    return low.inv()
+}
+
+fun roundUpBinarySearch(index: Int): Int {
+    // Turn negative values into -(index + 1) or index.inv()
+    return index xor (index shr 31)
+}
+
+fun roundDownBinarySearch(index: Int): Int {
+    val neg = (index shr 31)
+    return (index xor neg) + neg
 }
 
 inline fun <reified T> arrayOfNotNull(vararg elements: T?): Array<T> {
@@ -61,6 +74,16 @@ inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValue(value: TValue, blo
         return block()
     } finally {
         remove()
+    }
+}
+
+inline fun <TValue, TResult> ThreadLocal<TValue>.runWithValueSwap(value: TValue?, block: () -> TResult): TResult {
+    val prev = get()
+    if(value != null) set(value) else remove()
+    try {
+        return block()
+    } finally {
+        if(prev == null) remove() else set(prev)
     }
 }
 
@@ -122,10 +145,11 @@ fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
         return if(input == defaultValue) DataResult.success(prefix) else this@orEmpty.encode(input, ops, prefix)
     }
 
-    override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
+    override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
         if(input == ops.empty()) {
             // Add suggestions from other codec
-            if(AnalyzingDynamicOps.CURRENT_ANALYZING_OPS.getOrNull() != null)
+            val branchBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)?.branchBehavior
+            if(branchBehavior != null && !branchBehavior.isShortCircuit())
                 this@orEmpty.decode(ops, input)
 
             return DataResult.success(Pair.of(defaultValue, ops.emptyList()))
@@ -139,5 +163,6 @@ fun <T: Any> Optional<Optional<T>>.flatten(): Optional<T> =
 fun <TParent: Any, TChild : TParent> Optional<TChild>.cast(): Optional<TParent> =
     Optional.ofNullable(orElse(null))
 
-val MinecraftServer.lookupWithUpdatedTags
-    get() = ((this as MinecraftServerAccessor).resources.managers as HolderLookupProviderContainer).`command_crafter$getHolderLookups`()
+// Can be cast to this type, because that is the value assigned in the ReloadableServerResources constructor
+val MinecraftServer.lootRegistries: RegistryAccess
+    get() = reloadableRegistries().lookup() as RegistryAccess

@@ -12,30 +12,20 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.DynamicOps;
 import it.unimi.dsi.fastutil.chars.CharSet;
-import net.minecraft.nbt.ByteTag;
-import net.minecraft.nbt.DoubleTag;
-import net.minecraft.nbt.EndTag;
-import net.minecraft.nbt.FloatTag;
-import net.minecraft.nbt.IntTag;
-import net.minecraft.nbt.LongTag;
-import net.minecraft.nbt.ShortTag;
-import net.minecraft.nbt.SnbtGrammar;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.*;
 import net.minecraft.util.parsing.packrat.*;
+import net.minecraft.util.parsing.packrat.commands.StringReaderTerms;
+import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
+import net.papierkorb2292.command_crafter.editor.processing.TokenInfo;
+import net.papierkorb2292.command_crafter.editor.processing.TokenType;
 import net.papierkorb2292.command_crafter.editor.processing.helper.LenientUnquotedStringParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UnicodeNameSuggestionSupplier;
 import net.papierkorb2292.command_crafter.editor.processing.helper.UtilKt;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ByteTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.DoubleTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.EndTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.FloatTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.IntTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.LongTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.ShortTagAccessor;
-import net.papierkorb2292.command_crafter.mixin.editor.processing.StringTagAccessor;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
+import net.papierkorb2292.command_crafter.mixin.editor.processing.*;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -43,12 +33,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 import static net.papierkorb2292.command_crafter.parser.helper.UtilKt.*;
@@ -93,8 +83,28 @@ public class SnbtGrammarMixin {
             results.put(symbol, command_crafter$createPlaceholder());
             // Skip whitespace so end cursor is set correctly
             state.input().skipWhitespace();
+            if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
+                malformedParseErrorList.setLastMalformedEndCursor(state.mark());
+            }
             return true;
         }, action);
+    }
+
+    @WrapOperation(
+            method = "lambda$createParser$22",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/nbt/SnbtGrammar$IntegerLiteral;create(Lcom/mojang/serialization/DynamicOps;Lnet/minecraft/util/parsing/packrat/ParseState;)Ljava/lang/Object;"
+            )
+    )
+    private static Object command_crafter$allowMalformedInteger(SnbtGrammar.IntegerLiteral instance, DynamicOps<Object> ops, ParseState<?> state, Operation<Object> op) {
+        final var original = op.call(instance, ops, state);
+        // It's important that a node is not null for the StringRangeTree builder. Additionally, longs need to be allowed without suffix because long arrays are leniently parsed as a list.
+        if(original == null && PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
+            final var attemptLong = instance.create(ops, SnbtGrammar.TypeSuffix.LONG, state);
+            return attemptLong != null ? attemptLong : command_crafter$createPlaceholder();
+        }
+        return original;
     }
 
     @ModifyReturnValue(
@@ -144,6 +154,32 @@ public class SnbtGrammarMixin {
         return wrappedSymbol;
     }
 
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:LAST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    to = @At(
+                            value = "CONSTANT",
+                            args = "intValue=93" // ']'
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$addListTypeHint(Term<StringReader> original) {
+        return (state, results, cut) -> {
+            var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+            if (builderArg != null) {
+                final var node = builderArg.getStringRangeTreeBuilder().peekNode();
+                if (node != null) {
+                    node.setTypeHint(StringRangeTree.NodeTypeHint.LIST);
+                }
+            }
+            return original.parse(state, results, cut);
+        };
+    }
+
     @WrapOperation(
             method = "createParser",
             at = @At(
@@ -163,6 +199,21 @@ public class SnbtGrammarMixin {
         var listEntriesTerm = instance.named(listEntriesSymbol);
         var arrayPrefixSymbol = UtilKt.getSymbolByName(instance, "array_prefix");
         return (state, results, cut) -> {
+            var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+            if(builderArg != null) {
+                final var node = builderArg.getStringRangeTreeBuilder().peekNode();
+                if(node != null) {
+                    final var arrayType = (Enum<?>) results.getOrThrow(arrayPrefixSymbol);
+                    final var typeHint = switch (arrayType.ordinal()) {
+                        case 0 -> StringRangeTree.NodeTypeHint.BYTE_ARRAY;
+                        case 1 -> StringRangeTree.NodeTypeHint.INT_ARRAY;
+                        case 2 -> StringRangeTree.NodeTypeHint.LONG_ARRAY;
+                        default -> null;
+                    };
+                    node.setTypeHint(typeHint);
+                }
+            }
+
             if (PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
                 var matches = listEntriesTerm.parse(state, results, cut);
                 if(matches) {
@@ -235,6 +286,47 @@ public class SnbtGrammarMixin {
         return command_crafter$wrapTermAllowReaderEndIfMalformed(term);
     }
 
+    @WrapOperation(
+            method = "lambda$createParser$17",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DynamicOps;createMap(Ljava/util/Map;)Ljava/lang/Object;"
+            )
+    )
+    private static Object command_crafter$addCompoundChildren(DynamicOps<?> ops, Map<?, ?> map, Operation<Object> op) {
+        final var compound = op.call(ops, map);
+        var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+        if(builderArg != null) {
+            var node = builderArg.getStringRangeTreeBuilder().peekNode();
+            if(node != null) {
+                for (final var child : map.values()) {
+                    node.addChild((Tag) child);
+                }
+            }
+        }
+        return compound;
+    }
+
+    @WrapOperation(
+            method = "lambda$createParser$21",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/serialization/DynamicOps;createList(Ljava/util/stream/Stream;)Ljava/lang/Object;"
+            )
+    )
+    private static Object command_crafter$addListChildren(DynamicOps<?> ops, Stream<?> stream, Operation<Object> op) {
+        var builderArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder());
+        if (builderArg == null) return op.call(ops, stream);
+        var node = builderArg.getStringRangeTreeBuilder().peekNode();
+        if (node == null) return op.call(ops, stream);
+
+        final var entries = new ArrayList<>();
+        final var list = op.call(ops, stream.peek(entries::add));
+        for (final var child : entries)
+            node.addChild((Tag) child);
+        return list;
+    }
+
     @ModifyExpressionValue(
             method = "createParser",
             at = @At(
@@ -273,6 +365,8 @@ public class SnbtGrammarMixin {
         terms[terms.length - 1] = command_crafter$wrapTermAllowReaderEndIfMalformed(terms[terms.length - 1]);
         return terms;
     }
+
+    // TODO: Make escape sequences more lenient (also change createCursorMapperForEscapedCharacters)
 
     @WrapOperation(
             method = "createParser",
@@ -411,9 +505,112 @@ public class SnbtGrammarMixin {
         return (state, results, cut) -> {
             if(PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed()) {
                 var reader = state.input();
-                if (!reader.canRead()) return true;
+                if (!reader.canRead()) {
+                    if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
+                        malformedParseErrorList.setLastMalformedEndCursor(state.mark());
+                    }
+                    return true;
+                }
             }
             return term.parse(state, results, cut);
         };
+    }
+
+    @WrapOperation(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=unquoted_string_or_builtin"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightUnquotedStringOrBuiltin(Dictionary<StringReader> rules, Atom<String> unquotedString, Operation<Term<StringReader>> op) {
+        final var builtinLookahead = Term.positiveLookahead(StringReaderTerms.character('('));
+        return wrapTermWithSemanticToken(op.call(rules, unquotedString), (state, scope, range) -> {
+            final var mark = state.mark();
+            state.restore(range.getEnd());
+            final var isBuiltin = builtinLookahead.parse(state, new Scope(), Control.UNBOUND);
+            state.restore(mark);
+            if(isBuiltin)
+                return new TokenInfo(TokenType.Companion.getFUNCTION(), 0);
+            final var string = scope.getOrThrow(unquotedString);
+            if(string.equalsIgnoreCase("true") || string.equalsIgnoreCase("false"))
+                return new TokenInfo(TokenType.Companion.getENUM_MEMBER(), 0);
+            return new TokenInfo(TokenType.Companion.getSTRING(), 0);
+        });
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT:LAST",
+                            args = "intValue=34" // '"'
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightQuotedString(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getSTRING(), 0));
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;alternative([Lnet/minecraft/util/parsing/packrat/Term;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "FIELD",
+                            target = "Lnet/minecraft/nbt/SnbtGrammar;NUMBER_LOOKEAHEAD:Lnet/minecraft/util/parsing/packrat/commands/StringReaderTerms$TerminalCharacters;",
+                            opcode = Opcodes.GETSTATIC
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightNumber(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getNUMBER(), 0));
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;alternative([Lnet/minecraft/util/parsing/packrat/Term;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=map_key"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightMapKey(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getPROPERTY(), 0));
+    }
+
+    @ModifyExpressionValue(
+            method = "createParser",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Term;alternative([Lnet/minecraft/util/parsing/packrat/Term;)Lnet/minecraft/util/parsing/packrat/Term;"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "CONSTANT",
+                            args = "stringValue=array_prefix"
+                    )
+            )
+    )
+    private static Term<StringReader> command_crafter$highlightArrayPrefix(Term<StringReader> original) {
+        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getTYPE(), 0));
     }
 }

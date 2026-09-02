@@ -27,8 +27,8 @@ public class GreedyPredicateParseRuleMixin {
     private String command_crafter$extendStringAtNewline(String string, ParseState<StringReader> parsingState, @Local(ordinal = 1) int j) {
         final var reader = parsingState.input();
         if(reader instanceof DirectiveStringReader<?>) {
-            // Extend to cursor
-            reader.canRead(j - reader.getCursor());
+            // Extend to cursor, include the next character because the method will make a `<` check
+            reader.canRead(j - reader.getCursor() + 1);
             return reader.getString();
         }
         return string;

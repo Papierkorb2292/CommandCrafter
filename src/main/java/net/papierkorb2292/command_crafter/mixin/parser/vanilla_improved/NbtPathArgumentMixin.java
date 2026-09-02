@@ -62,16 +62,17 @@ public class NbtPathArgumentMixin implements StringifiableArgumentType {
             switch(node) {
                 case NbtPathArgumentTypeFilteredListElementNodeAccessor filteredListNode -> {
                     result.append("[");
-                    result.append(filteredListNode.getPattern().asString());
+                    result.append(filteredListNode.getPattern());
                     result.append("]");
                 }
                 case NbtPathArgumentTypeFilteredNamedNodeAccessor filteredNamedNode -> {
-                    result.append(".");
+                    if(lastEndIndex != 0)
+                        result.append(".");
                     result.append(StringArgumentType.escapeIfRequired(filteredNamedNode.getName()));
-                    result.append(filteredNamedNode.getPattern().asString());
+                    result.append(filteredNamedNode.getPattern());
                 }
                 case NbtPathFilteredRootNodeFilterProvider rootNodeFilter -> {
-                    result.append(rootNodeFilter.command_crafter$getFilter().asString());
+                    result.append(rootNodeFilter.command_crafter$getFilter());
                 }
                 default -> result.append(sourceString, lastEndIndex, endIndex);
             }

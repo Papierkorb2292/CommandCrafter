@@ -76,7 +76,7 @@ function convertAnsiLines(lines: string[], converter: AnsiToHtmlConverter): HTML
 }
 
 function escapeMessage(message: string): string {
-    return message.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    return message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
 function addConsoleMessage(targetChannel: ChannelData, channelTabs: TabsElement, content: string) {

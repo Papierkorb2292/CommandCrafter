@@ -1,0 +1,83 @@
+package net.papierkorb2292.command_crafter.editor.processing.command_arguments
+
+import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
+import com.mojang.brigadier.context.StringRange
+import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.serialization.Decoder
+import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.NbtPathArgument
+import net.minecraft.nbt.Tag
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.PathOperations
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
+import org.eclipse.lsp4j.DiagnosticSeverity
+
+class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> {
+    companion object {
+        val currentAnalyzingResult = ThreadLocal<AnalyzingResult>()
+        val currentPathBuilder = ThreadLocal<StringRangePath.Builder>()
+
+        fun analyzeReader(
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            result: AnalyzingResult,
+            branchBehaviorProvider: BranchBehaviorProvider<Tag>?,
+            decoder: Decoder<*>?,
+            analyzingExecutor: NodeAnalyzingExecutor,
+        ) {
+            val path = readNbtPath(reader, reader.resourceCreator, result).buildStandalone(reader.string)
+
+            if(decoder == null) return
+            analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
+                PathOperations.forReader(path, reader)
+                    .withDiagnosticSeverity(DiagnosticSeverity.Warning)
+                    .withBranchBehaviorProvider(branchBehaviorProvider ?: BranchBehaviorProvider.Decode)
+                    .analyzeFull(result, decoder)
+            }
+        }
+
+        val malformedStringAnalyzer = MalformedStringDecoderAnalyzing({
+            DataObjectDecoding.getEmbeddedNbtDecoder(it.value)
+        }, { decoderData, result, _, reader, _, _ ->
+            analyzeReader(reader, result, BranchBehaviorProvider.getForPathLookup(null), decoderData?.decoder, NodeAnalyzingExecutor.Immediate)
+        })
+
+        fun readNbtPath(reader: StringReader, resourceCreator: AnalyzingResourceCreator, analyzingResult: AnalyzingResult?): StringRangePath.Builder {
+            val builder = StringRangePath.Builder(resourceCreator)
+            currentAnalyzingResult.runWithValueSwap(analyzingResult) {
+                currentPathBuilder.runWithValueSwap(builder) {
+                    try {
+                        NbtPathArgument().parse(reader)
+                    } catch(_: CommandSyntaxException) {}
+                }
+            }
+            return builder
+        }
+    }
+
+    override val argumentTypes
+        get() = listOf(NbtPathArgument::class.java)
+
+    override fun analyze(
+        context: CommandContext<SharedSuggestionProvider>,
+        type: NbtPathArgument,
+        range: StringRange,
+        name: String,
+        reader: DirectiveStringReader<AnalyzingResourceCreator>,
+        analyzingExecutor: NodeAnalyzingExecutor,
+        result: AnalyzingResult,
+    ) {
+        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
+        val decoder: Decoder<*>? = if(dataObjectSource != null) DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader) else null
+
+        analyzeReader(reader, result, dataObjectSource?.getNBTBranchBehavior(), decoder, analyzingExecutor)
+    }
+}

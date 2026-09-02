@@ -26,6 +26,7 @@ import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.material.Fluid
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.mixin.test.GameTestHelperAccessor
 import org.apache.logging.log4j.core.pattern.AnsiEscape
@@ -34,6 +35,7 @@ import javax.swing.text.html.parser.Entity
 object TestSnapshotHelper {
     val simpleModule = SimpleModule()
         .addSerializer(IntList::class.java, IntList.JacksonSerializer)
+        .addSerializer(SemanticTokensBuilder::class.java, SemanticTokensBuilder.PrettyJacksonSerializer)
         .addSerializer(CommandDispatcher::class.java, NullSerializer.instance)
         .addSerializer(MinecraftServer::class.java, NullSerializer.instance)
         .addSerializer(Level::class.java, ToStringSerializer.instance)

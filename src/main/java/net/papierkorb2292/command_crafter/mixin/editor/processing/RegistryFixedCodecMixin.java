@@ -2,20 +2,15 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DynamicOps;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.codec.RegistryFixedCodec;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
-import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
-import org.jetbrains.annotations.NotNull;
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.CodecTransformers;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-
-import java.util.stream.Stream;
 
 @Mixin(RegistryFixedCodec.class)
 public class RegistryFixedCodecMixin<E> {
@@ -26,21 +21,11 @@ public class RegistryFixedCodecMixin<E> {
             method = "decode",
             at = @At(
                     value = "FIELD",
-                    target = "Lnet/minecraft/resources/Identifier;CODEC:Lcom/mojang/serialization/Codec;"
+                    target = "Lnet/minecraft/resources/Identifier;CODEC:Lcom/mojang/serialization/Codec;",
+                    opcode = Opcodes.GETSTATIC
             )
     )
     private Codec<?> command_crafter$addRegistryIdSuggestions(Codec<?> identifierCodec) {
-        return new CodecSuggestionWrapper<>(identifierCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
-            @NotNull
-            @Override
-            public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
-                var owner = ((RegistryOps<?>)ops).getter(registryKey);
-                if(owner.isEmpty()) return Stream.empty();
-                if(owner.get() instanceof HolderLookup<?> wrapper) {
-                    return wrapper.listElementIds().map(key -> ops.createString(key.identifier().toString()));
-                }
-                return Stream.empty();
-            }
-        });
+        return CodecTransformers.addResourceKeySuggestions(identifierCodec, registryKey);
     }
 }

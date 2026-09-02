@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer
 
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 
@@ -19,11 +19,10 @@ object ScoreboardFileAnalyzer : FileAnalyseHandler {
             languageServer,
             ServerScoreboardStorageFileSystem.OBJECTIVE_CODEC
         )
-        analyzingResult.clearDisabledFeatures(languageServer.featureConfig, listOf(
+        return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(
             StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX + ANALYZER_CONFIG_PATH,
             StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX,
             ""
         ))
-        return analyzingResult
     }
 }

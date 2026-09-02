@@ -23,12 +23,10 @@ import net.minecraft.nbt.*;
 import net.minecraft.resources.RegistryOps;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.TokenType;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.helper.*;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -108,6 +106,7 @@ public class ItemStringReaderReaderMixin {
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(command_crafter$allowMalformed);
+        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(command_crafter$analyzingResult);
         final var startCursor = reader.getCursor();
         Tag nbt;
         try {
@@ -120,24 +119,14 @@ public class ItemStringReaderReaderMixin {
         if(command_crafter$analyzingResult != null) {
             //noinspection unchecked
             final var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)reader;
-            var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(
+            TreeOperations.Companion.forNbt(
                     tree,
                     directiveReader
-            ).withOps(((ItemParserAccessor) this$0).getRegistryOps());
-            treeOps.analyzeFull(command_crafter$analyzingResult, true, type.codec());
+            ).analyzeFull(command_crafter$analyzingResult, type.codec());
         } else if(!reader.canRead()) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
-            if(nbt instanceof EndTag)
+            if(!tree.isFinishedNbt(reader.getString())) {
                 command_crafter$suggestionStartCursor = reader.getCursor();
-            else if(nbt instanceof CompoundTag || nbt instanceof CollectionTag) {
-                if(nbt instanceof CompoundTag && reader.peek(-1) != '}') {
-                    command_crafter$suggestionStartCursor = reader.getCursor();
-                } else if(nbt instanceof CollectionTag && reader.peek(-1) != ']') {
-                    command_crafter$suggestionStartCursor = reader.getCursor();
-                } else if(tree.getRanges().values().stream().filter(range -> range.getEnd() == reader.getCursor()).count() > 1){
-                    // A child compound/list ended here
-                    command_crafter$suggestionStartCursor = reader.getCursor();
-                }
             }
         }
         return (O)nbt;

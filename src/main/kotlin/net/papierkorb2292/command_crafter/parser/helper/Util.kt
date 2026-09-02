@@ -1,7 +1,9 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.ParsedCommandNode
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
@@ -11,6 +13,7 @@ import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.util.parsing.packrat.*
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList
+import net.papierkorb2292.command_crafter.editor.processing.TokenInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -40,12 +43,26 @@ fun limitCommandTreeForSource(commandManager: Commands, source: CommandSourceSta
     return rootNode as RootCommandNode<SharedSuggestionProvider>
 }
 
-fun <S> CommandNode<S>.resolveRedirects(): CommandNode<S> {
-    var node = this
-    while(node.redirect != null)
-        node = node.redirect
-    return node
+fun <S> CommandNode<S>.resolveRedirect(): CommandNode<S> = redirect ?: this
+
+fun <S> CommandContext<S>.getContextAtCursor(cursor: Int): CommandContext<S>? {
+    var context: CommandContext<S>? = this
+    while(context != null) {
+        if(context.nodes.isNotEmpty()) {
+            if(cursor <= context.range.end + (context.nodes.last() as CursorOffsetContainer).getCursorOffset()) {
+                // Found the right context
+                return context
+            }
+        }
+        context = context.child
+    }
+    return null
 }
+
+fun <S> CommandContext<S>.getNodeAtCursor(cursor: Int): ParsedCommandNode<S>? =
+    nodes.firstOrNull { node ->
+        cursor <= node.range.end + (node as CursorOffsetContainer).getCursorOffset()
+    }
 
 fun <S> CommandContextBuilder<S>.getLastNodeWithRedirects(): CommandNode<S> {
     val lastChild = this.lastChild
@@ -102,3 +119,15 @@ fun malformedDispatchingTerm(normalTerm: Term<StringReader>, allowMalformedTerm:
         else
             allowMalformedTerm.parse(state, results, cut)
     }
+
+fun wrapTermWithSemanticToken(term: Term<StringReader>, tokenProvider: (ParseState<StringReader>, Scope, StringRange) -> TokenInfo?) = Term { state, results, cut ->
+    val start = state.mark()
+    val matches = term.parse(state, results, cut)
+    if(matches) {
+        val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull() ?: return@Term matches
+        val range = StringRange(start, state.mark())
+        val token = tokenProvider(state, results, range) ?: return@Term matches
+        analyzingResultArg.analyzingResult.semanticTokens.addMultiline(range, token.type, token.modifiers)
+    }
+    matches
+}

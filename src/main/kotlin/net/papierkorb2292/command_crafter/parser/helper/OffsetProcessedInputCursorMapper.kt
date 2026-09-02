@@ -7,10 +7,10 @@ class OffsetProcessedInputCursorMapper(val offset: Int): ProcessedInputCursorMap
     fun combineWith(targetMapper: SplitProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
         val result = SplitProcessedInputCursorMapper()
         for(i in 0 until targetMapper.sourceCursors.size) {
-            result.addMapping(targetMapper.sourceCursors[i] + offset, targetMapper.targetCursors[i], targetMapper.lengths[i])
+            result.addMapping(targetMapper.sourceCursors[i] - offset, targetMapper.targetCursors[i], targetMapper.lengths[i])
         }
         for((startCursor, endCursor) in targetMapper.expandedCharEnds)
-            result.addExpandedChar(startCursor + offset, endCursor + offset)
+            result.addExpandedChar(startCursor - offset, endCursor - offset)
         return result
     }
 }

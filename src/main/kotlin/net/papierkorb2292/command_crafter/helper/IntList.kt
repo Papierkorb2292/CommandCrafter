@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
+import io.netty.buffer.ByteBuf
+import net.minecraft.network.VarInt
+import net.minecraft.network.codec.StreamCodec
 import java.util.*
 import kotlin.math.max
 
@@ -17,6 +20,26 @@ class IntList(capacity: Int) {
             size = content.size
             content.copyInto(entries)
         }
+
+        fun intListOfZeros(size: Int) = IntList(size).also { it.size = size }
+
+        val PACKET_CODEC = object : StreamCodec<ByteBuf, IntList> {
+            override fun decode(input: ByteBuf): IntList {
+                val length = VarInt.read(input)
+                val result = intListOfZeros(length)
+                for(i in 0 until length) {
+                    result[i] = VarInt.read(input)
+                }
+                return result
+            }
+
+            override fun encode(output: ByteBuf, value: IntList) {
+                VarInt.write(output, value.size)
+                for(i in 0 until value.size) {
+                    VarInt.write(output, value[i])
+                }
+            }
+        };
     }
 
     private var entries = IntArray(capacity)
@@ -33,7 +56,10 @@ class IntList(capacity: Int) {
         entries[index] = element
     }
 
-    operator fun plus(element: Int) = copy().apply { this += element }
+    operator fun plus(element: Int) = copy(size + 1).also {
+        it.size++
+        it[size] = element
+    }
     operator fun plusAssign(element: Int) = add(element)
 
     fun add(element: Int) = add(size, element)
@@ -48,7 +74,10 @@ class IntList(capacity: Int) {
         size++
     }
 
-    operator fun plus(other: IntList) = copy().apply { this += other }
+    operator fun plus(other: IntList) = copy(size + other.size).also {
+        it.size += other.size
+        other.entries.copyInto(it.entries, size, 0, other.size)
+    }
     operator fun plusAssign(other: IntList) = addAll(other)
 
     fun addAll(other: IntList) = addAll(size, other)
@@ -63,6 +92,22 @@ class IntList(capacity: Int) {
         size += other.size
     }
 
+    fun addAllSorted(other: IntList) {
+        val newSize = entries.size + other.entries.size
+        val newEntries = IntArray(newSize)
+        var i = 0
+        var j = 0
+        var k = 0
+        while(i < size && j < other.size)
+            newEntries[k++] = if(entries[i] <= other.entries[j]) entries[i++] else other.entries[j++]
+        while(i < size)
+            newEntries[k++] = entries[i++]
+        while(j < other.size)
+            newEntries[k++] = other.entries[j++]
+        entries = newEntries
+        size += other.size
+    }
+
     fun remove(position: Int): Int {
         Objects.checkIndex(position, size)
         val element = entries[position]
@@ -70,6 +115,15 @@ class IntList(capacity: Int) {
             entries.copyInto(entries, position, position + 1, size)
         size--
         return element
+    }
+
+    fun removeAfter(start: Int) {
+        if(start == -1) {
+            size = 0
+            return
+        }
+        Objects.checkIndex(start, size)
+        size = start + 1
     }
 
     fun isEmpty() = size == 0
@@ -108,7 +162,30 @@ class IntList(capacity: Int) {
 
     fun contains(element: Int) = indexOf(element) != -1
 
-    fun copy() = IntList().also { it.addAll(this) }
+    fun any(predicate: (Int) -> Boolean): Boolean {
+        for(i in 0 until size)
+            if(predicate(entries[i]))
+                return true
+        return false
+    }
+    fun all(predicate: (Int) -> Boolean): Boolean {
+        for(i in 0 until size)
+            if(!predicate(entries[i]))
+                return false
+        return true
+    }
+
+    fun copy(capacity: Int = size) = IntList(capacity).also {
+        it.size = size
+        entries.copyInto(it.entries, 0, 0, size)
+    }
+
+    inline fun map(transform: (Int) -> Int): IntList {
+        val result = intListOfZeros(size)
+        for(i in 0 until size)
+            result[i] = transform(this[i])
+        return result
+    }
 
     override fun equals(other: Any?): Boolean {
         if(other !is IntList)

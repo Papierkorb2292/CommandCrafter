@@ -19,6 +19,7 @@ import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryDataLoader
+import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
 import net.minecraft.server.notifications.EmptyNotificationService
 import net.minecraft.server.permissions.LevelBasedPermissionSet
@@ -31,16 +32,20 @@ import net.minecraft.world.level.gamerules.GameRuleTypeVisitor
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
+import net.papierkorb2292.command_crafter.datagen.ModdedDatagenRunner
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler.isPlayerAllowedConnection
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ScoreboardFileAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ReadDirectoryResultEntry
 import net.papierkorb2292.command_crafter.helper.UnitTypeAdapter
+import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.networking.packets.NotifyCanReloadWorldgenS2CPacket
 import net.papierkorb2292.command_crafter.parser.*
@@ -51,19 +56,25 @@ import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.jsonrpc.Launcher
 import org.eclipse.lsp4j.jsonrpc.debug.DebugLauncher
 import org.eclipse.lsp4j.jsonrpc.debug.adapters.DebugEnumTypeAdapter
+import org.eclipse.lsp4j.jsonrpc.debug.messages.DebugRequestMessage
+import org.eclipse.lsp4j.jsonrpc.messages.Message
+import org.eclipse.lsp4j.jsonrpc.messages.RequestMessage
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
 import java.io.BufferedReader
 import java.io.PrintWriter
 import java.lang.reflect.InvocationTargetException
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.ExecutorService
+import kotlin.io.path.createDirectories
 
 object CommandCrafter: ModInitializer {
     const val MOD_ID = "command_crafter"
     val LOGGER = LogManager.getLogger(MOD_ID)
     val VERSION: String = FabricLoader.getInstance().getModContainer(MOD_ID).get().metadata.version.friendlyString
     lateinit var config: CommandCrafterConfig
-        private set
+    lateinit var analyzingSourceProvider: (MinecraftLanguageServer) -> SharedSuggestionProvider
 
     private var dedicatedServerEditorConnectionManager: EditorConnectionManager? = null
 
@@ -89,22 +100,28 @@ object CommandCrafter: ModInitializer {
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
         IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
-        DataObjectDecoding.registerDataObjectSourceAdditionalDataType()
+        DataObjectDecoding.registerAdditionalDataTypes()
 
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used
             // For all other cases, the analyzer is only needed on the client side, where an AnalyzingClientCommandSource is used
-            MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer({ languageServer ->
+            analyzingSourceProvider = { languageServer ->
                 val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
                     ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
                 CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, "", CommonComponents.EMPTY, directServerConnection.server, null)
-            }))
+            }
+            MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer())
             MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
 
             ServerLifecycleEvents.SERVER_STARTED.register {
                 // Delayed to every mod had time to add its own registries
                 registerDynamicRegistries()
                 registerRegistryTags()
+
+                val serverDatagen = System.getProperty("cc_server_datagen_dir")
+                if(serverDatagen != null) {
+                    runServersideDatagen(serverDatagen, it)
+                }
             }
 
             if(config.runDedicatedServerServices) {
@@ -209,9 +226,10 @@ object CommandCrafter: ModInitializer {
                 clientConnection: MinecraftClientConnection?,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
-                editorInfo: EditorConnectionManager.EditorInfo,
+                editorInfo: EditorConnectionManager.EditorInfo?,
+                initialMessage: Message?,
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftLanguageServer(serverConnection, clientConnection, editorInfo)
+                val server = MinecraftLanguageServer(serverConnection, clientConnection)
                 val generateLanguageServerTrace = getBooleanSystemProperty("cc_trace_language_server")
                 val launcher = Launcher.Builder<CommandCrafterLanguageClient>()
                     .setLocalService(server)
@@ -229,12 +247,17 @@ object CommandCrafter: ModInitializer {
                         it.registerTypeAdapterFactory(FileSystemResult.TypeAdapterFactory)
                     }
                     .traceMessages(if(generateLanguageServerTrace) PrintWriter("logs/language_server_debug_trace") else null)
-                    .create();
+                    .create()
+                if(initialMessage != null)
+                    EditorConnectionManager.injectInitialMessage(launcher, initialMessage)
                 val launched = launcher.startListening()
                 server.connect(launcher.remoteProxy)
                 launcher.remoteProxy.showMessage(MessageParams(org.eclipse.lsp4j.MessageType.Info, "Connected to Minecraft"))
                 return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
             }
+
+            // Check that the class is exactly equal, so DebugRequestMessages don't match
+            override fun isInitialMessage(message: Message) = message.javaClass == RequestMessage::class.java && (message as RequestMessage).method == "initialize"
         },
         "debugger" to object : EditorConnectionManager.ServiceLauncher {
             override fun launch(
@@ -242,9 +265,10 @@ object CommandCrafter: ModInitializer {
                 clientConnection: MinecraftClientConnection?,
                 editorConnection: EditorConnection,
                 executorService: ExecutorService,
-                editorInfo: EditorConnectionManager.EditorInfo,
+                editorInfo: EditorConnectionManager.EditorInfo?,
+                initialMessage: Message?,
             ): EditorConnectionManager.LaunchedService {
-                val server = MinecraftDebuggerServer(serverConnection, editorInfo)
+                val server = MinecraftDebuggerServer(serverConnection)
                 val messageWrapper = InitializedEventEmittingMessageWrapper()
                 val launcher = DebugLauncher.Builder<CommandCrafterDebugClient>()
                     .setLocalService(server)
@@ -258,16 +282,19 @@ object CommandCrafter: ModInitializer {
                     }
                     .create();
                 messageWrapper.client = launcher.remoteProxy
+                if(initialMessage != null)
+                    EditorConnectionManager.injectInitialMessage(launcher, initialMessage)
                 val launched = launcher.startListening()
                 server.connect(launcher.remoteProxy)
                 return EditorConnectionManager.LaunchedService(server, EditorConnectionManager.ServiceClient(launcher.remoteProxy), launched)
             }
 
+            override fun isInitialMessage(message: Message) = message.javaClass == DebugRequestMessage::class.java && (message as DebugRequestMessage).method == "initialize"
         }
     )
 
     fun registerDynamicRegistries() {
-        val registries = DynamicRegistries.getDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES + RegistryDataLoader.RELOADABLE_REGISTRIES
+        val registries = DynamicRegistries.getWorldRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES + RegistryDataLoader.RELOADABLE_REGISTRIES
         val dynamicJsonResourceCodecs = registries.associate { dynamicRegistry ->
             PackContentFileType.getOrCreateTypeForDynamicRegistry(dynamicRegistry.key) to dynamicRegistry.elementCodec
         }
@@ -275,8 +302,7 @@ object CommandCrafter: ModInitializer {
     }
     fun registerRegistryTags() {
         val keys = BuiltInRegistries.REGISTRY.registryKeySet() +
-            DynamicRegistries.getDynamicRegistries().map { it.key } +
-            RegistryDataLoader.DIMENSION_REGISTRIES.map { it.key } +
+            DynamicRegistries.getWorldRegistries().map { it.key } +
             ServerFunctionLibrary.TYPE_KEY
         val tagJsonResourceCodecs = keys.associate { key ->
             PackContentFileType.getOrCreateTypeForRegistryTag(key) to TagFile.CODEC
@@ -307,6 +333,31 @@ object CommandCrafter: ModInitializer {
             if(!key.startsWith('/')) continue
             literalsIt.remove()
             children.remove(key)
+        }
+    }
+
+    fun runServersideDatagen(pathRaw: String, server: MinecraftServer) {
+        try {
+            val path = Path.of(pathRaw)
+            if(!Files.exists(path))
+                path.createDirectories()
+            if(!Files.isDirectory(path)) {
+                LOGGER.error("Error running serverside datagen: No directory at destination")
+                return
+            }
+
+            val datagenPath = Path.of("datagen")
+            ModdedDatagenRunner.exportToDirectory(
+                server.commands.dispatcher,
+                server.lootRegistries,
+                path.resolve(datagenPath),
+                false,
+            )
+            ModdedDatagenRunner.generateSpyglassConfig(path, datagenPath)
+
+            LOGGER.info("Successfully exported serverside data to {}", path.toAbsolutePath())
+        } catch(e: Exception) {
+            LOGGER.error("Error running serverside datagen", e)
         }
     }
 }

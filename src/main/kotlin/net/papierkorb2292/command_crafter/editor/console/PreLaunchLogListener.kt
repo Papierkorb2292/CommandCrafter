@@ -52,7 +52,7 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
     }
 
     private fun getAnsiPattern(levelColor: String, resetForMessage: Boolean): String {
-        val levelColorAnsi = AnsiEscape.createSequence(levelColor)
+        val levelColorAnsi = AnsiEscape.createSequence(*levelColor.split(" ").toTypedArray())
         val messagePrefix = if(resetForMessage) "\u001B[0m" else ""
         return "$levelColorAnsi[%d{HH:mm:ss} %level]: $messagePrefix%msg%n"
     }
@@ -66,19 +66,19 @@ object PreLaunchLogListener : PreLaunchEntrypoint {
 
         val ctx: LoggerContext = LogManager.getContext(false) as LoggerContext
         val config: Configuration = ctx.configuration
-        val logger = config.loggers[""]!!
 
-        val layout = PatternLayout.newBuilder().withPatternSelector(LevelPatternSelector.newBuilder().setProperties(arrayOf(
+        val layout = PatternLayout.newBuilder().setPatternSelector(LevelPatternSelector.newBuilder().setProperties(arrayOf(
             PatternMatch("info" , getAnsiPattern("cyan", true)), // "#3794ff" --> #1c4c83
             PatternMatch("warn" , getAnsiPattern("yellow", false)), // "#cca700" --> #ae9623
-            PatternMatch("error", getAnsiPattern("red", false)) // "#f48771" --> #b6494b
-        )).build()).withConfiguration(config).build()
+            PatternMatch("error", getAnsiPattern("red", false)), // "#f48771" --> #b6494b
+            PatternMatch("debug", getAnsiPattern("bg_yellow black", false))
+        )).build()).setConfiguration(config).build()
 
         @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
         val appender: Appender = QueueLogAppender.createAppender(EDITOR_LOG_QUEUE, "false", layout, nullIsFine<Filter>(null), nullIsFine<String>(null))
         appender.start()
-        config.addAppender(appender)
-        logger.addAppender(appender, Level.INFO, null)
+        config.loggers[""]?.addAppender(appender, Level.INFO, null)
+        config.loggers["command_crafter"]?.addAppender(appender, Level.DEBUG, null)
         ctx.updateLoggers()
     }
 

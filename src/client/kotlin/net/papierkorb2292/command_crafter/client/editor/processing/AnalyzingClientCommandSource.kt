@@ -1,7 +1,6 @@
 package net.papierkorb2292.command_crafter.client.editor.processing
 
 import com.mojang.brigadier.context.CommandContext
-import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.client.Minecraft
@@ -19,8 +18,6 @@ import net.minecraft.world.flag.FeatureFlagSet
 import net.minecraft.world.level.Level
 import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.processing.helper.CompletionItemsContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import java.util.*
@@ -31,20 +28,13 @@ import java.util.stream.Stream
 class AnalyzingClientCommandSource(
     private val clientCommandSource: ClientSuggestionProvider,
     private val hasNetworkHandler: Boolean,
-    private val languageServer: MinecraftLanguageServer,
+    private val registries: RegistryAccess,
 ) : SharedSuggestionProvider, PermissionSetSupplier {
-
-    companion object {
-        // This is saved globally instead of per instance, because ClientCommandCrafter can only
-        // access the latest instance, but macros might be using a previous instance
-        val allowServersideCompletions = ThreadLocal<Boolean>()
-    }
-
-    constructor(minecraftClient: Minecraft, languageServer: MinecraftLanguageServer): this(
+    constructor(minecraftClient: Minecraft, registries: RegistryAccess): this(
         minecraftClient.connection?.suggestionsProvider
             ?: ClientSuggestionProvider(Util.nullIsFine<ClientPacketListener>(null), minecraftClient, PermissionSet.ALL_PERMISSIONS),
         minecraftClient.connection != null,
-        languageServer
+        registries,
     )
 
     override fun getOnlinePlayerNames(): Collection<String> =
@@ -61,7 +51,7 @@ class AnalyzingClientCommandSource(
     // Note: There are some 'registries' parsed by LoadedClientsideRegistries that are not synced
     // when connecting to a server. Advancements and recipes will be in registryAccess() only if the player is not connected
     // to a server with CommandCrafter.
-    override fun registryAccess(): RegistryAccess = languageServer.dynamicRegistryManager
+    override fun registryAccess(): RegistryAccess = registries
     override fun enabledFeatures(): FeatureFlagSet =
         if(hasNetworkHandler) clientCommandSource.enabledFeatures() else ClientCommandCrafter.defaultFeatureSet
 
@@ -79,24 +69,17 @@ class AnalyzingClientCommandSource(
         }.orElseGet { customSuggestion(context) }
 
     override fun customSuggestion(context: CommandContext<*>): CompletableFuture<Suggestions> {
-        if(allowServersideCompletions.getOrNull() != true)
+        if(!hasNetworkHandler)
             return Suggestions.empty()
-        allowServersideCompletions.remove() // Only allow once per completion invocation to reduce unnecessary processing
-        val fullInput = VanillaLanguage.SUGGESTIONS_FULL_INPUT.getOrNull()
-        if(!hasNetworkHandler || fullInput == null)
-            return Suggestions.empty()
-
-        val contextCompletionProvider = fullInput.resourceCreator.languageServer?.minecraftServer?.contextCompletionProvider
-        if(contextCompletionProvider != null)
-            return contextCompletionProvider.getCompletions(fullInput).thenApply {
-                Suggestions(StringRange.at(0), emptyList()).apply {
-                    @Suppress("KotlinConstantConditions")
-                    (this as CompletionItemsContainer).`command_crafter$setCompletionItem`(it)
-                }
-            }
-        if(!VanillaLanguage.isReaderEasyNextLine(fullInput) && !VanillaLanguage.isReaderInlineResources(fullInput))
-            return clientCommandSource.customSuggestion(context)
-        return Suggestions.empty()
+        val suggestionsGetter = VanillaLanguage.SERVERSIDE_SUGGESTION_GETTER.getOrNull()
+        val result = if(suggestionsGetter == null) {
+            // Use vanilla suggestions
+            clientCommandSource.customSuggestion(context)
+        } else {
+            suggestionsGetter()
+        }
+        VanillaLanguage.SERVERSIDE_SUGGESTION_GETTER.set { Suggestions.empty() } // Only allow once per completion invocation to reduce unnecessary processing
+        return result
     }
 
     override fun permissions(): PermissionSet = PermissionSet.ALL_PERMISSIONS

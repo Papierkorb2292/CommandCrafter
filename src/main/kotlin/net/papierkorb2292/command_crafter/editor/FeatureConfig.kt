@@ -1,17 +1,26 @@
 package net.papierkorb2292.command_crafter.editor
 
-class FeatureConfig(private val entries: Map<String, Entry>) {
+import com.mojang.serialization.Codec
+import net.minecraft.util.StringRepresentable
+
+data class FeatureConfig(private val entries: Map<String, Entry>) {
     companion object {
+        val EMPTY = FeatureConfig(emptyMap())
         val DEFAULT_ENTRIES = mapOf(
             "analyzer.completions" to Entry.ENABLE,
             "analyzer.hovers" to Entry.ENABLE,
             "analyzer.definitions" to Entry.ENABLE,
             "analyzer.diagnostics" to Entry.ENABLE,
             "analyzer.semanticTokens" to Entry.ENABLE,
+            "analyzer.color" to Entry.ENABLE,
             MinecraftLanguageServer.AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH to Entry.DISABLE,
             MinecraftLanguageServer.AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH to Entry.DISABLE,
             MinecraftLanguageServer.AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH to Entry.DISABLE
         )
+
+        val ENTRY_CODEC = StringRepresentable.fromEnum(Entry::values)
+        val CODEC = Codec.unboundedMap(Codec.STRING, ENTRY_CODEC)
+            .xmap(::FeatureConfig, FeatureConfig::entries)
     }
 
     /**
@@ -34,8 +43,10 @@ class FeatureConfig(private val entries: Map<String, Entry>) {
         return default
     }
 
-    enum class Entry {
+    enum class Entry : StringRepresentable {
         ENABLE,
-        DISABLE
+        DISABLE;
+
+        override fun getSerializedName() = name.lowercase()
     }
 }

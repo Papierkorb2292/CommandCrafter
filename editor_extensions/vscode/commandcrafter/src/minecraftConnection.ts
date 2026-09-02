@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import {
+    CloseAction,
     Disposable,
+	ErrorAction,
 	LanguageClient,
 	State,
 	StreamInfo
@@ -131,8 +133,8 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 "command": "connectToService",
                 "arguments": {
                     "service": "languageServer",
-                    "featureConfig": getFeatureConfig(),
-                    "extensionVersion": this.extensionVersion
+                    "featureConfig": getFeatureConfig(), // featureConfig and extensionVersion here are only for backwards compatiblity
+                    "extensionVersion": this.extensionVersion // Since v0.7.0 they are synced through the initialization options instead
                 }
             });
             streamInfo.writer.write(
@@ -144,8 +146,22 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                 () => Promise.resolve(streamInfo),
                 {
                     documentSelector: [{ pattern: "**" }],
+                    initializationOptions: {
+                        editorInfo: {
+                            extensionVersion: this.extensionVersion,
+                            featureConfig: getFeatureConfig()
+                        }
+                    },
                     synchronize: {
                         fileEvents: vscode.workspace.createFileSystemWatcher("**")
+                    },
+                    errorHandler: {
+                        error: (error, message, count) => ({
+                            action: ErrorAction.Shutdown
+                        }),
+                        closed: () => ({
+                            action: CloseAction.DoNotRestart  
+                        }),
                     }
                 }
             );
@@ -166,9 +182,17 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                         languageClient.onRequest("fileExists", (filePattern: string) => fileExists(filePattern))
                         languageClient.onRequest("getFileContent", (path: string) =>
                             vscode.workspace.fs.readFile(vscode.Uri.parse(path)).then(buffer => buffer.toString()))
+
+                        // Starting with v0.7.0, the mod version and default feature config is passed during initialization
+                        if (languageClient.initializeResult?.serverInfo?.version) {
+                            this.connectedModVersion = languageClient.initializeResult.serverInfo.version
+                            insertDefaultFeatureConfig(languageClient.initializeResult.capabilities.experimental.defaultFeatureConfig)
+                        }
+
+                        // For backwards compatiblity (before v0.7.0)
                         languageClient.onNotification("modVersion", (version: string) => {
-                            // 'defaultFeatureConfig' was added in the same version that added 'modVersion', so receiving
-                            // this notification means the mod supports 'defaultFeatureConfig'
+                            // 'defaultFeatureConfig' was added and removed in the same versions that added or removed
+                            // 'modVersion', so receiving this notification means the mod supports 'defaultFeatureConfig'
                             languageClient.sendRequest<FeatureConfig>("defaultFeatureConfig").then(defaultConfig =>
                                 insertDefaultFeatureConfig(defaultConfig))
                             this.connectedModVersion = version

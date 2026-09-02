@@ -12,10 +12,12 @@ import net.minecraft.util.parsing.packrat.commands.TagParseRule;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -35,11 +37,14 @@ public class TagParseRuleMixin<T> {
     private T command_crafter$analyzeNbt(TagParser<T> instance, StringReader reader, Operation<T> op, ParseState<StringReader> state) {
         if (!PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed())
             return op.call(instance, reader);
+        final var semanticAnalyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
         final var nbtReader = TagParser.create(NbtOps.INSTANCE);
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        if(semanticAnalyzingResultArg != null)
+            ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(semanticAnalyzingResultArg.getAnalyzingResult());
         final var startCursor = state.input().getCursor();
         T parsed = null;
         Tag nbt;
@@ -55,17 +60,8 @@ public class TagParseRuleMixin<T> {
         var tree = treeBuilder.build(nbt);
         if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
-            if (nbt instanceof EndTag)
+            if(!tree.isFinishedNbt(reader.getString())) {
                 malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-            else if (nbt instanceof CompoundTag || nbt instanceof CollectionTag) {
-                if (nbt instanceof CompoundTag && reader.peek(-1) != '}') {
-                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-                } else if (nbt instanceof CollectionTag && reader.peek(-1) != ']') {
-                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-                } else if (tree.getRanges().values().stream().filter(range -> range.getEnd() == reader.getCursor()).count() > 1) {
-                    // A child compound/list ended here
-                    malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
-                }
             }
         }
         PackratParserAdditionalArgs.INSTANCE.getDelayedDecodeNbtAnalyzeCallback().set((ops, decoder) -> {
@@ -73,9 +69,9 @@ public class TagParseRuleMixin<T> {
             if(analyzingResultArg != null) {
                 //noinspection unchecked
                 var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input();
-                var treeOps = StringRangeTree.TreeOperations.Companion.forNbt(tree, directiveReader);
+                var treeOps = TreeOperations.Companion.forNbt(tree, directiveReader);
                 var registryTreeOps = treeOps.withOps(ops);
-                registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), true, decoder);
+                registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), decoder);
             }
             return Unit.INSTANCE;
         });

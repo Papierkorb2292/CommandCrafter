@@ -1,16 +1,29 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.core.util.DefaultIndenter
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
+import com.fasterxml.jackson.databind.JsonSerializer
+import com.fasterxml.jackson.databind.SerializerProvider
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.processing.helper.advance
 import net.papierkorb2292.command_crafter.editor.processing.helper.compareTo
+import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.SemanticTokens
 import kotlin.math.min
 
 class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
+    /**
+     * List of all semantic tokens. Each semantic token is represented by 5 integers: line delta, cursor delta, length, type id, modifiers.
+     * Notably, cursor delta is relative to the previous token position only if line delta is 0, otherwise it's relative to the start of the line.
+     * Also, each token in this list never covers multiple lines, only one.
+     */
     private val data = ArrayList<Int>(100)
     var lastLine = 0
         private set
@@ -52,18 +65,15 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         val offsetCursor = cursor + mappingInfo.readSkippingChars
         val cursorMapper = mappingInfo.cursorMapper
         // Map the command cursor to an absolute cursor
-        var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
-            if(cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= offsetCursor) -1
-            else if (cursorMapper.targetCursors[index] > offsetCursor) 1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            mappingIndex = -(mappingIndex + 2)
-        }
+        var mappingIndex = roundDownBinarySearch(cursorMapper.targetCursors.binarySearch(offsetCursor))
+
+        // Multiple mappings might have the same start (length can be 0), this method selects the last one
+        while(mappingIndex + 1 < cursorMapper.targetCursors.size && cursorMapper.targetCursors[mappingIndex + 1] == offsetCursor)
+            mappingIndex++
+
         var mappingRelativeCursor = offsetCursor
-        if(mappingIndex >= 0) {
+        if(mappingIndex >= 0)
             mappingRelativeCursor -= cursorMapper.targetCursors[mappingIndex]
-        }
 
         // Get the corresponding line for the absolute cursor
         var lineNumber = 0
@@ -357,6 +367,17 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
         lastLine += position.line
     }
 
+    fun undoOffset(position: Position) {
+        if(data.isEmpty()) return
+        lastLine -= position.line
+        if(lastLine == 0)
+            lastCursor -= position.character
+        data[0] -= position.line
+        if(data[0] == 0)
+            // First token is on first line, so it's affected by the first line being moved to the right
+            data[1] -= position.character
+    }
+
     fun clear() {
         data.clear()
         lastLine = 0
@@ -366,4 +387,207 @@ class SemanticTokensBuilder(val mappingInfo: FileMappingInfo) {
     fun isEmpty() = data.isEmpty()
 
     fun build() = SemanticTokens(data)
+
+    /**
+     * Removes all semantic tokens that lie within any of the provided sorted ranges.
+     *
+     * @param sortedRanges A sorted list of ranges to remove tokens from. Ranges must not overlap.
+     */
+    fun removeTokensInRanges(sortedRanges: List<Range>) {
+        if(sortedRanges.isEmpty() || data.isEmpty())
+            return
+
+        var currentTokenIndex = 0
+        var lastTokenPosition = Position(0, 0)
+        var rangeIndex = 0
+
+        while(currentTokenIndex < data.size && rangeIndex < sortedRanges.size) {
+            val tokenLineDelta = data[currentTokenIndex]
+            val tokenCharDelta = data[currentTokenIndex + 1]
+            val tokenLength = data[currentTokenIndex + 2]
+            val tokenTypeId = data[currentTokenIndex + 3]
+            val tokenModifiers = data[currentTokenIndex + 4]
+
+            val tokenStart = lastTokenPosition.offsetBy(Position(tokenLineDelta, tokenCharDelta))
+            val tokenEnd = Position(tokenStart.line, tokenStart.character + tokenLength)
+
+            val range = sortedRanges[rangeIndex]
+            val rangeStart = range.start
+            val rangeEnd = range.end
+
+            if(tokenEnd <= rangeStart) {
+                // Token ends before this range, move to next token
+                currentTokenIndex += 5
+                lastTokenPosition = tokenStart
+                continue
+            }
+
+            if(tokenStart >= rangeEnd) {
+                // Token starts after this range, try next range
+                rangeIndex++
+                continue
+            }
+
+            if(tokenStart >= rangeStart && tokenEnd <= rangeEnd) {
+                // Token is completely within the range, remove it
+                data.subList(currentTokenIndex, currentTokenIndex + 5).clear()
+                // Adjust next token position (which is now at currentTokenIndex)
+                if(currentTokenIndex < data.size) {
+                    if(data[currentTokenIndex] == 0)
+                        data[currentTokenIndex + 1] += tokenCharDelta
+                    data[currentTokenIndex] += tokenLineDelta
+                }
+                continue
+            }
+
+            // Token partially overlaps with the range, need to split it
+            if(tokenStart < rangeStart) {
+                // token start and range start must be on same line. Keep the part before the range
+                val keepLength = rangeStart.character - tokenStart.character
+                data[currentTokenIndex + 2] = keepLength
+                currentTokenIndex += 5
+                lastTokenPosition = tokenStart
+
+                if(rangeEnd < tokenEnd) {
+                    // Add the remaining part after the range
+                    val remainingLength = tokenEnd.character - rangeEnd.character
+                    val skippedCharacters = rangeEnd.character - tokenStart.character
+                    data.add(currentTokenIndex, 0)
+                    data.add(currentTokenIndex + 1, skippedCharacters)
+                    data.add(currentTokenIndex + 2, remainingLength)
+                    data.add(currentTokenIndex + 3, tokenTypeId)
+                    data.add(currentTokenIndex + 4, tokenModifiers)
+                    // Adjust next token position
+                    if(currentTokenIndex + 5 < data.size && data[currentTokenIndex + 5] == 0) {
+                        data[currentTokenIndex + 6] -= skippedCharacters
+                    }
+                    rangeIndex++
+                }
+            } else {
+                // Keep the part after the range
+                val remainingLength = tokenEnd.character - rangeEnd.character
+                val skippedCharacters = tokenLength - remainingLength
+                data[currentTokenIndex + 1] += skippedCharacters
+                data[currentTokenIndex + 2] = remainingLength
+                // Adjust next token position
+                if(currentTokenIndex + 5 < data.size && data[currentTokenIndex + 5] == 0) {
+                    data[currentTokenIndex + 6] -= skippedCharacters
+                }
+                lastTokenPosition = tokenStart
+                currentTokenIndex += 5
+                rangeIndex++
+            }
+        }
+
+        if(currentTokenIndex >= sortedRanges.size) {
+            lastLine = lastTokenPosition.line
+            lastCursor = lastTokenPosition.character
+        }
+    }
+
+    object PrettyJacksonSerializer : JsonSerializer<SemanticTokensBuilder>() {
+        override fun serialize(
+            value: SemanticTokensBuilder,
+            gen: JsonGenerator,
+            serializers: SerializerProvider,
+        ) {
+            val prevPrettyPrinter = gen.prettyPrinter
+            if(prevPrettyPrinter is DefaultPrettyPrinter) {
+                gen.setPrettyPrinter(
+                    DefaultPrettyPrinter(prevPrettyPrinter).apply {
+                        indentArraysWith(object : DefaultPrettyPrinter.Indenter {
+                            var index = 0
+
+                            override fun writeIndentation(
+                                g: JsonGenerator,
+                                level: Int,
+                            ) {
+                                val i = index++
+                                if(i == 0 || i == value.data.size) {
+                                    // Newline at start and end
+                                    DefaultIndenter.SYSTEM_LINEFEED_INSTANCE.writeIndentation(g, level)
+                                    return
+                                }
+                                if(i % 5 != 0) {
+                                    // No whitespace inside a token
+                                    return
+                                }
+                                if(value.data[i] == 0) {
+                                    // Separate tokens
+                                    DefaultPrettyPrinter.FixedSpaceIndenter.instance.writeIndentation(g, level)
+                                    return
+                                }
+                                for(i in 0 until value.data[i]) {
+                                    // Newline for every line the token advanced
+                                    DefaultIndenter.SYSTEM_LINEFEED_INSTANCE.writeIndentation(g, level)
+                                }
+                            }
+
+                            override fun isInline() = false
+                        })
+                    }
+                )
+            }
+            gen.writeStartArray()
+            for(i in 0 until value.data.size) {
+                gen.writeNumber(value.data[i])
+            }
+            gen.writeEndArray()
+            gen.setPrettyPrinter(prevPrettyPrinter)
+        }
+    }
+
+    /**
+     * Helper class to shift semantic tokens in the middle of the builder
+     */
+    inner class TokenPositionMapper {
+        private var currentTokenIndex = 0
+        private var prevTokenPosition = Position()
+        private var currentTokenPosition = if(data.isEmpty()) Position(Int.MAX_VALUE, Int.MAX_VALUE) else Position(data[0], data[1])
+
+        /**
+         * Shifts all semantic tokens after the source position by the difference between
+         * source and target position. Multiple calls should only have increasing sourcePosition values
+         *
+         * If `addMapping` has been called before, then the `sourcePosition` of all following calls should already
+         * have that mapping applied to it. This means `sourcePosition` always references the current state of the semantic tokens,
+         * not the state when the `TokenPositionMapper` was created.
+         *
+         * If the [sourcePosition] is within a token, the token's length will *not* be adjusted. This method only shifts the start of tokens.
+         *
+         * @param sourcePosition The position after which tokens should be shifted
+         * @param targetPosition The new position of sourcePosition
+         */
+        fun addMapping(sourcePosition: Position, targetPosition: Position) {
+            // Advance from the cached position to find where we need to start shifting
+            while (currentTokenPosition <= sourcePosition) {
+                prevTokenPosition.line = currentTokenPosition.line
+                prevTokenPosition.character = currentTokenPosition.character
+
+                currentTokenIndex += 5
+
+                if(currentTokenIndex >= data.size)
+                    break
+
+                val lineDelta = data[currentTokenIndex]
+                val charDelta = data[currentTokenIndex + 1]
+
+                currentTokenPosition.line += lineDelta
+                if(lineDelta == 0) {
+                    currentTokenPosition.character += charDelta
+                } else {
+                    currentTokenPosition.character = charDelta
+                }
+            }
+
+            // Now shift all remaining tokens. The only token that must be adjusted
+            // is the one at currentTokenIndex; all following tokens are relative to it.
+            if(currentTokenIndex >= data.size)
+                return
+            currentTokenPosition = targetPosition.offsetBy(sourcePosition.differenceTo(currentTokenPosition))
+            val newTokenDelta = prevTokenPosition.differenceTo(currentTokenPosition)
+            data[currentTokenIndex] = newTokenDelta.line
+            data[currentTokenIndex + 1] = newTokenDelta.character
+        }
+    }
 }

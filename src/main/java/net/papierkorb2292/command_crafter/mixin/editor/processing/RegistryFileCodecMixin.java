@@ -6,24 +6,18 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.codec.RegistryFileCodec;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
-import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
-import org.jetbrains.annotations.NotNull;
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.CodecTransformers;
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.stream.Stream;
-
-import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(RegistryFileCodec.class)
 public class RegistryFileCodecMixin<E> {
@@ -39,23 +33,13 @@ public class RegistryFileCodecMixin<E> {
             at = @At(
                     value = "FIELD",
                     target = "Lnet/minecraft/resources/Identifier;CODEC:Lcom/mojang/serialization/Codec;",
-                    remap = true
+                    remap = true,
+                    opcode = Opcodes.GETSTATIC
             ),
             remap = false
     )
     private Codec<?> command_crafter$addRegistryIdSuggestions(Codec<?> identifierCodec) {
-        return new CodecSuggestionWrapper<>(identifierCodec, new CodecSuggestionWrapper.SuggestionsProvider() {
-            @NotNull
-            @Override
-            public <T> Stream<T> getSuggestions(@NotNull DynamicOps<T> ops) {
-                var owner = ((RegistryOps<?>)ops).getter(registryKey);
-                if(owner.isEmpty()) return Stream.empty();
-                if(owner.get() instanceof HolderLookup<?> wrapper) {
-                    return wrapper.listElementIds().map(key -> ops.createString(key.identifier().toString()));
-                }
-                return Stream.empty();
-            }
-        });
+        return CodecTransformers.addResourceKeySuggestions(identifierCodec, registryKey);
     }
 
     @Inject(
@@ -68,7 +52,8 @@ public class RegistryFileCodecMixin<E> {
             remap = false
     )
     private <T> void command_crafter$suggestEntryCodecWhenIdWasFound(DynamicOps<T> ops, T input, CallbackInfoReturnable<DataResult<Pair<Holder<E>, T>>> cir) {
-        if(getOrNull(StringRangeTree.AnalyzingDynamicOps.Companion.getCURRENT_ANALYZING_OPS()) != null)
+        final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);
+        if(extraBehavior != null && !extraBehavior.getBranchBehavior().isShortCircuit())
             elementCodec.decode(ops, input);
     }
 }

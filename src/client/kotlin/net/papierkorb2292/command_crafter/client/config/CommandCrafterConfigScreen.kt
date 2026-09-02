@@ -1,11 +1,11 @@
 package net.papierkorb2292.command_crafter.client.config
 
 import net.minecraft.client.Minecraft
+import net.minecraft.client.OptionInstance
+import net.minecraft.client.Options
+import net.minecraft.client.gui.components.Tooltip
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.options.OptionsSubScreen
-import net.minecraft.client.gui.components.Tooltip
-import net.minecraft.client.Options
-import net.minecraft.client.OptionInstance
 import net.minecraft.network.chat.Component
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 
@@ -30,6 +30,16 @@ class CommandCrafterConfigScreen(val config: CommandCrafterConfig, parent: Scree
                 SimpleOptionIntCallbacks,
                 config.servicesPort,
                 config::servicesPort::set
+            )
+        )
+        list!!.addBig(
+            OptionInstance(
+                configNameToOptionKey(CommandCrafterConfig.ADD_INGAME_SUGGEESTIONS_NAME),
+                { Tooltip.create(Component.translatable(configNameToOptionKey(CommandCrafterConfig.ADD_INGAME_SUGGEESTIONS_NAME) + ".description")) },
+                { _, value -> Component.literal(value.toString())},
+                OptionInstance.BOOLEAN_VALUES,
+                config.addIngameSuggestions,
+                config::addIngameSuggestions::set
             )
         )
     }

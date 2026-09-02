@@ -1,10 +1,12 @@
 package net.papierkorb2292.command_crafter.parser.helper
 
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap
+import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
-import kotlin.collections.component1
-import kotlin.collections.component2
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
+import net.papierkorb2292.command_crafter.networking.list
 import kotlin.math.max
 import kotlin.math.min
 
@@ -78,20 +80,16 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
     }
 
     private fun map(inputCursors: IntList, outputCursors: IntList, inputCursor: Int, clampInGaps: Boolean): Int {
-        var mappingIndex = inputCursors.binarySearch { index ->
-            if(inputCursors[index] > inputCursor) 1
-            else if (inputCursors[index] + lengths[index] <= inputCursor) -1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            if(mappingIndex == -1) {
-                return inputCursor
-            }
-            mappingIndex = -(mappingIndex + 2)
-            if(clampInGaps) {
-                return outputCursors[mappingIndex] + lengths[mappingIndex]
-            }
-        }
+        var mappingIndex = roundDownBinarySearch(inputCursors.binarySearch(inputCursor))
+        if(mappingIndex == -1)
+            return inputCursor
+        if(clampInGaps && inputCursor >= inputCursors[mappingIndex] + lengths[mappingIndex])
+            return outputCursors[mappingIndex] + lengths[mappingIndex]
+
+        // Multiple mappings might have the same start (length can be 0), this method selects the last one
+        while(mappingIndex + 1 < inputCursors.size && inputCursors[mappingIndex + 1] == inputCursor)
+            mappingIndex++
+
         val startInputCursor = inputCursors[mappingIndex]
         val relativeCursor = inputCursor - startInputCursor
         return outputCursors[mappingIndex] + relativeCursor
@@ -103,11 +101,39 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
 
     private fun containsCursor(inputCursor: Int, inputCursors: IntList, endInclusive: Boolean): Boolean {
         val endInclusiveOffset = if(endInclusive) 1 else 0
-        return 0 <= inputCursors.binarySearch { index ->
-            if(inputCursors[index] > inputCursor) 1
-            else if (inputCursors[index] + lengths[index] + endInclusiveOffset <= inputCursor) -1
-            else 0
+        val mappingIndex = roundDownBinarySearch(inputCursors.binarySearch(inputCursor))
+        if(mappingIndex < 0)
+            return false
+        return inputCursors[mappingIndex] + lengths[mappingIndex] + endInclusiveOffset > inputCursor
+    }
+
+    fun mapAllToTargetSorted(sourceCursors: IntList, removeUnmapped: Boolean) {
+        mapAllSorted(sourceCursors, this.sourceCursors, this.targetCursors, removeUnmapped)
+    }
+
+    fun mapAllToSourceSorted(targetCursors: IntList, removeUnmapped: Boolean) {
+        mapAllSorted(targetCursors, this.targetCursors, this.sourceCursors, removeUnmapped)
+    }
+
+    private fun mapAllSorted(list: IntList, inputCursors: IntList, outputCursors: IntList, removeUnmapped: Boolean) {
+        if(list.isEmpty())
+            return
+        var nextReadIndex = 0
+        var lastWrittenIndex = -1
+        var mappingIndex = roundDownBinarySearch(inputCursors.binarySearch(list[0]))
+        while(nextReadIndex < list.size && mappingIndex < inputCursors.size) {
+            val inputCursor = list[nextReadIndex]
+            if(mappingIndex + 1 < inputCursors.size && inputCursor >= inputCursors[mappingIndex + 1]) {
+                // The cursor is not part of the current mapping, go the next mapping
+                mappingIndex++
+                continue
+            }
+            nextReadIndex++
+            if(removeUnmapped && (mappingIndex < 0 || inputCursors[mappingIndex] + lengths[mappingIndex] < inputCursor))
+                continue
+            list[++lastWrittenIndex] = if(mappingIndex < 0) inputCursor else inputCursor - inputCursors[mappingIndex] + outputCursors[mappingIndex]
         }
+        list.removeAfter(lastWrittenIndex)
     }
 
     fun combineWith(targetMapper: OffsetProcessedInputCursorMapper): SplitProcessedInputCursorMapper {
@@ -201,5 +227,39 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
         result = 31 * result + lengths.hashCode()
         result = 31 * result + expandedCharEnds.hashCode()
         return result
+    }
+
+    companion object {
+        val PACKET_CODEC = StreamCodec.composite(
+            IntList.PACKET_CODEC,
+            SplitProcessedInputCursorMapper::sourceCursors,
+            IntList.PACKET_CODEC,
+            SplitProcessedInputCursorMapper::targetCursors,
+            IntList.PACKET_CODEC,
+            SplitProcessedInputCursorMapper::lengths,
+            ByteBufCodecs.VAR_INT,
+            SplitProcessedInputCursorMapper::prevSourceEnd,
+            ByteBufCodecs.VAR_INT,
+            SplitProcessedInputCursorMapper::prevTargetEnd,
+            StreamCodec.composite(
+                ByteBufCodecs.VAR_INT,
+                Pair<Int, Int>::first,
+                ByteBufCodecs.VAR_INT,
+                Pair<Int, Int>::second,
+                ::Pair
+            ).list(),
+            { mapper -> mapper.expandedCharEnds.int2IntEntrySet().map { it.intKey to it.intValue } }
+        ) { sourceCursors, targetCursors, lengths, prevSourceEnd, prevTargetEnd, expandedCharEnds ->
+            SplitProcessedInputCursorMapper().also {
+                it.sourceCursors.addAll(sourceCursors)
+                it.targetCursors.addAll(targetCursors)
+                it.lengths.addAll(lengths)
+                it.prevSourceEnd = prevSourceEnd
+                it.prevTargetEnd = prevTargetEnd
+                for((key, value) in expandedCharEnds) {
+                    it.expandedCharEnds[key] = value
+                }
+            }
+        }
     }
 }

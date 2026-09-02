@@ -7,19 +7,17 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.datafixers.util.Pair;
-import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
-import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.tags.TagLoader;
-import net.minecraft.server.packs.resources.Resource;
-import net.minecraft.server.ReloadableServerResources;
-import net.minecraft.commands.ExecutionCommandSource;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.ExecutionCommandSource;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.functions.CommandFunction;
-import net.minecraft.server.ServerFunctionLibrary;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.ReloadableServerResources;
+import net.minecraft.server.ServerFunctionLibrary;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.tags.TagLoader;
 import net.papierkorb2292.command_crafter.editor.PackagedId;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.FinalTagContentProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.UtilKt;
@@ -30,7 +28,6 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo;
 import net.papierkorb2292.command_crafter.parser.LanguageManager;
 import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer;
-import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -63,7 +60,6 @@ public class ServerFunctionLibraryMixin implements ParsedResourceCreator.ParseRe
     )
     private <T extends ExecutionCommandSource<T>> CommandFunction<T> command_crafter$replaceFunctionCreationWithDirectiveParser(Identifier id, CommandDispatcher<T> dispatcher, T source, List<String> lines, Operation<CommandFunction<T>> op, Map.Entry<Identifier, Resource> resourceEntry) {
         if(!(source instanceof CommandSourceStack serverSource)) {
-            //noinspection MixinExtrasOperationParameters
             return op.call(id, dispatcher, source, lines);
         }
         var resourceCreator = new ParsedResourceCreator(id, resourceEntry.getValue().sourcePackId());
@@ -74,7 +70,7 @@ public class ServerFunctionLibraryMixin implements ParsedResourceCreator.ParseRe
             return Unit.INSTANCE;
         });
         @SuppressWarnings("unchecked")
-        var reader = new DirectiveStringReader<>(new FileMappingInfo(lines, new SplitProcessedInputCursorMapper(), 0, 0, new Int2ObjectLinkedOpenHashMap<>(), new Object2ObjectLinkedOpenHashMap<>()), (CommandDispatcher<SharedSuggestionProvider>)(Object)dispatcher, resourceCreator);
+        var reader = new DirectiveStringReader<>(FileMappingInfo.Companion.fromLines(lines), (CommandDispatcher<SharedSuggestionProvider>)(Object)dispatcher, resourceCreator);
         var startCursor = reader.getAbsoluteCursor();
         var functionBuilder = LanguageManager.INSTANCE.parseToCommands(
                 reader,

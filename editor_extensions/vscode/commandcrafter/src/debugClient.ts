@@ -29,16 +29,25 @@ export class DebugClient implements ConnectionFeature {
 
                 return connectionType.connect().then((streamInfo) => {
                     streamInfo.reader.on('close', () => vscode.debug.stopDebugging(session)); // Mostly necessary for stopping Minecraft from the IDE. Normal shutdowns are already communicated by the Debug Adapter.
-                    return debugClient.connectToStream(streamInfo, connectionType, shouldLog);
+                    return debugClient.connectToStream(streamInfo, connectionType, shouldLog, languageClientRunner.extensionVersion);
                 }, (error) => {
                     outputChannel?.appendLine("Error connecting to Minecraft debugger: " + error.stack)
                     throw new Error("Error connecting to Minecraft debugger: " + error.message);
                 });
             }
         }));
+        context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider(debuggerId, {
+            resolveDebugConfiguration(folder, debugConfiguration, token) {
+                debugConfiguration.editorInfo = {
+                    extensionVersion: languageClientRunner.extensionVersion,
+                    featureConfig: getFeatureConfig()
+                }
+                return debugConfiguration;
+            }
+        }));
     }
 
-    private connectToStream(streamInfo: StreamInfo, connectionType: MinecraftConnectionType, shouldLog: boolean): vscode.DebugAdapterDescriptor {    
+    private connectToStream(streamInfo: StreamInfo, connectionType: MinecraftConnectionType, shouldLog: boolean, extensionVersion: string): vscode.DebugAdapterDescriptor {    
         const sendMessageEventEmitter = new vscode.EventEmitter<vscode.DebugProtocolMessage>()
 
         const debugAdapter: vscode.DebugAdapter = {
@@ -109,7 +118,10 @@ export class DebugClient implements ConnectionFeature {
             "command": "connectToService",
             "arguments": {
                 "service": "debugger",
-                "featureConfig": getFeatureConfig()
+                // featureConfig and extensionVersion here are only for backwards compatiblity
+                // Since v0.7.0 they are synced through the launch args instead (see `registerDebugConfigurationProvider`)
+                "featureConfig": getFeatureConfig(),
+                "extensionVersion": extensionVersion
             }
         });
         return new vscode.DebugAdapterInlineImplementation(debugAdapter);

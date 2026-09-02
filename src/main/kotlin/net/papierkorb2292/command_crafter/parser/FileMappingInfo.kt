@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -11,6 +12,7 @@ import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
 import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.Range
 import java.io.IOException
 import java.io.Reader
 import java.util.*
@@ -21,23 +23,39 @@ class FileMappingInfo(
     var readCharacters: Int = 0,
     var skippedChars: Int = 0,
     @JsonIgnore
-    val positionFromCursorFIFOCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
+    val positionFromCursorLRUCache: Int2ObjectLinkedOpenHashMap<Position> = Int2ObjectLinkedOpenHashMap(8, 0.25F),
     @JsonIgnore
-    val completionItemToPositionFIFOCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F)
+    val completionItemToPositionLRUCache: Object2ObjectLinkedOpenHashMap<CompletionItemPositionInfo, Position> = Object2ObjectLinkedOpenHashMap(8, 0.25F),
+    val accumulatedLineLengths: IntList = computeAccumulatedLineLengths(lines)
 ) {
-    val accumulatedLineLengths = IntList(lines.size)
-    init {
-        var accumulatedLength = 0
-        for(line in lines) {
-            accumulatedLength += line.length + 1
-            accumulatedLineLengths.add(accumulatedLength)
+    companion object {
+        fun fromLines(lines: List<String>) = FileMappingInfo(lines)
+
+        fun computeAccumulatedLineLengths(lines: List<String>): IntList {
+            val result = IntList(lines.size)
+            var accumulatedLength = 0
+            for(line in lines) {
+                accumulatedLength += line.length + 1
+                result.add(accumulatedLength)
+            }
+            return result
         }
     }
 
     val readSkippingChars
         get() = readCharacters - skippedChars
+    val totalCharacters
+        get() = if(accumulatedLineLengths.isEmpty()) 0 else accumulatedLineLengths.last() - 1 // Remove final newline, since it's not actually part of the file content
 
-    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorFIFOCache, completionItemToPositionFIFOCache)
+    fun copy() = FileMappingInfo(lines, cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache, accumulatedLineLengths)
+    fun copy(copyCursorMapper: Boolean) = FileMappingInfo(lines, if(copyCursorMapper) cursorMapper.copy() else cursorMapper, readCharacters, skippedChars, positionFromCursorLRUCache, completionItemToPositionLRUCache, accumulatedLineLengths)
+    fun copyWithoutMapping() = FileMappingInfo(lines, readCharacters = readCharacters, positionFromCursorLRUCache = positionFromCursorLRUCache, accumulatedLineLengths = accumulatedLineLengths)
+
+    fun mapToDiagnosticFileRange(range: StringRange) = mapToDiagnosticFileRange(range.start, range.end)
+    fun mapToDiagnosticFileRange(start: Int, end: Int) = Range(
+        AnalyzingResult.getPositionFromCursor(cursorMapper.mapToSource(start + readSkippingChars), this),
+        AnalyzingResult.getPositionFromCursor(cursorMapper.mapToSource(end + readSkippingChars), this)
+    )
 
     fun getReader(startCursor: Int) = object : Reader() {
         private var isClosed = false

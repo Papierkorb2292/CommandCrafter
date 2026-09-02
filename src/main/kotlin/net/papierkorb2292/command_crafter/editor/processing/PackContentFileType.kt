@@ -194,6 +194,8 @@ class PackContentFileType private constructor(val contentTypePath: String, val p
     fun toStringPath(namespace: String, path: String, packPath: String) =
         "${packPath}/${packType.folderName}/$namespace/$contentTypePath/$path"
 
+    override fun toString() = "${packType.folderName}:$contentTypePath"
+
     data class ParsedPath(val id: PackagedId, val type: PackContentFileType) {
         constructor(resourceId: Identifier, packPath: String, type: PackContentFileType) : this(PackagedId(resourceId, packPath), type)
     }

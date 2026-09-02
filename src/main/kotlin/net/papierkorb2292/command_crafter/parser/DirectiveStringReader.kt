@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import net.minecraft.commands.SharedSuggestionProvider
 import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
 import java.io.IOException
@@ -223,11 +224,13 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun endStatementAndAnalyze(analyzingResult: AnalyzingResult, skipNewLine: Boolean = true): Boolean {
+        if(resourceCreator !is AnalyzingResourceCreator) throw IllegalStateException("Analyzing directives requires AnalyzingResourceCreator")
         cutReadChars()
         val foundDirective = trySkipWhitespace(skipNewLine) {
             if(canRead() && peek() == '@') {
                 skip()
-                directiveManager.readDirectiveAndAnalyze(this, analyzingResult)
+                @Suppress("UNCHECKED_CAST")
+                directiveManager.readDirectiveAndAnalyze(this as DirectiveStringReader<AnalyzingResourceCreator>, analyzingResult)
                 true
             } else false
         }
@@ -305,8 +308,20 @@ class DirectiveStringReader<out ResourceCreator>(
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
             it.updateLanguage()
-            it.readCharacters = readCharacters
-            it.skippedChars = skippedChars
+            it.currentIndentation = currentIndentation
+            it.nextLine = nextLine
+            it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
+            it.escapedMultilineTrimmed = escapedMultilineTrimmed
+            it.furthestAccessedCursor = furthestAccessedCursor
+        }
+    }
+
+    fun copy(copyCursorMapper: Boolean) : DirectiveStringReader<ResourceCreator> {
+        return DirectiveStringReader(fileMappingInfo.copy(copyCursorMapper), dispatcher, resourceCreator).also {
+            it.setString(string)
+            it.cursor = cursor
+            it.scopeStack.addAll(scopeStack)
+            it.updateLanguage()
             it.currentIndentation = currentIndentation
             it.nextLine = nextLine
             it.onlyReadEscapedMultiline = onlyReadEscapedMultiline
@@ -322,6 +337,26 @@ class DirectiveStringReader<out ResourceCreator>(
         setString(other.string)
         nextLine = other.nextLine
         escapedMultilineTrimmed = other.escapedMultilineTrimmed
+        furthestAccessedCursor = max(furthestAccessedCursor, other.furthestAccessedCursor)
+    }
+
+    fun copyWithoutMapping(): DirectiveStringReader<ResourceCreator> {
+        return DirectiveStringReader(fileMappingInfo.copyWithoutMapping(), dispatcher, resourceCreator).also {
+            it.setString(string)
+            it.cursor = cursor
+            it.scopeStack.addAll(scopeStack)
+            it.updateLanguage()
+            it.currentIndentation = currentIndentation
+            it.nextLine = nextLine
+            it.furthestAccessedCursor = furthestAccessedCursor
+        }
+    }
+
+    fun copyFromWithoutMapping(other: DirectiveStringReader<*>) {
+        cursor = other.cursor
+        readCharacters = other.readCharacters
+        setString(other.string)
+        nextLine = other.nextLine
         furthestAccessedCursor = max(furthestAccessedCursor, other.furthestAccessedCursor)
     }
 
@@ -363,6 +398,11 @@ class DirectiveStringReader<out ResourceCreator>(
         while(canRead() && peek() == ' ') read()
     }
 
+    // Correctly handle the case where the cursor is past the end of the string, which might happen when removing trailing whitespace
+    override fun getRemainingLength(): Int = max(0, super.getRemainingLength())
+    override fun getRemaining(): String = if(!canRead()) "" else super.getRemaining()
+    override fun getRead(): String = if(!canRead()) string else super.getRead()
+
     fun getMultilineString(absoluteStart: Int, absoluteEnd: Int, lineSeparator: String = OpenFile.LINE_SEPARATOR): String {
         val startPos = AnalyzingResult.getPositionFromCursor(absoluteStart, fileMappingInfo)
         val endPos = AnalyzingResult.getPositionFromCursor(absoluteEnd, fileMappingInfo)
@@ -388,6 +428,22 @@ class DirectiveStringReader<out ResourceCreator>(
         return IoReader()
     }
 
+    companion object {
+        fun <ResourceCreator> createReaderAtAbsoluteCursor(
+            fileMappingInfo: FileMappingInfo,
+            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
+            resourceCreator: ResourceCreator,
+            absoluteCursor: Int
+        ) = DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
+            if(absoluteCursor > 0) {
+                val position = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo)
+                it.nextLine = position.line
+                if(position.line > 0)
+                    it.readCharacters = it.fileMappingInfo.accumulatedLineLengths[position.line - 1]
+                it.cursor = position.character
+            }
+        }
+    }
 
     inner class IoReader : Reader() {
         private var isClosed = false

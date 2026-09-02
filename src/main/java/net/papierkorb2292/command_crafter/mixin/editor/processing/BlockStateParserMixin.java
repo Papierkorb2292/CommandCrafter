@@ -26,6 +26,9 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalforme
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -210,23 +213,23 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(command_crafter$analyzingResult);
         var nbt = nbtReader.parseAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
 
+        //noinspection unchecked
+        var directiveStringReader= (DirectiveStringReader<AnalyzingResourceCreator>) reader;
         Decoder<?> decoder = null;
         if(state != null) {
-            //noinspection unchecked
-            var dataObjectDecoding = DataObjectDecoding.Companion.getForReader((DirectiveStringReader<AnalyzingResourceCreator>) reader);
-            if (dataObjectDecoding != null)
-                decoder = dataObjectDecoding.getDummyBlockEntityDecoders().get(state.getBlock());
+            var dataObjectDecoding = DataObjectDecoding.Companion.getForReader(directiveStringReader);
+            decoder = dataObjectDecoding.getDecoderForBlock(state.getBlock());
         }
 
-        StringRangeTree.TreeOperations.Companion.forNbt(
+        TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        )
-                .withDiagnosticSeverity(DiagnosticSeverity.Warning)
-                .analyzeFull(command_crafter$analyzingResult, true, decoder);
+        ).withDiagnosticSeverity(DiagnosticSeverity.Warning)
+                .analyzeFull(command_crafter$analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 

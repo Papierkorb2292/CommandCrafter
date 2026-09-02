@@ -2,8 +2,6 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.serialization.DynamicOps;
-import net.minecraft.commands.arguments.item.ItemInput;
 import net.minecraft.commands.arguments.item.ItemParser;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.RegistryOps;
@@ -15,7 +13,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 public interface ItemParserAccessor {
 
     @Invoker
-    ItemInput callParse(StringReader reader) throws CommandSyntaxException;
+    void callParse(StringReader reader, ItemParser.Visitor visitor) throws CommandSyntaxException;
 
     @Accessor
     RegistryOps<Tag> getRegistryOps();

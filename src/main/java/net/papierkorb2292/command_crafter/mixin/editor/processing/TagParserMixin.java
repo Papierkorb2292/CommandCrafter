@@ -1,38 +1,35 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
-import net.minecraft.nbt.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
-import net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider;
+import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CompoundTagArgumentAnalyzer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.*;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
+import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-
-import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @Mixin(TagParser.class)
-public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, AllowMalformedContainer {
+public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, AllowMalformedContainer, AnalyzingResultCreator {
     private @Nullable StringRangeTree.Builder<Tag> command_crafter$stringRangeTreeBuilder;
     private boolean command_crafter$allowMalformed = false;
+    private @Nullable AnalyzingResult command_crafter$analyzingResult;
 
     @Override
     public void command_crafter$setAllowMalformed(boolean allowMalformed) {
@@ -47,6 +44,11 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     @Override
     public void command_crafter$setStringRangeTreeBuilder(@NotNull StringRangeTree.Builder<Tag> builder) {
         command_crafter$stringRangeTreeBuilder = builder;
+    }
+
+    @Override
+    public void command_crafter$setAnalyzingResult(AnalyzingResult analyzingResult) {
+        this.command_crafter$analyzingResult = analyzingResult;
     }
 
     @WrapOperation(
@@ -65,20 +67,28 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             partialStringRangeTreeBuilder = new StringRangeTree.PartialBuilder<>();
             PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialStringRangeTreeBuilder));
         }
-
+        if(command_crafter$analyzingResult != null) {
+            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(command_crafter$analyzingResult.copyInput()));
+        }
         try {
-            return op.call(instance, reader);
+            final var tag = op.call(instance, reader);
+            if(command_crafter$analyzingResult != null) {
+                PackratParserAdditionalArgs.INSTANCE.popAnalyzingResult(command_crafter$analyzingResult, null);
+            }
+            return tag;
         } finally {
             PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().remove();
             PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
             if(partialStringRangeTreeBuilder != null) {
                 partialStringRangeTreeBuilder.addToBasicBuilder(command_crafter$stringRangeTreeBuilder);
             }
+            PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult().remove();
+            PackratParserAdditionalArgs.INSTANCE.getFurthestAnalyzingResult().remove();
             restoreArgsCallback.invoke();
         }
     }
 
-    private static ThreadLocal<Object> command_crafter$parseStringErrorInput = new ThreadLocal<>();
+    private static MalformedStringDecoderAnalyzing<DataObjectDecoding.EmbeddedNbtDecoderData<?>> command_crafter$decoderAnalyzing;
 
     @ModifyExpressionValue(
             method = "<clinit>",
@@ -88,33 +98,39 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             ),
             remap = false
     )
-    private static Codec<CompoundTag> command_crafter$storeStringForStringParseErrorCallback(Codec<CompoundTag> codec) {
-        return new Codec<>() {
-            @Override
-            public <U> DataResult<Pair<CompoundTag, U>> decode(DynamicOps<U> ops, U input) {
-                command_crafter$parseStringErrorInput.set(input);
-                var result = codec.decode(ops, input);
-                command_crafter$parseStringErrorInput.remove();
-                return result;
-            }
-
-            @Override
-            public <U> DataResult<U> encode(CompoundTag input, DynamicOps<U> ops, U prefix) {
-                return codec.encode(input, ops, prefix);
-            }
-        };
+    private static Codec<CompoundTag> command_crafter$storeFlattenedCodecInput(Codec<CompoundTag> codec) {
+        command_crafter$decoderAnalyzing = new MalformedStringDecoderAnalyzing<>(
+                (dynamic) -> DataObjectDecoding.Companion.getEmbeddedNbtDecoder(dynamic.getValue()),
+                (decoderData, result, _, reader, _, _) -> {
+                    CompoundTagArgumentAnalyzer.Companion.analyzeReader(
+                            reader,
+                            result,
+                            decoderData != null ? decoderData.getBranchBehaviorModifier().apply(BranchBehaviorProvider.Decode.INSTANCE) : null,
+                            decoderData != null ? decoderData.getDecoder() : null,
+                            NodeAnalyzingExecutor.Immediate.INSTANCE
+                    );
+                }
+        );
+        return command_crafter$decoderAnalyzing.wrapCodec(codec);
     }
 
-    @ModifyExpressionValue(
+    @ModifyReturnValue(
             method = "lambda$static$0",
-            at = @At(
-                    value = "INVOKE:LAST",
-                    target = "Lcom/mojang/serialization/DataResult;error(Ljava/util/function/Supplier;)Lcom/mojang/serialization/DataResult;"
-            ),
+            at = @At("RETURN:FIRST"),
             remap = false
     )
-    private static DataResult<?> command_crafter$invokeStringParseErrorCallback(DataResult<?> result, @Local CommandSyntaxException exception) {
-        PreLaunchDecoderOutputTracker.INSTANCE.onStringParseError((DataResult.Error<?>)result, command_crafter$parseStringErrorInput.get(), exception.getCursor());
+    private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s) {
+        command_crafter$decoderAnalyzing.onParsed(result.isSuccess() ? Integer.MAX_VALUE : s.length(), null);
+        return result;
+    }
+
+    @ModifyReturnValue(
+            method = "lambda$static$0",
+            at = @At("RETURN:LAST"),
+            remap = false
+    )
+    private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception) {
+        command_crafter$decoderAnalyzing.onParsed(exception.getCursor(), exception.getMessage());
         return result;
     }
 }

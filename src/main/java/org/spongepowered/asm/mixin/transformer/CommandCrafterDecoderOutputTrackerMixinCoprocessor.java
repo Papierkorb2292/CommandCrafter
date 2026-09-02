@@ -13,6 +13,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
     private final String decoderMethodDesc = "(Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)Lcom/mojang/serialization/DataResult;";
     private final String callbackObjectName = "net/papierkorb2292/command_crafter/editor/processing/PreLaunchDecoderOutputTracker";
     private final String callbackObjectDesc = "L" + callbackObjectName + ";";
+    private final String noDecoderCallbacksDesc = "Lnet/papierkorb2292/command_crafter/codecmod/NoDecoderCallbacks;";
 
     @Override
     String getName() {
@@ -38,6 +39,15 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
         }
         if(decodeMethod == null) return false;
 
+        // Check for @NoDecoderCallbacks
+        if(classNode.invisibleAnnotations != null) {
+            for (final var annotation : classNode.invisibleAnnotations) {
+                if (annotation.desc.equals(noDecoderCallbacksDesc))
+                    return false;
+            }
+        }
+
+
         addOnDecodeStartCall(decodeMethod);
         addOnDecodedCalls(decodeMethod);
 
@@ -54,6 +64,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                         callbackObjectDesc
                 )
         ); // Load INSTANCE
+        callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 1)); // Load ops
         callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 2)); // Load input
         callbackInjection.add(
                 new MethodInsnNode(
@@ -63,7 +74,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                         PreLaunchDecoderOutputTracker.ON_DECODE_START_DESC,
                         false
                 )
-        ); // Call INSTANCE.onDecodeStart(input)
+        ); // Call INSTANCE.onDecodeStart(ops, input)
 
         decodeMethod.instructions.insert(callbackInjection);
     }
@@ -89,6 +100,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                     )
             ); // Load INSTANCE
             callbackInjection.add(new InsnNode(Opcodes.SWAP));
+            callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 1)); // Load ops
             callbackInjection.add(new VarInsnNode(Opcodes.ALOAD, 2)); // Load input
             callbackInjection.add(
                     new MethodInsnNode(
@@ -98,7 +110,7 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                             PreLaunchDecoderOutputTracker.ON_DECODED_DESC,
                             false
                     )
-            ); // Call INSTANCE.onDecoded(returnValue, input)
+            ); // Call INSTANCE.onDecoded(returnValue, ops, input)
 
             decodeMethod.instructions.insertBefore(returnInsn, callbackInjection);
         }

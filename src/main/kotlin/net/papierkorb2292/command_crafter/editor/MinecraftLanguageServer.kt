@@ -1,24 +1,28 @@
 package net.papierkorb2292.command_crafter.editor
 
+import com.google.common.util.concurrent.MoreExecutors
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
+import com.mojang.serialization.Codec
+import com.mojang.serialization.JsonOps
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.fabricmc.fabric.api.tag.convention.v2.TagUtil
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.EditorClientAware
-import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import org.apache.logging.log4j.core.pattern.AnsiEscape
 import org.eclipse.lsp4j.*
@@ -30,8 +34,11 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlin.jvm.optionals.getOrNull
 
-class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?, editorInfo: EditorConnectionManager.EditorInfo)
+class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val minecraftClient: MinecraftClientConnection?)
     : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
@@ -46,9 +53,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
         const val SEMANTIC_TOKENS_REGISTRATION_ID = "command_crafter_semantic_tokens"
         const val SEMANTIC_TOKENS_REGISTRATION_NAME = "textDocument/semanticTokens"
+        const val DID_CHANGE_CONFIGURATION_REGISTRATION_ID = "command_crafter_did_change_configuration"
+        const val DID_CHANGE_CONFIGURATION_REGISTRATION_NAME = "workspace/didChangeConfiguration"
+
+        val EDITOR_SETTINGS_SCOPE = "CommandCrafter"
+        val FEATURE_CONFIG_SECTION = "FeatureConfig"
+        val AUTO_RELOAD_DELAY_SECTION = "SavedFileAutomaticReloadDelay"
 
         val semanticTokenLanguages = listOf("mcfunction", "json")
-        val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$")
+        val mcfunctionCompletionTriggerCharacters = setOf(" ", "[", "=", "!", ",", "{", ":", "/", ".", "\"", "'", "$", "@")
         val jsonCompletionTriggerCharacters = setOf(":", "\"")
         val allCompletionTriggerCharacters = (mcfunctionCompletionTriggerCharacters + jsonCompletionTriggerCharacters).toList()
 
@@ -83,10 +96,13 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private var currentSemanticTokensRegistration: SemanticTokensWithRegistrationOptions? = null
 
-    var editorInfo = editorInfo
+    val fileResultProcessing = Executors.newSingleThreadExecutor() // AnalyzingResults are processed on the same thread to make sure caches are not corrupted
+
+    var editorInfo = EditorConnectionManager.EditorInfo.DEFAULT
         private set
     val featureConfig
         get() = editorInfo.featureConfig
+    private var datapackAutoReloadDelayedExecutor = MoreExecutors.directExecutor()
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         val client = client ?: return
@@ -142,12 +158,18 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         for (file in openFiles.values) {
             file.stopAnalyzing()
             file.persistentAnalyzerData = null // Make sure all data is properly regenerated
-            file.analyzeFile(this)
+            file.startAnalyzingFile(this)
         }
     }
 
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
         clientCapabilities = params.capabilities
+        val initializationOptions = params.initializationOptions
+        if(initializationOptions is JsonObject)
+            editorInfo = EditorConnectionManager.EditorInfo.CODEC.parse(JsonOps.INSTANCE, initializationOptions).promotePartial {
+                CommandCrafter.LOGGER.warn("Error parsing editor info for language server: $it")
+            }.result().getOrNull() ?: editorInfo
+
         currentSemanticTokensRegistration = buildSemanticTokensRegistrationOptions()
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
             setTextDocumentSync(TextDocumentSyncOptions().apply {
@@ -160,6 +182,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     triggerCharacters = allCompletionTriggerCharacters
                     resolveProvider = true
                 }
+                colorProvider = Either.forLeft(true)
             })
             workspace = WorkspaceServerCapabilities().apply {
                 fileOperations = FileOperationsServerCapabilities().apply {
@@ -168,7 +191,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
 
             semanticTokensProvider = currentSemanticTokensRegistration
-        }, ServerInfo("Minecraft Language Server")))
+
+            experimental = CustomExperimentalServerCapabilities(
+                FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() }
+            )
+        }, ServerInfo("Minecraft Language Server", CommandCrafter.VERSION)))
     }
 
     override fun initialized(params: InitializedParams) {
@@ -185,9 +212,14 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             })
         }
 
-        connectServerConsole()
+        if(clientCapabilities?.workspace?.didChangeConfiguration?.dynamicRegistration == true) {
+            client.registerCapability(RegistrationParams(listOf(
+                Registration(DID_CHANGE_CONFIGURATION_REGISTRATION_ID, DID_CHANGE_CONFIGURATION_REGISTRATION_NAME, mapOf("sections" to listOf(EDITOR_SETTINGS_SCOPE)))
+            )))
+        }
 
-        client.modVersion(CommandCrafter.VERSION)
+        fetchSettings()
+        connectServerConsole()
     }
 
     override fun shutdown(): CompletableFuture<Any> {
@@ -205,7 +237,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 if(params == null) return
                 val textDocument = params.textDocument
                 openFiles[textDocument.uri] = OpenFile(textDocument.uri, OpenFile.linesFromString(textDocument.text), textDocument.version).also {
-                    it.analyzeFile(this@MinecraftLanguageServer)
+                    it.startAnalyzingFile(this@MinecraftLanguageServer)
                 }
             }
 
@@ -217,7 +249,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 for(change in params.contentChanges) {
                     file.applyContentChange(change)
                 }
-                file.analyzeFile(this@MinecraftLanguageServer)
+                file.startAnalyzingFile(this@MinecraftLanguageServer)
             }
 
             override fun didClose(params: DidCloseTextDocumentParams?) {
@@ -269,7 +301,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 return
                             }
                         }
-                        minecraftServer.datapackReloader?.invoke()
+                        datapackAutoReloadDelayedExecutor.execute {
+                            minecraftServer.datapackReloader?.invoke()
+                        }
                     }
                     PackContentFileType.PackType.RESOURCE -> {
                         if(!featureConfig.isEnabled(AUTO_RELOAD_RESOURCEPACK_CONFIG_PATH, false))
@@ -279,21 +313,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 }
             }
 
-            override fun completion(position: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
-                // Temporary fix for requesting too many completions in JSON files. Should actually be done in completion providers after rewriting AnalyzingResult.
-                if(position.context?.triggerKind == CompletionTriggerKind.TriggerCharacter
-                    && (position.textDocument.uri.endsWith(".json") || position.textDocument.uri.endsWith(".mcmeta"))
-                    && position.context.triggerCharacter !in jsonCompletionTriggerCharacters) {
-                    return emptyCompletionsDefault
-                }
-
-                val file = openFiles[position.textDocument.uri] ?: return emptyCompletionsDefault
-                val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
-
-                val cursor = AnalyzingResult.getCursorFromPosition(position.position, file.createFileMappingInfo())
-                return analyzer.thenComposeAsync { analyzingResult ->
-                    val provider = analyzingResult.getCompletionProviderForCursor(cursor) ?: return@thenComposeAsync emptyCompletionsDefault
-                    provider.dataProvider(cursor).thenApply {
+            override fun completion(params: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
+                val file = openFiles[params.textDocument.uri] ?: return emptyCompletionsDefault
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyCompletionsDefault
+                val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({ analyzingResult ->
+                    val completions = DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(dynamicRegistryManager) {
+                        analyzingResult.getCompletions(cursor, params.context)
+                    } ?: return@thenComposeAsync emptyCompletionsDefault
+                    completions.thenApply {
                         sortCommonTagCompletionsAtEnd(it)
                         Either.forLeft(
                             if(clientCapabilities!!.textDocument.completion.completionItem.insertReplaceSupport) it
@@ -311,31 +339,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                             }
                         )
                     }
-                }
-            }
-
-            // Check label of completions to determine whether it is a tag from the mod loader.
-            // In that case, let the editor prioritize other suggestions over the tag.
-            // Not the cleanest solution, but better than having to go through all the places that suggest tags
-            private fun sortCommonTagCompletionsAtEnd(completions: List<CompletionItem>) {
-                val sortPrefix = '~' // '~' is almost at the end of the ASCII range
-                // Add _some_ amount of spaces to the filter after : for mod loader tags
-                // such that even when inputting a word that appears in the path, the editor
-                // searches other namespaces first. (The namespace of the mod loader tags is so short,
-                // it would otherwise often show up as the top result even when there are better
-                // results from other namespaces, like when searching for "sand")
-                // Exact amount of spaces doesn't matter, this seems to work well
-                val filterPrefix = " ".repeat(15)
-                val commonTagPrefix = '#' + TagUtil.C_TAG_NAMESPACE + ':'
-                for(completion in completions) {
-                    val stringOffset = if(completion.label.getOrNull(0) == '"') 1 else 0
-                    if(completion.label.startsWith(commonTagPrefix, stringOffset)) {
-                        completion.sortText = sortPrefix + (completion.sortText ?: completion.label)
-                        val filterText = completion.filterText ?: completion.label
-                        // Insert spaces after :
-                        completion.filterText = StringBuilder(filterText).insert(stringOffset + commonTagPrefix.length, filterPrefix).toString()
-                    }
-                }
+                }, fileResultProcessing))
             }
 
             override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {
@@ -347,9 +351,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val file = openFiles[params.textDocument.uri]
                     ?: return CompletableFuture.completedFuture(SemanticTokens())
 
-                val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer)
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
                     ?: return CompletableFuture.completedFuture(SemanticTokens())
-                return analyzer.thenApply { it.semanticTokens.build() }
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply { it.semanticTokens.build() })
             }
 
             override fun diagnostic(params: DocumentDiagnosticParams?): CompletableFuture<DocumentDiagnosticReport> {
@@ -357,36 +361,61 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val file = openFiles[params.textDocument.uri]
                     ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
 
-                val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer)
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
                     ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
-                return analyzer.thenApply {
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply {
                     fillDiagnosticsSource(it.diagnostics)
                     DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics))
-                }
+                })
             }
 
+            override fun documentColor(params: DocumentColorParams): CompletableFuture<List<ColorInformation>> {
+                val file = openFiles[params.textDocument.uri]
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply { result ->
+                    result.colorInfos.map { info ->
+                        ColorInformation(info.range, info.color)
+                    }
+                })
+            }
 
+            override fun colorPresentation(params: ColorPresentationParams): CompletableFuture<List<ColorPresentation>> {
+                val file = openFiles[params.textDocument.uri]
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
+                    ?: return CompletableFuture.completedFuture(emptyList())
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApplyAsync({ result ->
+                    val colorInfo = result.colorInfos.find { info ->
+                        // Find color that intersects the requested range.
+                        // Don't check for complete equality, because color presentations might change the range (for example when a color argument is replaced with a hex color argument)
+                        if(params.range.end < info.range.start) false
+                        else if(params.range.start > info.range.end) false
+                        else true
+                    } ?: return@thenApplyAsync emptyList()
+                    colorInfo.getPresentation(params)
+                }, fileResultProcessing))
+            }
 
             override fun hover(params: HoverParams): CompletableFuture<Hover> {
                 val file = openFiles[params.textDocument.uri] ?: return emptyHoverDefault
-                val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer) ?: return emptyHoverDefault
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyHoverDefault
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
-                return analyzer.thenCompose {
-                    val provider = it.getHoverProviderForCursor(cursor) ?: return@thenCompose emptyHoverDefault
-                    provider.dataProvider(cursor)
-                }
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({
+                    it.getHover(cursor) ?: emptyHoverDefault
+                }, fileResultProcessing))
             }
 
             override fun definition(params: DefinitionParams): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
                 val file = openFiles[params.textDocument.uri] ?: return emptyDefinitionDefault
-                val analyzer = file.analyzeFileKeepAlive(this@MinecraftLanguageServer) ?: return emptyDefinitionDefault
+                val analyzer = file.analyzeFile(this@MinecraftLanguageServer) ?: return emptyDefinitionDefault
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
-                return analyzer.thenCompose {
-                    val provider = it.getDefinitionProviderForCursor(cursor) ?: return@thenCompose emptyDefinitionDefault
-                    provider.dataProvider(cursor)
-                }
+                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({
+                    it.getDefinition(cursor) ?: emptyDefinitionDefault
+                }, fileResultProcessing))
             }
         }
     }
@@ -486,7 +515,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     override fun getWorkspaceService(): WorkspaceService {
         return object : WorkspaceService {
             override fun didChangeConfiguration(params: DidChangeConfigurationParams?) {
-
+                fetchSettings()
             }
 
             override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams?) {
@@ -530,17 +559,44 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         minecraftClient.reloadResources(params)
     }
 
+    @Deprecated("Since v0.7.0, the default feature config is now sent in the initialize response through the `experimental` field")
     @JsonRequest
     fun defaultFeatureConfig(): CompletableFuture<Map<String, String>> {
         return CompletableFuture.completedFuture(FeatureConfig.DEFAULT_ENTRIES.mapValues { it.value.name.lowercase() })
     }
 
-    @JsonNotification
-    fun updateFeatureConfig(params: UpdateFeatureConfigArgs) {
-        editorInfo = params.combineWithEditorInfo(editorInfo)
-        analyzeAllFiles()
-        if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
-            updateSemanticTokensRegistration()
+    fun fetchSettings() {
+        client!!.configuration(ConfigurationParams(listOf(
+            ConfigurationItem().apply {
+                section = EDITOR_SETTINGS_SCOPE
+            }
+        ))).thenApply { settings ->
+            var needsAnalyzerRestart = false
+            val editorSettings = settings[0] as JsonElement
+            val newFeatureConfig = FeatureConfig.CODEC.optionalFieldOf(FEATURE_CONFIG_SECTION, FeatureConfig.EMPTY).codec()
+                .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
+                    CommandCrafter.LOGGER.warn("Error parsing new feature config for language server: $it")
+                }.result().getOrNull() ?: featureConfig
+            if(newFeatureConfig != editorInfo.featureConfig)
+                needsAnalyzerRestart = true
+            editorInfo = editorInfo.withFeatureConfig(newFeatureConfig)
+            val autoReloadDelay = Codec.FLOAT.optionalFieldOf(AUTO_RELOAD_DELAY_SECTION, 0F).codec()
+                .parse(JsonOps.INSTANCE, editorSettings).promotePartial {
+                    CommandCrafter.LOGGER.warn("Error parsing auto reload delay for language server: $it")
+                }
+                .result().getOrNull() ?: 0F
+            datapackAutoReloadDelayedExecutor = if(autoReloadDelay == 0F) {
+                MoreExecutors.directExecutor()
+            } else {
+                CompletableFuture.delayedExecutor((autoReloadDelay * TimeUnit.SECONDS.toMillis(1)).toLong(), TimeUnit.MILLISECONDS, MoreExecutors.directExecutor())
+            }
+            // Auto reload delay doesn't require analyzer restart, they're unaffected
+
+            if(needsAnalyzerRestart)
+                analyzeAllFiles()
+            if(clientCapabilities?.textDocument?.semanticTokens?.dynamicRegistration == true)
+                updateSemanticTokensRegistration()
+        }
     }
 
     private fun updateSemanticTokensRegistration() {
@@ -598,6 +654,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 while(reader.canRead() && Identifier.validPathChar(reader.peek()))
                     reader.skip()
                 val idEnd = reader.cursor
+                // Only highlight ids with a non-empty namespace and path (to avoid highlighting colons in normal text)
+                if(idStart + 1 == i || idEnd == i) {
+                    reader.cursor = i
+                    continue
+                }
+                // Also don't highlight ids with upper case letters directly next to them, it's probably part of a word
+                if(idStart >= 0 && Character.isUpperCase(documentation[idStart]) || idEnd + 1 < documentation.length && Character.isUpperCase(documentation[idEnd + 1])) {
+                    reader.cursor = i
+                    continue
+                }
                 val resourceSearchKeywords = PackContentFileType.parseKeywords(reader.string, idStart, idEnd).toSet()
                 val range = StringRange(idStart, idEnd)
                 replacements += PackContentFileType.findWorkspaceResourceFromId(
@@ -680,11 +746,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val client = client ?: return CompletableFuture.completedFuture(null)
         val openFile = openFiles[uri]
         return if (openFile != null) {
-            openFile.analyzeFile(this) ?: CompletableFuture.completedFuture(null)
+            openFile.analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
         } else {
             client.getFileContent(uri).thenCompose { content ->
-                OpenFile.fromString(uri, content, 0).analyzeFile(this) ?: CompletableFuture.completedFuture(null)
+                OpenFile.fromString(uri, content, 0).analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
             }
         }
     }
+
+    data class CustomExperimentalServerCapabilities(
+        val defaultFeatureConfig: Map<String, String>
+    )
 }

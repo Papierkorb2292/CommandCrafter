@@ -3,26 +3,33 @@ package net.papierkorb2292.command_crafter.mixin.editor.processing;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
-import net.minecraft.commands.arguments.selector.EntitySelectorParser;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.IdentifierException;
+import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.papierkorb2292.command_crafter.editor.processing.*;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer;
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator;
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultDataContainer;
 import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.helper.AnalyzedRegistryEntryList;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
@@ -33,6 +40,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.function.Predicate;
+
+import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
 @SuppressWarnings("unused")
 @Mixin(EntitySelectorOptions.class)
@@ -370,6 +381,8 @@ public class EntitySelectorOptionsMixin {
                                 (DirectiveStringReader<AnalyzingResourceCreator>) reader
                         );
                     } else {
+                        if(tagId.equals(Identifier.withDefaultNamespace("player")))
+                            selectorReader.setIncludesEntities(false);
                         analyzingResult.getSemanticTokens().addMultiline(
                                 startCursor,
                                 reader.getCursor() - startCursor,
@@ -451,17 +464,21 @@ public class EntitySelectorOptionsMixin {
         //noinspection unchecked
         ((StringRangeTreeCreator<Tag>)nbtReader).command_crafter$setStringRangeTreeBuilder(treeBuilder);
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
+        ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(analyzingResult);
         var nbt = nbtReader.parseAsArgument(directiveReader);
         var tree = treeBuilder.build(nbt);
-        StringRangeTree.TreeOperations.Companion.forNbt(
+        var decoder = getOrNull(DataObjectDecoding.Companion.getSELECTOR_NBT_DECODER());
+        TreeOperations.Companion.forNbt(
                 tree,
                 directiveReader
-        ).analyzeFull(analyzingResult, true, null);
+        ).withBranchBehaviorProvider(BranchBehaviorProvider.Companion.getForPathLookup(null))
+                .withDiagnosticSeverity(DiagnosticSeverity.Warning)
+                .analyzeFull(analyzingResult, decoder);
         return nbt instanceof CompoundTag ? (CompoundTag)nbt : null;
     }
 
     @ModifyExpressionValue(
-            method = "lambda$bootStrap$49",
+            method = "lambda$bootStrap$46",
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
@@ -584,5 +601,50 @@ public class EntitySelectorOptionsMixin {
             );
         }
         return value;
+    }
+
+    @WrapOperation(
+            method = "lambda$bootStrap$35",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/core/DefaultedRegistry;getOptional(Lnet/minecraft/resources/Identifier;)Ljava/util/Optional;"
+                    )
+            )
+    )
+    private static void command_crafter$trackIdTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op) {
+        final var tracker = getOrNull(DataObjectDecoding.Companion.getSELECTOR_TYPE_PREDICATE_TRACKER());
+        if(tracker != null)
+            tracker.add(predicate);
+        op.call(parser, predicate);
+    }
+
+    @WrapOperation(
+            method = "lambda$bootStrap$35",
+            at = @At(
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"
+            ),
+            slice = @Slice(
+                    from = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/tags/TagKey;create(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/resources/Identifier;)Lnet/minecraft/tags/TagKey;"
+                    )
+            )
+    )
+    private static void command_crafter$trackTagTypePredicate(EntitySelectorParser parser, Predicate<Entity> predicate, Operation<Void> op, @Local(name = "key") TagKey<EntityType<?>> id) {
+        final var tracker = getOrNull(DataObjectDecoding.Companion.getSELECTOR_TYPE_PREDICATE_TRACKER());
+        if(tracker != null) {
+            // Only add condition if tag is bound
+            BuiltInRegistries.ENTITY_TYPE.get(id).ifPresent(tag -> {
+                if(tag.isBound())
+                    tracker.add(predicate);
+            });
+        }
+        op.call(parser, predicate);
     }
 }

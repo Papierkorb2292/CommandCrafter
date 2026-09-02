@@ -3,160 +3,165 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.mojang.brigadier.context.StringRange
 import net.papierkorb2292.command_crafter.editor.FeatureConfig
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.debugger.helper.maxWithNullable
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.helper.binarySearch
+import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.iterator
 import kotlin.math.min
 
-class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: SemanticTokensBuilder, val diagnostics: MutableList<Diagnostic> = mutableListOf(), val filePosition: Position, var documentation: String? = null) {
+class AnalyzingResult(
+    val mappingInfo: FileMappingInfo,
+    val semanticTokens: SemanticTokensBuilder,
+    val diagnostics: MutableList<Diagnostic>,
+    val colorInfos: MutableList<ColorInfo>,
+    val filePosition: Position,
+    var documentation: String?,
+    private val actualSyntaxNodes: MutableList<RangedSyntaxNode<ActualSyntaxNode>>,
+    private val finishedPotentialSyntaxNodes: MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
+    private val buildingPotentialSyntaxNodes: MutableMap<String, MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
+) : ActualSyntaxNode, PotentialSyntaxNode {
 
-    constructor(reader: FileMappingInfo, filePosition: Position, diagnostics: MutableList<Diagnostic> = mutableListOf()) : this(reader, SemanticTokensBuilder(reader), diagnostics, filePosition)
-
-    private val completionProviders: MutableMap<String, MutableList<RangedDataProvider<CompletableFuture<List<CompletionItem>>>>> = mutableMapOf()
-    private val hoverProviders: MutableList<RangedDataProvider<CompletableFuture<Hover>>> = mutableListOf()
-    private val definitionProviders: MutableList<RangedDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>> = mutableListOf()
+    constructor(reader: FileMappingInfo, filePosition: Position) : this(
+        reader,
+        SemanticTokensBuilder(reader),
+        mutableListOf(),
+        mutableListOf(),
+        filePosition,
+        null,
+        mutableListOf(),
+        mutableListOf(),
+        mutableMapOf(),
+    )
 
     fun combineWith(other: AnalyzingResult) {
-        combineWithExceptCompletions(other)
-        combineWithCompletionProviders(other)
+        combineWithActual(other)
+        combineWithPotential(other)
     }
 
-    fun combineWithExceptCompletions(other: AnalyzingResult) {
+    fun combineWithActual(other: AnalyzingResult) {
         semanticTokens.combineWith(other.semanticTokens)
-        diagnostics += other.diagnostics
-        addRangedDataProviders(hoverProviders, other.hoverProviders)
-        addRangedDataProviders(definitionProviders, other.definitionProviders)
+        combineWithActualExceptTokens(other)
     }
 
-    fun combineWithCompletionProviders(other: AnalyzingResult, channelSuffix: String = "") {
-        for((channel, providers) in other.completionProviders) {
-            addRangedDataProviders(getOrPutCompletionProvidersForChannel(channel + channelSuffix), providers)
+    fun combineWithActualExceptTokens(other: AnalyzingResult) {
+        diagnostics += other.diagnostics
+        colorInfos += other.colorInfos
+        addSyntaxNodes(actualSyntaxNodes, other.actualSyntaxNodes)
+    }
+
+    fun combineWithPotential(other: AnalyzingResult, channelSuffix: String = "") {
+        for((channel, nodes) in other.buildingPotentialSyntaxNodes) {
+            addSyntaxNodes(getOrPutPotentialSyntaxNodesForChannel(channel + channelSuffix), nodes)
         }
+        finishedPotentialSyntaxNodes += other.finishedPotentialSyntaxNodes
+    }
+
+    fun combineWithPotentialFinished(other: AnalyzingResult) {
+        finishedPotentialSyntaxNodes += other.finishedPotentialSyntaxNodes + other.buildingPotentialSyntaxNodes.values
+    }
+
+    fun combineWithPotentialWrapped(other: AnalyzingResult, wrapper: (PotentialSyntaxNode) -> PotentialSyntaxNode) {
+        finishedPotentialSyntaxNodes += other.getPotentialNodeCompressed(wrapper(other))
     }
 
     fun addOffset(parent: AnalyzingResult, position: Position, cursorOffset: Int): AnalyzingResult {
-        val result = parent.copyInput()
-        result.semanticTokens.combineWith(semanticTokens)
-        result.semanticTokens.offset(position)
-        result.diagnostics += diagnostics.map { original ->
+        return AnalyzingResult(
+            parent.mappingInfo,
+            SemanticTokensBuilder(parent.mappingInfo).apply {
+                combineWith(semanticTokens)
+                offset(position)
+            },
             // Copy data. Original needs to stay the same because this method is used for caching
-            Diagnostic().apply {
-                range = position.offsetRange(original.range)
-                severity = original.severity
-                code = original.code
-                codeDescription = original.codeDescription
-                source = original.source
-                message = original.message
-                tags = original.tags
-                relatedInformation = original.relatedInformation
-                data = original.data
-            }
-        }
-        addRangedDataProviders(result.hoverProviders, hoverProviders.map { provider ->
-            RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
-                provider.dataProvider(cursor - cursorOffset).thenApply { hover ->
-                    if(hover.range != null)
-                        hover.range = position.offsetRange(hover.range)
-                    hover
+            copyDiagnostics().also {
+                for(diagnostic in it) {
+                    diagnostic.range = position.offsetRange(diagnostic.range)
                 }
-            }
-        })
-        addRangedDataProviders(result.definitionProviders, definitionProviders.map { provider ->
-            RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
-                provider.dataProvider(cursor - cursorOffset).thenApply { definition ->
-                    if(definition.isRight)
-                        Either.forRight(definition.right.map { link ->
-                            if(link.originSelectionRange != null)
-                                link.originSelectionRange = position.offsetRange(link.originSelectionRange)
-                            link
-                        })
-                    else definition
-                }
-            }
-        })
-        for((channel, providers) in completionProviders) {
-            addRangedDataProviders(result.getOrPutCompletionProvidersForChannel(channel), providers.map { provider ->
-                RangedDataProvider(provider.cursorRange + cursorOffset) { cursor ->
-                    provider.dataProvider(cursor - cursorOffset).thenApply { completions ->
-                        completions.map { completion ->
-                            completion.textEdit = completion.textEdit?.map({ left ->
-                                left.range = position.offsetRange(left.range)
-                                Either.forLeft(left)
-                            }, { right ->
-                                right.insert = position.offsetRange(right.insert)
-                                right.replace = position.offsetRange(right.replace)
-                                Either.forRight(right)
-                            })
-                            completion.additionalTextEdits = completion.additionalTextEdits?.map { edit ->
-                                edit.range = position.offsetRange(edit.range)
-                                edit
-                            }
-                            completion
-                        }
-                    }
-                }
-            })
-        }
-        return result
+            },
+            colorInfos.mapTo(mutableListOf()) { OffsetColorInfo(it, position) },
+            parent.filePosition,
+            parent.documentation,
+            getActualNodeCompressed(this.offsetActualInput(-cursorOffset).offsetActualOutput(position), cursorOffset),
+            getPotentialNodeCompressed(this.offsetPotentialInput(-cursorOffset).offsetPotentialOutput(position), cursorOffset),
+            mutableMapOf(),
+        )
     }
 
-    fun addCompletionProvider(
-        completionChannelName: String,
-        provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>,
-        shouldMap: Boolean
-    ) {
-        val channel = getOrPutCompletionProvidersForChannel(completionChannelName)
-        if(shouldMap) {
-            addMappedRangedDataProvider(channel, provider)
-            return
-        }
-        addRangedDataProvider(channel, provider)
+    /**
+     * Creates a copy of this analyzing result and overlays all given overlays on top of it.
+     *
+     * The overlays must be sorted and not overlap. The overlays' syntax nodes must be present in compressed form (i.e. passed through addOffset before)
+     */
+    fun overlayAllCompressedSorted(overlays: List<AnalyzingResult>): AnalyzingResult {
+        val actualNodeOverlays = overlays.flatMap { it.actualSyntaxNodes }
+        val overlayActualRange = encompassingNodeRange(actualNodeOverlays)
+        val currentActualRange = encompassingNodeRange(actualSyntaxNodes)
+        return AnalyzingResult(
+            mappingInfo,
+            SemanticTokensBuilder(mappingInfo).apply {
+                combineWith(semanticTokens)
+                overlay(overlays.map { it.semanticTokens }.iterator())
+            },
+            diagnostics.toMutableList().apply {
+                for(overlay in overlays) {
+                    addAll(overlay.diagnostics)
+                }
+            },
+            colorInfos.toMutableList().apply {
+                for(overlay in overlays) {
+                    addAll(overlay.colorInfos)
+                }
+            },
+            filePosition,
+            documentation,
+            if(overlayActualRange == null) actualSyntaxNodes else mutableListOf(RangedSyntaxNode(maxWithNullable(overlayActualRange, currentActualRange), object : ActualSyntaxNode {
+                override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
+                    getSyntaxNodeAtCursor(cursor, actualNodeOverlays, false)?.getDefinition(cursor)
+                        ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor)
+
+                override fun getHover(cursor: Int): CompletableFuture<Hover>? =
+                    getSyntaxNodeAtCursor(cursor, actualNodeOverlays, false)?.getHover(cursor)
+                        ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getHover(cursor)
+            })),
+            finishedPotentialSyntaxNodes.toMutableList().apply {
+                add(overlays.flatMapTo(mutableListOf()) { it.finishedPotentialSyntaxNodes.getOrNull(0) ?: emptyList() })
+            },
+            buildingPotentialSyntaxNodes
+        )
     }
 
     /**
      * This applies [ProcessedInputCursorMapper.mapToSource] only on the start and end of the provider range after adding readSkippingChars,
-     * whereas [addCompletionProvider] with shouldMap=true would split the range up into multiple parts that fit the mapping.
+     * whereas [addMappedActualSyntaxNode] would split the range up into multiple parts that fit the mapping.
      *
      * The cursor given to the data provider will be the absolute position in the file.
      */
-    fun addCompletionProviderWithContinuosMapping(
-        completionChannelName: String,
-        provider: RangedDataProvider<CompletableFuture<List<CompletionItem>>>
+    fun addContinuouslyMappedPotentialSyntaxNode(
+        channel: String,
+        stringRange: StringRange,
+        node: PotentialSyntaxNode
     ) {
-        val mappedStart = getEarliestSourceCursorWithInclusiveEndMapping(provider.cursorRange.start + mappingInfo.readSkippingChars)
-        //val mappedStart = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.start + mappingInfo.readSkippingChars)
-        val mappedEnd = mappingInfo.cursorMapper.mapToSource(provider.cursorRange.end + mappingInfo.readSkippingChars)
-        addCompletionProvider(
-            completionChannelName,
-            RangedDataProvider(
-                StringRange(mappedStart, mappedEnd),
-                provider.dataProvider
-            ),
-            false
+        val mappedStart = getEarliestSourceCursorWithInclusiveEndMapping(stringRange.start + mappingInfo.readSkippingChars)
+        val mappedEnd = mappingInfo.cursorMapper.mapToSource(stringRange.end + mappingInfo.readSkippingChars)
+        addPotentialSyntaxNode(
+            channel,
+            StringRange(mappedStart, mappedEnd),
+            node
         )
     }
 
     private fun getEarliestSourceCursorWithInclusiveEndMapping(targetCursor: Int): Int {
-        // Find the matching mapping with exclusive end like normal
-        var mappingIndex = mappingInfo.cursorMapper.targetCursors.binarySearch { index ->
-            if(mappingInfo.cursorMapper.targetCursors[index] > targetCursor) 1
-            else if (mappingInfo.cursorMapper.targetCursors[index] + mappingInfo.cursorMapper.lengths[index] <= targetCursor) -1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            if(mappingIndex == -1) {
-                return targetCursor
-            }
-            mappingIndex = -(mappingIndex + 2)
-        }
+        // Find the matching mapping like normal
+        var mappingIndex = roundDownBinarySearch(mappingInfo.cursorMapper.targetCursors.binarySearch(targetCursor))
+        if(mappingIndex < 0)
+            return targetCursor
 
         // Find the earliest mapping where an inclusive end includes the target cursor
         while(mappingIndex > 0 && mappingInfo.cursorMapper.targetCursors[mappingIndex - 1] + mappingInfo.cursorMapper.lengths[mappingIndex - 1] >= targetCursor)
@@ -167,39 +172,6 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         return mappingInfo.cursorMapper.sourceCursors[mappingIndex] + relativeCursor
     }
 
-    fun addHoverProvider(provider: RangedDataProvider<CompletableFuture<Hover>>, shouldMap: Boolean) {
-        if(shouldMap) {
-            addMappedRangedDataProvider(hoverProviders, provider)
-            return
-        }
-        addRangedDataProvider(hoverProviders, provider)
-    }
-
-    fun addDefinitionProvider(provider: RangedDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>, shouldMap: Boolean) {
-        if(shouldMap) {
-            addMappedRangedDataProvider(definitionProviders, provider)
-            return
-        }
-        addRangedDataProvider(definitionProviders, provider)
-    }
-
-    fun getCompletionProviderForCursor(filterCursor: Int): RangedDataProvider<CompletableFuture<List<CompletionItem>>>? {
-        val providers = completionProviders.mapNotNull { getRangedDataProviderForCursor(it.value, filterCursor, true) }
-        if(providers.isEmpty())
-            return null
-        val completeStringRange = providers.asSequence().map { it.cursorRange }.reduce(StringRange::encompassing)
-        return RangedDataProvider(completeStringRange) { providerCursor ->
-            val completions = providers.map { it.dataProvider(providerCursor) }.toTypedArray()
-            CompletableFuture.allOf(*completions).thenApply { completions.flatMap { it.join() } }
-        }
-    }
-
-    fun getHoverProviderForCursor(cursor: Int) =
-        getRangedDataProviderForCursor(hoverProviders, cursor)
-
-    fun getDefinitionProviderForCursor(cursor: Int) =
-        getRangedDataProviderForCursor(definitionProviders, cursor) ?: getRangedDataProviderForCursor(definitionProviders, cursor - 1)
-
     fun cutAfterTargetCursor(targetCursor: Int) {
         cutAfterSourceCursor(mappingInfo.cursorMapper.mapToSource(targetCursor + mappingInfo.readSkippingChars))
     }
@@ -207,83 +179,183 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
     fun cutAfterSourceCursor(sourceCursor: Int) {
         val position = getPositionFromCursor(sourceCursor, mappingInfo)
         semanticTokens.cutAfter(position)
-        cutRangedDataProviderAfterCursor(hoverProviders, sourceCursor)
-        cutRangedDataProviderAfterCursor(definitionProviders, sourceCursor)
-        completionProviders.values.forEach {
-            cutRangedDataProviderAfterCursor(it, sourceCursor)
+        cutSyntaxNodesAfterCursor(actualSyntaxNodes, sourceCursor)
+        for(potentialNodes in finishedPotentialSyntaxNodes) {
+            cutSyntaxNodesAfterCursor(potentialNodes, sourceCursor)
+        }
+        for(potentialNodes in buildingPotentialSyntaxNodes.values) {
+            cutSyntaxNodesAfterCursor(potentialNodes, sourceCursor)
         }
     }
-
-    private fun <TData> cutRangedDataProviderAfterCursor(providers: MutableList<RangedDataProvider<TData>>, sourceCursor: Int) {
-        var providerIndex = providers.binarySearch { -sourceCursor.compareTo(it.cursorRange) }
-        if(providerIndex >= 0) {
-            val provider = providers[providerIndex]
-            providers[providerIndex] = RangedDataProvider(StringRange(provider.cursorRange.start, sourceCursor), provider.dataProvider)
-            providerIndex++ // All following providers will be removed, but this one should be kept
+    private fun <TNode> cutSyntaxNodesAfterCursor(nodes: MutableList<RangedSyntaxNode<TNode>>, sourceCursor: Int) {
+        var nodeIndex = nodes.binarySearch { -sourceCursor.compareTo(it.cursorRange) }
+        if(nodeIndex >= 0) {
+            val node = nodes[nodeIndex]
+            nodes[nodeIndex] = RangedSyntaxNode(StringRange(node.cursorRange.start, min(node.cursorRange.end, sourceCursor)), node.syntaxNode)
+            nodeIndex++ // All following nodes will be removed, but this one should be kept
         } else {
-            providerIndex = -providerIndex - 1
+            nodeIndex = -nodeIndex - 1
         }
-        providers.subList(providerIndex, providers.size).clear()
+        nodes.subList(nodeIndex, nodes.size).clear()
     }
 
     fun copyInput(): AnalyzingResult {
-        val newMappingInfo = mappingInfo.copy()
-        return AnalyzingResult(newMappingInfo, SemanticTokensBuilder(newMappingInfo), mutableListOf(), filePosition, documentation)
+        val result = AnalyzingResult(
+            mappingInfo.copy(),
+            filePosition,
+        )
+        result.documentation = documentation
+        return result
     }
     fun copy() = copyInput().also {
         it.combineWith(this)
     }
 
-    fun copyExceptCompletions() = copyInput().also {
-        it.combineWithExceptCompletions(this)
+    fun copyActual() = copyInput().also {
+        it.combineWithActual(this)
     }
 
-    fun clearDisabledFeatures(featureConfig: FeatureConfig, analyzerNameInserts: List<String>) {
-        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getCompletionsFeatureKey), true))
-            completionProviders.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getHoversFeatureKey), true))
-            hoverProviders.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getDefinitionsFeatureKey), true))
-            definitionProviders.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getDiagnosticsFeatureKey), true))
-            diagnostics.clear()
-        if(!featureConfig.isEnabled(analyzerNameInserts.map(::getSemanticTokensFeatureKey), true))
-            semanticTokens.clear()
+    fun filterDisabledFeatures(featureConfig: FeatureConfig, analyzerNameInserts: List<String>): AnalyzingResult {
+        return AnalyzingResult(
+            mappingInfo,
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getSemanticTokensFeatureKey), true))
+                semanticTokens
+            else SemanticTokensBuilder(mappingInfo),
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getDiagnosticsFeatureKey), true))
+                diagnostics
+            else mutableListOf(),
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getColorFeatureKey), true))
+                colorInfos
+            else mutableListOf(),
+            filePosition,
+            documentation,
+            getActualNodeCompressed(
+                FeatureFilteredActualSyntaxNode(this, featureConfig, analyzerNameInserts)
+            ),
+            getPotentialNodeCompressed(
+                FeatureFilteredPotentialSyntaxNode(this, featureConfig, analyzerNameInserts)
+            ),
+            mutableMapOf(),
+        )
     }
 
-    private fun getOrPutCompletionProvidersForChannel(channel: String) =
-        completionProviders.getOrPut(channel, ::mutableListOf)
+    fun withStringEscaperActual(escaper: StringEscaper): AnalyzingResult =
+        if(escaper == StringEscaper.Identity) this
+        else AnalyzingResult(
+            mappingInfo,
+            semanticTokens,
+            diagnostics,
+            colorInfos.mapTo(mutableListOf()) { it.withStringEscaper(escaper) },
+            filePosition,
+            documentation,
+            actualSyntaxNodes,
+            finishedPotentialSyntaxNodes,
+            buildingPotentialSyntaxNodes
+        )
 
-    private fun <TData> addRangedDataProviders(dest: MutableList<RangedDataProvider<TData>>, source: List<RangedDataProvider<TData>>) {
-        for(provider in source) {
-            addRangedDataProvider(dest, provider)
+    fun withStringEscaperPotential(escaper: StringEscaper): AnalyzingResult =
+        if(escaper == StringEscaper.Identity) this
+        else wrapPotentialNodes { original ->
+            object : PotentialSyntaxNode {
+                override fun getCompletions(
+                    cursor: Int,
+                    context: CompletionContext?,
+                ): CompletableFuture<List<CompletionItem>>? =
+                    original.getCompletions(cursor, context)?.thenApply { completions ->
+                        for(completion in completions) {
+                            completion.textEdit.map({ textEdit ->
+                                textEdit.newText = escaper.escape(textEdit.newText)
+                            }, { insertReplaceEdit ->
+                                insertReplaceEdit.newText = escaper.escape(insertReplaceEdit.newText)
+                            })
+                            if(completion.sortText != null)
+                                completion.sortText = escaper.escape(completion.sortText)
+                            if(completion.filterText != null)
+                                completion.filterText = escaper.escape(completion.filterText)
+                        }
+                        completions
+                    }
+            }
         }
+
+    fun wrapPotentialNodes(wrapper: (PotentialSyntaxNode) -> PotentialSyntaxNode): AnalyzingResult {
+        return AnalyzingResult(
+            mappingInfo,
+            semanticTokens,
+            diagnostics,
+            colorInfos,
+            filePosition,
+            documentation,
+            actualSyntaxNodes,
+            getPotentialNodeCompressed(wrapper(this)),
+            mutableMapOf()
+        )
     }
 
-    private fun <TData> addRangedDataProvider(dest: MutableList<RangedDataProvider<TData>>, provider: RangedDataProvider<TData>) {
-        checkCanAddRangedDataProvider(dest, provider)
-        dest.add(provider)
+    private fun getActualNodeCompressed(node: ActualSyntaxNode, offset: Int = 0): MutableList<RangedSyntaxNode<ActualSyntaxNode>> {
+        val actualEncompassingRange = encompassingNodeRange(actualSyntaxNodes) ?: return mutableListOf()
+        return mutableListOf(RangedSyntaxNode(actualEncompassingRange + offset, node))
     }
 
-    private fun <TData> addMappedRangedDataProvider(dest: MutableList<RangedDataProvider<TData>>, unmappedProvider: RangedDataProvider<TData>) {
-        val startCursor = unmappedProvider.cursorRange.start + mappingInfo.readSkippingChars
+    private fun getPotentialNodeCompressed(node: PotentialSyntaxNode, offset: Int = 0): MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>> {
+        val potentialEncompassingRange = (finishedPotentialSyntaxNodes.asSequence() + buildingPotentialSyntaxNodes.values.asSequence())
+            .mapNotNull { encompassingNodeRange(it) }
+            .reduceOrNull(StringRange::encompassing)
+            ?: return mutableListOf()
+        return mutableListOf(mutableListOf(RangedSyntaxNode(potentialEncompassingRange + offset, node)))
+    }
+
+    private fun encompassingNodeRange(nodes: List<RangedSyntaxNode<*>>): StringRange? {
+        if(nodes.isEmpty()) return null
+        return StringRange(
+            nodes.first().cursorRange.start,
+            nodes.last().cursorRange.end
+        )
+    }
+
+    private fun getOrPutPotentialSyntaxNodesForChannel(channel: String) =
+        buildingPotentialSyntaxNodes.getOrPut(channel, ::mutableListOf)
+
+    private fun <TNode> addSyntaxNodes(dest: MutableList<RangedSyntaxNode<TNode>>, source: List<RangedSyntaxNode<TNode>>) {
+        if(source.isEmpty()) return
+        addSyntaxNode(dest, source.first())
+        dest.addAll(source.subList(1, source.size))
+    }
+
+    private fun <TNode> addSyntaxNode(dest: MutableList<RangedSyntaxNode<TNode>>, node: RangedSyntaxNode<TNode>) {
+        if(dest.isNotEmpty()) {
+            val last = dest.last()
+            if(last.cursorRange.end > node.cursorRange.start) {
+                throw IllegalArgumentException("Syntax nodes must be added in order and not overlap")
+            }
+        }
+        dest.add(node)
+    }
+
+    fun addActualSyntaxNode(stringRange: StringRange, node: ActualSyntaxNode) {
+        addSyntaxNode(actualSyntaxNodes, RangedSyntaxNode(stringRange, node))
+    }
+
+    fun addPotentialSyntaxNode(channel: String, stringRange: StringRange, node: PotentialSyntaxNode) {
+        addSyntaxNode(getOrPutPotentialSyntaxNodesForChannel(channel), RangedSyntaxNode(stringRange, node))
+    }
+
+    fun addMappedActualSyntaxNode(unmappedRange: StringRange, node: ActualSyntaxNode) {
+        val startCursor = unmappedRange.start + mappingInfo.readSkippingChars
 
         val cursorMapper = mappingInfo.cursorMapper
 
-        var mappingIndex = cursorMapper.targetCursors.binarySearch { index ->
-            if(cursorMapper.targetCursors[index] + cursorMapper.lengths[index] <= startCursor) -1
-            else if (cursorMapper.targetCursors[index] > startCursor) 1
-            else 0
-        }
-        if(mappingIndex < 0) {
-            mappingIndex = -(mappingIndex + 2)
-        }
-        var mappingRelativeCursor = startCursor
-        if(mappingIndex >= 0) {
-            mappingRelativeCursor -= cursorMapper.targetCursors[mappingIndex]
-        }
+        var mappingIndex = roundDownBinarySearch(cursorMapper.targetCursors.binarySearch(startCursor))
 
-        var remainingLength = unmappedProvider.cursorRange.length
+        // Multiple mappings might have the same start (length can be 0), this method selects the last one
+        while(mappingIndex + 1 < cursorMapper.targetCursors.size && cursorMapper.targetCursors[mappingIndex + 1] == startCursor)
+            mappingIndex++
+
+        var mappingRelativeCursor = startCursor
+        if(mappingIndex >= 0)
+            mappingRelativeCursor -= cursorMapper.targetCursors[mappingIndex]
+
+        var remainingLength = unmappedRange.length
         while(mappingIndex < cursorMapper.targetCursors.size) {
             val remainingLengthCoveredByMapping =
                 if(mappingIndex >= 0 && mappingRelativeCursor < cursorMapper.lengths[mappingIndex])
@@ -293,11 +365,11 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             val mappingAbsoluteStart =
                 if(mappingIndex >= 0) cursorMapper.sourceCursors[mappingIndex] + mappingRelativeCursor
                 else mappingRelativeCursor
-            val mappedStartPosition = startCursor + unmappedProvider.cursorRange.length - remainingLength
-            addRangedDataProvider(dest, RangedDataProvider(StringRange(mappingAbsoluteStart, mappingAbsoluteStart + remainingLengthCoveredByMapping)) {
-                val mappingRelative = it - mappingAbsoluteStart
-                unmappedProvider.dataProvider(mappingRelative + mappedStartPosition)
-            })
+            val mappedStartPosition = startCursor + unmappedRange.length - remainingLength
+            addActualSyntaxNode(
+                StringRange(mappingAbsoluteStart, mappingAbsoluteStart + remainingLengthCoveredByMapping),
+                node.offsetActualInput(mappedStartPosition - mappingAbsoluteStart)
+            )
 
             if(remainingLengthCoveredByMapping >= remainingLength)
                 break
@@ -306,31 +378,6 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             mappingRelativeCursor = 0
             mappingIndex++
         }
-    }
-
-    /**
-     * Check if the new provider is completely after the last provider in the list.
-     *
-     * This allows a binary search to later be performed on the list.
-     */
-    private fun checkCanAddRangedDataProvider(dest: List<RangedDataProvider<*>>, provider: RangedDataProvider<*>) {
-        val last = dest.lastOrNull() ?: return
-        if(last.cursorRange.end > provider.cursorRange.start) {
-            throw IllegalArgumentException("Ranged data providers must be added in order and not overlap")
-        }
-    }
-
-    private fun <TData> getRangedDataProviderForCursor(providers: List<RangedDataProvider<TData>>, cursor: Int, inclusiveRangeEnd: Boolean = false): RangedDataProvider<TData>? {
-        val index = providers.binarySearch {
-            if(cursor < it.cursorRange.start) 1
-            else if(cursor > it.cursorRange.end || (!inclusiveRangeEnd && cursor == it.cursorRange.end)) -1
-            else 0
-        }
-        return if(index >= 0) {
-            if(inclusiveRangeEnd && index + 1 < providers.size && cursor == providers[index + 1].cursorRange.start) {
-                providers[index + 1]
-            } else providers[index]
-        } else null
     }
 
     fun toFileRange(stringRange: StringRange): Range {
@@ -342,6 +389,55 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         )
     }
 
+    fun <TNode> getSyntaxNodeAtCursor(cursor: Int, nodes: List<RangedSyntaxNode<TNode>>, inclusiveRangeEnd: Boolean): TNode? {
+        val index = nodes.binarySearch {
+            if(cursor < it.cursorRange.start) 1
+            else if(cursor > it.cursorRange.end || (!inclusiveRangeEnd && cursor == it.cursorRange.end)) -1
+            else 0
+        }
+        return if(index >= 0) {
+            if(inclusiveRangeEnd && index + 1 < nodes.size && cursor == nodes[index + 1].cursorRange.start) {
+                nodes[index + 1].syntaxNode
+            } else nodes[index].syntaxNode
+        } else null
+    }
+
+    override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
+        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor)
+
+    override fun getHover(cursor: Int): CompletableFuture<Hover>? =
+        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getHover(cursor)
+
+    override fun getCompletions(
+        cursor: Int,
+        context: CompletionContext?,
+    ): CompletableFuture<List<CompletionItem>>? {
+        val completions = (finishedPotentialSyntaxNodes + buildingPotentialSyntaxNodes.values).mapNotNull {
+            getSyntaxNodeAtCursor(cursor, it, true)?.getCompletions(cursor, context)
+        }
+        if(completions.isEmpty())
+            return null
+        return CompletableFuture.allOf(*completions.toTypedArray()).thenApply { completions.flatMap { it.join() } }
+    }
+
+    fun createMapper(newFile: FileMappingInfo): MappedAnalyzingResultBuilder {
+        return MappedAnalyzingResultBuilder(this, newFile)
+    }
+
+    fun copyDiagnostics(): MutableList<Diagnostic> = diagnostics.mapTo(mutableListOf()) { original ->
+        Diagnostic().apply {
+            range = Range(original.range.start, original.range.end)
+            severity = original.severity
+            code = original.code
+            codeDescription = original.codeDescription
+            source = original.source
+            message = original.message
+            tags = original.tags
+            relatedInformation = original.relatedInformation
+            data = original.data
+        }
+    }
+
     companion object {
         const val LANGUAGE_COMPLETION_CHANNEL = "language"
         const val DIRECTIVE_COMPLETION_CHANNEL = "directive"
@@ -351,44 +447,42 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         fun getDefinitionsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.definitions"
         fun getDiagnosticsFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.diagnostics"
         fun getSemanticTokensFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.semanticTokens"
+        fun getColorFeatureKey(analyzerNameInsert: String) = "analyzer$analyzerNameInsert.color"
 
         fun getPositionFromCursor(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
-            val cached = mappingInfo.positionFromCursorFIFOCache.getAndMoveToLast(cursor)
+            val cached = mappingInfo.positionFromCursorLRUCache.getAndMoveToLast(cursor)
             if(cached != null) {
                 if(zeroBased) return cached
                 // Only zero-based position is cached, so make one-based
                 return Position(cached.line + 1, cached.character + 1)
             }
 
-            val oneBasedOffset = if(zeroBased) 0 else 1
-            var lineIndex = mappingInfo.accumulatedLineLengths.binarySearch { index ->
-                mappingInfo.accumulatedLineLengths[index].compareTo(cursor)
-            }
-            if(lineIndex < 0) {
-                // No line has the exact accumulated length, so select the previous line
-                lineIndex = -lineIndex - 2
-            }
-            val pos =if (lineIndex == -1) {
-                // Position is on the first line
-                Position(oneBasedOffset, cursor + oneBasedOffset)
-            } else {
-                val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
-                Position(
-                    // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
-                    // start of the next line, so the actual line that the position is on is also the next line
-                    lineIndex + 1 + oneBasedOffset,
-                    cursor - accumulatedLineLength + oneBasedOffset
-                )
-            }
+            val pos = getPositionFromCursorUncached(cursor, mappingInfo, zeroBased)
 
-            if(mappingInfo.positionFromCursorFIFOCache.size >= 7)
-                mappingInfo.positionFromCursorFIFOCache.removeFirst()
+            if(mappingInfo.positionFromCursorLRUCache.size >= 7)
+                mappingInfo.positionFromCursorLRUCache.removeFirst()
             if(zeroBased)
-                mappingInfo.positionFromCursorFIFOCache.put(cursor, pos)
+                mappingInfo.positionFromCursorLRUCache.put(cursor, pos)
             else
                 // Only cache zero-based position
-                mappingInfo.positionFromCursorFIFOCache.put(cursor, Position(pos.line - 1, pos.character - 1))
+                mappingInfo.positionFromCursorLRUCache.put(cursor, Position(pos.line - 1, pos.character - 1))
             return pos
+        }
+
+        fun getPositionFromCursorUncached(cursor: Int, mappingInfo: FileMappingInfo, zeroBased: Boolean = true): Position {
+            val oneBasedOffset = if(zeroBased) 0 else 1
+            val lineIndex = roundDownBinarySearch(mappingInfo.accumulatedLineLengths.binarySearch(cursor))
+            if(lineIndex == -1) {
+                // Position is on the first line
+                return Position(oneBasedOffset, cursor + oneBasedOffset)
+            }
+            val accumulatedLineLength = mappingInfo.accumulatedLineLengths[lineIndex]
+            return Position(
+                // Adds one to lineIndex, because for any index accumulatedLineLengths counts the characters to the
+                // start of the next line, so the actual line that the position is on is also the next line
+                lineIndex + 1 + oneBasedOffset,
+                cursor - accumulatedLineLength + oneBasedOffset
+            )
         }
 
         @Deprecated("Replaced with an overload using FileMappingInfo for better performance")
@@ -454,6 +548,14 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             }
         }
 
+        fun getLinesBetweenCursors(startCursor: Int, endCursor: Int, mappingInfo: FileMappingInfo): List<String> {
+            val lines = mutableListOf<String>()
+            getInlineRangesBetweenCursors(startCursor, endCursor, mappingInfo) { line, cursor, length ->
+                lines += mappingInfo.lines[line].substring(cursor, cursor + length)
+            }
+            return lines
+        }
+
         fun getLineCursorRange(lineNumber: Int, mappingInfo: FileMappingInfo) =
             getLineCursorRange(lineNumber, mappingInfo.lines)
 
@@ -470,10 +572,10 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
         }
     }
 
-    class RangedDataProvider<out TData>(
+    class RangedSyntaxNode<out TNode>(
         val cursorRange: StringRange,
-        @JsonIgnore // Prevents some self references, because the provider could refer back to AnalyzingResult, and it probably just contains some cryptic stuff anyway
-        val dataProvider: AnalyzingDataProvider<TData>
+        @JsonIgnore // Prevents some self references, because the callbacks could refer back to AnalyzingResult, and it probably just contains some cryptic stuff anyway
+        val syntaxNode: TNode
     ) {
         init {
             if(cursorRange.start > cursorRange.end) {
@@ -481,9 +583,137 @@ class AnalyzingResult(val mappingInfo: FileMappingInfo, val semanticTokens: Sema
             }
         }
     }
-}
 
-typealias AnalyzingDataProvider<TData> = (Int) -> TData
-typealias AnalyzingCompletionProvider = AnalyzingDataProvider<CompletableFuture<List<CompletionItem>>>
-typealias AnalyzingHoverProvider = AnalyzingDataProvider<CompletableFuture<Hover>>
-typealias AnalyzingDefinitionProvider = AnalyzingDataProvider<CompletableFuture<Either<List<Location>, List<LocationLink>>>>
+    class MappedAnalyzingResultBuilder(private val base: AnalyzingResult, newFile: FileMappingInfo) {
+        private var lastCursorOffset = 0
+        private var lastTargetEndCursor = 0
+        private var lastSourcePosition = Position()
+        private var lastTargetPosition = Position()
+
+        private val result = AnalyzingResult(
+            newFile,
+            SemanticTokensBuilder(newFile),
+            // Copy data. Original needs to stay the same because this method is used for caching
+            base.copyDiagnostics(),
+            base.colorInfos.mapTo(mutableListOf(), ::OffsetColorInfo),
+            base.filePosition,
+            base.documentation,
+            mutableListOf(),
+            mutableListOf(),
+            mutableMapOf()
+        )
+
+        init {
+            result.semanticTokens.combineWith(base.semanticTokens)
+        }
+
+        private val tokenPositionMapper = result.semanticTokens.TokenPositionMapper()
+
+        /**
+         * Shifts all content of the analyzing result that is after the source position by the difference between
+         * source and target position. Multiple calls should only have increasing sourcePosition values
+         *
+         * If `addMapping` has been called before, then the source cursor/position of all following calls should already
+         * have that mapping applied to it. This means it always references the current state of the analyzing result, and
+         * not the state when the MappedAnalyzingResultBuilder was created.
+         *
+         * @param startSourceCursor The cursor position after which tokens should be shifted
+         * @param startSourcePosition The position of the start of the range to be shifted
+         * @param endTargetCursor The end position of the range to be shifted with the mapping already applied
+         * @param cursorOffset The offset by which to shift the tokens
+         * @param fileOffset The offset by which to shift the file position
+         */
+        fun addMapping(startSourceCursor: Int, startSourcePosition: Position, endTargetCursor: Int, cursorOffset: Int, fileOffset: Position) {
+            val startTargetPosition = startSourcePosition.offsetBy(fileOffset)
+
+            // Add mapped syntax nodes between the previous mapping and this new mapping
+            val finishedTargetRange = StringRange(lastTargetEndCursor, startSourceCursor)
+            result.addActualSyntaxNode(finishedTargetRange, base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastTargetPosition))
+            result.addPotentialSyntaxNode(LANGUAGE_COMPLETION_CHANNEL, finishedTargetRange, base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition).offsetPotentialOutput(lastTargetPosition))
+
+            // Shift semantic tokens
+            tokenPositionMapper.addMapping(startSourcePosition, startTargetPosition)
+
+            // Shift diagnostics
+            for(diagnostic in result.diagnostics) {
+                if(diagnostic.range.start > startSourcePosition)
+                    diagnostic.range.start = startTargetPosition.offsetBy(startSourcePosition.differenceTo(diagnostic.range.start))
+                if(diagnostic.range.end > startSourcePosition)
+                    diagnostic.range.end = startTargetPosition.offsetBy(startSourcePosition.differenceTo(diagnostic.range.end))
+            }
+            // Shift colors
+            for(color in result.colorInfos) {
+                if(color.range.start > startSourcePosition)
+                    (color as OffsetColorInfo).offset = startTargetPosition.offsetBy(startSourcePosition.differenceTo(color.offset))
+            }
+
+            lastCursorOffset += cursorOffset
+            lastTargetEndCursor = endTargetCursor
+            // lastSourcePosition is the position in the original file, without previous mappings applied
+            lastSourcePosition = lastSourcePosition.offsetBy(lastTargetPosition.differenceTo(startSourcePosition))
+            lastTargetPosition = startTargetPosition
+        }
+
+        fun build(): AnalyzingResult {
+            // Add syntax nodes after the last mapping
+            val lastActualSyntaxNode = base.actualSyntaxNodes.lastOrNull()
+            if(lastActualSyntaxNode != null) {
+                val endCursor = lastActualSyntaxNode.cursorRange.end + lastCursorOffset
+                if(endCursor >= lastTargetEndCursor)
+                    result.addActualSyntaxNode(StringRange(lastTargetEndCursor, endCursor), base.offsetActualInput(-lastCursorOffset).offsetActualOutputDifference(lastSourcePosition).offsetActualOutput(lastTargetPosition))
+            }
+
+            val lastPotentialSyntaxNode = (base.buildingPotentialSyntaxNodes.values.asSequence() + base.finishedPotentialSyntaxNodes.asSequence()).maxByOrNull { it.lastOrNull()?.cursorRange?.end ?: 0 }
+            if(!lastPotentialSyntaxNode.isNullOrEmpty()) {
+                val endCursor = lastPotentialSyntaxNode.last().cursorRange.end + lastCursorOffset
+                if(endCursor > lastTargetEndCursor)
+                    result.addPotentialSyntaxNode(
+                        LANGUAGE_COMPLETION_CHANNEL,
+                        StringRange(lastTargetEndCursor, endCursor),
+                        base.offsetPotentialInput(-lastCursorOffset).offsetPotentialOutputDifference(lastSourcePosition)
+                            .offsetPotentialOutput(lastTargetPosition)
+                    )
+            }
+            return result
+        }
+    }
+
+    class FeatureFilteredActualSyntaxNode(private val delegate: ActualSyntaxNode, private val featureConfig: FeatureConfig, private val analyzerNameInserts: List<String>) : ActualSyntaxNode {
+        override fun getDefinition(cursor: Int) =
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getDefinitionsFeatureKey), true))
+                delegate.getDefinition(cursor)
+            else MinecraftLanguageServer.emptyDefinitionDefault
+        override fun getHover(cursor: Int) =
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getHoversFeatureKey), true))
+                delegate.getHover(cursor)
+            else MinecraftLanguageServer.emptyHoverDefault
+    }
+
+    class FeatureFilteredPotentialSyntaxNode(private val delegate: PotentialSyntaxNode, private val featureConfig: FeatureConfig, private val analyzerNameInserts: List<String>) : PotentialSyntaxNode {
+        override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>>? =
+            if(featureConfig.isEnabled(analyzerNameInserts.map(::getCompletionsFeatureKey), true))
+                delegate.getCompletions(cursor, context)
+            else CompletableFuture.completedFuture(emptyList())
+    }
+
+    class OffsetColorInfo(val delegate: ColorInfo, var offset: Position = Position()) : ColorInfo {
+        override val range: Range
+            get() = offset.offsetRange(delegate.range)
+        override val color: Color
+            get() = delegate.color
+
+        override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
+            params.range = offset.differenceTo(params.range)
+            val presentations =  delegate.getPresentation(params)
+            for(presentation in presentations) {
+                if(presentation.textEdit != null)
+                    presentation.textEdit.range = offset.offsetRange(presentation.textEdit.range)
+                if(presentation.additionalTextEdits != null)
+                    for(textEdit in presentation.additionalTextEdits) {
+                        textEdit.range = offset.offsetRange(textEdit.range)
+                    }
+            }
+            return presentations
+        }
+    }
+}

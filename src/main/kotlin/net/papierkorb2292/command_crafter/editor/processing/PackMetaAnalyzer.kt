@@ -10,9 +10,10 @@ import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.resources.ResourceFilterSection
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.OpenFile
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
@@ -65,14 +66,13 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
                     languageServer,
                     decoder
                 )
-                analyzingResult.clearDisabledFeatures(
+                completableFuture.complete(analyzingResult.filterDisabledFeatures(
                     languageServer.featureConfig, listOf(
                         StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX + ANALYZER_CONFIG_PATH,
                         StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX,
                         ""
                     )
-                )
-                completableFuture.complete(analyzingResult)
+                ))
             }, executor)
     }
 }

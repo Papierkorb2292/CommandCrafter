@@ -58,6 +58,7 @@ dependencies {
 }
 loom {
     accessWidenerPath.fileValue(file("src/main/resources/command_crafter.accesswidener"))
+    log4jConfigs.from("log4j-dev.xml")
     splitEnvironmentSourceSets()
     mods {
         create("commandcrafter") {
@@ -67,6 +68,8 @@ loom {
     }
 
     runs {
+        if(!Files.isDirectory(Path.of("build/gametest")))
+            Files.createDirectory(Path.of("build/gametest"))
         create("gametest") {
             server()
             ideConfigGenerated(true)
@@ -74,11 +77,26 @@ loom {
             name("Game Test")
             vmArg("-Dfabric-api.gametest")
             vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
+            vmArg("-Dfabric-api.gametest.filter=command_crafter:test_command_crafter_*")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
+            runDir("build/gametest")
+        }
+
+        create("benchmark") {
+            server()
+            ideConfigGenerated(true)
+            source(sourceSets["main"])
+            name("Benchmark")
+            vmArg("-Dfabric-api.gametest")
+            vmArg("-Dfabric-api.gametest.report-file=${project.layout.buildDirectory}/junit.xml")
+            vmArg("-Dfabric-api.gametest.filter=command_crafter:benchmark_command_crafter_*")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
             runDir("build/gametest")
         }
 
         getByName("client") {
             vmArg("@$mixinJavaagentArgFile")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
             val devUsername = project.extra["dev_username"] as String
             programArg("--username=$devUsername")
             val uuid = fetchPlayerUUID(devUsername)
@@ -88,6 +106,7 @@ loom {
 
         getByName("server") {
             vmArg("@$mixinJavaagentArgFile")
+            vmArgs("-XX:+AllowEnhancedClassRedefinition", "-XX:+IgnoreUnrecognizedVMOptions") // Enable enhanced class redefinition of Jetbrains JVM
         }
     }
 }
@@ -109,8 +128,12 @@ tasks {
     jar { from("GSON_LICENSE") }
     jar { from("LSP4J_LICENSE") }
     processResources {
+        outputs.upToDateWhen { false } // Cause I'm dynamically computing the values to insert
         filesMatching("fabric.mod.json") {
-            expand("version" to project.extra["mod_version"] as String)
+            var version = project.extra["mod_version"] as String
+            if(project.hasProperty("isDevBuild")) // For dev builds, append the build time to the version, because I usually don't manually bump the version number for them
+                version += "+${System.currentTimeMillis() / 1000}"
+            expand("version" to version)
         }
     }
 
@@ -119,6 +142,12 @@ tasks {
         sourceCompatibility = javaVersion
         targetCompatibility = javaVersion
         withSourcesJar()
+    }
+
+    register("buildDev", GradleBuild::class) {
+        // Dev build only includes the Minecraft version, mod version is replaced with the "dev" string to make the file easier to replace
+        startParameter.projectProperties = mapOf("mod_version" to "dev+${(version as String).substringAfter('+')}", "isDevBuild" to "true")
+        tasks = listOf("build")
     }
 
     val createMixinJavaArgFileTask = register("createMixinJavaAgentArgFile") {

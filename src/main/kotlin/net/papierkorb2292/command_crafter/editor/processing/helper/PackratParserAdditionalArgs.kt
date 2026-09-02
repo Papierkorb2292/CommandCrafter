@@ -1,17 +1,15 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.context.CommandContextBuilder
+import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.nbt.Tag
-import net.minecraft.util.parsing.packrat.CachedParseState
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
-import java.util.HashMap
-import java.util.WeakHashMap
 
 object PackratParserAdditionalArgs {
     val analyzingResult = ThreadLocal<AnalyzingResultBranchingArgument>()
@@ -85,6 +83,22 @@ object PackratParserAdditionalArgs {
         return result?.second
     }
 
+    fun popAnalyzingResult(target: AnalyzingResult, potentialNodeRange: StringRange?) {
+        val parsedAnalyzingResult = analyzingResult.get().analyzingResult
+        val furthestAnalyzingResult = getAndRemoveFurthestAnalyzingResult() ?: parsedAnalyzingResult
+        target.combineWithActual(furthestAnalyzingResult)
+
+        if(potentialNodeRange != null) {
+            // Use parsedAnalyzingResult, because all potential syntax nodes have been merged into that one.
+            // Make completions unique, because packrat parsing can result in duplicated completions.
+            target.addContinuouslyMappedPotentialSyntaxNode(
+                AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL,
+                potentialNodeRange,
+                parsedAnalyzingResult.withUniqueCompletions()
+            )
+        }
+    }
+
     interface BranchingArgument<TArg> {
         fun get(): TArg
         fun createBranch(): TArg
@@ -108,18 +122,15 @@ object PackratParserAdditionalArgs {
     }
 
     data class AnalyzingResultBranchingArgument(var analyzingResult: AnalyzingResult) : BranchingArgument<AnalyzingResult> {
-        private var mergedBranchCount = 0
         override fun get() = analyzingResult
-        override fun createBranch() = analyzingResult.copyExceptCompletions()
+        override fun createBranch() = analyzingResult.copyActual()
         override fun mergeBranch(argument: AnalyzingResult, success: Boolean) {
             if(success) {
                 val prev = analyzingResult
-                analyzingResult = argument.copyExceptCompletions()
-                analyzingResult.combineWithCompletionProviders(prev)
+                analyzingResult = argument.copyActual()
+                analyzingResult.combineWithPotential(prev)
             }
-            // Completions are copied separately even if the branch was successful because the mergedBranchCount is not copied from the branch,
-            // which could otherwise lead to duplicate completion names if the branch had a higher count
-            analyzingResult.combineWithCompletionProviders(argument, '_' + (mergedBranchCount++).toString())
+            analyzingResult.combineWithPotentialFinished(argument)
         }
     }
 

@@ -11,14 +11,15 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.EndTag;
 import net.minecraft.core.Holder;
+import net.minecraft.nbt.EndTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.util.parsing.packrat.commands.CommandArgumentParser;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -61,27 +62,31 @@ public class ParserWithDecodingMixin<T> {
 
         var start = reader.getCursor();
         var analyzingResult = analyzingResultArg.getAnalyzingResult();
-        analyzingResultThreadLocal.remove();
         var treeBuilder = new StringRangeTree.Builder<Tag>();
         Tag nbt;
         try {
+            analyzingResultThreadLocal.set(new PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(analyzingResult.copyInput()));
             try {
                 var partialBuilder = new StringRangeTree.PartialBuilder<Tag>();
                 PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().set(new PackratParserAdditionalArgs.StringRangeTreeBranchingArgument<>(partialBuilder));
                 nbt = (Tag) MixinUtil.<T, CommandSyntaxException>callWithThrows(op, instance, reader);
                 partialBuilder.addToBasicBuilder(treeBuilder);
+                PackratParserAdditionalArgs.INSTANCE.popAnalyzingResult(analyzingResult, null);
             } catch (CommandSyntaxException e) {
                 nbt = EndTag.INSTANCE;
                 treeBuilder.addNode(nbt, new StringRange(start, reader.getCursor()), reader.getCursor());
             } finally {
                 PackratParserAdditionalArgs.INSTANCE.getNbtStringRangeTreeBuilder().remove();
+                analyzingResultThreadLocal.remove();
+                PackratParserAdditionalArgs.INSTANCE.getFurthestAnalyzingResult().remove();
             }
 
             var tree = treeBuilder.build(nbt);
-            StringRangeTree.TreeOperations.Companion.forNbt(
+            //noinspection unchecked
+            TreeOperations.Companion.forNbt(
                     tree,
-                    directiveReader
-            ).analyzeFull(analyzingResult, true, val$codec);
+                    (DirectiveStringReader<AnalyzingResourceCreator>)directiveReader
+            ).analyzeFull(analyzingResult, val$codec);
         } finally {
             analyzingResultThreadLocal.set(analyzingResultArg);
         }
@@ -121,7 +126,7 @@ public class ParserWithDecodingMixin<T> {
         // Skip results with errors when analyzing, because decoder diagnostics are already generated through command_crafter$analyzeStringRangeTree
         // This also makes the analyzer more forgiving
         if(original.isError() && reader instanceof DirectiveStringReader<?> directiveStringReader && directiveStringReader.getResourceCreator() instanceof AnalyzingResourceCreator) {
-            cir.setReturnValue(null);
+            cir.setReturnValue(Holder.direct(null)); // Don't use return value "null", because Kotlin might expect a non-null value
         }
         return original;
     }

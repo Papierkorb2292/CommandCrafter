@@ -1,18 +1,14 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.DataResult
-import com.mojang.serialization.Decoder
+import com.mojang.serialization.Dynamic
 import com.mojang.serialization.DynamicOps
 import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint
-import net.papierkorb2292.command_crafter.helper.getOrNull
-import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import org.spongepowered.asm.mixin.MixinEnvironment
 import java.lang.invoke.MethodHandles
 
 object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
-
-    private val RESULT_CALLBACK = ThreadLocal<ResultCallback>()
 
     private const val MIXIN_TRANSFORMER_NAME = "org.spongepowered.asm.mixin.transformer.MixinTransformer"
     private const val PROCESSOR_FIELD_NAME = "processor"
@@ -40,34 +36,27 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         coprocessors += constructor.newInstance()
     }
 
-    fun <TResult, TInput> decodeWithCallback(decoder: Decoder<TResult>, ops: DynamicOps<TInput>, input: TInput, callback: ResultCallback): DataResult<Pair<TResult, TInput>> {
-        RESULT_CALLBACK.runWithValue(callback) {
-            return decoder.decode(ops, input)
-        }
-    }
-
-    fun clearResultCallback() {
-        RESULT_CALLBACK.remove()
-    }
-
     const val ON_DECODE_START_NAME = "onDecodeStart"
-    const val ON_DECODE_START_DESC = "(Ljava/lang/Object;)V"
+    const val ON_DECODE_START_DESC = "(Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)V"
 
     // Calls to this method are injected by the coprocessor at
     // the start of every Decoder.decode implementation
-    fun <TInput> onDecodeStart(input: TInput) {
-        val callback = RESULT_CALLBACK.getOrNull() ?: return
-        callback.onDecodeStart(input)
+    fun <TInput : Any> onDecodeStart(ops: DynamicOps<TInput>, input: TInput) {
+        ExtraDecoderBehavior.getCurrentBehavior(ops)?.onDecodeStart(input)
+    }
+
+    fun <TInput : Any> onDecodeStart(dynamic: Dynamic<TInput>) {
+        onDecodeStart(dynamic.ops, dynamic.value)
     }
 
     const val ON_DECODED_NAME = "onDecoded"
-    const val ON_DECODED_DESC = "(Lcom/mojang/serialization/DataResult;Ljava/lang/Object;)V"
+    const val ON_DECODED_DESC = "(Lcom/mojang/serialization/DataResult;Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)V"
 
     // Calls to this method are injected by the coprocessor at
     // every `return` statement in every Decoder.decode implementation
     @Suppress("unused")
-    fun <TInput, TResult> onDecoded(dataResult: DataResult<TResult>, input: TInput) {
-        val callback = RESULT_CALLBACK.getOrNull() ?: return
+    fun <TInput : Any, TResult> onDecoded(dataResult: DataResult<TResult>, ops: DynamicOps<TInput>, input: TInput) {
+        val callback = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return
         dataResult.mapOrElse(
             { result -> callback.onResult(result, false, input) },
             { result ->
@@ -79,15 +68,7 @@ object PreLaunchDecoderOutputTracker : PreLaunchEntrypoint {
         )
     }
 
-    fun <TInput, TResult> onStringParseError(dataResult: DataResult.Error<TResult>, input: TInput, cursor: Int) {
-        val callback = RESULT_CALLBACK.getOrNull() ?: return
-        callback.onStringParseError(dataResult, input, cursor)
-    }
-
-    interface ResultCallback {
-        fun <TInput, TResult> onError(error: DataResult.Error<TResult>, input: TInput)
-        fun <TInput, TResult> onStringParseError(error: DataResult.Error<TResult>, input: TInput, cursor: Int)
-        fun <TInput, TResult> onResult(result: TResult, isPartial: Boolean, input: TInput)
-        fun <TInput> onDecodeStart(input: TInput)
+    fun <TInput : Any, TResult> onDecoded(dataResult: DataResult<TResult>, dynamic: Dynamic<TInput>) {
+        onDecoded(dataResult, dynamic.ops, dynamic.value)
     }
 }

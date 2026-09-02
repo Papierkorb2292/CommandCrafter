@@ -30,11 +30,10 @@ import net.papierkorb2292.command_crafter.editor.debugger.server.functions.Funct
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugFrame
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
 import net.papierkorb2292.command_crafter.editor.processing.*
-import net.papierkorb2292.command_crafter.editor.processing.StringRangeTree.TreeOperations.Companion.forNbt
-import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.DocumentationContainer
-import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.NbtSuggestionResolver
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations.Companion.forNbt
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.FunctionBuilderAccessor
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
@@ -193,7 +192,7 @@ object LanguageManager {
                             0
                         )
                         val annotationStart = reader.cursor - 1
-                        while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n')
+                        while(reader.canRead() && reader.peek() != ' ' && reader.peek() != '\n' && reader.peek() != '\\')
                             reader.skip()
                         val annotationEnd = reader.cursor
                         result.semanticTokens.addMultiline(
@@ -218,6 +217,11 @@ object LanguageManager {
                             reader.cursor = pathStartCursor
                             continue
                         }
+                        // Also don't highlight ids with upper case letters directly next to them, it's probably part of a word
+                        if(idStart >= 1 && Character.isUpperCase(string[idStart - 1]) || idEnd < string.length && Character.isUpperCase(string[idEnd])) {
+                            reader.cursor = pathStartCursor
+                            continue
+                        }
                         result.semanticTokens.addMultiline(
                             highlightStart,
                             idStart - highlightStart,
@@ -228,40 +232,43 @@ object LanguageManager {
                         result.semanticTokens.addMultiline(idRange, TokenType.PARAMETER, 0)
                         val languageServer = reader.resourceCreator.languageServer
                         if(languageServer != null) {
-                            result.addHoverProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                                val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                                languageServer.findFileAndAnalyze(
-                                    Identifier.parse(string.substring(idStart, idEnd)),
-                                    keywords
-                                ).thenCompose { analyzingResult ->
-                                    if(analyzingResult == null) {
-                                        CompletableFuture.completedFuture(Hover(emptyList()))
-                                    } else {
-                                        languageServer.hoverDocumentation(
-                                            analyzingResult,
-                                            analyzingResult.toFileRange(idRange)
+                            result.addMappedActualSyntaxNode(idRange, object : ActualSyntaxNode {
+                                override fun getHover(cursor: Int): CompletableFuture<Hover> {
+                                    val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                                    return languageServer.findFileAndAnalyze(
+                                        Identifier.parse(string.substring(idStart, idEnd)),
+                                        keywords
+                                    ).thenCompose { analyzingResult ->
+                                        if(analyzingResult == null) {
+                                            CompletableFuture.completedFuture(Hover(emptyList()))
+                                        } else {
+                                            languageServer.hoverDocumentation(
+                                                analyzingResult,
+                                                analyzingResult.toFileRange(idRange)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
+                                    val client = languageServer.client
+                                        ?: return MinecraftLanguageServer.emptyDefinitionDefault
+                                    val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
+                                    return PackContentFileType.findWorkspaceResourceFromId(
+                                        Identifier.parse(string.substring(idStart, idEnd)),
+                                        client,
+                                        keywords
+                                    ).thenApply {
+                                        Either.forLeft(
+                                            if(it == null) {
+                                                emptyList()
+                                            } else {
+                                                listOf(Location(it.second, Range(Position(), Position())))
+                                            }
                                         )
                                     }
                                 }
-                            }, true)
-                            result.addDefinitionProvider(AnalyzingResult.RangedDataProvider(idRange) {
-                                val client = languageServer.client
-                                    ?: return@RangedDataProvider MinecraftLanguageServer.emptyDefinitionDefault
-                                val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
-                                PackContentFileType.findWorkspaceResourceFromId(
-                                    Identifier.parse(string.substring(idStart, idEnd)),
-                                    client,
-                                    keywords
-                                ).thenApply {
-                                    Either.forLeft(
-                                        if(it == null) {
-                                            emptyList()
-                                        } else {
-                                            listOf(Location(it.second, Range(Position(), Position())))
-                                        }
-                                    )
-                                }
-                            }, true)
+                            })
                         }
                         highlightStart = idEnd
                     }
@@ -337,7 +344,7 @@ object LanguageManager {
                 return languageType.argumentDecoder.parse(NbtOps.INSTANCE, args).orThrow
             }
 
-            override fun readAndAnalyze(reader: DirectiveStringReader<*>, analyzingResult: AnalyzingResult) {
+            override fun readAndAnalyze(reader: DirectiveStringReader<AnalyzingResourceCreator>, analyzingResult: AnalyzingResult) {
                 val startCursor = reader.cursor
                 val startPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
                 val language = try {
@@ -354,20 +361,19 @@ object LanguageManager {
                 }
                 val languageIdEndCursor = reader.cursor
 
-                analyzingResult.addCompletionProviderWithContinuosMapping(
+                analyzingResult.addContinuouslyMappedPotentialSyntaxNode(
                     AnalyzingResult.DIRECTIVE_COMPLETION_CHANNEL,
-                    AnalyzingResult.RangedDataProvider(
-                        StringRange(startCursor, languageIdEndCursor),
-                        CombinedCompletionItemProvider(
-                            LANGUAGES.keySet().map {
-                                SimpleCompletionItemProvider(
-                                    it.toShortString(),
-                                    startCursor,
-                                    { languageIdEndCursor },
-                                    analyzingResult.mappingInfo.copy(),
-                                )
-                            }
-                        ))
+                    StringRange(startCursor, languageIdEndCursor),
+                    CombinedPotentialSyntaxNode(
+                        LANGUAGES.keySet().map {
+                            SimpleCompletionItemProvider(
+                                it.toShortString(),
+                                startCursor,
+                                { languageIdEndCursor },
+                                analyzingResult.mappingInfo.copy(),
+                            )
+                        }
+                    )
                 )
 
                 val languageIdEndPos = AnalyzingResult.getPositionFromCursor(reader.absoluteCursor, reader.fileMappingInfo)
@@ -383,7 +389,7 @@ object LanguageManager {
                 reader.switchLanguage(readAndAnalyzeLanguageArgs(reader, languageType, analyzingResult) ?: return)
             }
 
-            private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<*>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
+            private fun readAndAnalyzeLanguageArgs(reader: DirectiveStringReader<AnalyzingResourceCreator>, languageType: LanguageType, analyzingResult: AnalyzingResult): Language? {
                 val languageEnd = reader.cursor
 
                 if(reader.trySkipWhitespace(false) {
@@ -411,6 +417,7 @@ object LanguageManager {
                 val treeBuilder = StringRangeTree.Builder<Tag>()
                 @Suppress("UNCHECKED_CAST")
                 (nbtReader as StringRangeTreeCreator<Tag>).`command_crafter$setStringRangeTreeBuilder`(treeBuilder)
+                (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(analyzingResult)
                 val nbt = if(reader.canRead() && reader.peek() == '\n') {
                     val empty = NbtOps.INSTANCE.empty()
                     treeBuilder.addNode(empty, StringRange(languageEnd + 1, reader.cursor), languageEnd + 1)
@@ -428,8 +435,14 @@ object LanguageManager {
                     treeBuilder.build(nbt),
                     allowMalformedReader
                 )
-                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) { it.value.any { c -> !StringReader.isAllowedInUnquotedString(c) } })
-                    .analyzeFull(analyzingResult, true, languageType.argumentDecoder)
+                    .withSuggestionResolver(NbtSuggestionResolver(allowMalformedReader::copy) {
+                        it.value.any { c ->
+                            !StringReader.isAllowedInUnquotedString(
+                                c
+                            )
+                        }
+                    })
+                    .analyzeFull(analyzingResult, languageType.argumentDecoder)
                 if(!reader.canRead() || reader.peek() == '\n') {
                     return languageType.argumentDecoder.parse(NbtOps.INSTANCE, nbt).result().getOrNull()
                 }
