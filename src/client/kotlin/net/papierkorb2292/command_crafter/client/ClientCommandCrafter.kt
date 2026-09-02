@@ -273,6 +273,11 @@ object ClientCommandCrafter : ClientModInitializer {
                 ClientCommands.literal("commandcrafter:datagen")
                     .executes { context ->
                         SDLDialog.SDL_ShowOpenFolderDialog({ _, filelist, _ ->
+                            if(filelist == 0L) {
+                                // The result array was NULL, this means there was an error
+                                context.source.sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                                return@SDL_ShowOpenFolderDialog
+                            }
                             // This is a null-terminated array of string pointers, but there should only be one entry
                             val filesSegment = MemorySegment.ofAddress(filelist).reinterpret(AddressLayout.ADDRESS.byteSize())
                             // Get a MemorySegment at the first string
