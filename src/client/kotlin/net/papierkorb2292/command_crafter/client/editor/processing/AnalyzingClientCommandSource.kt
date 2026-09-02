@@ -48,9 +48,7 @@ class AnalyzingClientCommandSource(
     override fun getAvailablePostEffects(): Stream<Identifier> = clientCommandSource.availablePostEffects
 
     override fun levels(): MutableSet<ResourceKey<Level>> = clientCommandSource.levels()
-    // Note: There are some 'registries' parsed by LoadedClientsideRegistries that are not synced
-    // when connecting to a server. Advancements and recipes will be in registryAccess() only if the player is not connected
-    // to a server with CommandCrafter.
+    // Also always contains advancements and registries (they're parsed by the client, and they're also synced with servers)
     override fun registryAccess(): RegistryAccess = registries
     override fun enabledFeatures(): FeatureFlagSet =
         if(hasNetworkHandler) clientCommandSource.enabledFeatures() else ClientCommandCrafter.defaultFeatureSet

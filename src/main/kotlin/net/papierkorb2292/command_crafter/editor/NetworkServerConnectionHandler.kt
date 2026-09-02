@@ -11,7 +11,6 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
-import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.NbtOps
 import net.minecraft.network.Connection
 import net.minecraft.network.protocol.Packet
@@ -55,11 +54,10 @@ import java.util.stream.Collectors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
+    // Without dimension, but also includes advancements and recipes
     fun getAllDatapackRegistries() = DynamicRegistries.getBootstrappingRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
-    // Without recipe and advancement, since those have some special handling
-    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> =
-        getAllDatapackRegistries().filter { it.key != Registries.RECIPE && it.key != Registries.ADVANCEMENT }
-    fun getSyncedRegistries() = getAllDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
+    // With dimension
+    fun getSyncedRegistries() = getAllDatapackRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
 
     private val currentConnections = mutableMapOf<ServerGamePacketListenerImpl, DirectServerConnection>()
 
