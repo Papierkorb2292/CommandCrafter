@@ -720,7 +720,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
                     val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
                     val fullInput = completionReader.copy().apply { this.cursor = endCursor }
-                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { ResourceOrIdArgumentAnalyzer.shouldSkipResourceOrIdSuggestions.runWithValueSwap(true) {
+                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { ResourceOrIdArgumentAnalyzer.shouldSkipResourceOrIdSuggestions.runWithValueSwap(true) { SKIP_SUGGESTION_SORT_AND_DISTINCT.runWithValueSwap(true) {
                         completionParentNode.children.map { child ->
                             try {
                                 val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
@@ -740,7 +740,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 Suggestions.empty() to null
                             }
                         }
-                    } }
+                    } } }
                     val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
                     val combinedFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                         CompletableFuture.failedFuture(it)
@@ -908,6 +908,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val IS_ANALYZING_COMMANDS = ThreadLocal<Boolean>()
+        val SKIP_SUGGESTION_SORT_AND_DISTINCT = ThreadLocal<Boolean>()
         val SERVERSIDE_SUGGESTION_GETTER = ThreadLocal<() -> CompletableFuture<Suggestions>>()
         val shouldDisplayWarningOnMacroTimeout = false
         val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")

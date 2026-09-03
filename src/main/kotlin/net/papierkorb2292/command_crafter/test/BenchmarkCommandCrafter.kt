@@ -30,12 +30,22 @@ object BenchmarkCommandCrafter {
         context.succeed()
     }
 
-    @GameTest
+    //@GameTest
     fun benchmarkMacroExhaustiveCompletions(context: GameTestHelper) {
         val lines = listOf("$$() ")
         val analyzingResult = TestCommandCrafter.analyseCommand(context, lines)
         benchmark("Test Macro Completions", 500, 500) {
             analyzingResult.getCompletions(5, null)!!.get()
+        }
+        context.succeed()
+    }
+
+    @GameTest
+    fun benchmarkUnicodeCompletions(context: GameTestHelper) {
+        val lines = listOf("tellraw @a \"\\N{}\"")
+        val analyzingResult = TestCommandCrafter.analyseCommand(context, lines)
+        benchmark("Test Unicode Completions", 10, 10) {
+            analyzingResult.getCompletions(15, null)!!.get()
         }
         context.succeed()
     }

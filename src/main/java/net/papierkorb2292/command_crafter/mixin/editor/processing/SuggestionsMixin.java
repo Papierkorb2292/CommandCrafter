@@ -53,7 +53,8 @@ public class SuggestionsMixin implements CompletionItemsContainer {
     )
     private static Iterator<Suggestion> command_crafter$skipDeduplicationDuringAnalyzing(Iterator<Suggestion> iterator, @Share("suggestionsIterator") LocalRef<Iterator<Suggestion>> suggestionsIterator, @Share("isAnalyzing") LocalBooleanRef isAnalyzing) {
         // Suggestions don't need to be deduplicated when analyzing a command, because that's already done by VanillaLanguage
-        if (getOrNull(VanillaLanguage.Companion.getSUGGESTIONS_FULL_INPUT()) == null)
+        var shouldSkip = getOrNull(VanillaLanguage.Companion.getSKIP_SUGGESTION_SORT_AND_DISTINCT());
+        if (shouldSkip == null || !shouldSkip)
             return iterator;
         suggestionsIterator.set(iterator);
         isAnalyzing.set(true);
