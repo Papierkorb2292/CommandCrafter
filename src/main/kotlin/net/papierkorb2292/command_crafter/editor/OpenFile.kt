@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
@@ -14,6 +15,7 @@ import java.util.concurrent.Future
 class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var version: Int = 0) {
     val parsedUri = EditorURI.parseURI(uri)
     val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
+    val analyzeHandler: FileAnalyseHandler? = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
     var currentAnalyzer: RunningAnalyzer? = null
     var runningAnalyzers = mutableSetOf<RunningAnalyzer>()
     var persistentAnalyzerData: Any? = null
@@ -132,31 +134,27 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
     }
 
     fun startAnalyzingFile(languageServer: MinecraftLanguageServer): RunningAnalyzer? {
+        val analyzeHandler = this.analyzeHandler ?: return null
         val runningAnalyzer = currentAnalyzer
         if(runningAnalyzer != null)
             return runningAnalyzer
-        for(analyzer in MinecraftLanguageServer.analyzers) {
-            if(analyzer.canHandle(this)) {
-                val version = version
 
-                val completableFuture = CompletableFuture<AnalyzingResult>()
-                val future = analyzer.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
-                val runningAnalyzer = RunningAnalyzer(future, completableFuture, 0)
-                currentAnalyzer = runningAnalyzer
-                runningAnalyzers += runningAnalyzer
-                completableFuture.thenRun {
-                    runningAnalyzers -= runningAnalyzer
-                }
-                completableFuture.thenAccept { result ->
-                    if(this.version == version) {
-                        MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
-                        languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
-                    }
-                }
-                return runningAnalyzer
+        val version = version
+        val completableFuture = CompletableFuture<AnalyzingResult>()
+        val future = analyzeHandler.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
+        val newAnalyzer = RunningAnalyzer(future, completableFuture, 0)
+        currentAnalyzer = newAnalyzer
+        runningAnalyzers += newAnalyzer
+        completableFuture.thenRun {
+            runningAnalyzers -= newAnalyzer
+        }
+        completableFuture.thenAccept { result ->
+            if(this.version == version) {
+                MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
+                languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
             }
         }
-        return null
+        return newAnalyzer
     }
 
     fun stopAnalyzing(forceCancel: Boolean = false) {
