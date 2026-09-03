@@ -19,14 +19,14 @@ import java.util.*
  */
 interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
     companion object {
-        private val analyzers: MutableMap<Class<out Any>, CommandArgumentAnalyzerService<*>> =
+        private var analyzers: Map<Class<out Any>, CommandArgumentAnalyzerService<*>> =
             ServiceLoader.load(CommandArgumentAnalyzerService::class.java)
                 .flatMap { provider -> provider.argumentTypes.map { argumentClass -> argumentClass to provider } }
                 .toMap(mutableMapOf())
 
         init {
             // Special fallback implementation for types without an analyzer
-            analyzers[Any::class.java] = object : CommandArgumentAnalyzerService<ArgumentType<*>> {
+            analyzers += Any::class.java to object : CommandArgumentAnalyzerService<ArgumentType<*>> {
                 override val argumentTypes: List<Class<ArgumentType<*>>> = emptyList()
 
                 override fun analyze(
@@ -48,16 +48,27 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
             if(analyzer != null)
                 return analyzer
 
-            for(superInterface in argumentClass.interfaces) {
-                val superAnalyzer = getAnalyzerForType(superInterface)
-                if(superAnalyzer != null) {
-                    analyzers[argumentClass] = superAnalyzer
-                    return superAnalyzer
+            // This can be called from multiple threads at the same time
+            // Multi-threading is also the reason why analyzers is not a MutableMap,
+            // so it can be read from at the same time as a change is made
+            synchronized(this) {
+                val analyzer = analyzers[argumentClass]
+                if(analyzer != null)
+                    return analyzer // Analyzer was already added while waiting on the lock
+
+                // Search in interfaces
+                for(superInterface in argumentClass.interfaces) {
+                    val superAnalyzer = getAnalyzerForType(superInterface)
+                    if(superAnalyzer != null) {
+                        analyzers += argumentClass to superAnalyzer
+                        return superAnalyzer
+                    }
                 }
+                // Search in super class
+                val superAnalyzer = getAnalyzerForType(argumentClass.superclass ?: return null)
+                analyzers += argumentClass to superAnalyzer!! // superAnalyzer can't be null, because Any always has an analyzer
+                return superAnalyzer
             }
-            val superAnalyzer = getAnalyzerForType(argumentClass.superclass ?: return null)
-            analyzers[argumentClass] = superAnalyzer!!
-            return superAnalyzer
         }
     }
 
