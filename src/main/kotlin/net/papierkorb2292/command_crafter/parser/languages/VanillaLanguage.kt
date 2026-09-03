@@ -265,12 +265,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             addMissingVariablesError = true,
             illegalChatCharactersSeverity = null,
         )
-        val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
-
-        if(cachedNode != null) {
-            reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro, IntList.intListOf(macro.absoluteRange.start)))
-            return
-        }
         analyzeMacroString(
             input,
             macro,
@@ -929,6 +923,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Skip irrelevant macros when generating suggestions
             if(reader.resourceCreator.canSuggestionsSkipRange(macro.absoluteRange.start, macro.absoluteRange.end))
                 return
+
+            // Check if this macro is in the previous or the new cache. It's necessary to get the cache from the resource creator and not use the cache parameter, because the parameter is only for children
+            val cached = reader.resourceCreator.previousCache?.macroCache?.macrosByInput[input] ?: reader.resourceCreator.newCache.macroCache.macrosByInput[input]
+            if(cached != null) {
+                reader.resourceCreator.newCache.macroCache.addMacro(cached.copyForChildCacheHit(macro, parserStartCursors))
+                return
+            }
 
             // If this is a nested macro, wait until the outer macro finishes, since there's a time limit for the outer macro that shouldn't be exhausted by the nested macro
             reader.resourceCreator.macroQueue?.let { queue ->
