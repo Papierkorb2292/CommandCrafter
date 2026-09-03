@@ -123,8 +123,8 @@ class AnalyzingResult(
             documentation,
             if(overlayActualRange == null) actualSyntaxNodes else mutableListOf(RangedSyntaxNode(maxWithNullable(overlayActualRange, currentActualRange), object : ActualSyntaxNode {
                 override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
-                    getSyntaxNodeAtCursor(cursor, actualNodeOverlays, false)?.getDefinition(cursor)
-                        ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor)
+                    getSyntaxNodeAtCursor(cursor, actualNodeOverlays, true)?.getDefinition(cursor)
+                        ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, true)?.getDefinition(cursor)
 
                 override fun getHover(cursor: Int): CompletableFuture<Hover>? =
                     getSyntaxNodeAtCursor(cursor, actualNodeOverlays, false)?.getHover(cursor)
@@ -403,7 +403,7 @@ class AnalyzingResult(
     }
 
     override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
-        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getDefinition(cursor)
+        getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, true)?.getDefinition(cursor)
 
     override fun getHover(cursor: Int): CompletableFuture<Hover>? =
         getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, false)?.getHover(cursor)
