@@ -119,7 +119,7 @@ object CommandCrafter: ModInitializer {
             MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
 
             ServerLifecycleEvents.SERVER_STARTED.register {
-                // Delayed to every mod had time to add its own registries
+                // Delayed so every mod had time to add its own registries
                 registerDynamicRegistries()
                 registerRegistryTags()
 
