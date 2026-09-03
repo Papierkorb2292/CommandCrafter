@@ -44,10 +44,6 @@ public abstract class EntityMixin {
             original.call(input);
             return;
         }
-        try {
-            readAdditionalSaveData(input);
-        } catch (Throwable _) {
-            // Don't build crash report, it's not necessary
-        }
+        readAdditionalSaveData(input);
     }
 }

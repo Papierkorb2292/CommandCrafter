@@ -26,6 +26,7 @@ import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.EntityTypes
+import net.minecraft.world.entity.player.Player
 import net.minecraft.world.flag.FeatureFlags
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.Level
@@ -88,6 +89,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
 
         private val entitiesWithError = mutableSetOf<EntityType<*>>()
+        private var playerThrewError = false
 
         fun registerAdditionalDataTypes() {
             ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
@@ -178,6 +180,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
     val dummyWorld = DummyWorld(registries, FeatureFlags.REGISTRY.allFlags())
 
     val dummyEntities: Map<EntityType<*>, Entity>
+    var fallbackPlayer: FallbackPlayer? = null
     val dummyBlockEntitiesByType: Map<BlockEntityType<*>, BlockEntity>
     val dummyBlockEntitiesByBlock: Map<Block, BlockEntity>
 
@@ -388,8 +391,15 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             return // Don't analyze entities that threw an error, because repeatedly throwing these errors can be very slow
         if(!valueInput.deduplicationMarkers.add(entity))
             return // Already done
+
+        val actualEntity = if(entity is ServerPlayer && playerThrewError) {
+            if(fallbackPlayer == null)
+                fallbackPlayer = createFallbackPlayer()
+            fallbackPlayer!!
+        } else entity
+
         try {
-            if(entity is ServerPlayer)
+            if(actualEntity is Player) // Include both ServerPlayer and FallbackPlayer
                 valueInput.read(NbtPredicate.SELECTED_ITEM_TAG, ItemStack.CODEC)
             if(includePassengers && valueInput.deduplicationMarkers.add("Passengers")) {
                 valueInput.childrenListOrEmpty(Entity.TAG_PASSENGERS).forEach {
@@ -397,11 +407,18 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
                 }
             }
             synchronized(this) {
-                entity.load(valueInput)
+                actualEntity.load(valueInput)
             }
         } catch(e: Throwable) {
-            entitiesWithError += entity.type
-            CommandCrafter.LOGGER.error("Error analyzing entity nbt for type ${registries.lookupOrThrow(Registries.ENTITY_TYPE).getKey(entity.type)}. Entity will be ignored in the future.", e)
+            if(actualEntity is ServerPlayer) {
+                // Switch to player fallback
+                playerThrewError = true
+                CommandCrafter.LOGGER.error("Error analyzing server player nbt. Switching to fallback", e)
+            } else {
+                // For other entities, or if the fallback player also threw an error, ignore them in the future
+                entitiesWithError += entity.type
+                CommandCrafter.LOGGER.error("Error analyzing entity nbt for type ${registries.lookupOrThrow(Registries.ENTITY_TYPE).getKey(entity.type)}. Entity will be ignored in the future.", e)
+            }
         }
     }
 
@@ -426,10 +443,24 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             }
             return entityType to entity
         } catch(e: Throwable) {
-            CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id, please report this to the developer Papierkorb2292 and include a list of installed mods", e)
+            CommandCrafter.LOGGER.warn("Error creating dummy entity of type $id", e)
+            if(entityType == EntityTypes.PLAYER) {
+                CommandCrafter.LOGGER.info("Using fallback player instead")
+                val fallback = createFallbackPlayer()
+                if(fallback != null)
+                    return entityType to fallback
+            }
             return null
         }
     }
+
+    private fun createFallbackPlayer(): FallbackPlayer? =
+        try {
+            FallbackPlayer(dummyWorld, GameProfile(UUID.randomUUID(), "DummyPlayer"))
+        } catch(e: Throwable) {
+            CommandCrafter.LOGGER.warn("Error creating fallback dummy player", e)
+            null
+        }
 
 
     private fun <T : BlockEntity> createDummyBlockEntity(id: Identifier, blockEntityType: BlockEntityType<T>): Pair<BlockEntityType<*>, BlockEntity>? {

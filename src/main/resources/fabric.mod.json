@@ -45,7 +45,7 @@
       },
       {
         "adapter": "kotlin",
-        "value": "net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker"
+        "value": "net.papierkorb2292.command_crafter.helper.PreLaunchMixinCoprocessorRegistration"
       }
     ],
     "modmenu": [
