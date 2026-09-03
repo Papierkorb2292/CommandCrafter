@@ -8,6 +8,7 @@ This [Fabric mod](https://modrinth.com/mod/commandcrafter) and [VSCode extension
 - Syntax Highlighting (including macros)
 - Auto-completion
 - Error checking
+- Color pickers
 - A debugger that lets you set breakpoints and step through functions and evaluate arguments while paused
 - Viewing and editing scoreboards/storages in your editor
 - Viewing the client's and the server's log in your editor
