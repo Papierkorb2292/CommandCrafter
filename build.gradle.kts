@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import javax.net.ssl.HttpsURLConnection
+import kotlin.io.path.createDirectories
 
 // Inspired by https://gitlab.com/supersaiyansubtlety-group/minecraft-mods/sss_mod_gradle/-/blob/18a6c4c0fa75603fe7ba0e508439a55381ead45e/plugin/src/main/java/net/sssubtlety/sss_mod_gradle/plugin/RunConfigHelperPlugin.java
 val mixinJavaagentArgFile = file(".gradle/mixin-javaagent-arg.txt")
@@ -69,7 +70,7 @@ loom {
 
     runs {
         if(!Files.isDirectory(Path.of("build/gametest")))
-            Files.createDirectory(Path.of("build/gametest"))
+            Path.of("build/gametest").createDirectories()
         create("gametest") {
             server()
             ideConfigGenerated(true)
