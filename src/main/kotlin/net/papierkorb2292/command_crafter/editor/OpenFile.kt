@@ -22,7 +22,8 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
-        val analyzerExecutor = WrappingExecutorService.withErrorCallback(Executors.newFixedThreadPool(5)) { e ->
+        private val backingExecutor = Executors.newFixedThreadPool(5)
+        val analyzerExecutor = WrappingExecutorService.withErrorCallback(backingExecutor) { e ->
             CommandCrafter.LOGGER.error("Analyzer task threw error", e)
         }
 
@@ -30,6 +31,10 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
         fun linesFromStrings(lines: List<String>): MutableList<StringBuilder> = lines.mapTo(ArrayList(lines.size), ::StringBuilder)
         fun fromString(uri: String, content: String, version: Int = 0) = fromLines(uri, content.lines(), version)
         fun fromLines(uri: String, lines: List<String>, version: Int = 0) = OpenFile(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder), version)
+
+        fun shutdown() {
+            backingExecutor.shutdown()
+        }
     }
 
     @Synchronized

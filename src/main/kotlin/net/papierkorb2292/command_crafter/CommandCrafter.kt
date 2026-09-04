@@ -336,6 +336,10 @@ object CommandCrafter: ModInitializer {
         return ResponseError(ResponseErrorCode.UnknownErrorCode, coreException.message, null)
     }
 
+    fun shutdown() {
+
+    }
+
     fun <S> removeLiteralsStartingWithForwardsSlash(node: CommandNode<S>) {
         val literals = (node as CommandNodeAccessor).literals
         val children = (node as CommandNodeAccessor).children

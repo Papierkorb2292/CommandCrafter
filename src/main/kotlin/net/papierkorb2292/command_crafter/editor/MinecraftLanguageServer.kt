@@ -632,6 +632,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     override fun onClosed() {
         running = false
+        fileResultProcessing.shutdown()
     }
 
     fun markDocumentation(documentation: String): CompletableFuture<String> {

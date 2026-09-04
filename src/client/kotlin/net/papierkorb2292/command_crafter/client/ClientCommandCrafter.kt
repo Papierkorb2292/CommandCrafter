@@ -37,10 +37,7 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
 import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
 import net.papierkorb2292.command_crafter.datagen.ModdedDatagenRunner
-import net.papierkorb2292.command_crafter.editor.EditorConnectionManager
-import net.papierkorb2292.command_crafter.editor.McFunctionAnalyzer
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.SocketEditorConnectionType
+import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -168,6 +165,7 @@ object ClientCommandCrafter : ClientModInitializer {
         }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             editorConnectionManager.leave()
+            OpenFile.shutdown()
         }
 
         editorConnectionManager.startServer()
