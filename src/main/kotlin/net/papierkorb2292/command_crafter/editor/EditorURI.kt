@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.minecraft.util.Util
+import org.eclipse.lsp4j.jsonrpc.util.ToStringBuilder
 import java.net.URLDecoder
 import java.nio.file.Path
 import java.util.regex.Pattern
@@ -86,7 +87,7 @@ class EditorURI private constructor(
             }
     }
 
-    // What, you thought Windows would just accept the path that VSCode gives us?
+    // VSCode paths always start with '/'. So on Windows this has to be removed to get the drive letter
     fun parsePath(): Path = if(IS_WINDOWS) Path.of(path.trimStart('/')) else Path.of(path)
 
     fun copyWithPath(path: String) = EditorURI(scheme, authority, path, query, fragment)
@@ -108,5 +109,15 @@ class EditorURI private constructor(
         val query = if(query.isEmpty()) "" else "?$query"
         val fragment = if(fragment.isEmpty()) "" else "#$fragment"
         return "$scheme://$authority$path$query$fragment"
+    }
+
+    fun toDetailString(): String {
+        val builder = ToStringBuilder(this)
+        builder.add("scheme", scheme)
+        builder.add("authority", authority)
+        builder.add("path", path)
+        builder.add("query", query)
+        builder.add("fragment", fragment)
+        return builder.toString()
     }
 }
