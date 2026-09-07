@@ -2,8 +2,13 @@ package net.papierkorb2292.command_crafter.test
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.gametest.v1.GameTest
+import net.minecraft.commands.functions.CommandFunction
 import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.resources.Identifier
+import net.minecraft.world.entity.EntityTypes
+import net.minecraft.world.phys.Vec3
 import java.nio.file.Path
+import java.util.*
 import kotlin.math.sqrt
 
 data class BenchmarkResult(
@@ -40,13 +45,30 @@ object BenchmarkCommandCrafter {
         context.succeed()
     }
 
-    @GameTest
+    //@GameTest
     fun benchmarkUnicodeCompletions(context: GameTestHelper) {
         val lines = listOf("tellraw @a \"\\N{}\"")
         val analyzingResult = TestCommandCrafter.analyseCommand(context, lines)
         benchmark("Test Unicode Completions", 10, 10) {
             analyzingResult.getCompletions(15, null)!!.get()
         }
+        context.succeed()
+    }
+
+    @GameTest
+    fun benchmarkDebuggerStandby(context: GameTestHelper) {
+        val markers = context.spawn(EntityTypes.MARKER, Vec3.ZERO, 1000)
+        markers.forEach { marker -> marker.addTag("debuggerTest") }
+
+        val source = context.level.server.createCommandSourceStack()
+        val lines = Collections.nCopies(10, "execute as @e[tag=debuggerTest] at @e[tag=debuggerTest] run setblock ~ ~ ~ air")
+        val function = CommandFunction.fromLines(Identifier.withDefaultNamespace("debugger_test"), context.level.server.commands.dispatcher, source, lines)
+
+        benchmark("Test Debugger", 500, 500) {
+            context.level.server.functions.execute(function, source)
+        }
+
+        markers.forEach(context::kill)
         context.succeed()
     }
 
