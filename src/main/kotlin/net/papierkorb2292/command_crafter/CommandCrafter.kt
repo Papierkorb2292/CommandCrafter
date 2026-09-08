@@ -89,8 +89,6 @@ object CommandCrafter: ModInitializer {
         DirectServerConnection.registerReconfigureCompletedCheck()
         initializeParser()
 
-        ServerLifecycleEvents.SERVER_STARTED
-
         LOGGER.info("Loaded CommandCrafter!")
     }
 
