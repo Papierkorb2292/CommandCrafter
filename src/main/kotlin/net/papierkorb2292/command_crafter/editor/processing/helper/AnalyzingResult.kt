@@ -122,7 +122,7 @@ class AnalyzingResult(
             filePosition,
             documentation,
             if(overlayActualRange == null) actualSyntaxNodes else mutableListOf(RangedSyntaxNode(maxWithNullable(overlayActualRange, currentActualRange), object : ActualSyntaxNode {
-                override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
+                override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? =
                     getSyntaxNodeAtCursor(cursor, actualNodeOverlays, true)?.getDefinition(cursor)
                         ?: getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, true)?.getDefinition(cursor)
 
@@ -402,7 +402,7 @@ class AnalyzingResult(
         } else null
     }
 
-    override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>? =
+    override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? =
         getSyntaxNodeAtCursor(cursor, actualSyntaxNodes, true)?.getDefinition(cursor)
 
     override fun getHover(cursor: Int): CompletableFuture<Hover>? =
@@ -682,7 +682,7 @@ class AnalyzingResult(
         override fun getDefinition(cursor: Int) =
             if(featureConfig.isEnabled(analyzerNameInserts.map(::getDefinitionsFeatureKey), true))
                 delegate.getDefinition(cursor)
-            else MinecraftLanguageServer.emptyDefinitionDefault
+            else MinecraftLanguageServer.emptyDefinitionNodeDefault
         override fun getHover(cursor: Int) =
             if(featureConfig.isEnabled(analyzerNameInserts.map(::getHoversFeatureKey), true))
                 delegate.getHover(cursor)

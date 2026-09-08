@@ -45,6 +45,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
         val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
+        val emptyDefinitionNodeDefault: CompletableFuture<ActualSyntaxNode.Definition> = CompletableFuture.completedFuture(ActualSyntaxNode.Definition(Either.forLeft(emptyList()), true))
         val emptyCompletionsDefault: CompletableFuture<Either<List<CompletionItem>, CompletionList>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
 
         const val AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH = "autoreload.datapack_functions"
@@ -414,7 +415,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
                 val cursor = AnalyzingResult.getCursorFromPosition(params.position, file.createFileMappingInfo())
                 return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({
-                    it.getDefinition(cursor) ?: emptyDefinitionDefault
+                    it.getDefinition(cursor)?.thenApply { definition -> definition.location } ?: emptyDefinitionDefault
                 }, fileResultProcessing))
             }
         }

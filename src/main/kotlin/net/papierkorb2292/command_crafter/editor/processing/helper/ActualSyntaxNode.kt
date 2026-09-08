@@ -1,9 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
-import org.eclipse.lsp4j.Hover
-import org.eclipse.lsp4j.Location
-import org.eclipse.lsp4j.LocationLink
-import org.eclipse.lsp4j.Position
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
 
@@ -18,8 +15,30 @@ import java.util.concurrent.CompletableFuture
  * (but empty lists are allowed to be cached)
  */
 interface ActualSyntaxNode {
-    fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>>?
+    fun getDefinition(cursor: Int): CompletableFuture<Definition>?
     fun getHover(cursor: Int): CompletableFuture<Hover>?
+
+    data class Definition(val location: Either<List<Location>, List<LocationLink>>, val isTargetAbsolute: Boolean) {
+        fun mapSource(mapper: (Range) -> Range) {
+            if(location.isLeft) return // The Location class doesn't contain source ranges
+            location.right.forEach { link ->
+                if(link.originSelectionRange != null)
+                    link.originSelectionRange = mapper(link.originSelectionRange)
+            }
+        }
+
+        fun mapTarget(mapper: (Range) -> Range) {
+            if(isTargetAbsolute) return
+            location.map(
+                { locations -> locations.forEach { location ->
+                      location.range = mapper(location.range)
+                } },
+                { links -> links.forEach { link ->
+                    link.targetRange = mapper(link.targetRange)
+                } },
+            )
+        }
+    }
 }
 
 fun ActualSyntaxNode.offsetActualInput(offset: Int) = object : ActualSyntaxNode {
@@ -29,13 +48,9 @@ fun ActualSyntaxNode.offsetActualInput(offset: Int) = object : ActualSyntaxNode 
 
 fun ActualSyntaxNode.offsetActualOutput(offset: Position) = object : ActualSyntaxNode {
     override fun getDefinition(cursor: Int) = this@offsetActualOutput.getDefinition(cursor)?.thenApply { definition ->
-        if(definition.isRight)
-            Either.forRight(definition.right.map { link ->
-                if(link.originSelectionRange != null)
-                    link.originSelectionRange = offset.offsetRange(link.originSelectionRange)
-                link
-            })
-        else definition
+        definition.mapSource { offset.offsetRange(it) }
+        definition.mapTarget { offset.offsetRange(it) }
+        definition
     }
 
     override fun getHover(cursor: Int) = this@offsetActualOutput.getHover(cursor)?.thenApply { hover ->
@@ -47,13 +62,9 @@ fun ActualSyntaxNode.offsetActualOutput(offset: Position) = object : ActualSynta
 
 fun ActualSyntaxNode.offsetActualOutputDifference(offset: Position) = object : ActualSyntaxNode {
     override fun getDefinition(cursor: Int) = this@offsetActualOutputDifference.getDefinition(cursor)?.thenApply { definition ->
-        if(definition.isRight)
-            Either.forRight(definition.right.map { link ->
-                if(link.originSelectionRange != null)
-                    link.originSelectionRange = offset.differenceTo(link.originSelectionRange)
-                link
-            })
-        else definition
+        definition.mapSource { offset.differenceTo(it) }
+        definition.mapTarget { offset.differenceTo(it) }
+        definition
     }
 
     override fun getHover(cursor: Int) = this@offsetActualOutputDifference.getHover(cursor)?.thenApply { hover ->

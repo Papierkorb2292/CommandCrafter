@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Codec
 import net.minecraft.resources.Identifier
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyDefinitionDefault
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyDefinitionNodeDefault
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.findWorkspaceResourceFromIdAndPackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
 import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
@@ -11,7 +11,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Location
-import org.eclipse.lsp4j.LocationLink
 import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.jsonrpc.messages.Either
@@ -28,14 +27,14 @@ object IdArgumentTypeAnalyzer {
                     languageServer.hoverDocumentation(documentation, fileRange)
                 }
 
-            override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
-                val client = languageServer.client ?: return emptyDefinitionDefault
+            override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition> {
+                val client = languageServer.client ?: return emptyDefinitionNodeDefault
                 return findWorkspaceResourceFromIdAndPackContentFileType(id, packContentFileType, client)
                     .thenApply { resource ->
-                        Either.forLeft(
+                        ActualSyntaxNode.Definition(Either.forLeft(
                             if(resource == null) emptyList()
                             else listOf(Location(resource, Range(Position(), Position())))
-                        )
+                        ), true)
                     }
             }
         })

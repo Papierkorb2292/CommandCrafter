@@ -1492,12 +1492,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val argRange = StringRange(reader.cursor, reader.cursor + 4)
                 if(languageServer != null) {
                     analyzingResult.addMappedActualSyntaxNode(argRange, object : ActualSyntaxNode {
-                        override fun getDefinition(cursor: Int): CompletableFuture<JsonRPCEither<List<Location>, List<LocationLink>>> =
-                            CompletableFuture.completedFuture(
+                        override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition> =
+                            CompletableFuture.completedFuture(ActualSyntaxNode.Definition(
                                 JsonRPCEither.forLeft(
                                     listOf(Location(resourceCreator.sourceFunctionUri, Range(functionAnalyzingResult.filePosition, functionAnalyzingResult.filePosition)))
-                                )
-                            )
+                                ),
+                                true
+                            ))
 
                         override fun getHover(cursor: Int): CompletableFuture<Hover> {
                             val fileRange = functionAnalyzingResult.toFileRange(argRange)
