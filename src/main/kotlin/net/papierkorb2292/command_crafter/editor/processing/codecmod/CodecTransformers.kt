@@ -4,7 +4,10 @@ import com.google.common.collect.BiMap
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.ContextChain
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.PrimitiveCodec
@@ -27,6 +30,7 @@ import net.minecraft.core.registries.Registries
 import net.minecraft.locale.Language
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
 import net.minecraft.network.chat.contents.NbtContents
 import net.minecraft.network.chat.contents.TranslatableContents
@@ -58,16 +62,10 @@ import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags.FunctionTagDebugHandler.Companion.TAG_PARSING_ELEMENT_RANGES
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
-import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.ContextSuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
-import net.papierkorb2292.command_crafter.editor.processing.PrimitiveCodecSuggestionWrapper
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackedEncoderColorInfo
-import net.papierkorb2292.command_crafter.editor.processing.helper.withCompletionThreadLocal
-import net.papierkorb2292.command_crafter.editor.processing.helper.wrapDynamicOps
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
@@ -83,9 +81,12 @@ import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCurs
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.Diagnostic
 import org.eclipse.lsp4j.DiagnosticSeverity
+import org.eclipse.lsp4j.Hover
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.joml.Vector3f
 import org.joml.Vector4f
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
@@ -349,6 +350,85 @@ object CodecTransformers {
                     ?.map<T>(ops::createString)
                     ?: Stream.empty()
         })
+
+    @JvmStatic
+    @CodecMod(target = TranslatableContents::class, codecField = "translate")
+    fun analyzeTranslationComponentContent(codec: PrimitiveCodec<String>): PrimitiveCodec<String> {
+        val withCodec = Codec.PASSTHROUGH.listOf().fieldOf("with").codec().decodeParent().onlyContextBehavior()
+        val analyzing = MalformedStringDecoderAnalyzing({ dynamic ->
+            withCodec.decode(dynamic).resultOrPartial().getOrNull()?.first
+        }, { context, result, behavior, reader, string, analyzingBehavior ->
+            analyzeTranslationTemplate(result, reader, context)
+        })
+        return analyzing.wrapCodecWithoutError(codec)
+    }
+
+    private val InvalidFormatExceptionType = SimpleCommandExceptionType(Component.literal($$"Invalid format. Allowed are: %s, %<num>$s and %%"))
+    private val FormatIndexTooHighExceptionType = Dynamic2CommandExceptionType { index, withLength -> Component.literal("Format index is too high. Index is $index, but 'with' only has $withLength entries") }
+
+    private fun analyzeTranslationTemplate(result: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>, with: List<Dynamic<*>>?) {
+        var incrementalReplacementIndex = 0
+
+        fun isDigit(c: Char) = c in '0'..'9'
+        @Throws(CommandSyntaxException::class)
+        fun addWithReference(range: StringRange, replacementIndex: Int) {
+            if(with == null) return
+            if(with.size <= replacementIndex)
+                throw FormatIndexTooHighExceptionType.createWithContext(reader, replacementIndex, with.size)
+            val dynamic = with[replacementIndex]
+            result.addMappedActualSyntaxNode(range, object : ActualSyntaxNode {
+                override fun getDefinition(cursor: Int) = null
+
+                override fun getHover(cursor: Int): CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(
+                    listOf(Either.forLeft(dynamic.value.toString())),
+                    result.toFileRange(range)
+                ))
+            })
+        }
+        @Throws(CommandSyntaxException::class)
+        fun parseFormat(start: Int) {
+            if(!reader.canRead())
+                throw InvalidFormatExceptionType.createWithContext(reader)
+            if(reader.peek() == '%') {
+                reader.skip()
+                return // This is valid, it's used to insert '%' into the message
+            }
+            if(reader.peek() == 's') {
+                reader.skip()
+                addWithReference(StringRange(start, reader.cursor), incrementalReplacementIndex++)
+                return
+            }
+            if(isDigit(reader.peek())) {
+                var replacementIndex = 0
+                do {
+                    replacementIndex = 10 * replacementIndex + reader.read().digitToInt()
+                } while(reader.canRead() && isDigit(reader.peek()))
+                reader.expect('$')
+                reader.expect('s')
+                addWithReference(StringRange(start, reader.cursor), replacementIndex)
+                return
+            }
+            throw InvalidFormatExceptionType.createWithContext(reader)
+        }
+        
+
+        while(reader.canRead()) {
+            val start = reader.cursor
+            if(reader.read() != '%')
+                continue
+            try {
+                parseFormat(start)
+            } catch(e: CommandSyntaxException) {
+                result.diagnostics += Diagnostic().apply {
+                    message = e.message
+                    range = result.toFileRange(StringRange(start, reader.cursor))
+                    severity = DiagnosticSeverity.Warning
+                }
+            }
+            val end = reader.cursor
+            result.semanticTokens.addMultiline(start, end - start, TokenType.REGEXP, 0)
+        }
+    }
 
     @JvmStatic
     @CodecMod(target = PackFormat::class, methodName = "packCodec")

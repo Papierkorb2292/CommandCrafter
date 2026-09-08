@@ -4,6 +4,7 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
+import com.mojang.serialization.codecs.PrimitiveCodec
 import net.minecraft.util.CompilableString
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -49,6 +50,17 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
 
         override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> {
             val result = delegate.decode(ops, input)
+            onParsedGeneric(Dynamic(ops, input), Int.MAX_VALUE, null)
+            return result
+        }
+    }
+
+    fun <A> wrapCodecWithoutError(delegate: PrimitiveCodec<A>): PrimitiveCodec<A> = object : PrimitiveCodec<A> {
+        override fun <T : Any> write(ops: DynamicOps<T>, input: A): T =
+            delegate.write(ops, input)
+
+        override fun <T : Any> read(ops: DynamicOps<T>, input: T): DataResult<A> {
+            val result = delegate.read(ops, input)
             onParsedGeneric(Dynamic(ops, input), Int.MAX_VALUE, null)
             return result
         }
