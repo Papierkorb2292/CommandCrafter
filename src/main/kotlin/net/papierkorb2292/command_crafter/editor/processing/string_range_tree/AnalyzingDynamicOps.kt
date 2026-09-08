@@ -311,7 +311,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         }
     }
 
-    fun analyzeNode(node: TNode, range: StringRange, stringContent: () -> StringContent?) {
+    fun analyzeNode(node: TNode, range: StringRange, nodeRanges: Map<TNode, StringRange>, stringContent: () -> StringContent?) {
         val callbacks = nodeAnalyzingCallbacks[node] ?: return
         val potentialResults = mutableListOf<Pair<AnalyzingResult, StringEscaper?>>()
         var actualResult: AnalyzingResult? = null
@@ -324,6 +324,8 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             override val range get() = range
             override val baseMappingInfo: FileMappingInfo
                 get() = baseResult.mappingInfo
+
+            override fun tryGetNodeRange(node: TNode) = nodeRanges[node]
 
             override fun createNodeAnalyzingResultOverlay(): AnalyzingResult {
                 val result = baseResult.copyInput()

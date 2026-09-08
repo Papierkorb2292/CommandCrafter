@@ -79,9 +79,7 @@ import net.papierkorb2292.command_crafter.parser.Language.TopLevelClosure
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
-import org.eclipse.lsp4j.Diagnostic
-import org.eclipse.lsp4j.DiagnosticSeverity
-import org.eclipse.lsp4j.Hover
+import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.joml.Vector3f
 import org.joml.Vector4f
@@ -358,7 +356,7 @@ object CodecTransformers {
         val analyzing = MalformedStringDecoderAnalyzing({ dynamic ->
             withCodec.decode(dynamic).resultOrPartial().getOrNull()?.first
         }, { context, result, behavior, reader, string, analyzingBehavior ->
-            analyzeTranslationTemplate(result, reader, context)
+            analyzeTranslationTemplate(result, reader, context, analyzingBehavior)
         })
         return analyzing.wrapCodecWithoutError(codec)
     }
@@ -366,7 +364,7 @@ object CodecTransformers {
     private val InvalidFormatExceptionType = SimpleCommandExceptionType(Component.literal($$"Invalid format. Allowed are: %s, %<num>$s and %%"))
     private val FormatIndexTooHighExceptionType = Dynamic2CommandExceptionType { index, withLength -> Component.literal("Format index is too high. Index is $index, but 'with' only has $withLength entries") }
 
-    private fun analyzeTranslationTemplate(result: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>, with: List<Dynamic<*>>?) {
+    private fun <TNode: Any> analyzeTranslationTemplate(result: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>, with: List<Dynamic<*>>?, analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<TNode>) {
         var incrementalReplacementIndex = 0
 
         fun isDigit(c: Char) = c in '0'..'9'
@@ -376,9 +374,17 @@ object CodecTransformers {
             if(with.size <= replacementIndex)
                 throw FormatIndexTooHighExceptionType.createWithContext(reader, replacementIndex, with.size)
             val dynamic = with[replacementIndex]
+            val baseMappingInfo = analyzingBehavior.baseMappingInfo
             result.addMappedActualSyntaxNode(range, object : ActualSyntaxNode {
-                override fun getDefinition(cursor: Int) = null
-
+                override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? {
+                    @Suppress("UNCHECKED_CAST")
+                    val targetRange = analyzingBehavior.tryGetNodeRange(dynamic.value as TNode) ?: return null
+                    val absoluteRange = baseMappingInfo.cursorMapper.mapToSource(targetRange + baseMappingInfo.readSkippingChars)
+                    return CompletableFuture.completedFuture(ActualSyntaxNode.Definition(Either.forLeft(listOf(Location(
+                        reader.resourceCreator.sourceFunctionUri,
+                        Range(AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo), AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo))
+                    ))), false))
+                }
                 override fun getHover(cursor: Int): CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(
                     listOf(Either.forLeft(dynamic.value.toString())),
                     result.toFileRange(range)

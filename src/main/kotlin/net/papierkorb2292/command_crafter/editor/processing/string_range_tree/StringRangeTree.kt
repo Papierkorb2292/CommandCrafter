@@ -216,7 +216,7 @@ class StringRangeTree<TNode: Any>(
 
     fun combineAnalyzingOpsAnalyzingResult(analyzingDynamicOps: AnalyzingDynamicOps<TNode>, stringContentGetter: StringContent.StringContentGetter<TNode>) {
         for((node, range) in getNodesAndKeysSorted(analyzingDynamicOps.accessedKeysWatcher)) {
-            analyzingDynamicOps.analyzeNode(node, range) { stringContentGetter.getStringContent(node) }
+            analyzingDynamicOps.analyzeNode(node, range, ranges) { stringContentGetter.getStringContent(node) }
         }
     }
 

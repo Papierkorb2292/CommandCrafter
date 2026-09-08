@@ -122,6 +122,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
         val stringContentGetter: () -> StringContent?
         val range: StringRange
         val baseMappingInfo: FileMappingInfo
+        fun tryGetNodeRange(node: TNode): StringRange?
         fun createNodeAnalyzingResultOverlay(): AnalyzingResult
         fun createStringAnalyzingResultOverlay(stringContent: StringContent): AnalyzingResult
         fun finishNodeAnalyzingResultOverlay(analyzingResult: AnalyzingResult, unmappedCursor: Int = Int.MAX_VALUE, stringContent: StringContent? = null)
