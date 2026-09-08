@@ -147,14 +147,16 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var
         val version = version
         val completableFuture = CompletableFuture<AnalyzingResult>()
         val future = analyzeHandler.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
-        val newAnalyzer = RunningAnalyzer(future, completableFuture, 0)
+        val newAnalyzer = RunningAnalyzer(future, completableFuture, 0, false)
         currentAnalyzer = newAnalyzer
         runningAnalyzers += newAnalyzer
         completableFuture.thenRun {
             runningAnalyzers -= newAnalyzer
         }
         completableFuture.thenAccept { result ->
-            if(this.version == version) {
+            // Don't just compare the version, because even if the version is still the same
+            // the diagnostics might be inaccurate, like when the file has been deleted
+            if(!newAnalyzer.softCancelled) {
                 MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
                 languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
             }
@@ -164,6 +166,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var
 
     fun stopAnalyzing(forceCancel: Boolean = false) {
         runningAnalyzers.forEach {
+            it.softCancelled = true
             if(forceCancel || it.dependents == 0)
                 it.future.cancel(true)
         }
@@ -182,7 +185,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var
         return future
     }
 
-    class RunningAnalyzer(val future: Future<*>, val result: CompletableFuture<AnalyzingResult>, var dependents: Int) {
+    class RunningAnalyzer(val future: Future<*>, val result: CompletableFuture<AnalyzingResult>, var dependents: Int, var softCancelled: Boolean) {
         fun onNewDependent() {
             dependents++
         }
