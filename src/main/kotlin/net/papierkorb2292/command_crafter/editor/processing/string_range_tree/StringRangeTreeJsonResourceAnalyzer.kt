@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -27,9 +27,9 @@ import java.io.StringReader
 import kotlin.jvm.optionals.getOrNull
 
 class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>, private val analyzerConfigPath: String) : FileAnalyseHandler {
-    override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta")
+    override fun canHandle(file: EditorDocument) = file.parsedUri.path.endsWith(".json") || file.parsedUri.path.endsWith(".mcmeta")
 
-    override fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer): AnalyzingResult {
+    override fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer): AnalyzingResult {
         val contentTypeFilePath = packContentFileType.contentTypePath
         val tagPrefix = "tags/"
         val tagRegistry = if(contentTypeFilePath.startsWith(tagPrefix)) {
@@ -59,7 +59,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
         }
 
-        fun analyze(file: OpenFile, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
+        fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
             val mappingInfo = FileMappingInfo(lines)
             val directiveReader = DirectiveStringReader(

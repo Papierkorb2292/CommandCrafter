@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
@@ -65,7 +65,7 @@ class AnalyzingResourceCreator(
         it.suggestionRequestInfo = suggestionRequestInfo?.let { info -> SuggestionRequestInfo(info.absoluteCursor - absoluteStart, info.isServersideSuggestionRequest) }
     }
 
-    fun loadCache(file: OpenFile, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
+    fun loadCache(file: EditorDocument, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
         (file.persistentAnalyzerData as? CacheData)?.let { persistentCache ->
             if(persistentCache.usedCommandDispatcher == dispatcher)
                 previousCache = persistentCache
@@ -73,14 +73,14 @@ class AnalyzingResourceCreator(
         newCache.usedCommandDispatcher = dispatcher
     }
 
-    fun storeCacheKeepAnalyzingResult(file: OpenFile) {
+    fun storeCacheKeepAnalyzingResult(file: EditorDocument) {
         if(!Thread.currentThread().isInterrupted) {
             newCache.analyzingResult = previousCache?.analyzingResult
             file.persistentAnalyzerData = newCache
         }
     }
 
-    fun storeCache(file: OpenFile, analyzingResult: AnalyzingResult) {
+    fun storeCache(file: EditorDocument, analyzingResult: AnalyzingResult) {
         if(!Thread.currentThread().isInterrupted) {
             newCache.analyzingResult = analyzingResult
             file.persistentAnalyzerData = newCache

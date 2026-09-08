@@ -9,7 +9,7 @@ import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.resources.ResourceFilterSection
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
-import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
@@ -46,9 +46,9 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
         ).apply(it) { _, _ -> }
     }
 
-    override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith("pack.mcmeta")
+    override fun canHandle(file: EditorDocument) = file.parsedUri.path.endsWith("pack.mcmeta")
 
-    override fun analyzeAsync(file: OpenFile, languageServer: MinecraftLanguageServer, executor: ExecutorService, completableFuture: CompletableFuture<AnalyzingResult>): Future<*> {
+    override fun analyzeAsync(file: EditorDocument, languageServer: MinecraftLanguageServer, executor: ExecutorService, completableFuture: CompletableFuture<AnalyzingResult>): Future<*> {
         val packFolder = file.parsedUri.parsePath().parent
         val dataPath = file.parsedUri.copyWithPath(packFolder.resolve("data").toString()).toString()
         val assetsPath = file.parsedUri.copyWithPath(packFolder.resolve("assets").toString()).toString()

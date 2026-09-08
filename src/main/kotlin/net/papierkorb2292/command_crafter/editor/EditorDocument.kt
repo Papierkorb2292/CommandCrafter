@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
-class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var version: Int = 0) {
+class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var version: Int = 0) {
     val parsedUri = EditorURI.parseURI(uri)
     val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
     val analyzeHandler: FileAnalyseHandler? = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
@@ -30,7 +30,7 @@ class OpenFile(val uri: String, val lines: MutableList<StringBuilder>, var versi
         fun linesFromString(content: String) = linesFromStrings(content.lines())
         fun linesFromStrings(lines: List<String>): MutableList<StringBuilder> = lines.mapTo(ArrayList(lines.size), ::StringBuilder)
         fun fromString(uri: String, content: String, version: Int = 0) = fromLines(uri, content.lines(), version)
-        fun fromLines(uri: String, lines: List<String>, version: Int = 0) = OpenFile(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder), version)
+        fun fromLines(uri: String, lines: List<String>, version: Int = 0) = EditorDocument(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder), version)
 
         fun shutdown() {
             backingExecutor.shutdown()

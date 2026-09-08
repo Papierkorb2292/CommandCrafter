@@ -165,7 +165,7 @@ object ClientCommandCrafter : ClientModInitializer {
         }
         ClientLifecycleEvents.CLIENT_STOPPING.register {
             editorConnectionManager.leave()
-            OpenFile.shutdown()
+            EditorDocument.shutdown()
         }
 
         editorConnectionManager.startServer()

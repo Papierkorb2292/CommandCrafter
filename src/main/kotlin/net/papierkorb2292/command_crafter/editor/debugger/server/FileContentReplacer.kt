@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server
 
 import com.mojang.brigadier.context.StringRange
-import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.debugger.helper.Positionable
 import net.papierkorb2292.command_crafter.parser.helper.CombinedProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
@@ -181,7 +181,7 @@ interface FileContentReplacer {
             return Document(resultLines, resultPositionables.asSequence()) to CombinedProcessedInputCursorMapper(resultCursorMapperEntries)
         }
 
-        fun concatLines(lineSeparator: String = OpenFile.LINE_SEPARATOR): String {
+        fun concatLines(lineSeparator: String = EditorDocument.LINE_SEPARATOR): String {
             val separatorLength = lineSeparator.length
             val length = lines.sumOf { it.length + separatorLength } - separatorLength
             val builder = StringBuilder(length)

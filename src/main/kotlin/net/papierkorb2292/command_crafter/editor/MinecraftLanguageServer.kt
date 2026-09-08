@@ -90,7 +90,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private var remote: Endpoint? = null
     private var running = true
 
-    private val openFiles: MutableMap<String, OpenFile> = HashMap()
+    private val openFiles: MutableMap<String, EditorDocument> = HashMap()
 
     private var serverCommandExecutor: CommandExecutor? = null
 
@@ -236,7 +236,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun didOpen(params: DidOpenTextDocumentParams?) {
                 if(params == null) return
                 val textDocument = params.textDocument
-                openFiles[textDocument.uri] = OpenFile(textDocument.uri, OpenFile.linesFromString(textDocument.text), textDocument.version).also {
+                openFiles[textDocument.uri] = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text), textDocument.version).also {
                     it.startAnalyzingFile(this@MinecraftLanguageServer)
                 }
             }
@@ -750,7 +750,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             openFile.analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
         } else {
             client.getFileContent(uri).thenCompose { content ->
-                OpenFile.fromString(uri, content, 0).analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
+                EditorDocument.fromString(uri, content, 0).analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
             }
         }
     }

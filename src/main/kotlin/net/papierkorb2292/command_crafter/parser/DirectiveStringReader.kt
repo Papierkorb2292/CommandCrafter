@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.parser
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
 import net.minecraft.commands.SharedSuggestionProvider
-import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.mixin.parser.StringReaderAccessor
@@ -403,7 +403,7 @@ class DirectiveStringReader<out ResourceCreator>(
     override fun getRemaining(): String = if(!canRead()) "" else super.getRemaining()
     override fun getRead(): String = if(!canRead()) string else super.getRead()
 
-    fun getMultilineString(absoluteStart: Int, absoluteEnd: Int, lineSeparator: String = OpenFile.LINE_SEPARATOR): String {
+    fun getMultilineString(absoluteStart: Int, absoluteEnd: Int, lineSeparator: String = EditorDocument.LINE_SEPARATOR): String {
         val startPos = AnalyzingResult.getPositionFromCursor(absoluteStart, fileMappingInfo)
         val endPos = AnalyzingResult.getPositionFromCursor(absoluteEnd, fileMappingInfo)
         val startLine = startPos.line

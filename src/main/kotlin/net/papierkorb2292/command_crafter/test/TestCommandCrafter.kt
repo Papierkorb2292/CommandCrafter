@@ -26,7 +26,7 @@ import net.minecraft.nbt.ListTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.world.phys.Vec3
-import net.papierkorb2292.command_crafter.editor.OpenFile
+import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
@@ -934,7 +934,7 @@ object TestCommandCrafter {
 
     @GameTest
     fun testMacroModificationTracker(context: GameTestHelper) {
-        val file = OpenFile.fromString("", $$"""
+        val file = EditorDocument.fromString("", $$"""
             $execute $(sub) run §
             $execute unless entity @e[gamemode=§creative] if entity @e[tag=$(anchor),distance=..10] run
             advancement grant @a[§] everything
@@ -1030,10 +1030,10 @@ object TestCommandCrafter {
             fourth
         """.trimIndent()
 
-        val openFile = OpenFile.fromString("test.mcfunction", initial)
+        val editorDocument = EditorDocument.fromString("test.mcfunction", initial)
 
         // Initial content
-        var result = openFile.stringifyLines()
+        var result = editorDocument.stringifyLines()
         var expected = listOf("first", "second", "third", "fourth")
         context.assertValueEqual(result, expected, Component.literal("initial content"))
 
@@ -1043,9 +1043,9 @@ object TestCommandCrafter {
             SECOND2
             SECOND3
         """.trimIndent()
-        val endChar1 = openFile.stringifyLines()[2].length
-        openFile.applyContentChange(1, 2, 1, endChar1 - 1, newMiddle)
-        result = openFile.stringifyLines()
+        val endChar1 = editorDocument.stringifyLines()[2].length
+        editorDocument.applyContentChange(1, 2, 1, endChar1 - 1, newMiddle)
+        result = editorDocument.stringifyLines()
         expected = listOf("first", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
         context.assertValueEqual(result, expected, Component.literal("multi -> multi (more)"))
 
@@ -1054,25 +1054,25 @@ object TestCommandCrafter {
             FIRST-A
             FIRST-B
         """.trimIndent()
-        val endChar2 = openFile.stringifyLines()[0].length
-        openFile.applyContentChange(0, 0, 1, endChar2 - 1, newFirst)
-        result = openFile.stringifyLines()
+        val endChar2 = editorDocument.stringifyLines()[0].length
+        editorDocument.applyContentChange(0, 0, 1, endChar2 - 1, newFirst)
+        result = editorDocument.stringifyLines()
         expected = listOf("fFIRST-A", "FIRST-Bt", "sSECOND1", "SECOND2", "SECOND3d", "fourth")
         context.assertValueEqual(result, expected, Component.literal("single -> multi"))
 
         // Test collapsing all SECOND lines into one line, but keep the two first and last characters
         val collapse = "replaced middle"
-        val endChar3 = openFile.stringifyLines()[4].length
-        openFile.applyContentChange(2, 4, 2, endChar3 - 2, collapse)
-        result = openFile.stringifyLines()
+        val endChar3 = editorDocument.stringifyLines()[4].length
+        editorDocument.applyContentChange(2, 4, 2, endChar3 - 2, collapse)
+        result = editorDocument.stringifyLines()
         expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "fourth")
         context.assertValueEqual(result, expected, Component.literal("multi -> single"))
 
         // Test a single line modification on the last line, keeping the first two and last characters
         val insert = "abcde"
-        val endChar4 = openFile.stringifyLines()[3].length
-        openFile.applyContentChange(3, 3, 2, endChar4 - 2, insert)
-        result = openFile.stringifyLines()
+        val endChar4 = editorDocument.stringifyLines()[3].length
+        editorDocument.applyContentChange(3, 3, 2, endChar4 - 2, insert)
+        result = editorDocument.stringifyLines()
         expected = listOf("fFIRST-A", "FIRST-Bt", "sSreplaced middle3d", "foabcdeth")
         context.assertValueEqual(result, expected, Component.literal("single -> single"))
 
@@ -1082,9 +1082,9 @@ object TestCommandCrafter {
             2
             3
         """.trimIndent()
-        val endChar5 = openFile.stringifyLines()[3].length
-        openFile.applyContentChange(0, 3, 1, endChar5 - 1, newContent)
-        result = openFile.stringifyLines()
+        val endChar5 = editorDocument.stringifyLines()[3].length
+        editorDocument.applyContentChange(0, 3, 1, endChar5 - 1, newContent)
+        result = editorDocument.stringifyLines()
         expected = listOf("f1", "2", "3h")
         context.assertValueEqual(result, expected, Component.literal("multi -> multi (less)"))
 

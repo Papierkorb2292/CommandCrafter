@@ -17,10 +17,10 @@ class McFunctionAnalyzer(
 ) : FileAnalyseHandler {
     val ANALYZER_CONFIG_PATH = ".mcfunction"
 
-    override fun canHandle(file: OpenFile) = file.parsedUri.path.endsWith(".mcfunction")
+    override fun canHandle(file: EditorDocument) = file.parsedUri.path.endsWith(".mcfunction")
 
     override fun analyze(
-        file: OpenFile,
+        file: EditorDocument,
         languageServer: MinecraftLanguageServer,
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
