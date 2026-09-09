@@ -250,22 +250,22 @@ object LanguageManager {
                                     }
                                 }
 
-                                override fun getDefinition(cursor: Int): CompletableFuture<Either<List<Location>, List<LocationLink>>> {
+                                override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition> {
                                     val client = languageServer.client
-                                        ?: return MinecraftLanguageServer.emptyDefinitionDefault
+                                        ?: return MinecraftLanguageServer.emptyDefinitionNodeDefault
                                     val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
                                     return PackContentFileType.findWorkspaceResourceFromId(
                                         Identifier.parse(string.substring(idStart, idEnd)),
                                         client,
                                         keywords
                                     ).thenApply {
-                                        Either.forLeft(
+                                        ActualSyntaxNode.Definition(Either.forLeft(
                                             if(it == null) {
                                                 emptyList()
                                             } else {
                                                 listOf(Location(it.second, Range(Position(), Position())))
                                             }
-                                        )
+                                        ), true)
                                     }
                                 }
                             })
