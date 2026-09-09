@@ -32,7 +32,10 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
     companion object {
         val shouldSkipResourceOrIdSuggestions = ThreadLocal<Boolean>()
 
-        private fun analyzeReader(
+        /**
+         * Reads the ResourceOrIdArgument from the reader and analyzes it
+         */
+        fun analyzeReader(
             type: ResourceOrIdArgument<*>,
             result: AnalyzingResult,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -75,8 +78,8 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
                     // because otherwise it can analyze the entire rest of the line when invoked through tryAnalyzeNextNode,
                     // which is especially problematic for macros, where there might be more nodes later in the line
                     var argumentEndCursor = range.start
-                    while(argumentEndCursor < reader.string.length && reader.string[argumentEndCursor] != ' '
-                    ) argumentEndCursor++
+                    while(argumentEndCursor < reader.string.length && reader.string[argumentEndCursor] != ' ')
+                        argumentEndCursor++
 
                     val argumentRange = StringRange(range.start, argumentEndCursor)
 
@@ -95,8 +98,8 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
                 is ResourceOrIdArgument.InlineResult -> {
                     treeRoot = parsed.value
                     partialBuilder.addToBasicBuilder(treeBuilder)
-            }
                 }
+            }
 
             analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
                 val isInline = parsed is ResourceOrIdArgument.InlineResult
@@ -113,6 +116,38 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
                 if(!isInline)
                     treeOperations = treeOperations.withDiagnosticSeverity(null)
                 treeOperations.analyzeFull(result, inlineOrReferenceCodec)
+            }
+        }
+
+        /**
+         * Tries analyzing a ResourceOrIdArgument at the given cursor, assuming that a different argument already matched the input
+         */
+        fun analyzeEmpty(
+            type: ResourceOrIdArgument<*>,
+            result: AnalyzingResult,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            position: Int,
+            analyzingExecutor: NodeAnalyzingExecutor,
+        ) {
+            val codec = (type as ResourceOrIdArgumentAccessor).codec
+            val registryKey = (type as ResourceOrIdArgumentAccessor).registryKey
+
+            val treeBuilder = StringRangeTree.Builder<Tag>()
+            val treeRoot = EndTag.INSTANCE
+
+            treeBuilder.addNode(treeRoot, StringRange.at(position), position)
+
+            analyzingExecutor.submit { // This part doesn't generate semantic tokens
+                val inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec, true)
+
+                val tree = treeBuilder.build(treeRoot)
+                TreeOperations.forNbt(
+                    tree,
+                    reader
+                ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
+                    Identifier.tryParse(nbtString.value()) == null
+                }).withDiagnosticSeverity(null)
+                    .analyzeFull(result, inlineOrReferenceCodec)
             }
         }
     }

@@ -129,6 +129,7 @@
     "editor.processing.ScoreHolderArgumentMixin",
     "editor.processing.ServerPlayerMixin",
     "editor.processing.ShortTagAccessor",
+    "editor.processing.SlotSourceArgumentAccessor",
     "editor.processing.StringTagAccessor",
     "editor.processing.SuggestionMixin",
     "editor.processing.SuggestionsMixin",
