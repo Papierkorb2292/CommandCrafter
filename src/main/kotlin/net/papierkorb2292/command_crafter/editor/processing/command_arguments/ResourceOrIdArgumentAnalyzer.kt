@@ -31,6 +31,90 @@ import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrIdArgument<*>> {
     companion object {
         val shouldSkipResourceOrIdSuggestions = ThreadLocal<Boolean>()
+
+        private fun analyzeReader(
+            type: ResourceOrIdArgument<*>,
+            result: AnalyzingResult,
+            reader: DirectiveStringReader<AnalyzingResourceCreator>,
+            range: StringRange,
+            analyzingExecutor: NodeAnalyzingExecutor,
+        ) {
+            val grammar = (type as ResourceOrIdArgumentAccessor).grammar
+            val codec = (type as ResourceOrIdArgumentAccessor).codec
+            val registryKey = (type as ResourceOrIdArgumentAccessor).registryKey
+
+            val treeBuilder = StringRangeTree.Builder<Tag>()
+            val partialBuilder = PartialBuilder<Tag>()
+
+            val parsed = try {
+                nbtStringRangeTreeBuilder.set(StringRangeTreeBranchingArgument<Tag>(partialBuilder))
+                allowMalformed.set(true)
+                analyzingResult.set(PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()))
+                val parsed = grammar.parseForCommands(reader)
+                PackratParserAdditionalArgs.popAnalyzingResult(result, null)
+                parsed
+            } catch(_: CommandSyntaxException) {
+                val node = partialBuilder.pushNode()
+                node.node = EndTag.INSTANCE
+                node.nodeAllowedStart = range.start
+                node.startCursor = range.start
+                node.endCursor = range.end
+                ResourceOrIdArgument.InlineResult<Any, Tag>(EndTag.INSTANCE)
+            } finally {
+                nbtStringRangeTreeBuilder.remove()
+                allowMalformed.remove()
+                analyzingResult.remove()
+                furthestAnalyzingResult.remove()
+            }
+
+            val treeRoot: Tag
+
+            when(parsed) {
+                is ResourceOrIdArgument.ReferenceResult<*, *> -> {
+                    // Analyze up until the next space instead of just analyzing the given range,
+                    // because otherwise it can analyze the entire rest of the line when invoked through tryAnalyzeNextNode,
+                    // which is especially problematic for macros, where there might be more nodes later in the line
+                    var argumentEndCursor = range.start
+                    while(argumentEndCursor < reader.string.length && reader.string[argumentEndCursor] != ' '
+                    ) argumentEndCursor++
+
+                    val argumentRange = StringRange(range.start, argumentEndCursor)
+
+                    analyzeForId(
+                        parsed.key.identifier(),
+                        PackContentFileType.getOrCreateTypeForDynamicRegistry(registryKey),
+                        argumentRange,
+                        result,
+                        reader
+                    )
+
+                    treeRoot = StringTag.valueOf(parsed.key.identifier().toString())
+                    treeBuilder.addNode(treeRoot, argumentRange, argumentRange.start)
+                }
+
+                is ResourceOrIdArgument.InlineResult -> {
+                    treeRoot = parsed.value
+                    partialBuilder.addToBasicBuilder(treeBuilder)
+            }
+                }
+
+            analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
+                val isInline = parsed is ResourceOrIdArgument.InlineResult
+
+                val inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec, true)
+
+                val tree = treeBuilder.build(treeRoot)
+                var treeOperations = TreeOperations.forNbt(
+                    tree,
+                    reader
+                ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
+                    Identifier.tryParse(nbtString.value()) == null
+                })
+                if(!isInline)
+                    treeOperations = treeOperations.withDiagnosticSeverity(null)
+                treeOperations.analyzeFull(result, inlineOrReferenceCodec)
+            }
+        }
     }
 
     override val argumentTypes: List<Class<out ResourceOrIdArgument<*>>>
@@ -45,80 +129,6 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
-        val grammar = (type as ResourceOrIdArgumentAccessor).grammar
-        val codec = (type as ResourceOrIdArgumentAccessor).codec
-        val registryKey = (type as ResourceOrIdArgumentAccessor).registryKey
-
-        val treeBuilder = StringRangeTree.Builder<Tag>()
-        val partialBuilder = PartialBuilder<Tag>()
-
-        val parsed = try {
-            nbtStringRangeTreeBuilder.set(StringRangeTreeBranchingArgument<Tag>(partialBuilder))
-            allowMalformed.set(true)
-            analyzingResult.set(PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()))
-            val parsed = grammar.parseForCommands(reader)
-            PackratParserAdditionalArgs.popAnalyzingResult(result, null)
-            parsed
-        } catch(_: CommandSyntaxException) {
-            val node = partialBuilder.pushNode()
-            node.node = EndTag.INSTANCE
-            node.nodeAllowedStart = range.start
-            node.startCursor = range.start
-            node.endCursor = range.end
-            ResourceOrIdArgument.InlineResult<Any, Tag>(EndTag.INSTANCE)
-        } finally {
-            nbtStringRangeTreeBuilder.remove()
-            allowMalformed.remove()
-            analyzingResult.remove()
-            furthestAnalyzingResult.remove()
-        }
-
-        val treeRoot: Tag
-
-        when(parsed) {
-            is ResourceOrIdArgument.ReferenceResult<*, *> -> {
-                // Analyze up until the next space instead of just analyzing the given range,
-                // because otherwise it can analyze the entire rest of the line when invoked through tryAnalyzeNextNode,
-                // which is especially problematic for macros, where there might be more nodes later in the line
-                var argumentEndCursor = range.start
-                while(argumentEndCursor < reader.string.length && reader.string[argumentEndCursor] != ' '
-                ) argumentEndCursor++
-
-                val argumentRange = StringRange(range.start, argumentEndCursor)
-
-                analyzeForId(
-                    parsed.key.identifier(),
-                    PackContentFileType.getOrCreateTypeForDynamicRegistry(registryKey),
-                    argumentRange,
-                    result,
-                    reader
-                )
-
-                treeRoot = StringTag.valueOf(parsed.key.identifier().toString())
-                treeBuilder.addNode(treeRoot, argumentRange, argumentRange.start)
-            }
-
-            is ResourceOrIdArgument.InlineResult -> {
-                treeRoot = parsed.value
-                partialBuilder.addToBasicBuilder(treeBuilder)
-            }
-        }
-
-        analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)
-            val isInline = parsed is ResourceOrIdArgument.InlineResult
-
-            val inlineOrReferenceCodec = RegistryFileCodec.create(registryKey, codec, true)
-
-            val tree = treeBuilder.build(treeRoot)
-            var treeOperations = TreeOperations.forNbt(
-                tree,
-                reader
-            ).withSuggestionResolver(NbtSuggestionResolver(reader) { nbtString: StringTag ->
-                Identifier.tryParse(nbtString.value()) == null
-            })
-            if(!isInline)
-                treeOperations = treeOperations.withDiagnosticSeverity(null)
-            treeOperations.analyzeFull(result, inlineOrReferenceCodec)
-        }
+        analyzeReader(type, result, reader, range, analyzingExecutor)
     }
 }
