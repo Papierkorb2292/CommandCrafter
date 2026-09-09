@@ -213,6 +213,7 @@
     "parser.vanilla_improved.ResourceLookupRuleMixin",
     "parser.vanilla_improved.ResourceOrIdArgumentMixin",
     "parser.vanilla_improved.ScoreHolderArgumentMixin",
+    "parser.vanilla_improved.SlotRangesMixin",
     "parser.vanilla_improved.SlotSourceArgumentMixin",
     "parser.vanilla_improved.StringLiteralMixin",
     "parser.vanilla_improved.SwizzleArgumentMixin",
