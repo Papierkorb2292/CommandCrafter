@@ -12,7 +12,7 @@
     "editor.ClientLanguageAccessor",
     "editor.KeyMappingAccessor",
     "editor.TextureAtlasAccessor",
-    "editor.shader.GlDeviceMixin",
+    "editor.shader.PipelineBuilderMixin",
     "editor.shader.ShaderManagerAccessor",
     "game.ItemStackMixin",
     "game.KeyboardHandlerMixin",

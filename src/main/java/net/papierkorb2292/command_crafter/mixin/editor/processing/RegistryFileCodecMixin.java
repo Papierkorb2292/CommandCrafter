@@ -7,10 +7,11 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
-import net.minecraft.resources.RegistryFileCodec;
+import net.minecraft.core.registries.codec.RegistryFileCodec;
 import net.minecraft.resources.ResourceKey;
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.CodecTransformers;
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,7 +33,8 @@ public class RegistryFileCodecMixin<E> {
             at = @At(
                     value = "FIELD",
                     target = "Lnet/minecraft/resources/Identifier;CODEC:Lcom/mojang/serialization/Codec;",
-                    remap = true
+                    remap = true,
+                    opcode = Opcodes.GETSTATIC
             ),
             remap = false
     )

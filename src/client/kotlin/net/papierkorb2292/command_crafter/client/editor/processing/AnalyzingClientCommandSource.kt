@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientPacketListener
 import net.minecraft.client.multiplayer.ClientSuggestionProvider
 import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.SharedSuggestionProvider.ElementSuggestionType
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
 import net.minecraft.resources.Identifier
@@ -21,6 +22,7 @@ import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Predicate
 import java.util.stream.Stream
 
 class AnalyzingClientCommandSource(
@@ -43,23 +45,24 @@ class AnalyzingClientCommandSource(
     override fun getSelectedEntities(): MutableCollection<String> = clientCommandSource.selectedEntities
     override fun getAvailableSounds(): Stream<Identifier> =
         clientCommandSource.availableSounds
+    override fun getAvailablePostEffects(): Stream<Identifier> = clientCommandSource.availablePostEffects
+
     override fun levels(): MutableSet<ResourceKey<Level>> = clientCommandSource.levels()
-    // Note: There are some 'registries' parsed by LoadedClientsideRegistries that are not synced
-    // when connecting to a server. Advancements and recipes will be in registryAccess() only if the player is not connected
-    // to a server with CommandCrafter.
+    // Also always contains advancements and registries (they're parsed by the client, and they're also synced with servers)
     override fun registryAccess(): RegistryAccess = registries
     override fun enabledFeatures(): FeatureFlagSet =
         if(hasNetworkHandler) clientCommandSource.enabledFeatures() else ClientCommandCrafter.defaultFeatureSet
 
     // Copied from ClientSuggestionProvider to use custom registries
-    override fun suggestRegistryElements(
-        registryRef: ResourceKey<out Registry<*>>,
-        suggestedIdType: SharedSuggestionProvider.ElementSuggestionType,
+    override fun <E : Any> suggestRegistryElements(
+        registryRef: ResourceKey<out Registry<E>>,
+        suggestedIdType: ElementSuggestionType,
         builder: SuggestionsBuilder,
         context: CommandContext<*>,
+        filter: Predicate<E>,
     ): CompletableFuture<Suggestions> =
         registryAccess().lookup(registryRef).map { registry ->
-            suggestRegistryElements(registry, suggestedIdType, builder)
+            suggestRegistryElements(registry, suggestedIdType, builder, filter)
             builder.buildFuture()
         }.orElseGet { customSuggestion(context) }
 

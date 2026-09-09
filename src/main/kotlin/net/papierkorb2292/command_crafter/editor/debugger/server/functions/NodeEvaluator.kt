@@ -202,7 +202,7 @@ fun interface NodeEvaluator {
             ) ?: return null
             return when(argument.type) {
                 is EntityArgument -> {
-                    EntityDataAccessor.PROVIDER.apply(argument.name).access(context)
+                    EntityDataAccessor.PROVIDER.create(argument.name).access(context)
                 }
 
                 is BlockPosArgument -> {
@@ -221,7 +221,7 @@ fun interface NodeEvaluator {
                 }
 
                 is IdentifierArgument -> {
-                    StorageDataAccessor.PROVIDER.apply(argument.name).access(context)
+                    StorageDataAccessor.PROVIDER.create(argument.name).access(context)
                 }
 
                 else -> throw AssertionError("Unhandled argument type for NBT path evaluation: ${argument.type.javaClass}")

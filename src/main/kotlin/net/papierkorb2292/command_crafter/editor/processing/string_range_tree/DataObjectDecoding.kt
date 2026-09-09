@@ -210,7 +210,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             DataObjectSourceKind.ENTITY_SUMMON -> {
                 try {
                     @Suppress("UNCHECKED_CAST")
-                    val entity = dummyEntities[ResourceArgument.getEntityType(
+                    val entity = dummyEntities[ResourceArgument.getSummonableEntityType(
                         context as CommandContext<CommandSourceStack>,
                         dataObjectSource.argumentName
                     ).value()] ?: return null

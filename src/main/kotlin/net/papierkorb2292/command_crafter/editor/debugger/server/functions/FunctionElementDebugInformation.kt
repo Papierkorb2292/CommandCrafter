@@ -6,7 +6,6 @@ import com.mojang.brigadier.context.ContextChain
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
-import net.minecraft.commands.CommandSource
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.arguments.item.FunctionArgument.Result
 import net.minecraft.commands.execution.tasks.BuildContexts
@@ -294,19 +293,7 @@ class FunctionElementDebugInformation(
         }
 
         private fun addServerToContext(context: CommandContext<CommandSourceStack>): CommandContext<CommandSourceStack> =
-            context.copyFor(
-                CommandSourceStack(
-                    CommandSource.NULL,
-                    context.source.position,
-                    context.source.rotation,
-                    context.source.level,
-                    debugFrame.pauseContext.server.functionCompilationPermissions,
-                    context.source.textName,
-                    context.source.displayName,
-                    debugFrame.pauseContext.server,
-                    context.source.entity,
-                )
-            )
+            context.copyFor(debugFrame.currentSource)
 
         private fun notifyClientOfEmptyDebugFrame() {
             debugFrame.pauseContext.debugConnection!!.output(OutputEventArguments().apply {

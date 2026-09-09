@@ -23,10 +23,10 @@ import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.Registry
-import net.minecraft.core.RegistryCodecs
 import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.core.registries.Registries
+import net.minecraft.core.registries.codec.RegistryCodecs
 import net.minecraft.locale.Language
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.ClickEvent
@@ -302,7 +302,7 @@ object CodecTransformers {
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
-                RegistryCodecs.homogeneousList(Registries.BLOCK).fieldOf("blocks").decoder().decodeParent(),
+                RegistryCodecs.holderSet(Registries.BLOCK).fieldOf("blocks").decoder().decodeParent(),
                 DataObjectDecoding::getConditionDecoderForBlocks,
             ),
             BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
@@ -529,7 +529,7 @@ object CodecTransformers {
         })
 
     @JvmStatic
-    @CodecMod(target = DataComponents::class, methodName = $$"lambda$static$59", javaFieldRead = "net/minecraft/world/item/component/CustomData.CODEC")
+    @CodecMod(target = DataComponents::class, methodName = $$"lambda$static$61", javaFieldRead = "net/minecraft/world/item/component/CustomData.CODEC")
     fun decodeEmbeddedBucketEntityData(codec: Codec<CustomData>): Codec<CustomData> =
         DataObjectDecoding.wrapWithEmbeddedDecoder(codec, unitDecoder(RecordCodecBuilder.create {
             it.group( // Use custom codec, because Minecraft is still using CompoundTags instead of ValueInputs

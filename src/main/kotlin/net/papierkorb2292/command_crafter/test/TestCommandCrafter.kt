@@ -593,7 +593,7 @@ object TestCommandCrafter {
                 analyzingResult
                     .getCompletions(absoluteCursor, dummyCompletionContext)!!
                     .get()
-                    .any { it.label == "condition" },
+                    .any { it.label == "type" },
                 Component.literal("Predicate suggestions for marker at index $rootIndex")
             )
         }
@@ -697,7 +697,7 @@ object TestCommandCrafter {
     @GameTest
     fun testDecoderErrorTracking(context: GameTestHelper) {
         val markedLines = """
-            execute if predicate {condition:"location_check",predicate:{block:{blocks:"chest",nbt:"{§"}}}
+            execute if predicate {type:"location_check",predicate:{block:{blocks:"chest",nbt:"{§"}}}
             give @a[nbt={RootVehicle:{Entity:{NoAI:§""}},equipment:{chest:{components:{"minecraft:custom_data":{my_val:true}}}}}] \
                 minecraft:diamond[custom_name=§{color:"blue"}]
         """.trimIndent().lines()

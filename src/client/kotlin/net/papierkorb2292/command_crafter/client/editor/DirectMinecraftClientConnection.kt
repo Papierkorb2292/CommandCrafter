@@ -7,7 +7,6 @@ import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.resources.MultiPackResourceManager
 import net.minecraft.server.packs.resources.SimpleReloadInstance
 import net.minecraft.util.Util
-import net.minecraft.util.profiling.InactiveProfiler
 import net.papierkorb2292.command_crafter.editor.MinecraftClientConnection
 import net.papierkorb2292.command_crafter.editor.ReloadResourcesParams
 import net.papierkorb2292.command_crafter.mixin.client.editor.shader.ShaderManagerAccessor
@@ -15,11 +14,9 @@ import java.util.concurrent.CompletableFuture
 
 object DirectMinecraftClientConnection : MinecraftClientConnection {
     private val client = Minecraft.getInstance()
-    var isReloadingBuiltinShaders = false
     val vanillaOnlyShaders by lazy {
-        (client.shaderManager as ShaderManagerAccessor).callPrepare(
-            MultiPackResourceManager(PackType.CLIENT_RESOURCES, listOf(client.vanillaPackResources)),
-            InactiveProfiler.INSTANCE
+        ShaderManagerAccessor.callLoadConfigs(
+            MultiPackResourceManager(PackType.CLIENT_RESOURCES, listOf(client.vanillaPackResources.fullResources())),
         )
     }
     private var shaderReloadWaitFuture: CompletableFuture<*>? = CompletableFuture.completedFuture(Unit)

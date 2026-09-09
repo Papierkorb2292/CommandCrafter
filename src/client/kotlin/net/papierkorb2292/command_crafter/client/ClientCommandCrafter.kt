@@ -56,7 +56,9 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
 import org.eclipse.lsp4j.Position
-import org.lwjgl.util.tinyfd.TinyFileDialogs
+import org.lwjgl.sdl.SDLDialog
+import java.lang.foreign.AddressLayout
+import java.lang.foreign.MemorySegment
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -147,6 +149,8 @@ object ClientCommandCrafter : ClientModInitializer {
                 // Remove tags that were received from the server and apply the tags known to the client
                 loadedClientsideRegistries?.applyTagsAndComponents()
             }
+        }.exceptionally {
+            CommandCrafter.LOGGER.error("Failed to load clientside registries, services won't work as expected", it)
         }
 
         NetworkServerConnection.registerPacketHandlers()
@@ -266,52 +270,71 @@ object ClientCommandCrafter : ClientModInitializer {
             clientDispatcher.register(
                 ClientCommands.literal("commandcrafter:datagen")
                     .executes { context ->
-                        val pathRaw = TinyFileDialogs.tinyfd_selectFolderDialog("Export location", null)
-                        if(pathRaw == null) {
-                            context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
-                            return@executes 0
-                        }
-                        val path = try {
-                            Path.of(pathRaw)
-                        } catch(_: InvalidPathException) {
-                            context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
-                            return@executes 0
-                        }
-                        if(!Files.exists(path))
-                            path.createDirectories()
-                        if(!Files.isDirectory(path)) {
-                            context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
-                            return@executes 0
-                        }
-                        val hasServerConnection = editorConnectionManager.minecraftServerConnection !is ClientDummyServerConnection
-                        val playerConnection = Minecraft.getInstance().player!!.connection
-                        val dispatcher = if(hasServerConnection) {
-                            editorConnectionManager.minecraftServerConnection.commandDispatcher
-                        } else {
-                            // Use the player's dispatcher as fallback, because that one might still have some server commands (assuming the player is admin)
-                            // If the user is not an admin and doesn't want the server commands, they could export it in a singleplayer world instead
-                            playerConnection.commands
-                        }
-                        val datagenPath = Path.of("datagen")
-                        ModdedDatagenRunner.exportToDirectory(
-                            dispatcher,
-                            editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
-                                    path.resolve(datagenPath),
-                            false,
-                            getAdditionalDatagenRegistries()
-                        )
-                        ModdedDatagenRunner.generateSpyglassConfig(path, datagenPath)
-                        val successTranslation = if(hasServerConnection) "commands.command_crafter.datagen.serverside.success" else "commands.command_crafter.datagen.clientside.success"
-                        val pathComponent = Component.literal("")
-                            .append(Component.translatable(path.toAbsolutePath().toString())
-                                .withStyle(ChatFormatting.UNDERLINE))
-                            .append(Component.translatable("commands.command_crafter.datagen.open")
-                                .withStyle(ChatFormatting.AQUA))
-                            .withStyle {
-                                it.withClickEvent(ClickEvent.OpenFile(path.toAbsolutePath().toString()))
+                        SDLDialog.SDL_ShowOpenFolderDialog({ _, filelist, _ ->
+                            if(filelist == 0L) {
+                                // The result array was NULL, this means there was an error
+                                context.source.sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                                return@SDL_ShowOpenFolderDialog
                             }
-                        context.getSource().sendFeedback(Component.translatable(successTranslation, pathComponent).withStyle(ChatFormatting.GREEN))
-                        1
+                            // This is a null-terminated array of string pointers, but there should only be one entry
+                            val filesSegment = MemorySegment.ofAddress(filelist).reinterpret(AddressLayout.ADDRESS.byteSize())
+                            // Get a MemorySegment at the first string
+                            val firstStringSegment = filesSegment.get(AddressLayout.ADDRESS, 0L)
+                            if(firstStringSegment.address() == 0L) {
+                                // The array had length 0
+                                context.source.sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                                return@SDL_ShowOpenFolderDialog
+                            }
+
+                            // Parse null-terminated path
+                            val path = try {
+                                Path.of(firstStringSegment.reinterpret(2048).getString(0))
+                            } catch(_: InvalidPathException) {
+                                context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                                return@SDL_ShowOpenFolderDialog
+                            } catch(_: IndexOutOfBoundsException) {
+                                context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                                return@SDL_ShowOpenFolderDialog
+                            }
+
+                            if(!Files.exists(path))
+                                path.createDirectories()
+                            if(!Files.isDirectory(path)) {
+                                context.getSource().sendError(Component.translatable("commands.command_crafter.datagen.no_path_abort"))
+                                return@SDL_ShowOpenFolderDialog
+                            }
+
+                            // Now run datagen
+                            val hasServerConnection = editorConnectionManager.minecraftServerConnection !is ClientDummyServerConnection
+                            val playerConnection = Minecraft.getInstance().player!!.connection
+                            val dispatcher = if(hasServerConnection) {
+                                editorConnectionManager.minecraftServerConnection.commandDispatcher
+                            } else {
+                                // Use the player's dispatcher as fallback, because that one might still have some server commands (assuming the player is admin)
+                                // If the user is not an admin and doesn't want the server commands, they could export it in a singleplayer world instead
+                                playerConnection.commands
+                            }
+                            val datagenPath = Path.of("datagen")
+                            ModdedDatagenRunner.exportToDirectory(
+                                dispatcher,
+                                editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
+                                path.resolve(datagenPath),
+                                false,
+                                getAdditionalDatagenRegistries()
+                            )
+                            ModdedDatagenRunner.generateSpyglassConfig(path, datagenPath)
+                            val successTranslation = if(hasServerConnection) "commands.command_crafter.datagen.serverside.success" else "commands.command_crafter.datagen.clientside.success"
+                            val pathComponent = Component.literal("")
+                                .append(Component.translatable(path.toAbsolutePath().toString())
+                                    .withStyle(ChatFormatting.UNDERLINE))
+                                .append(Component.translatable("commands.command_crafter.datagen.open")
+                                    .withStyle(ChatFormatting.AQUA))
+                                .withStyle {
+                                    it.withClickEvent(ClickEvent.OpenFile(path.toAbsolutePath().toString()))
+                                }
+                            context.getSource().sendFeedback(Component.translatable(successTranslation, pathComponent).withStyle(ChatFormatting.GREEN))
+                        }, 0L, 0L, Path.of("").toAbsolutePath().toString(), false)
+                        0
                     }
             )
         }

@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.advancements.Advancement
 import net.minecraft.commands.CommandSource
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
@@ -19,20 +18,17 @@ import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.resources.Identifier
+import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
 import net.minecraft.server.notifications.EmptyNotificationService
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagFile
 import net.minecraft.world.flag.FeatureFlagSet
-import net.minecraft.world.item.crafting.Recipe
 import net.minecraft.world.level.gamerules.GameRule
 import net.minecraft.world.level.gamerules.GameRuleCategory
 import net.minecraft.world.level.gamerules.GameRuleType
 import net.minecraft.world.level.gamerules.GameRuleTypeVisitor
-import net.minecraft.world.level.storage.loot.LootTable
-import net.minecraft.world.level.storage.loot.functions.LootItemFunctions
-import net.minecraft.world.level.storage.loot.predicates.LootItemCondition
 import net.minecraft.world.phys.Vec2
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
@@ -42,7 +38,10 @@ import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler.
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
-import net.papierkorb2292.command_crafter.editor.processing.*
+import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ScoreboardFileAnalyzer
@@ -98,7 +97,6 @@ object CommandCrafter: ModInitializer {
     }
 
     private fun initializeEditor() {
-        StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(serversideStaticJsonResourceCodecs)
         MinecraftLanguageServer.addAnalyzer(FileTypeDispatchingAnalyzer)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
@@ -111,7 +109,7 @@ object CommandCrafter: ModInitializer {
             analyzingSourceProvider = { languageServer ->
                 val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
                     ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
-                CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, "", CommonComponents.EMPTY, directServerConnection.server, null)
+                CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, CommonComponents.EMPTY, directServerConnection.server)
             }
             MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer())
             MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
@@ -296,15 +294,8 @@ object CommandCrafter: ModInitializer {
         }
     )
 
-    val serversideStaticJsonResourceCodecs = mutableMapOf(
-        PackContentFileType.ADVANCEMENTS_FILE_TYPE to Advancement.CODEC,
-        PackContentFileType.ITEM_MODIFIER_FILE_TYPE to LootItemFunctions.ROOT_CODEC,
-        PackContentFileType.LOOT_TABLES_FILE_TYPE to LootTable.DIRECT_CODEC,
-        PackContentFileType.PREDICATES_FILE_TYPE to LootItemCondition.DIRECT_CODEC,
-        PackContentFileType.RECIPES_FILE_TYPE to Recipe.CODEC,
-    )
     fun registerDynamicRegistries() {
-        val registries = DynamicRegistries.getWorldRegistries()
+        val registries = DynamicRegistries.getWorldRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES + RegistryDataLoader.RELOADABLE_REGISTRIES
         val dynamicJsonResourceCodecs = registries.associate { dynamicRegistry ->
             PackContentFileType.getOrCreateTypeForDynamicRegistry(dynamicRegistry.key) to dynamicRegistry.elementCodec
         }

@@ -16,15 +16,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -128,7 +120,8 @@
                   },
                   "mask" : 1
                 },
-                "allowedInPeaceful" : true
+                "allowedInPeaceful" : true,
+                "trackDeltas" : false
               },
               "usesSelector" : true
             }
@@ -174,15 +167,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -223,15 +208,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -298,15 +275,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -347,15 +316,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -420,15 +381,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -497,15 +450,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -591,15 +536,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -640,15 +577,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -689,15 +618,7 @@
                 },
                 "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "textName" : "Server",
-                "displayName" : {
-                  "contents" : {
-                    "text" : "Server"
-                  },
-                  "siblings" : [ ],
-                  "style" : { },
-                  "visualOrderText" : { }
-                },
+                "namesProvider" : { },
                 "server" : null,
                 "silent" : false,
                 "resultCallback" : { },
@@ -795,15 +716,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -844,15 +757,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -893,15 +798,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -994,15 +891,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -1043,15 +932,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -1143,15 +1024,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -1247,15 +1120,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -1320,15 +1185,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -1369,15 +1226,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -1443,15 +1292,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -1492,15 +1333,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -1562,15 +1395,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -1637,15 +1462,7 @@
           },
           "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "textName" : "Server",
-          "displayName" : {
-            "contents" : {
-              "text" : "Server"
-            },
-            "siblings" : [ ],
-            "style" : { },
-            "visualOrderText" : { }
-          },
+          "namesProvider" : { },
           "server" : null,
           "silent" : false,
           "resultCallback" : { },
@@ -1716,15 +1533,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -1828,7 +1637,8 @@
                     },
                     "mask" : 1
                   },
-                  "allowedInPeaceful" : true
+                  "allowedInPeaceful" : true,
+                  "trackDeltas" : false
                 },
                 "usesSelector" : true
               }
@@ -1874,15 +1684,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -1923,15 +1725,7 @@
                 },
                 "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "textName" : "Server",
-                "displayName" : {
-                  "contents" : {
-                    "text" : "Server"
-                  },
-                  "siblings" : [ ],
-                  "style" : { },
-                  "visualOrderText" : { }
-                },
+                "namesProvider" : { },
                 "server" : null,
                 "silent" : false,
                 "resultCallback" : { },
@@ -2005,15 +1799,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -2099,15 +1885,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -2148,15 +1926,7 @@
                 },
                 "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "textName" : "Server",
-                "displayName" : {
-                  "contents" : {
-                    "text" : "Server"
-                  },
-                  "siblings" : [ ],
-                  "style" : { },
-                  "visualOrderText" : { }
-                },
+                "namesProvider" : { },
                 "server" : null,
                 "silent" : false,
                 "resultCallback" : { },
@@ -2197,15 +1967,7 @@
                   },
                   "level" : "ServerLevel[Test Level]",
                   "permissions" : { },
-                  "textName" : "Server",
-                  "displayName" : {
-                    "contents" : {
-                      "text" : "Server"
-                    },
-                    "siblings" : [ ],
-                    "style" : { },
-                    "visualOrderText" : { }
-                  },
+                  "namesProvider" : { },
                   "server" : null,
                   "silent" : false,
                   "resultCallback" : { },
@@ -2340,15 +2102,7 @@
                       },
                       "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "textName" : "Server",
-                      "displayName" : {
-                        "contents" : {
-                          "text" : "Server"
-                        },
-                        "siblings" : [ ],
-                        "style" : { },
-                        "visualOrderText" : { }
-                      },
+                      "namesProvider" : { },
                       "server" : null,
                       "silent" : false,
                       "resultCallback" : { },
@@ -2452,15 +2206,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -2525,15 +2271,7 @@
               },
               "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "textName" : "Server",
-              "displayName" : {
-                "contents" : {
-                  "text" : "Server"
-                },
-                "siblings" : [ ],
-                "style" : { },
-                "visualOrderText" : { }
-              },
+              "namesProvider" : { },
               "server" : null,
               "silent" : false,
               "resultCallback" : { },
@@ -2574,15 +2312,7 @@
                 },
                 "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "textName" : "Server",
-                "displayName" : {
-                  "contents" : {
-                    "text" : "Server"
-                  },
-                  "siblings" : [ ],
-                  "style" : { },
-                  "visualOrderText" : { }
-                },
+                "namesProvider" : { },
                 "server" : null,
                 "silent" : false,
                 "resultCallback" : { },
@@ -2655,15 +2385,7 @@
             },
             "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "textName" : "Server",
-            "displayName" : {
-              "contents" : {
-                "text" : "Server"
-              },
-              "siblings" : [ ],
-              "style" : { },
-              "visualOrderText" : { }
-            },
+            "namesProvider" : { },
             "server" : null,
             "silent" : false,
             "resultCallback" : { },
@@ -2762,15 +2484,7 @@
                       },
                       "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "textName" : "Server",
-                      "displayName" : {
-                        "contents" : {
-                          "text" : "Server"
-                        },
-                        "siblings" : [ ],
-                        "style" : { },
-                        "visualOrderText" : { }
-                      },
+                      "namesProvider" : { },
                       "server" : null,
                       "silent" : false,
                       "resultCallback" : { },
@@ -2904,15 +2618,7 @@
                       },
                       "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "textName" : "Server",
-                      "displayName" : {
-                        "contents" : {
-                          "text" : "Server"
-                        },
-                        "siblings" : [ ],
-                        "style" : { },
-                        "visualOrderText" : { }
-                      },
+                      "namesProvider" : { },
                       "server" : null,
                       "silent" : false,
                       "resultCallback" : { },
@@ -3046,15 +2752,7 @@
                       },
                       "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "textName" : "Server",
-                      "displayName" : {
-                        "contents" : {
-                          "text" : "Server"
-                        },
-                        "siblings" : [ ],
-                        "style" : { },
-                        "visualOrderText" : { }
-                      },
+                      "namesProvider" : { },
                       "server" : null,
                       "silent" : false,
                       "resultCallback" : { },
@@ -3188,15 +2886,7 @@
                       },
                       "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "textName" : "Server",
-                      "displayName" : {
-                        "contents" : {
-                          "text" : "Server"
-                        },
-                        "siblings" : [ ],
-                        "style" : { },
-                        "visualOrderText" : { }
-                      },
+                      "namesProvider" : { },
                       "server" : null,
                       "silent" : false,
                       "resultCallback" : { },
@@ -3330,15 +3020,7 @@
                       },
                       "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "textName" : "Server",
-                      "displayName" : {
-                        "contents" : {
-                          "text" : "Server"
-                        },
-                        "siblings" : [ ],
-                        "style" : { },
-                        "visualOrderText" : { }
-                      },
+                      "namesProvider" : { },
                       "server" : null,
                       "silent" : false,
                       "resultCallback" : { },

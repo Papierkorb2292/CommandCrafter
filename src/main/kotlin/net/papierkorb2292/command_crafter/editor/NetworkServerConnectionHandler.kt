@@ -21,15 +21,12 @@ import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacke
 import net.minecraft.network.protocol.game.ClientboundCommandsPacket
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryDataLoader
-import net.minecraft.resources.RegistryValidator
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagNetworkSerialization
-import net.minecraft.world.level.storage.loot.LootDataType
-import net.minecraft.world.level.storage.loot.Validatable
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
@@ -57,10 +54,10 @@ import java.util.stream.Collectors
 object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
-    fun getAllDynamicRegistries(): List<RegistryDataLoader.RegistryData<*>> = DynamicRegistries.getBootstrappingRegistries() + LootDataType.values().map {
-        createRegistryLoaderEntryForLootDataType(it)
-    }.toList()
-    fun getSyncedRegistries() = getAllDynamicRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
+    // Without dimension, but also includes advancements and recipes
+    fun getAllDatapackRegistries() = DynamicRegistries.getBootstrappingRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
+    // With dimension
+    fun getSyncedRegistries() = getAllDatapackRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
 
     private val currentConnections = mutableMapOf<ServerGamePacketListenerImpl, DirectServerConnection>()
 
@@ -332,9 +329,6 @@ object NetworkServerConnectionHandler {
             ServerScoreboardStorageFileSystem.createdFileSystems.remove(networkHandler)
         }
     }
-
-    private fun <T: Validatable> createRegistryLoaderEntryForLootDataType(dataType: LootDataType<T>) =
-        RegistryDataLoader.RegistryData(dataType.registryKey, dataType.codec, RegistryValidator.none())
 
     private fun sendConnectionRequestResponse(
         server: MinecraftServer,
