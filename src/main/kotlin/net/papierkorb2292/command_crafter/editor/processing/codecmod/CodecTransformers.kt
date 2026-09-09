@@ -659,12 +659,7 @@ object CodecTransformers {
                         string.escaper
                     ), absoluteRange
                 )
-                val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
-                if(cachedNode != null) {
-                    reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro, reader.resourceCreator.getMacroParserStartCursors()))
-                } else {
-                    VanillaLanguage.analyzeMacroString(input, macro, reader.resourceCreator.getMacroParserStartCursors(), StringEscaper.combine(reader.resourceCreator.macroParserStack.map { it.escaper }), null, reader, reader.resourceCreator.source)
-                }
+                VanillaLanguage.analyzeMacroString(input, macro, reader.resourceCreator.getMacroParserStartCursors(), StringEscaper.combine(reader.resourceCreator.macroParserStack.map { it.escaper }), null, reader, reader.resourceCreator.source)
             }
         })
         // Don't use the decoder that could return errors while analyzing, all errors are handled by the above analyzer instead. This is

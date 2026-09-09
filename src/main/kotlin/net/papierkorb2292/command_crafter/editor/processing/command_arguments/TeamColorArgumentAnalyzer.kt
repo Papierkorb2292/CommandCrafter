@@ -67,7 +67,7 @@ class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService<TeamColorArgume
                     ARGB.colorFromFloat(0f, params.color.red.toFloat(), params.color.green.toFloat(), params.color.blue.toFloat()),
                     TeamColor::rgb
                 )
-                return listOf(ColorPresentation(color.name))
+                return listOf(ColorPresentation(color.serializedName))
             }
         }
         result.semanticTokens.addMultiline(range, TokenType.PARAMETER, 0)

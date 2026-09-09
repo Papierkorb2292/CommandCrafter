@@ -36,7 +36,7 @@ class EditorConnectionManager(
         }
     }
 
-    private val runningServices: ConcurrentMap<EditorService, Pair<ServiceClient, Future<Void>>> = ConcurrentHashMap()
+    private val runningServices: ConcurrentMap<EditorService, RunningService> = ConcurrentHashMap()
     private var connector: Thread? = null
 
     var minecraftServerConnection: MinecraftServerConnection = minecraftServerConnection
@@ -122,41 +122,42 @@ class EditorConnectionManager(
     fun stopServer() {
         connector?.interrupt()
         connector = null
-        for((_, connection) in runningServices.values) {
-            connection.cancel(true)
+        for(runningService in runningServices.values) {
+            runningService.process.cancel(true)
+            runningService.connection.close()
         }
         runningServices.clear()
         connectionAcceptor.stop()
     }
 
     private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher, editorInfo: EditorInfo? = null, initialMessage: Message? = null) {
-        val serviceRemover = ServiceRemover(runningServices, null)
+        val serviceRemover = ServiceRemover(runningServices, null, Executors.newCachedThreadPool())
         val launchedService = serviceLauncher.launch(
             minecraftServerConnection,
             minecraftClientConnection,
             connection,
             WrappingExecutorService.withFinishedCallback(
-                Executors.newCachedThreadPool(),
+                serviceRemover.threadPool,
                 serviceRemover
             ),
             editorInfo,
             initialMessage
         )
         serviceRemover.service = launchedService.server
-        runningServices[launchedService.server] = launchedService.client to launchedService.process
+        runningServices[launchedService.server] = RunningService(launchedService.client, launchedService.process, connection)
     }
 
     fun showMessage(message: MessageParams) {
-        for((serviceClient, _) in runningServices.values) {
-            (serviceClient.client as? LanguageClient ?: continue).showMessage(message)
+        for(runningService in runningServices.values) {
+            (runningService.client.client as? LanguageClient ?: continue).showMessage(message)
         }
     }
 
     fun leave() {
-        for(editorServer in runningServices.keys) {
-            editorServer.leave()
+        for(editorService in runningServices.keys) {
+            editorService.leave()
         }
-        connectionAcceptor.stop()
+        stopServer()
     }
 
     fun copyForNewConnectionAcceptor(newConnectionAcceptor: EditorConnectionAcceptor): EditorConnectionManager {
@@ -196,10 +197,17 @@ class EditorConnectionManager(
         val process: Future<Void>
     )
 
-    class ServiceRemover(private val runningServices: MutableMap<EditorService, *>, var service: EditorService?) : () -> Unit {
+    class RunningService(
+        val client: ServiceClient,
+        val process: Future<Void>,
+        val connection: EditorConnection
+    )
+
+    class ServiceRemover(private val runningServices: MutableMap<EditorService, *>, var service: EditorService?, val threadPool: ExecutorService) : () -> Unit {
         override fun invoke() {
             service?.onClosed()
             runningServices.remove(service)
+            threadPool.shutdown()
         }
     }
 

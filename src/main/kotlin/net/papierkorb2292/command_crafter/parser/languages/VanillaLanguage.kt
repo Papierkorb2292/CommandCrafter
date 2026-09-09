@@ -265,12 +265,6 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             addMissingVariablesError = true,
             illegalChatCharactersSeverity = null,
         )
-        val cachedNode = reader.resourceCreator.previousCache?.macroCache?.macrosByInput?.get(input)
-
-        if(cachedNode != null) {
-            reader.resourceCreator.newCache.macroCache.addMacro(cachedNode.copyForChildCacheHit(macro, IntList.intListOf(macro.absoluteRange.start)))
-            return
-        }
         analyzeMacroString(
             input,
             macro,
@@ -720,7 +714,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     val extendedTruncatedInput = " ".repeat(max(endCursor - truncatedInput.length, 0)) + truncatedInput
                     val truncatedInputLowerCase = extendedTruncatedInput.lowercase(Locale.ROOT)
                     val fullInput = completionReader.copy().apply { this.cursor = endCursor }
-                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { ResourceOrIdArgumentAnalyzer.shouldSkipResourceOrIdSuggestions.runWithValueSwap(true) {
+                    val suggestionInfo = SUGGESTIONS_FULL_INPUT.runWithValueSwap(fullInput) { ResourceOrIdArgumentAnalyzer.shouldSkipResourceOrIdSuggestions.runWithValueSwap(true) { SKIP_SUGGESTION_SORT_AND_DISTINCT.runWithValueSwap(true) {
                         completionParentNode.children.map { child ->
                             try {
                                 val analyzer = if(child is ArgumentCommandNode<*, *>) CommandArgumentAnalyzerService.getAnalyzerForType(child.type::class.java) else null
@@ -740,7 +734,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                                 Suggestions.empty() to null
                             }
                         }
-                    } }
+                    } } }
                     val suggestionFutures = suggestionInfo.map { it.first }.toTypedArray()
                     val combinedFuture = CompletableFuture.allOf(*suggestionFutures).exceptionallyCompose {
                         CompletableFuture.failedFuture(it)
@@ -908,6 +902,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         val SUGGESTIONS_FULL_INPUT = ThreadLocal<DirectiveStringReader<AnalyzingResourceCreator>>()
         val ALLOW_MALFORMED_MACRO = ThreadLocal<Boolean>()
         val IS_ANALYZING_COMMANDS = ThreadLocal<Boolean>()
+        val SKIP_SUGGESTION_SORT_AND_DISTINCT = ThreadLocal<Boolean>()
         val SERVERSIDE_SUGGESTION_GETTER = ThreadLocal<() -> CompletableFuture<Suggestions>>()
         val shouldDisplayWarningOnMacroTimeout = false
         val logMacroAnalyzingTime: Boolean = CommandCrafter.getBooleanSystemProperty("cc_log_macro_analyzing_time")
@@ -928,6 +923,13 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             // Skip irrelevant macros when generating suggestions
             if(reader.resourceCreator.canSuggestionsSkipRange(macro.absoluteRange.start, macro.absoluteRange.end))
                 return
+
+            // Check if this macro is in the previous or the new cache. It's necessary to get the cache from the resource creator and not use the cache parameter, because the parameter is only for children
+            val cached = reader.resourceCreator.previousCache?.macroCache?.macrosByInput[input] ?: reader.resourceCreator.newCache.macroCache.macrosByInput[input]
+            if(cached != null) {
+                reader.resourceCreator.newCache.macroCache.addMacro(cached.copyForChildCacheHit(macro, parserStartCursors))
+                return
+            }
 
             // If this is a nested macro, wait until the outer macro finishes, since there's a time limit for the outer macro that shouldn't be exhausted by the nested macro
             reader.resourceCreator.macroQueue?.let { queue ->

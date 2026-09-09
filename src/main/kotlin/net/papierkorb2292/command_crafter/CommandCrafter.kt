@@ -117,7 +117,7 @@ object CommandCrafter: ModInitializer {
             MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
 
             ServerLifecycleEvents.SERVER_STARTED.register {
-                // Delayed to every mod had time to add its own registries
+                // Delayed so every mod had time to add its own registries
                 registerDynamicRegistries()
                 registerRegistryTags()
 
@@ -325,6 +325,10 @@ object CommandCrafter: ModInitializer {
             return ResponseError(ResponseErrorCode.RequestFailed, coreException.message, null)
         LOGGER.error("Error thrown by $serviceName", coreException)
         return ResponseError(ResponseErrorCode.UnknownErrorCode, coreException.message, null)
+    }
+
+    fun shutdown() {
+
     }
 
     fun <S> removeLiteralsStartingWithForwardsSlash(node: CommandNode<S>) {

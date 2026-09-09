@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
+import static net.papierkorb2292.command_crafter.helper.UtilKt.runWithValueSwap;
 
 @Mixin(Grammar.class)
 public class GrammarMixin {
@@ -135,12 +136,16 @@ public class GrammarMixin {
         if(unicodeSuggestions.length == 0)
             return original;
         return original.thenCombine(CompletableFuture.allOf(unicodeSuggestions), (suggestions, _void) ->
-                Suggestions.merge(suggestionsBuilder.getInput(),
-                    Stream.concat(
-                            Stream.of(suggestions),
-                            Arrays.stream(unicodeSuggestions)
-                                .map(future -> (Suggestions)future.join())
-                    ).toList()
+                // Skip sorting and building hash set, because it takes a lot of time for unicode suggestions
+                // Suggestions.create has to be used directly instead of Suggestions.merge, because the later also builds a hash set and would mess up the order
+                runWithValueSwap(VanillaLanguage.Companion.getSKIP_SUGGESTION_SORT_AND_DISTINCT(),  true, () ->
+                    Suggestions.create(suggestionsBuilder.getInput(),
+                            Stream.concat(
+                                    Stream.of(suggestions),
+                                    Arrays.stream(unicodeSuggestions)
+                                            .map(future -> (Suggestions)future.join())
+                            ).flatMap(childSuggestions -> childSuggestions.getList().stream()).toList()
+                )
         ));
     }
 }

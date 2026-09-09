@@ -10,15 +10,18 @@ import it.unimi.dsi.fastutil.chars.CharSets
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.util.parsing.packrat.ParseState
 import net.minecraft.util.parsing.packrat.SuggestionSupplier
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Stream
 
 object UnicodeNameSuggestionSupplier : SuggestionSupplier<StringReader> {
     private val allowedNameChars = CharSet.of(
         *(charSetFromToInclusive('a', 'z')
-                    + charSetFromToInclusive('A', 'Z')
-                    + charSetFromToInclusive('0', '9')
-                    + CharSets.singleton('-')
+                + charSetFromToInclusive('A', 'Z')
+                + charSetFromToInclusive('0', '9')
+                + CharSets.singleton('-')
+                + CharSets.singleton(' ')
             ).toCharArray()) // From SnbtGrammar.UNICODE_NAME
     private val characters: List<Pair<String, Message>> by lazy {
         (Character.MIN_CODE_POINT..Character.MAX_CODE_POINT)
@@ -34,7 +37,15 @@ object UnicodeNameSuggestionSupplier : SuggestionSupplier<StringReader> {
 
     fun getSuggestions(suggestionsBuilder: SuggestionsBuilder): CompletableFuture<Suggestions> {
         return CompletableFuture.supplyAsync {
-            SharedSuggestionProvider.suggest(characters, suggestionsBuilder, Pair<String, Message>::first, Pair<String, Message>::second)
+            // The characters are already unique and sorted. This saves a lot of time
+            VanillaLanguage.SKIP_SUGGESTION_SORT_AND_DISTINCT.runWithValueSwap(true) {
+                SharedSuggestionProvider.suggest(
+                    characters,
+                    suggestionsBuilder,
+                    Pair<String, Message>::first,
+                    Pair<String, Message>::second
+                )
+            }
         }.thenCompose { it }
     }
 

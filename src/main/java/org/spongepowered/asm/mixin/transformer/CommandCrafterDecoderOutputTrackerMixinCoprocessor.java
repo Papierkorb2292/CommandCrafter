@@ -1,6 +1,6 @@
 package org.spongepowered.asm.mixin.transformer;
 
-import net.papierkorb2292.command_crafter.editor.processing.PreLaunchDecoderOutputTracker;
+import net.papierkorb2292.command_crafter.editor.processing.DecoderOutputTracker;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
@@ -11,7 +11,7 @@ import java.util.ArrayList;
 class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocessor {
     private final String decoderMethodName = "decode";
     private final String decoderMethodDesc = "(Lcom/mojang/serialization/DynamicOps;Ljava/lang/Object;)Lcom/mojang/serialization/DataResult;";
-    private final String callbackObjectName = "net/papierkorb2292/command_crafter/editor/processing/PreLaunchDecoderOutputTracker";
+    private final String callbackObjectName = "net/papierkorb2292/command_crafter/editor/processing/DecoderOutputTracker";
     private final String callbackObjectDesc = "L" + callbackObjectName + ";";
     private final String noDecoderCallbacksDesc = "Lnet/papierkorb2292/command_crafter/codecmod/NoDecoderCallbacks;";
 
@@ -70,8 +70,8 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                 new MethodInsnNode(
                         Opcodes.INVOKEVIRTUAL,
                         callbackObjectName,
-                        PreLaunchDecoderOutputTracker.ON_DECODE_START_NAME,
-                        PreLaunchDecoderOutputTracker.ON_DECODE_START_DESC,
+                        DecoderOutputTracker.ON_DECODE_START_NAME,
+                        DecoderOutputTracker.ON_DECODE_START_DESC,
                         false
                 )
         ); // Call INSTANCE.onDecodeStart(ops, input)
@@ -106,8 +106,8 @@ class CommandCrafterDecoderOutputTrackerMixinCoprocessor extends MixinCoprocesso
                     new MethodInsnNode(
                             Opcodes.INVOKEVIRTUAL,
                             callbackObjectName,
-                            PreLaunchDecoderOutputTracker.ON_DECODED_NAME,
-                            PreLaunchDecoderOutputTracker.ON_DECODED_DESC,
+                            DecoderOutputTracker.ON_DECODED_NAME,
+                            DecoderOutputTracker.ON_DECODED_DESC,
                             false
                     )
             ); // Call INSTANCE.onDecoded(returnValue, ops, input)
