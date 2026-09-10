@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter
 
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.serialization.Codec
@@ -12,7 +11,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.commands.CommandSource
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.Commands
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
@@ -22,7 +20,6 @@ import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
 import net.minecraft.server.notifications.EmptyNotificationService
-import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.tags.TagFile
 import net.minecraft.world.flag.FeatureFlagSet
 import net.minecraft.world.level.gamerules.GameRule
@@ -51,8 +48,10 @@ import net.papierkorb2292.command_crafter.helper.UnitTypeAdapter
 import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
 import net.papierkorb2292.command_crafter.networking.packets.NotifyCanReloadWorldgenS2CPacket
-import net.papierkorb2292.command_crafter.parser.*
-import net.papierkorb2292.command_crafter.parser.helper.RawResource
+import net.papierkorb2292.command_crafter.parser.JsonZipCreatorProcessor
+import net.papierkorb2292.command_crafter.parser.LanguageManager
+import net.papierkorb2292.command_crafter.parser.McfunctionZipCreatorProcessor
+import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.parser.number_provider.TermNumberProvider
 import org.apache.logging.log4j.LogManager
@@ -65,7 +64,6 @@ import org.eclipse.lsp4j.jsonrpc.messages.Message
 import org.eclipse.lsp4j.jsonrpc.messages.RequestMessage
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode
-import java.io.BufferedReader
 import java.io.PrintWriter
 import java.lang.reflect.InvocationTargetException
 import java.nio.file.Files
@@ -151,40 +149,7 @@ object CommandCrafter: ModInitializer {
     private fun initializeParser() {
         Registry.register(LanguageManager.LANGUAGES, Identifier.parse(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
         TermNumberProvider.register()
-        RawZipResourceCreator.DATA_TYPE_PROCESSORS += object : RawZipResourceCreator.DataTypeProcessor {
-            override val type: String
-                get() = PackContentFileType.FUNCTIONS_FILE_TYPE.contentTypePath
-
-            override fun shouldProcess(args: DatapackBuildArgs) = !args.keepDirectives
-
-            override fun process(
-                args: DatapackBuildArgs,
-                id: Identifier,
-                content: BufferedReader,
-                resourceCreator: RawZipResourceCreator,
-                dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-            ) {
-                val reader = DirectiveStringReader(FileMappingInfo(content.lines().toList()), dispatcher, resourceCreator)
-                val resource = RawResource(RawResource.FUNCTION_TYPE)
-                val source = Commands.createCompilationContext(args.permissions ?: LevelBasedPermissionSet.GAMEMASTER)
-                LanguageManager.parseToVanilla(
-                    reader,
-                    source,
-                    resource,
-                    Language.TopLevelClosure(VanillaLanguage())
-                )
-                resourceCreator.addResource(id, resource)
-            }
-
-            override fun validate(
-                args: DatapackBuildArgs,
-                id: Identifier,
-                content: BufferedReader,
-                dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-            ) {
-                process(args, id, content, RawZipResourceCreator(), dispatcher)
-            }
-        }
+        RawZipResourceCreator.DATA_TYPE_PROCESSORS += McfunctionZipCreatorProcessor
     }
 
     var shortenNbt: Boolean = true
@@ -297,11 +262,12 @@ object CommandCrafter: ModInitializer {
     )
 
     fun registerDynamicRegistries() {
-        val registries = DynamicRegistries.getWorldRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES + RegistryDataLoader.RELOADABLE_REGISTRIES
+        val registries = DynamicRegistries.getWorldRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
         val dynamicJsonResourceCodecs = registries.associate { dynamicRegistry ->
             PackContentFileType.getOrCreateTypeForDynamicRegistry(dynamicRegistry.key) to dynamicRegistry.elementCodec
         }
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(dynamicJsonResourceCodecs)
+        RawZipResourceCreator.DATA_TYPE_PROCESSORS += registries.map { JsonZipCreatorProcessor(it) }
     }
     fun registerRegistryTags() {
         val keys = BuiltInRegistries.REGISTRY.registryKeySet() +

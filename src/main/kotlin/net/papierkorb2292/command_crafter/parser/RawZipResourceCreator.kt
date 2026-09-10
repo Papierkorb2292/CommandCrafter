@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Either
+import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
@@ -33,7 +34,7 @@ class RawZipResourceCreator {
 
         val DATA_TYPE_PROCESSORS: MutableList<DataTypeProcessor> = ArrayList()
 
-        fun buildDatapack(pack: PackResources, args: DatapackBuildArgs, dispatcher: CommandDispatcher<SharedSuggestionProvider>, output: ZipOutputStream) {
+        fun buildDatapack(pack: PackResources, args: DatapackBuildArgs, dispatcher: CommandDispatcher<SharedSuggestionProvider>, buildContext: CommandBuildContext, output: ZipOutputStream) {
             val resourceCreator = RawZipResourceCreator()
             val dataDirectory = PackType.SERVER_DATA.directory + '/'
             var foundPackMeta = false
@@ -63,7 +64,8 @@ class RawZipResourceCreator {
                             ioSupplier,
                             resourceCreator,
                             args,
-                            dispatcher
+                            dispatcher,
+                            buildContext
                         )
                     }
                 }
@@ -90,7 +92,8 @@ class RawZipResourceCreator {
                             ioSupplier,
                             resourceCreator,
                             args,
-                            dispatcher
+                            dispatcher,
+                            buildContext
                         )
                     }
                 }
@@ -120,6 +123,7 @@ class RawZipResourceCreator {
             resourceCreator: RawZipResourceCreator,
             args: DatapackBuildArgs,
             dispatcher: CommandDispatcher<SharedSuggestionProvider>,
+            buildContext: CommandBuildContext,
         ) {
             val resourceExtension = Files.getFileExtension(fileId.path)
             val resourceId = Identifier.fromNamespaceAndPath(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
@@ -131,11 +135,11 @@ class RawZipResourceCreator {
                     val id = Identifier.fromNamespaceAndPath(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
                     try {
                         if (processor.shouldProcess(args)) {
-                            processor.process(args, id, reader, resourceCreator, dispatcher)
+                            processor.process(args, id, reader, resourceCreator, dispatcher, buildContext)
                             reader.close()
                             return
                         }
-                        processor.validate(args, id, reader, dispatcher)
+                        processor.validate(args, id, reader, dispatcher, buildContext)
                         break
                     } catch (e: Exception) {
                         throw PROCESSOR_EXCEPTION.create(fileId, e.message)
@@ -189,7 +193,20 @@ class RawZipResourceCreator {
     interface DataTypeProcessor {
         val type: String
         fun shouldProcess(args: DatapackBuildArgs): Boolean
-        fun process(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, resourceCreator: RawZipResourceCreator, dispatcher: CommandDispatcher<SharedSuggestionProvider>)
-        fun validate(args: DatapackBuildArgs, id: Identifier, content: BufferedReader, dispatcher: CommandDispatcher<SharedSuggestionProvider>)
+        fun process(
+            args: DatapackBuildArgs,
+            id: Identifier,
+            content: BufferedReader,
+            resourceCreator: RawZipResourceCreator,
+            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
+            buildContext: CommandBuildContext
+        )
+        fun validate(
+            args: DatapackBuildArgs,
+            id: Identifier,
+            content: BufferedReader,
+            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
+            buildContext: CommandBuildContext
+        )
     }
 }

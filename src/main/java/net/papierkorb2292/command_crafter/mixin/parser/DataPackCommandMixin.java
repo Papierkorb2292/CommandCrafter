@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.mixin.parser;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -7,6 +8,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -45,7 +47,7 @@ public class DataPackCommandMixin {
                     remap = false
             )
     )
-    private static LiteralArgumentBuilder<CommandSourceStack> command_crafter$addDatapackBuildCommand(LiteralArgumentBuilder<CommandSourceStack> builder) {
+    private static LiteralArgumentBuilder<CommandSourceStack> command_crafter$addDatapackBuildCommand(LiteralArgumentBuilder<CommandSourceStack> builder, @Local(argsOnly = true) CommandBuildContext buildContext) {
         return builder.then(
                 Commands.literal("build")
                         .then(Commands.argument("name", StringArgumentType.string())
@@ -59,7 +61,7 @@ public class DataPackCommandMixin {
                                             suggestionsBuilder)
                                 )
                                 .executes(context -> {
-                                    command_crafter$buildDatapack(context, new DatapackBuildArgs.DatapackBuildArgsBuilder());
+                                    command_crafter$buildDatapack(context, buildContext, new DatapackBuildArgs.DatapackBuildArgsBuilder());
                                     return 1;
                                 })
                                 .then(Commands.argument("args", StringArgumentType.greedyString())
@@ -67,14 +69,14 @@ public class DataPackCommandMixin {
                                         .executes(context -> {
                                             var rawArgs = StringArgumentType.getString(context, "args");
                                             var parsedArgs = DatapackBuildArgs.DatapackBuildArgsParser.INSTANCE.parse(new StringReader(rawArgs));
-                                            command_crafter$buildDatapack(context, parsedArgs);
+                                            command_crafter$buildDatapack(context, buildContext, parsedArgs);
                                             return 1;
                                         }))));
     }
 
     private static final LevelResource command_crafter$builtDatapackSavePath = LevelResourceAccessor.callConstructor("builtDatapacks");
 
-    private static void command_crafter$buildDatapack(CommandContext<CommandSourceStack> context, DatapackBuildArgs.DatapackBuildArgsBuilder argsBuilder) throws CommandSyntaxException {
+    private static void command_crafter$buildDatapack(CommandContext<CommandSourceStack> context, CommandBuildContext buildContext, DatapackBuildArgs.DatapackBuildArgsBuilder argsBuilder) throws CommandSyntaxException {
         var name = StringArgumentType.getString(context, "name");
         var packUnknownError = ERROR_UNKNOWN_PACK.create(name);
         if(!name.startsWith("file/")) {
@@ -108,6 +110,7 @@ public class DataPackCommandMixin {
                         primaryPack,
                         argsBuilder.build(),
                         (CommandDispatcher<SharedSuggestionProvider>)(Object)context.getSource().getServer().getCommands().getDispatcher(),
+                        buildContext,
                         zipOutput
                 );
                 zipOutput.close();
