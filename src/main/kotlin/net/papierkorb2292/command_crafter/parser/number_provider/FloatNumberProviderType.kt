@@ -29,7 +29,7 @@ val FLOAT_NUMBER_PROVIDER_TYPE = NumberProviderType<ContextFloatProvider>(
         NumberProviderInfix('%', 3) { left, right -> Modulus(left, right) },
     ),
     ConstantValue.INLINE_CODEC,
-    listOf("PI" to ConstantValue(Mth.PI)),
+    listOf("PI" to ConstantValue(Mth.PI), "E" to ConstantValue(Math.E.toFloat())),
     ::Negate,
     { Sum(HolderSet.direct(it)) },
     ContextFloatProviders.DIRECT_CODEC,
