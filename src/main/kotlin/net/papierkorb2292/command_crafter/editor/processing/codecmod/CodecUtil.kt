@@ -9,6 +9,7 @@ import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvid
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import java.util.*
+import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
 val IS_CUSTOM_ENCODE = ThreadLocal<Boolean>()
@@ -173,7 +174,15 @@ fun <T> Codec<T>.conditionalDecode(condition: () -> Boolean, otherwise: Decoder<
 
     override fun <A> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> =
         if(condition()) this@conditionalDecode.decode(ops, input) else otherwise.decode(ops, input)
+}
 
+fun <T> MapCodec<T>.conditionalDecode(condition: () -> Boolean, otherwise: MapDecoder<T>) = object : MapCodec<T>() {
+    override fun <A> keys(ops: DynamicOps<A>): Stream<A> = this@conditionalDecode.keys(ops)
+
+    override fun <A> encode(input: T, ops: DynamicOps<A>, prefix: RecordBuilder<A>): RecordBuilder<A> = this@conditionalDecode.encode(input, ops, prefix)
+
+    override fun <A> decode(ops: DynamicOps<A>, input: MapLike<A>): DataResult<T> =
+        if(condition()) this@conditionalDecode.decode(ops, input) else otherwise.decode(ops, input)
 }
 
 interface BeforeDecodeCallback {

@@ -64,6 +64,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.*
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.*
+import net.papierkorb2292.command_crafter.parser.number_provider.TermNumberProvider
 import org.eclipse.lsp4j.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -1151,7 +1152,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 baseAnalyzingResult,
                 macroQueue
             )
-            val analyzingResult = crawlerRunner.run()
+            // Don't analyze number provider expressions inside macros, since they can't be transpiled
+            val analyzingResult = TermNumberProvider.DISALLOW_EXPRESSIONS.runWithValueSwap(true) {
+                crawlerRunner.run()
+            }
 
             // TODO: Have some warnings when the command appears to be wrong
             // Remove all errors for now, because no proper error handling is implemented yet

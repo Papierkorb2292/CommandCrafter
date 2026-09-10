@@ -23,7 +23,9 @@ import net.minecraft.util.parsing.packrat.commands.StringReaderTerms
 import net.minecraft.util.parsing.packrat.commands.TagParseRule
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.conditionalDecode
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.NamespacedIdRule
 import net.papierkorb2292.command_crafter.parser.helper.repeatUntilInputEnd
@@ -34,6 +36,8 @@ import kotlin.jvm.optionals.getOrNull
  * A transpiler from a custom expression syntax to number providers
  */
 object TermNumberProvider {
+    val DISALLOW_EXPRESSIONS = ThreadLocal<Boolean>()
+
     fun register() {
         Registry.register(
             BuiltInRegistries.CONTEXT_INT_PROVIDER_TYPE,
@@ -104,7 +108,15 @@ object TermNumberProvider {
                 )
             } },
             { throw NotImplementedError("Terms can't be encoded") }
-        )
+        ).conditionalDecode({ DISALLOW_EXPRESSIONS.getOrNull() != true }, object : MapDecoder<TNumberProvider> {
+            override fun <T> decode(
+                ops: DynamicOps<T>,
+                input: MapLike<T>,
+            ): DataResult<TNumberProvider> = DataResult.error { "Expressions are not allowed here, they're not covered by the transpiler" }
+
+            override fun <T> compressor(ops: DynamicOps<T>) = null
+            override fun <T> keys(ops: DynamicOps<T>) = Stream.empty<T>()
+        })
     }
 
     private val INCORRECT_ARG_COUNT_EXCEPTION = DynamicCommandExceptionType { Component.literal("Incorrect number of arguments for function '$it'") }

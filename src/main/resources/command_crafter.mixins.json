@@ -222,6 +222,7 @@
     "parser.vanilla_improved.TagKeyAccessor",
     "parser.vanilla_improved.TagParseRuleMixin",
     "parser.vanilla_improved.UnquotedStringParseRuleMixin",
+    "parser.vanilla_improved.VariableLineMixin",
     "test.GameTestHelperAccessor"
   ]
 }
