@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.parser.number_provider
 
-import com.mojang.brigadier.ImmutableStringReader
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
@@ -18,13 +17,12 @@ import net.minecraft.resources.RegistryOps
 import net.minecraft.resources.ResourceKey
 import net.minecraft.util.parsing.packrat.*
 import net.minecraft.util.parsing.packrat.commands.Grammar
-import net.minecraft.util.parsing.packrat.commands.ResourceLookupRule
+import net.minecraft.util.parsing.packrat.commands.ResourceSuggestion
 import net.minecraft.util.parsing.packrat.commands.StringReaderTerms
 import net.minecraft.util.parsing.packrat.commands.TagParseRule
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.conditionalDecode
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.parser.NamespacedIdRule
@@ -293,7 +291,7 @@ object TermNumberProvider {
      */
     private class SubstitutionResolver<TNumberProvider: Any>(
         private val inputs: Map<String, Expression<TNumberProvider>>,
-        type: NumberProviderType<TNumberProvider>
+        type: NumberProviderType<TNumberProvider>,
     ) {
         private val instantiatedVariables = mutableMapOf<String, DataResult<Holder<TNumberProvider>>>()
         private val startedVariables = LinkedHashSet<String>()
@@ -395,24 +393,34 @@ object TermNumberProvider {
     }
 
     class NumberProviderReferenceRule<TNumberProvider : Any>(
-        idParser: NamedRule<StringReader, Identifier>,
-        context: RegistryOps<*>,
+        private val idParser: NamedRule<StringReader, Identifier>,
+        private val context: RegistryOps<*>,
         private val registryId: ResourceKey<Registry<TNumberProvider>>,
-    ) : ResourceLookupRule<RegistryOps<*>, Holder<TNumberProvider>>(idParser, context) {
+    ) : Rule<StringReader, Holder<TNumberProvider>>, ResourceSuggestion {
 
         private val notFoundException = DynamicCommandExceptionType { Component.literal("Failed to get element $it from registry ${registryId.identifier()}") }
+        private val invalidIdError = DelayedException.create(Identifier.ERROR_INVALID)
 
-        init {
-            @Suppress("CAST_NEVER_SUCCEEDS")
-            (this as PackContentFileTypeContainer).`command_crafter$setPackContentFileType`(PackContentFileType.getOrCreateTypeForDynamicRegistry(registryId))
+        private val packContentFileType = PackContentFileType.getOrCreateTypeForDynamicRegistry(registryId) //TODO: Analyze id
+
+        override fun parse(state: ParseState<StringReader>): Holder<TNumberProvider>? {
+            state.input().skipWhitespace()
+            val mark = state.mark()
+            val id = state.parse(idParser)
+            if(id != null) {
+                val result = context.getter(registryId).flatMap {
+                    it.get(ResourceKey.create(registryId, id))
+                }.getOrNull()
+                if(result == null) {
+                    // Error at the end of the id, so it's prioritized
+                    state.errorCollector().store(state.mark(), this, notFoundException.create(id))
+                }
+                return result
+            } else {
+                state.errorCollector().store(mark, this, invalidIdError)
+                return null
+            }
         }
-
-        override fun validateElement(
-            reader: ImmutableStringReader,
-            id: Identifier,
-        ): Holder<TNumberProvider> = context.getter(registryId).flatMap {
-            it.get(ResourceKey.create(registryId, id))
-        }.orElseThrow { notFoundException.create(id) }
 
         override fun possibleResources(): Stream<Identifier> {
             val lookup = ExtraDecoderBehavior.getCurrentBehavior(context)?.registries?.lookup(registryId)?.getOrNull()
