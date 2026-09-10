@@ -54,6 +54,7 @@ import net.papierkorb2292.command_crafter.networking.packets.NotifyCanReloadWorl
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import net.papierkorb2292.command_crafter.parser.number_provider.TermNumberProvider
 import org.apache.logging.log4j.LogManager
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.jsonrpc.Launcher
@@ -149,6 +150,7 @@ object CommandCrafter: ModInitializer {
 
     private fun initializeParser() {
         Registry.register(LanguageManager.LANGUAGES, Identifier.parse(VanillaLanguage.ID), VanillaLanguage.VanillaLanguageType)
+        TermNumberProvider.register()
         RawZipResourceCreator.DATA_TYPE_PROCESSORS += object : RawZipResourceCreator.DataTypeProcessor {
             override val type: String
                 get() = PackContentFileType.FUNCTIONS_FILE_TYPE.contentTypePath

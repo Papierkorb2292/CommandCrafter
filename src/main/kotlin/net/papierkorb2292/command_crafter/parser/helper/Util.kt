@@ -131,3 +131,31 @@ fun wrapTermWithSemanticToken(term: Term<StringReader>, tokenProvider: (ParseSta
     }
     matches
 }
+
+fun <T: Any> repeatUntilInputEnd(term: NamedRule<StringReader, T>, listAtom: Atom<List<T>>) = object : Term<StringReader> {
+    override fun parse(
+        state: ParseState<StringReader>,
+        scope: Scope,
+        control: Control,
+    ): Boolean {
+        val start = state.mark()
+        val result = mutableListOf<T>()
+        val input = state.input()
+        while(canContinue(input)) {
+            // Doesn't need to branch args, because the term isn't optional
+            val child = state.parse(term)
+            if(child == null) {
+                state.restore(start)
+                return false
+            }
+            result += child
+        }
+        scope.put(listAtom, result)
+        return true
+    }
+
+    private fun canContinue(input: StringReader): Boolean {
+        input.skipWhitespace()
+        return input.canRead()
+    }
+}
