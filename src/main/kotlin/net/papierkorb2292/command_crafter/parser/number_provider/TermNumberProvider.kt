@@ -4,6 +4,7 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
+import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
@@ -17,6 +18,7 @@ import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryOps
 import net.minecraft.resources.ResourceKey
 import net.minecraft.util.parsing.packrat.*
+import net.minecraft.util.parsing.packrat.Dictionary
 import net.minecraft.util.parsing.packrat.commands.Grammar
 import net.minecraft.util.parsing.packrat.commands.ResourceSuggestion
 import net.minecraft.util.parsing.packrat.commands.StringReaderTerms
@@ -31,9 +33,7 @@ import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecode
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.conditionalDecode
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.decodeParent
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyContextBehavior
-import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
-import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
+import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.memoizeLast
@@ -42,9 +42,8 @@ import net.papierkorb2292.command_crafter.parser.NamespacedIdRule
 import net.papierkorb2292.command_crafter.parser.helper.repeatUntilInputEnd
 import net.papierkorb2292.command_crafter.parser.helper.wrapTermWithSemanticToken
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
-import org.eclipse.lsp4j.Hover
-import org.eclipse.lsp4j.Location
-import org.eclipse.lsp4j.Range
+import org.eclipse.lsp4j.*
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.stream.Collectors
 import java.util.stream.Stream
@@ -79,10 +78,15 @@ object TermNumberProvider {
         DataResult.success(name)
     }
 
-    private val AVAILABLE_VARS_DECODER = object : Decoder<Map<String, Any>> {
-        override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<Map<String, Any>, T>> =
+    private val AVAILABLE_VARS_DECODER = object : Decoder<Map<String, Any?>> {
+        override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<Map<String, Any?>, T>> =
             ops.getMapValues(input).map { entries ->
-                com.mojang.datafixers.util.Pair.of(entries.collect(Collectors.toMap({ ops.getStringValue(it.first).orThrow }, { it.second })), ops.empty())
+                com.mojang.datafixers.util.Pair.of(
+                    entries
+                        .filter { it.first != null && it.second != null }
+                        .collect(Collectors.toMap({ ops.getStringValue(it.first).orThrow }, { it.second }))
+                    , ops.empty()
+                )
             }
     }
 
@@ -94,7 +98,13 @@ object TermNumberProvider {
         // and offers analyzing (semantic tokens, completions, etc.)
         val varsDecoder = (if(isRoot) AVAILABLE_VARS_DECODER.fieldOf("inputs").decoder() else AVAILABLE_VARS_DECODER).decodeParent().onlyContextBehavior()
         val stringAnalyzing = MalformedStringDecoderAnalyzing({ it.ops to varsDecoder.parse(it).result().getOrNull() }, { (ops, vars), result, behavior, reader, string, analyzingBehavior ->
-            val grammar = buildExpressionGrammar(type, ops, if(vars != null) AnalyzingVariableData(vars, analyzingBehavior) else null)
+            val grammar = buildExpressionGrammar(
+                type,
+                ops,
+                if(vars != null)
+                    AnalyzingVariableData(vars + type.constants.map { it.first }.associateWith { null }, analyzingBehavior)
+                else null
+            )
 
             PackratParserAdditionalArgs.analyzingResult.set(PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()))
             PackratParserAdditionalArgs.setupFurthestAnalyzingResultStart()
@@ -104,7 +114,18 @@ object TermNumberProvider {
                 try {
                     grammar.parseForCommands(reader)
                 } catch(_: CommandSyntaxException) {}
-                PackratParserAdditionalArgs.popAnalyzingResult(result, StringRange(0, string.content.length))
+                val range = StringRange(0, string.content.length)
+                PackratParserAdditionalArgs.popAnalyzingResult(result, range)
+                // Add packrat suggestions and don't conflict with the syntax node from popAnalyzingResult on the language channel
+                result.addContinuouslyMappedPotentialSyntaxNode(AnalyzingResult.LANGUAGE_COMPLETION_CHANNEL + "_packrat", range, object : PotentialSyntaxNode {
+                    override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>> {
+                        val line = AnalyzingResult.getPositionFromCursor(cursor, result.mappingInfo).line
+                        val input = reader.string.substring(0, result.mappingInfo.cursorMapper.mapToTarget(cursor))
+                        return grammar.parseForSuggestions(SuggestionsBuilder(input, input.lowercase(Locale.ROOT), 0)).thenApply { suggestions ->
+                            suggestions.list.map { it.toCompletionItem(reader, line, cursor) }
+                        }
+                    }
+                })
             } finally {
                 PackratParserAdditionalArgs.allowMalformed.remove()
                 PackratParserAdditionalArgs.analyzingResult.remove()
@@ -113,7 +134,13 @@ object TermNumberProvider {
         })
         val analyzingDecoder = stringAnalyzing.wrapDecoder(Codec.PASSTHROUGH.flatMap { dynamic ->
             val vars = varsDecoder.parse(dynamic).result().getOrNull()
-            val grammar = buildExpressionGrammar(type, dynamic.ops, if(vars != null) AnalyzingVariableData<Nothing>(vars, null) else null)
+            val grammar = buildExpressionGrammar(
+                type,
+                dynamic.ops,
+                if(vars != null)
+                    AnalyzingVariableData<Nothing>(vars + type.constants.map { it.first }.associateWith { null }, null)
+                else null
+            )
             Codec.STRING.parse(dynamic).flatMap { string ->
                 try {
                     val reader = StringReader(string)
@@ -289,10 +316,10 @@ object TermNumberProvider {
 
         dict.put(standaloneTermAtom, Term.alternative(
             Term.sequence(NUMBER_LOOKAHEAD, dict.named(numberAtom)), // Don't cut here, because '-' still has one other case
-            Term.sequence(StringReaderTerms.character('-'), Term.cut(), dict.named(negatedTerm)),
+            Term.sequence(Term.positiveLookahead(StringReaderTerms.character('-')), StringReaderTerms.character('-'), Term.cut(), dict.named(negatedTerm)), // With lookahead to not show an error about '-', the other errors are better
+            dict.named(variableAtom),
             dict.named(referenceAtom),
             dict.named(functionCallAtom),
-            dict.named(variableAtom),
             dict.named(parenthesesAtom)
         )) { scope ->
             scope.getAnyOrThrow(numberAtom, negatedTerm, referenceAtom, functionCallAtom, variableAtom, parenthesesAtom)
@@ -444,16 +471,19 @@ object TermNumberProvider {
             while(pos < fullString.length && isAllowedInVarName(fullString[pos], pos == start))
                 pos++
 
-            if(pos == start)
-                return null
-            if(pos < fullString.length && fullString[pos] == ':')
-                return null // Should be interpreted as an id instead
-
             input.cursor = pos
+            input.skipWhitespace()
+            if(input.canRead() && (input.peek() == ':' || input.peek() == '(')) {
+                input.cursor = pos
+                return null // Should be interpreted as an id or function instead
+            }
+            input.cursor = pos
+
             val varName = fullString.substring(start, pos)
 
             if(analyzingVariables != null) {
-                val variable = analyzingVariables.availableVariables[varName]
+                val inputExists = varName in analyzingVariables.availableVariables
+                val variable = analyzingVariables.availableVariables[varName] // Could still be null, if the input is a constant
 
                 // Analyze variable name
                 val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull()
@@ -485,12 +515,15 @@ object TermNumberProvider {
                             })
                         }
                     }
-                } else if(variable == null) {
+                } else if(!inputExists) {
                     // Return error due to unknown variable, but not during analyzing (so the rest of the expression is still analyzed)
-                    state.errorCollector().store(input.cursor, this, DelayedException.create(UNKNOWN_INPUT_ERROR, varName))
+                    state.errorCollector().store(start, this, DelayedException.create(UNKNOWN_INPUT_ERROR, varName))
                     return null
                 }
             }
+
+            if(pos == start) // Only check this now, so the error (with suggestions) can be added at the start of an expression
+                return null
 
             return varName
         }
@@ -522,7 +555,7 @@ object TermNumberProvider {
 
                 if(result == null) {
                     // Error at the end of the id, so it's prioritized
-                    state.errorCollector().store(state.mark(), this, DelayedException.create(notFoundException, id.toString()))
+                    state.errorCollector().store(start, this, DelayedException.create(notFoundException, id.toString()))
                     state.restore(start) // This also stores the furthest analyzing result
                 }
                 return result
@@ -540,9 +573,9 @@ object TermNumberProvider {
     }
 
     /**
-     * Contains all variables available to an expression, which the analyzer needs to know.
+     * Contains all variables available to an expression, which the analyzer needs to know. Each variable name is mapped to the JSON/NBT object that it resolves to. Constants map to null.
      * If this is present, an error is returned if a variable is reference that doesn't exist. If analyzingBehavior is also present,
      * the variable names added to the analyzing result from [PackratParserAdditionalArgs]
      */
-    data class AnalyzingVariableData<T: Any>(val availableVariables: Map<String, Any>, val analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<T>?)
+    data class AnalyzingVariableData<T: Any>(val availableVariables: Map<String, Any?>, val analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<T>?)
 }
