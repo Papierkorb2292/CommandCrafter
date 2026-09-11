@@ -112,10 +112,12 @@ object TermNumberProvider {
             }
         })
         val analyzingDecoder = stringAnalyzing.wrapDecoder(Codec.PASSTHROUGH.flatMap { dynamic ->
+            val vars = varsDecoder.parse(dynamic).result().getOrNull()
+            val grammar = buildExpressionGrammar(type, dynamic.ops, if(vars != null) AnalyzingVariableData<Nothing>(vars, null) else null)
             Codec.STRING.parse(dynamic).flatMap { string ->
                 try {
                     val reader = StringReader(string)
-                    val expression = grammarFactory(dynamic.ops).parseForCommands(reader)
+                    val expression = grammar.parseForCommands(reader)
                     stringAnalyzing.onParsed()
                     DataResult.success(expression)
                 } catch(e: CommandSyntaxException) {
@@ -341,6 +343,8 @@ object TermNumberProvider {
 
     private fun isAllowedInVarName(c: Char, isFirst: Boolean): Boolean = (c in 'a'..'z') || (c in 'A'..'Z') || (!isFirst && c in '0'..'9') || c == '_'
 
+    private val UNKNOWN_INPUT_ERROR = DynamicCommandExceptionType { Component.literal("Unknown input '$it'") }
+
     /**
      * Helper class to recursively substitute variables in an expression and detect cycles
      */
@@ -365,7 +369,7 @@ object TermNumberProvider {
                 val error = "Cyclic dependency: ${startedVariables.joinToString(" -> ") { "'$it'" }} -> '$name'" // Build error now, because startedVariables will change
                 return DataResult.error { error }
             }
-            val term = inputs[name] ?: return DataResult.error { "Unknown input '$name'" }
+            val term = inputs[name] ?: return DataResult.error { UNKNOWN_INPUT_ERROR.create(name).message }
             startedVariables.addLast(name)
             val newInstance = instantiateTerm(term)
             assert(startedVariables.removeLast() == name)
@@ -429,7 +433,7 @@ object TermNumberProvider {
 
     class VariableNameParseRule<T: Any>(
         private val analyzingVariables: AnalyzingVariableData<T>? = null
-    ) : Rule<StringReader, String> {
+    ) : Rule<StringReader, String>, SuggestionSupplier<StringReader> {
         override fun parse(state: ParseState<StringReader>): String? {
             val input = state.input()
             input.skipWhitespace()
@@ -448,39 +452,50 @@ object TermNumberProvider {
             input.cursor = pos
             val varName = fullString.substring(start, pos)
 
-            // Analyze variable name
-            val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull()
-            if(analyzingVariables != null && analyzingResultArg != null && input is DirectiveStringReader<*> && input.resourceCreator is AnalyzingResourceCreator) {
-                val analyzingResult = analyzingResultArg.analyzingResult
-                val range = StringRange(start, input.cursor)
-                analyzingResult.semanticTokens.addMultiline(range, PARAMETER, 0)
-
+            if(analyzingVariables != null) {
                 val variable = analyzingVariables.availableVariables[varName]
-                if(variable != null) {
-                    val baseMappingInfo = analyzingVariables.analyzingBehavior.baseMappingInfo
-                    analyzingResult.addMappedActualSyntaxNode(range, object : ActualSyntaxNode {
-                        override fun getHover(cursor: Int) = CompletableFuture.completedFuture(Hover(
-                            listOf(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(variable.toString())),
-                                analyzingResult.toFileRange(range)
-                        ))
 
-                        override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? {
-                            @Suppress("UNCHECKED_CAST")
-                            val targetRange = analyzingVariables.analyzingBehavior.tryGetNodeRange(variable as T) ?: return null
-                            val absoluteRange = baseMappingInfo.cursorMapper.mapToSource(targetRange + baseMappingInfo.readSkippingChars)
-                            return CompletableFuture.completedFuture(ActualSyntaxNode.Definition(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(
-                                listOf(Location(
-                                    input.resourceCreator.sourceFunctionUri,
-                                    Range(AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo), AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo))
-                                ))), false)
-                            )
+                // Analyze variable name
+                val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull()
+                if(analyzingResultArg != null && input is DirectiveStringReader<*> && input.resourceCreator is AnalyzingResourceCreator) {
+                    val analyzingResult = analyzingResultArg.analyzingResult
+                    val range = StringRange(start, input.cursor)
+                    analyzingResult.semanticTokens.addMultiline(range, PARAMETER, 0)
+
+                    if(variable != null) {
+                        if(analyzingVariables.analyzingBehavior != null) {
+                            val baseMappingInfo = analyzingVariables.analyzingBehavior.baseMappingInfo
+                            analyzingResult.addMappedActualSyntaxNode(range, object : ActualSyntaxNode {
+                                override fun getHover(cursor: Int) = CompletableFuture.completedFuture(Hover(
+                                    listOf(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(variable.toString())),
+                                        analyzingResult.toFileRange(range)
+                                ))
+
+                                override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? {
+                                    @Suppress("UNCHECKED_CAST")
+                                    val targetRange = analyzingVariables.analyzingBehavior.tryGetNodeRange(variable as T) ?: return null
+                                    val absoluteRange = baseMappingInfo.cursorMapper.mapToSource(targetRange + baseMappingInfo.readSkippingChars)
+                                    return CompletableFuture.completedFuture(ActualSyntaxNode.Definition(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(
+                                        listOf(Location(
+                                            input.resourceCreator.sourceFunctionUri,
+                                            Range(AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo), AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo))
+                                        ))), false)
+                                    )
+                                }
+                            })
                         }
-                    })
+                    }
+                } else if(variable == null) {
+                    // Return error due to unknown variable, but not during analyzing (so the rest of the expression is still analyzed)
+                    state.errorCollector().store(input.cursor, this, DelayedException.create(UNKNOWN_INPUT_ERROR, varName))
+                    return null
                 }
             }
 
             return varName
         }
+
+        override fun possibleValues(state: ParseState<StringReader>): Stream<String> = analyzingVariables?.availableVariables?.keys?.stream() ?: Stream.empty()
     }
 
     class NumberProviderReferenceRule<TNumberProvider : Any>(
@@ -492,7 +507,7 @@ object TermNumberProvider {
         private val notFoundException = DynamicCommandExceptionType { Component.literal("Failed to get element $it from registry ${registryId.identifier()}") }
         private val invalidIdError = DelayedException.create(Identifier.ERROR_INVALID)
 
-        private val packContentFileType = PackContentFileType.getOrCreateTypeForDynamicRegistry(registryId) //TODO: Analyze id
+        private val packContentFileType = PackContentFileType.getOrCreateTypeForDynamicRegistry(registryId)
 
         override fun parse(state: ParseState<StringReader>): Holder<TNumberProvider>? {
             state.input().skipWhitespace()
@@ -524,5 +539,10 @@ object TermNumberProvider {
         }
     }
 
-    data class AnalyzingVariableData<T: Any>(val availableVariables: Map<String, Any>, val analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<T>)
+    /**
+     * Contains all variables available to an expression, which the analyzer needs to know.
+     * If this is present, an error is returned if a variable is reference that doesn't exist. If analyzingBehavior is also present,
+     * the variable names added to the analyzing result from [PackratParserAdditionalArgs]
+     */
+    data class AnalyzingVariableData<T: Any>(val availableVariables: Map<String, Any>, val analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<T>?)
 }
