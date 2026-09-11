@@ -9,6 +9,7 @@ import com.mojang.datafixers.util.Either
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import it.unimi.dsi.fastutil.chars.CharList
+import it.unimi.dsi.fastutil.chars.CharSet
 import net.minecraft.core.Holder
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
@@ -41,6 +42,7 @@ import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.NamespacedIdRule
 import net.papierkorb2292.command_crafter.parser.helper.repeatUntilInputEnd
+import net.papierkorb2292.command_crafter.parser.helper.wrapTermSkipToNextEntryIfMalformed
 import net.papierkorb2292.command_crafter.parser.helper.wrapTermWithSemanticToken
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.*
@@ -323,14 +325,17 @@ object TermNumberProvider {
             VariableExpression(scope.getOrThrow(variableNameAtom))
         }
 
-        dict.put(standaloneTermAtom, Term.alternative(
+        dict.put(standaloneTermAtom, wrapTermSkipToNextEntryIfMalformed(Term.alternative(
             Term.sequence(NUMBER_LOOKAHEAD, dict.named(numberAtom)), // Don't cut here, because '-' still has one other case
             Term.sequence(Term.positiveLookahead(StringReaderTerms.character('-')), StringReaderTerms.character('-'), Term.cut(), dict.named(negatedTerm)), // With lookahead to not show an error about '-', the other errors are better
             dict.named(variableAtom),
             dict.named(referenceAtom),
             dict.named(functionCallAtom),
             dict.named(parenthesesAtom)
-        )) { scope ->
+        ), CharSet.of(*(type.infixOperations.map { it.name } + ')' + ',').toCharArray()), numberAtom) {
+            // Arbitrary default value for malformed expressions
+            DirectExpression(Holder.direct(type.numberDecoder.decode(JavaOps.INSTANCE, 0).orThrow.first))
+        }) { scope ->
             scope.getAnyOrThrow(numberAtom, negatedTerm, referenceAtom, functionCallAtom, variableAtom, parenthesesAtom)
         }
 
