@@ -14,6 +14,7 @@ import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.util.parsing.packrat.*
 import net.papierkorb2292.command_crafter.editor.processing.MalformedParseErrorList
 import net.papierkorb2292.command_crafter.editor.processing.TokenInfo
+import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -131,6 +132,8 @@ fun wrapTermWithSemanticToken(term: Term<StringReader>, tokenProvider: (ParseSta
     }
     matches
 }
+
+fun wrapTermWithSemanticToken(term: Term<StringReader>, tokenType: TokenType) = wrapTermWithSemanticToken(term) { _, _, _ -> TokenInfo(tokenType, 0) }
 
 fun <T: Any> repeatUntilInputEnd(term: NamedRule<StringReader, T>, listAtom: Atom<List<T>>) = object : Term<StringReader> {
     override fun parse(

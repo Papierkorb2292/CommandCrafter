@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
+import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Codec
 import net.minecraft.resources.Identifier
@@ -9,6 +10,8 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.
 import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
+import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import org.eclipse.lsp4j.Location
 import org.eclipse.lsp4j.Position
@@ -38,6 +41,25 @@ object IdArgumentTypeAnalyzer {
                     }
             }
         })
+    }
+
+    fun analyzePackrat(id: Identifier, start: Int, reader: StringReader, fileType: PackContentFileType?) {
+        val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull()
+        if(analyzingResultArg != null && reader is DirectiveStringReader<*> && reader.resourceCreator is AnalyzingResourceCreator) {
+            val range = StringRange(start, reader.cursor)
+            if(fileType != null) {
+                @Suppress("UNCHECKED_CAST")
+                analyzeForId(
+                    id,
+                    fileType,
+                    range,
+                    analyzingResultArg.analyzingResult,
+                    reader as DirectiveStringReader<AnalyzingResourceCreator>
+                )
+            } else {
+                analyzingResultArg.analyzingResult.semanticTokens.addMultiline(range, PARAMETER, 0)
+            }
+        }
     }
 
     fun registerFileTypeAdditionalDataType() {

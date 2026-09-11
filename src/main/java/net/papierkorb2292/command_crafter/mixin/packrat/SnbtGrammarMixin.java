@@ -559,7 +559,7 @@ public class SnbtGrammarMixin {
             )
     )
     private static Term<StringReader> command_crafter$highlightQuotedString(Term<StringReader> original) {
-        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getSTRING(), 0));
+        return wrapTermWithSemanticToken(original, TokenType.Companion.getSTRING());
     }
 
     @ModifyExpressionValue(
@@ -577,7 +577,7 @@ public class SnbtGrammarMixin {
             )
     )
     private static Term<StringReader> command_crafter$highlightNumber(Term<StringReader> original) {
-        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getNUMBER(), 0));
+        return wrapTermWithSemanticToken(original, TokenType.Companion.getNUMBER());
     }
 
     @ModifyExpressionValue(
@@ -594,7 +594,7 @@ public class SnbtGrammarMixin {
             )
     )
     private static Term<StringReader> command_crafter$highlightMapKey(Term<StringReader> original) {
-        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getPROPERTY(), 0));
+        return wrapTermWithSemanticToken(original, TokenType.Companion.getPROPERTY());
     }
 
     @ModifyExpressionValue(
@@ -611,6 +611,6 @@ public class SnbtGrammarMixin {
             )
     )
     private static Term<StringReader> command_crafter$highlightArrayPrefix(Term<StringReader> original) {
-        return wrapTermWithSemanticToken(original, (_, _, _) -> new TokenInfo(TokenType.Companion.getTYPE(), 0));
+        return wrapTermWithSemanticToken(original, TokenType.Companion.getTYPE());
     }
 }

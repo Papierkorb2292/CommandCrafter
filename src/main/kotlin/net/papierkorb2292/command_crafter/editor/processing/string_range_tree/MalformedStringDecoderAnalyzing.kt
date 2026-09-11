@@ -32,6 +32,13 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             }
     }
 
+    fun <A> wrapDecoder(delegate: Decoder<A>): Decoder<A> = object : Decoder<A> {
+        override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> =
+            codecInput.runWithValueSwap(Dynamic(ops, input)) {
+                delegate.decode(ops, input)
+            }
+    }
+
     fun <A> wrapCodecWithError(delegate: Codec<A>, errorProvider: Decoder<Optional<kotlin.Pair<Int, String>>>, errorIsWarning: Boolean = false): Codec<A> = object : Codec<A> {
         override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> =
             delegate.encode(input, ops, prefix)

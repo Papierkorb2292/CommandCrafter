@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.parser.number_provider
 
 import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.datafixers.util.Either
@@ -20,13 +21,32 @@ import net.minecraft.util.parsing.packrat.commands.Grammar
 import net.minecraft.util.parsing.packrat.commands.ResourceSuggestion
 import net.minecraft.util.parsing.packrat.commands.StringReaderTerms
 import net.minecraft.util.parsing.packrat.commands.TagParseRule
+import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.conditionalDecode
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.decodeParent
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyContextBehavior
+import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.NamespacedIdRule
 import net.papierkorb2292.command_crafter.parser.helper.repeatUntilInputEnd
+import net.papierkorb2292.command_crafter.parser.helper.wrapTermWithSemanticToken
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import org.eclipse.lsp4j.Hover
+import org.eclipse.lsp4j.Location
+import org.eclipse.lsp4j.Range
+import java.util.concurrent.CompletableFuture
+import java.util.stream.Collectors
 import java.util.stream.Stream
 import kotlin.jvm.optionals.getOrNull
 
@@ -59,43 +79,78 @@ object TermNumberProvider {
         DataResult.success(name)
     }
 
-    private fun <TNumberProvider: Any> getExpressionCodec(type: NumberProviderType<TNumberProvider>): Codec<Expression<TNumberProvider>> {
+    private val AVAILABLE_VARS_DECODER = object : Decoder<Map<String, Any>> {
+        override fun <T> decode(ops: DynamicOps<T>, input: T): DataResult<com.mojang.datafixers.util.Pair<Map<String, Any>, T>> =
+            ops.getMapValues(input).map { entries ->
+                com.mojang.datafixers.util.Pair.of(entries.collect(Collectors.toMap({ ops.getStringValue(it.first).orThrow }, { it.second })), ops.empty())
+            }
+    }
+
+    private fun <TNumberProvider: Any> getExpressionCodec(type: NumberProviderType<TNumberProvider>, isRoot: Boolean): Codec<Expression<TNumberProvider>> {
         // The grammar needs dynamic ops to resolve number provider references, but the grammar can be cached if the same number provider contains multiple terms
         val grammarFactory = { ops: DynamicOps<*> -> buildExpressionGrammar(type, ops) }.memoizeLast()
+
+        // Use a special decoder for the language server, which puts errors at the correct location in the string
+        // and offers analyzing (semantic tokens, completions, etc.)
+        val varsDecoder = (if(isRoot) AVAILABLE_VARS_DECODER.fieldOf("inputs").decoder() else AVAILABLE_VARS_DECODER).decodeParent().onlyContextBehavior()
+        val stringAnalyzing = MalformedStringDecoderAnalyzing({ it.ops to varsDecoder.parse(it).result().getOrNull() }, { (ops, vars), result, behavior, reader, string, analyzingBehavior ->
+            val grammar = buildExpressionGrammar(type, ops, if(vars != null) AnalyzingVariableData(vars, analyzingBehavior) else null)
+
+            PackratParserAdditionalArgs.analyzingResult.set(PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()))
+            PackratParserAdditionalArgs.setupFurthestAnalyzingResultStart()
+            PackratParserAdditionalArgs.allowMalformed.set(true)
+
+            try {
+                try {
+                    grammar.parseForCommands(reader)
+                } catch(_: CommandSyntaxException) {}
+                PackratParserAdditionalArgs.popAnalyzingResult(result, StringRange(0, string.content.length))
+            } finally {
+                PackratParserAdditionalArgs.allowMalformed.remove()
+                PackratParserAdditionalArgs.analyzingResult.remove()
+                PackratParserAdditionalArgs.furthestAnalyzingResult.remove()
+            }
+        })
+        val analyzingDecoder = stringAnalyzing.wrapDecoder(Codec.PASSTHROUGH.flatMap { dynamic ->
+            Codec.STRING.parse(dynamic).flatMap { string ->
+                try {
+                    val reader = StringReader(string)
+                    val expression = grammarFactory(dynamic.ops).parseForCommands(reader)
+                    stringAnalyzing.onParsed()
+                    DataResult.success(expression)
+                } catch(e: CommandSyntaxException) {
+                    stringAnalyzing.onParsed(e.cursor, e.message)
+                    DataResult.error { e.message }
+                }
+            }
+        })
+
         return Codec.PASSTHROUGH.flatXmap(
             { dynamic ->
                 Codec.STRING.parse(dynamic).flatMap { string ->
                     try {
                         val reader = StringReader(string)
-
-                        val parsed = grammarFactory(dynamic.ops).parseForCommands(reader)
-                        if(reader.canRead()) {
-                            // There is trailing data
-                            DataResult.error { "Unexpected trailing data" }
-                        } else {
-                            DataResult.success(parsed)
-                        }
+                        DataResult.success(grammarFactory(dynamic.ops).parseForCommands(reader)) // The grammar always reads until the end of the string
                     } catch(e: CommandSyntaxException) {
                         DataResult.error { e.message }
                     }
                 }
             },
             { throw NotImplementedError("Terms can't be encoded") }
-        )
+        ).conditionalDecode({ VanillaLanguage.IS_ANALYZING_COMMANDS.getOrNull() != true }, analyzingDecoder)
     }
 
     /**
      * Gets the map codec that can decode a term into normal number providers. This codec can't be used for encoding.
      */
     private fun <TNumberProvider: Any> getProviderCodec(type: NumberProviderType<TNumberProvider>): MapCodec<TNumberProvider> {
-        val expressionCodec = getExpressionCodec(type)
-        val inputCodec = Codec.either(expressionCodec, type.inlineCodec).xmap(
+        val inputCodec = Codec.either(getExpressionCodec(type, false), type.inlineCodec).xmap(
             { either -> either.map({ it }, { DirectExpression(Holder.direct(it)) }) },
             Either<Expression<TNumberProvider>, TNumberProvider>::left
         )
         return RecordCodecBuilder.mapCodec {
             it.group(
-                expressionCodec.fieldOf("term").forGetter { throw NotImplementedError("Terms can't be encoded") },
+                getExpressionCodec(type, true).fieldOf("term").forGetter { throw NotImplementedError("Terms can't be encoded") },
                 Codec.unboundedMap(VAR_NAME_CODEC, inputCodec).optionalFieldOf("inputs", mapOf()).forGetter { throw NotImplementedError("Terms can't be encoded") },
             ).apply(it, ::ParsedProvider)
         }.flatXmap(
@@ -119,7 +174,7 @@ object TermNumberProvider {
 
     private val INCORRECT_ARG_COUNT_EXCEPTION = DynamicCommandExceptionType { Component.literal("Incorrect number of arguments for function '$it'") }
 
-    private fun <TNumberProvider: Any> buildExpressionGrammar(type: NumberProviderType<TNumberProvider>, ops: DynamicOps<*>): Grammar<Expression<TNumberProvider>> {
+    private fun <TNumberProvider: Any> buildExpressionGrammar(type: NumberProviderType<TNumberProvider>, ops: DynamicOps<*>, analyzingVariables: AnalyzingVariableData<*>? = null): Grammar<Expression<TNumberProvider>> {
         val dict = Dictionary<StringReader>()
 
         // This term allows any amount of standalone terms with infix operators between them
@@ -198,10 +253,10 @@ object TermNumberProvider {
         }
 
         val functionNameAtom = Atom<NumberProviderFunction<TNumberProvider>>("function_name")
-        dict.put(functionNameAtom, Term.alternative(
+        dict.put(functionNameAtom, wrapTermWithSemanticToken(Term.alternative(
             *type.functions.map { function ->
                 Term.sequence(StringReaderTerms.word(function.name), Term.cut(), Term.marker(functionNameAtom, function))
-            }.toTypedArray())
+            }.toTypedArray()), TokenType.MACRO)
         ) { scope ->
             scope.getOrThrow(functionNameAtom)
         }
@@ -218,13 +273,13 @@ object TermNumberProvider {
             if(function.argumentCountMatcher(args.size))
                 CompoundExpression(args, function.factory)
             else {
-                state.errorCollector().store(state.mark(), INCORRECT_ARG_COUNT_EXCEPTION.create(function.name))
+                state.errorCollector().store(state.mark(), DelayedException.create(INCORRECT_ARG_COUNT_EXCEPTION, function.name))
                 null
             }
         }
 
         val variableNameAtom = Atom<String>("variable_name")
-        dict.put(variableNameAtom, VariableNameParseRule)
+        dict.put(variableNameAtom, VariableNameParseRule(analyzingVariables))
         val variableAtom = Atom<Expression<TNumberProvider>>("variable")
         dict.put(variableAtom, dict.named(variableNameAtom)) { scope ->
             VariableExpression(scope.getOrThrow(variableNameAtom))
@@ -372,7 +427,9 @@ object TermNumberProvider {
             substitutions.resolveVariable(variableName)
     }
 
-    object VariableNameParseRule : Rule<StringReader, String> {
+    class VariableNameParseRule<T: Any>(
+        private val analyzingVariables: AnalyzingVariableData<T>? = null
+    ) : Rule<StringReader, String> {
         override fun parse(state: ParseState<StringReader>): String? {
             val input = state.input()
             input.skipWhitespace()
@@ -387,8 +444,42 @@ object TermNumberProvider {
                 return null
             if(pos < fullString.length && fullString[pos] == ':')
                 return null // Should be interpreted as an id instead
+
             input.cursor = pos
-            return fullString.substring(start, pos)
+            val varName = fullString.substring(start, pos)
+
+            // Analyze variable name
+            val analyzingResultArg = PackratParserAdditionalArgs.analyzingResult.getOrNull()
+            if(analyzingVariables != null && analyzingResultArg != null && input is DirectiveStringReader<*> && input.resourceCreator is AnalyzingResourceCreator) {
+                val analyzingResult = analyzingResultArg.analyzingResult
+                val range = StringRange(start, input.cursor)
+                analyzingResult.semanticTokens.addMultiline(range, PARAMETER, 0)
+
+                val variable = analyzingVariables.availableVariables[varName]
+                if(variable != null) {
+                    val baseMappingInfo = analyzingVariables.analyzingBehavior.baseMappingInfo
+                    analyzingResult.addMappedActualSyntaxNode(range, object : ActualSyntaxNode {
+                        override fun getHover(cursor: Int) = CompletableFuture.completedFuture(Hover(
+                            listOf(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(variable.toString())),
+                                analyzingResult.toFileRange(range)
+                        ))
+
+                        override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? {
+                            @Suppress("UNCHECKED_CAST")
+                            val targetRange = analyzingVariables.analyzingBehavior.tryGetNodeRange(variable as T) ?: return null
+                            val absoluteRange = baseMappingInfo.cursorMapper.mapToSource(targetRange + baseMappingInfo.readSkippingChars)
+                            return CompletableFuture.completedFuture(ActualSyntaxNode.Definition(org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(
+                                listOf(Location(
+                                    input.resourceCreator.sourceFunctionUri,
+                                    Range(AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo), AnalyzingResult.getPositionFromCursor(absoluteRange.start, baseMappingInfo))
+                                ))), false)
+                            )
+                        }
+                    })
+                }
+            }
+
+            return varName
         }
     }
 
@@ -405,19 +496,23 @@ object TermNumberProvider {
 
         override fun parse(state: ParseState<StringReader>): Holder<TNumberProvider>? {
             state.input().skipWhitespace()
-            val mark = state.mark()
+            val start = state.mark()
             val id = state.parse(idParser)
             if(id != null) {
                 val result = context.getter(registryId).flatMap {
                     it.get(ResourceKey.create(registryId, id))
                 }.getOrNull()
+
+                IdArgumentTypeAnalyzer.analyzePackrat(id, start, state.input(), packContentFileType)
+
                 if(result == null) {
                     // Error at the end of the id, so it's prioritized
-                    state.errorCollector().store(state.mark(), this, notFoundException.create(id))
+                    state.errorCollector().store(state.mark(), this, DelayedException.create(notFoundException, id.toString()))
+                    state.restore(start) // This also stores the furthest analyzing result
                 }
                 return result
             } else {
-                state.errorCollector().store(mark, this, invalidIdError)
+                state.errorCollector().store(start, this, invalidIdError)
                 return null
             }
         }
@@ -428,4 +523,6 @@ object TermNumberProvider {
             return lookup.listElementIds().map { it.identifier() }
         }
     }
+
+    data class AnalyzingVariableData<T: Any>(val availableVariables: Map<String, Any>, val analyzingBehavior: ExtraDecoderBehavior.NodeAnalyzingBehavior<T>)
 }
