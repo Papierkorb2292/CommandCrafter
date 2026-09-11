@@ -159,6 +159,6 @@ fun <T: Any> repeatUntilInputEnd(term: NamedRule<StringReader, T>, listAtom: Ato
 
     private fun canContinue(input: StringReader): Boolean {
         input.skipWhitespace()
-        return input.canRead()
+        return input.canRead() || PackratParserAdditionalArgs.shouldAllowMalformed() // Allow malformed to also add suggestions at the end of the string
     }
 }

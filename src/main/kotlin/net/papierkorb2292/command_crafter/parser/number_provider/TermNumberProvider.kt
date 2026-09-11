@@ -37,6 +37,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.memoizeLast
+import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.NamespacedIdRule
 import net.papierkorb2292.command_crafter.parser.helper.repeatUntilInputEnd
@@ -121,8 +122,16 @@ object TermNumberProvider {
                     override fun getCompletions(cursor: Int, context: CompletionContext?): CompletableFuture<List<CompletionItem>> {
                         val line = AnalyzingResult.getPositionFromCursor(cursor, result.mappingInfo).line
                         val input = reader.string.substring(0, result.mappingInfo.cursorMapper.mapToTarget(cursor))
-                        return grammar.parseForSuggestions(SuggestionsBuilder(input, input.lowercase(Locale.ROOT), 0)).thenApply { suggestions ->
-                            suggestions.list.map { it.toCompletionItem(reader, line, cursor) }
+                        PackratParserAdditionalArgs.allowMalformed.runWithValue(true) {
+                            return grammar.parseForSuggestions(
+                                SuggestionsBuilder(
+                                    input,
+                                    input.lowercase(Locale.ROOT),
+                                    0
+                                )
+                            ).thenApply { suggestions ->
+                                suggestions.list.map { it.toCompletionItem(reader, line, cursor) }
+                            }
                         }
                     }
                 })
