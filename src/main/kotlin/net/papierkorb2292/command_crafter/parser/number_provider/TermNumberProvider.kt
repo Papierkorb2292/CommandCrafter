@@ -206,7 +206,7 @@ object TermNumberProvider {
             scope.getOrThrow(functionNameAtom)
         }
         val functionArgs = Atom<List<Expression<TNumberProvider>>>("function_args")
-        val functionCallAtom = Atom<Expression<TNumberProvider>>("variable")
+        val functionCallAtom = Atom<Expression<TNumberProvider>>("function_call")
         dict.putComplex(functionCallAtom, Term.sequence(
             dict.named(functionNameAtom),
             StringReaderTerms.character('('),
