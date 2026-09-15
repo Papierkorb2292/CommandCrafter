@@ -151,6 +151,13 @@ fun <T, V> Decoder<T>.withThreadLocal(threadLocal: ThreadLocal<V>, value: V): De
         }
 }
 
+fun <T, V> Decoder<T>.withConditionalThreadLocal(threadLocal: ThreadLocal<V>, value: V, condition: () -> Boolean): Decoder<T> = object : Decoder<T> {
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> =
+        if(condition()) threadLocal.runWithValueSwap(value) {
+            this@withConditionalThreadLocal.decode(ops, input)
+        } else this@withConditionalThreadLocal.decode(ops, input)
+}
+
 fun <T> unitDecoder(unit: T) = object : Decoder<T> {
     override fun <A : Any> decode(ops: DynamicOps<A>, input: A) =
         DataResult.success(Pair(unit, ops.empty()))

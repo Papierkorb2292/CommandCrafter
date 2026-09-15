@@ -57,6 +57,10 @@ import net.minecraft.world.level.SpawnData
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraft.world.level.levelgen.structure.templatesystem.rule.blockentity.AppendStatic
+import net.minecraft.world.level.storage.loot.providers.number.floats.ContextFloatProvider
+import net.minecraft.world.level.storage.loot.providers.number.floats.ContextFloatProviders
+import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider
+import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProviders
 import net.papierkorb2292.command_crafter.codecmod.CodecMod
 import net.papierkorb2292.command_crafter.codecmod.NoDecoderCallbacks
 import net.papierkorb2292.command_crafter.editor.debugger.helper.StringRangeContainer
@@ -79,6 +83,7 @@ import net.papierkorb2292.command_crafter.parser.Language.TopLevelClosure
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.helper.OffsetProcessedInputCursorMapper
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
+import net.papierkorb2292.command_crafter.parser.number_provider.TermNumberProvider
 import org.eclipse.lsp4j.*
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.joml.Vector3f
@@ -266,6 +271,16 @@ object CodecTransformers {
                 Arrays.stream(values).map { ops.createString(it.serializedName) }
         })
     }
+
+    @JvmStatic
+    @CodecMod(target = ContextIntProviders::class, javaFieldWrite = "DIRECT_CODEC")
+    fun disallowIntProviderTermSuggestions(codec: Codec<ContextIntProvider>): Codec<ContextIntProvider> =
+        TermNumberProvider.disallowCodecTermSuggestions(codec)
+
+    @JvmStatic
+    @CodecMod(target = ContextFloatProviders::class, javaFieldWrite = "DIRECT_CODEC")
+    fun disallowFloatProviderTermSuggestions(codec: Codec<ContextFloatProvider>): Codec<ContextFloatProvider> =
+        TermNumberProvider.disallowCodecTermSuggestions(codec)
 
     @JvmStatic
     @CodecMod(target = CompoundTag::class, javaFieldWrite = "CODEC")

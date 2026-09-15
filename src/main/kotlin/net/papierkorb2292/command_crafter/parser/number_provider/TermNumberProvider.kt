@@ -30,10 +30,7 @@ import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyz
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.conditionalDecode
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.decodeParent
-import net.papierkorb2292.command_crafter.editor.processing.codecmod.onlyContextBehavior
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -57,19 +54,29 @@ import kotlin.jvm.optionals.getOrNull
  */
 object TermNumberProvider {
     val DISALLOW_EXPRESSIONS = ThreadLocal<Boolean>()
+    private val mapCodecs = mutableSetOf<MapCodec<*>>()
 
     fun register() {
+        val intCodec = getProviderCodec(INT_NUMBER_PROVIDER_TYPE)
         Registry.register(
             BuiltInRegistries.CONTEXT_INT_PROVIDER_TYPE,
             Identifier.fromNamespaceAndPath("command_crafter", "term"),
-            getProviderCodec(INT_NUMBER_PROVIDER_TYPE)
+            intCodec
         )
+        val floatCodec = getProviderCodec(FLOAT_NUMBER_PROVIDER_TYPE)
         Registry.register(
             BuiltInRegistries.CONTEXT_FLOAT_PROVIDER_TYPE,
             Identifier.fromNamespaceAndPath("command_crafter", "term"),
-            getProviderCodec(FLOAT_NUMBER_PROVIDER_TYPE)
+            floatCodec
         )
+        mapCodecs += intCodec
+        mapCodecs += floatCodec
     }
+
+    fun <T> disallowCodecTermSuggestions(codec: Codec<T>): Codec<T> = Codec.of(
+        codec,
+        codec.withConditionalThreadLocal(CodecTransformers.REGISTRY_SUGGESTIONS_BLACKLIST, mapCodecs) { DISALLOW_EXPRESSIONS.getOrNull() == true }
+    )
 
     private val VAR_NAME_CODEC = Codec.STRING.validate { name ->
         if(name.isEmpty()) return@validate DataResult.error { "Variable name must not be empty" }
