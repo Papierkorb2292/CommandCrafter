@@ -284,7 +284,7 @@ object TermNumberProvider {
 
         val negatedTerm = Atom<Expression<TNumberProvider>>("negated")
         dict.put(negatedTerm, dict.named(standaloneTermAtom)) { scope ->
-            UnaryExpression(scope.getOrThrow(standaloneTermAtom), type.negateFactory)
+            UnaryExpression(scope.getOrThrow(standaloneTermAtom), true, type.negateFactory)
         }
 
         val referenceIdAtom = Atom<Identifier>("reference_id")
@@ -318,7 +318,7 @@ object TermNumberProvider {
             val function = state.scope().getOrThrow(functionNameAtom)
             val args = state.scope().getOrThrow(functionArgs)
             if(function.argumentCountMatcher(args.size))
-                CompoundExpression(args, function.factory)
+                CompoundExpression(args, function.determined, function.factory)
             else {
                 state.errorCollector().store(state.mark(), DelayedException.create(INCORRECT_ARG_COUNT_EXCEPTION, function.name))
                 null
@@ -363,7 +363,7 @@ object TermNumberProvider {
         if(infixTerms.isEmpty())
             return start
         if(infixTerms.size == 1)
-            return BinaryExpression(start, infixTerms[0].second, infixTerms[0].first.factory)
+            return BinaryExpression(start, infixTerms[0].second, true, infixTerms[0].first.factory)
         var nextInfixIndex = -1
         var currentPrecedenceLevel = 0
         for((index, infix) in infixTerms.withIndex()) {
@@ -378,6 +378,7 @@ object TermNumberProvider {
         return BinaryExpression(
             buildInfixExpression(start, infixTerms.subList(0, nextInfixIndex)),
             buildInfixExpression(rightStart, infixTerms.subList(nextInfixIndex + 1, infixTerms.size)),
+            true,
             infix.factory
         )
     }
@@ -398,7 +399,7 @@ object TermNumberProvider {
      */
     private class SubstitutionResolver<TNumberProvider: Any>(
         private val inputs: Map<String, Expression<TNumberProvider>>,
-        type: NumberProviderType<TNumberProvider>,
+        private val type: NumberProviderType<TNumberProvider>,
     ) {
         private val instantiatedVariables = mutableMapOf<String, DataResult<Holder<TNumberProvider>>>()
         private val startedVariables = LinkedHashSet<String>()
@@ -428,6 +429,9 @@ object TermNumberProvider {
         fun instantiateTerm(expression: Expression<TNumberProvider>): DataResult<Holder<TNumberProvider>> {
             return expression.instantiate(this)
         }
+
+        fun isConstant(provider: Holder<TNumberProvider>): Boolean = provider.kind() == Holder.Kind.DIRECT && type.isConstant(provider.value())
+        fun evaluateConstant(provider: TNumberProvider): TNumberProvider = type.constantEvaluator(provider)
     }
 
     private data class ParsedProvider<TNumberProvider: Any>(
@@ -447,31 +451,40 @@ object TermNumberProvider {
             DataResult.success(provider)
     }
 
-    private data class CompoundExpression<TNumberProvider: Any>(val children: List<Expression<TNumberProvider>>, val factory: (List<Holder<TNumberProvider>>) -> TNumberProvider) : Expression<TNumberProvider> {
+    private data class CompoundExpression<TNumberProvider: Any>(val children: List<Expression<TNumberProvider>>, val determined: Boolean, val factory: (List<Holder<TNumberProvider>>) -> TNumberProvider) : Expression<TNumberProvider> {
         override fun instantiate(substitutions: SubstitutionResolver<TNumberProvider>): DataResult<Holder<TNumberProvider>> {
             var instantiatedChildren = DataResult.success(listOf<Holder<TNumberProvider>>())
             for(child in children) {
                 val childInstance = child.instantiate(substitutions)
                 instantiatedChildren = instantiatedChildren.apply2({ prev, new  -> prev + new }, childInstance)
             }
-            return instantiatedChildren.mapOrElse(
-                { DataResult.success(Holder.direct(factory(it)))},
-                { DataResult.error(it::message)}
-            )
+            return instantiatedChildren.map { list ->
+                val provider = factory(list)
+                val optimized = if(determined && list.all { substitutions.isConstant(it) }) substitutions.evaluateConstant(provider) else provider
+                Holder.direct(optimized)
+            }
         }
     }
 
-    private data class BinaryExpression<TNumberProvider: Any>(val first: Expression<TNumberProvider>, val second: Expression<TNumberProvider>, val factory: (Holder<TNumberProvider>, Holder<TNumberProvider>) -> TNumberProvider) : Expression<TNumberProvider> {
-        override fun instantiate(substitutions: SubstitutionResolver<TNumberProvider>): DataResult<Holder<TNumberProvider>> =
-            first.instantiate(substitutions).apply2(factory, second.instantiate(substitutions)).mapOrElse(
-                { DataResult.success(Holder.direct(it))},
-                { DataResult.error(it::message)}
-            )
+    private data class BinaryExpression<TNumberProvider: Any>(val first: Expression<TNumberProvider>, val second: Expression<TNumberProvider>, val determined: Boolean, val factory: (Holder<TNumberProvider>, Holder<TNumberProvider>) -> TNumberProvider) : Expression<TNumberProvider> {
+        override fun instantiate(substitutions: SubstitutionResolver<TNumberProvider>): DataResult<Holder<TNumberProvider>> {
+            val left = first.instantiate(substitutions)
+            val right = second.instantiate(substitutions)
+            return left.apply2({ l, r ->
+                val provider = factory(l, r)
+                val optimized = if(determined && substitutions.isConstant(l) && substitutions.isConstant(r)) substitutions.evaluateConstant(provider) else provider
+                Holder.direct(optimized)
+            }, right)
+        }
     }
 
-    private data class UnaryExpression<TNumberProvider: Any>(val child: Expression<TNumberProvider>, val factory: (Holder<TNumberProvider>) -> TNumberProvider) : Expression<TNumberProvider> {
+    private data class UnaryExpression<TNumberProvider: Any>(val child: Expression<TNumberProvider>, val determined: Boolean, val factory: (Holder<TNumberProvider>) -> TNumberProvider) : Expression<TNumberProvider> {
         override fun instantiate(substitutions: SubstitutionResolver<TNumberProvider>): DataResult<Holder<TNumberProvider>> =
-            child.instantiate(substitutions).map { Holder.direct(factory(it)) }
+            child.instantiate(substitutions).map {
+                val provider = factory(it)
+                val optimized = if(determined && substitutions.isConstant(it)) substitutions.evaluateConstant(provider) else provider
+                Holder.direct(optimized)
+            }
     }
 
     private data class VariableExpression<TNumberProvider: Any>(val variableName: String) : Expression<TNumberProvider> {

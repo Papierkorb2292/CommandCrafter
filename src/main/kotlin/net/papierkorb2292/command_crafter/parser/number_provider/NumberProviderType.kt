@@ -17,6 +17,8 @@ class NumberProviderType<TNumberProvider: Any>(
     val referenceWrapper: (Holder<TNumberProvider>) -> TNumberProvider,
     val inlineCodec: Codec<out TNumberProvider>,
     val registryKey: ResourceKey<Registry<TNumberProvider>>,
+    val isConstant: (TNumberProvider) -> Boolean,
+    val constantEvaluator: (TNumberProvider) -> TNumberProvider,
 )
 
 // Repeated sums or products can be merged into one number provider. The operation is assumed to be commutative, but not associative.
