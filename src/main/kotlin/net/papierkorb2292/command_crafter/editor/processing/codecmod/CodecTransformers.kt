@@ -76,6 +76,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.helper.getOrNull
+import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -718,27 +719,29 @@ object CodecTransformers {
 
             if(!isMacro) {
                 reader.enterClosure(TopLevelClosure(VanillaLanguage.DEFAULT))
-                val parseResults = reader.dispatcher.parse(reader, reader.resourceCreator.source)
-                val commandException = Commands.getParseException(parseResults)
-                    ?: getContextChainError(parseResults, reader.string)
-                @Suppress("UNCHECKED_CAST")
-                val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
-                val commandAnalyzingResult = result.copyInput()
-                VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader, NodeAnalyzingExecutor.Immediate)
-                VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, commandAnalyzingResult.mappingInfo, commandAnalyzingResult.diagnostics, DiagnosticSeverity.Error)
-                // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
-                if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
-                    commandAnalyzingResult.diagnostics += Diagnostic(
-                        resultReader.fileMappingInfo.mapToDiagnosticFileRange(commandException.cursor, resultReader.string.length),
-                        commandException.message,
-                        DiagnosticSeverity.Warning,
-                        null
-                    )
-                }
-                result.combineWithActual(commandAnalyzingResult)
-                result.combineWithPotentialWrapped(commandAnalyzingResult) { potentialNode ->
-                    // Use the vanilla suggestions request
-                    potentialNode.withCompletionThreadLocal(VanillaLanguage.SERVERSIDE_SUGGESTION_GETTER) { cursor, context -> null }
+                TermNumberProvider.DISALLOW_EXPRESSIONS.runWithValueSwap(true) {
+                    val parseResults = reader.dispatcher.parse(reader, reader.resourceCreator.source)
+                    val commandException = Commands.getParseException(parseResults)
+                        ?: getContextChainError(parseResults, reader.string)
+                    @Suppress("UNCHECKED_CAST")
+                    val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
+                    val commandAnalyzingResult = result.copyInput()
+                    VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader, NodeAnalyzingExecutor.Immediate)
+                    VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, commandAnalyzingResult.mappingInfo, commandAnalyzingResult.diagnostics, DiagnosticSeverity.Error)
+                    // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
+                    if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
+                        commandAnalyzingResult.diagnostics += Diagnostic(
+                            resultReader.fileMappingInfo.mapToDiagnosticFileRange(commandException.cursor, resultReader.string.length),
+                            commandException.message,
+                            DiagnosticSeverity.Warning,
+                            null
+                        )
+                    }
+                    result.combineWithActual(commandAnalyzingResult)
+                    result.combineWithPotentialWrapped(commandAnalyzingResult) { potentialNode ->
+                        // Use the vanilla suggestions request
+                        potentialNode.withCompletionThreadLocal(VanillaLanguage.SERVERSIDE_SUGGESTION_GETTER) { cursor, context -> null }
+                    }
                 }
             } else {
                 val absoluteRange = analyzingBehavior.baseMappingInfo.cursorMapper.mapToSource(analyzingBehavior.range + analyzingBehavior.baseMappingInfo.readSkippingChars)
