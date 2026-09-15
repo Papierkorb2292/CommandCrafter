@@ -1212,7 +1212,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
             if(reader.peek() == '$')
                 reader.skip()
             val macroBuilder = StringBuilder(reader.readLine())
-            reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - 1 - lineStart)
+            val endedInNewline = reader.canRead(0) && reader.peek(-1) == '\n'
+            reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - lineStart - if(endedInNewline) 1 else 0)
             var indentStartCursor = reader.cursor
             while(reader.tryReadIndentation { it > reader.currentIndentation }) {
                 val skippedChars = reader.cursor - indentStartCursor // Note that skippedChars doesn't include newline characters. By not skipping this char, the mapping accounts for the additional ' ' characters.
@@ -1225,7 +1226,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 val lineReadCharacters = reader.readCharacters
                 val lineSkippedChars = reader.skippedChars
                 macroBuilder.append(reader.readLine())
-                reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - 1 - lineStart)
+                val endedInNewline = reader.canRead(0) && reader.peek(-1) == '\n'
+                reader.cursorMapper.addMapping(lineStart + lineReadCharacters, lineStart + lineReadCharacters - lineSkippedChars, reader.cursor - lineStart - if(endedInNewline) 1 else 0)
                 indentStartCursor = reader.cursor
             }
             return macroBuilder.toString()
