@@ -55,7 +55,7 @@ object NetworkServerConnectionHandler {
     val currentBreakpointIdsRequests: MutableMap<UUID, CompletableFuture<ReservedBreakpointIdStart>> = mutableMapOf()
 
     // Without dimension, but also includes advancements and recipes
-    fun getAllDatapackRegistries() = DynamicRegistries.getBootstrappingRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
+    fun getAllDatapackRegistries() = DynamicRegistries.getWorldRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
     // With dimension
     fun getSyncedRegistries() = getAllDatapackRegistries() + RegistryDataLoader.DIMENSION_REGISTRIES
 
