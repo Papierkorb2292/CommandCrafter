@@ -10,6 +10,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.RootCommandNode
+import com.mojang.serialization.DataResult
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.SharedSuggestionProvider
@@ -23,8 +24,15 @@ import net.minecraft.commands.functions.StringTemplate
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.ListTag
+import net.minecraft.nbt.NbtOps
+import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.util.context.ContextMap
+import net.minecraft.world.level.storage.loot.LootContext
+import net.minecraft.world.level.storage.loot.LootParams
+import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider
+import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProviders
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -53,6 +61,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.spongepowered.asm.mixin.MixinEnvironment
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 object TestCommandCrafter {
@@ -1178,6 +1187,42 @@ object TestCommandCrafter {
 
         @Suppress("UNCHECKED_CAST")
         return parsed as T to joined
+    }
+
+    @GameTest
+    fun testTermNumberProvider(context: GameTestHelper) {
+        val lootContext = LootContext.Builder(LootParams(context.level, ContextMap.EMPTY, mapOf(), 0f)).create(Optional.empty())
+
+        fun parseNumberProvider(input: String): DataResult<ContextIntProvider> =
+            ContextIntProviders.CODEC.parse(NbtOps.INSTANCE, TagParser.parseCompoundFully(input))
+                .map { it.value() }
+
+        context.assertValueEqual(
+            parseNumberProvider("{type:'command_crafter:term',term:'2 * 6 / 4'}").orThrow.getInt(lootContext),
+            3,
+            "left-associative infixes"
+        )
+        context.assertValueEqual(
+            parseNumberProvider("{type:'command_crafter:term',term:'2 + 6 / 2'}").orThrow.getInt(lootContext),
+            5,
+            "infix precedence"
+        )
+        context.assertValueEqual(
+            parseNumberProvider("{type:'command_crafter:term',term:'x / 2',inputs:{x:'2 * y', y:'5'}}").orThrow.getInt(lootContext),
+            5,
+            "variables"
+        )
+        context.assertTrue(
+            parseNumberProvider("{type:'command_crafter:term',term:'x / 2',inputs:{x:'2 * y', y:'x'}}").isError,
+            "circular dependency"
+        )
+        context.assertValueEqual(
+            parseNumberProvider("{type:'command_crafter:term',term:'max(0,-2,5,3)'}").orThrow.getInt(lootContext),
+            5,
+            "function call"
+        )
+
+        context.succeed()
     }
 
     fun buildCommandReader(context: GameTestHelper, lines: List<String>): DirectiveStringReader<AnalyzingResourceCreator> {
