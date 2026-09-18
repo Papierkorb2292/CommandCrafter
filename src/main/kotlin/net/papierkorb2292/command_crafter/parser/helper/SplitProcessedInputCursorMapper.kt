@@ -156,11 +156,14 @@ class SplitProcessedInputCursorMapper : ProcessedInputCursorMapper {
             val start = max(sourceMapper.targetCursors[0], targetMapper.sourceCursors[0])
             val end = min(sourceMapper.targetCursors[0] + sourceMapper.lengths[0], targetMapper.sourceCursors[0] + targetMapper.lengths[0])
             val length = end - start
-            result.addMapping(
-                start - sourceMapper.targetCursors[0] + sourceMapper.sourceCursors[0],
-                start - targetMapper.sourceCursors[0] + targetMapper.targetCursors[0],
-                length
-            )
+            // Don't add mappings that have negative length (<=> the two mappings don't overlap), just move on to discarding (one of) the mappings
+            if(length >= 0) {
+                result.addMapping(
+                    start - sourceMapper.targetCursors[0] + sourceMapper.sourceCursors[0],
+                    start - targetMapper.sourceCursors[0] + targetMapper.targetCursors[0],
+                    length
+                )
+            }
 
             // Mappings should only be kept, if they also intersect the next mapping in the other mapper
             // It's important to use <=, not <, because otherwise there might be a situation where both input
