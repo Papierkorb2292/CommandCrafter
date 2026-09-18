@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
-class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var version: Int = 0) {
+class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
     val parsedUri = EditorURI.parseURI(uri)
     val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
     val analyzeHandler: FileAnalyseHandler? = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
@@ -29,8 +29,8 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var
 
         fun linesFromString(content: String) = linesFromStrings(content.lines())
         fun linesFromStrings(lines: List<String>): MutableList<StringBuilder> = lines.mapTo(ArrayList(lines.size), ::StringBuilder)
-        fun fromString(uri: String, content: String, version: Int = 0) = fromLines(uri, content.lines(), version)
-        fun fromLines(uri: String, lines: List<String>, version: Int = 0) = EditorDocument(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder), version)
+        fun fromString(uri: String, content: String) = fromLines(uri, content.lines())
+        fun fromLines(uri: String, lines: List<String>) = EditorDocument(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder))
 
         fun shutdown() {
             backingExecutor.shutdown()
@@ -144,7 +144,6 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var
         if(runningAnalyzer != null)
             return runningAnalyzer
 
-        val version = version
         val completableFuture = CompletableFuture<AnalyzingResult>()
         val future = analyzeHandler.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
         val newAnalyzer = RunningAnalyzer(future, completableFuture, 0, false)
@@ -158,7 +157,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>, var
             // the diagnostics might be inaccurate, like when the file has been deleted
             if(!newAnalyzer.softCancelled) {
                 MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
-                languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics, version))
+                languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics))
             }
         }
         return newAnalyzer

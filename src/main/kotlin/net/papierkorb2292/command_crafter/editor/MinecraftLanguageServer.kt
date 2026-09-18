@@ -237,7 +237,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun didOpen(params: DidOpenTextDocumentParams?) {
                 if(params == null) return
                 val textDocument = params.textDocument
-                openFiles[textDocument.uri] = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text), textDocument.version).also {
+                openFiles[textDocument.uri] = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text)).also {
                     it.startAnalyzingFile(this@MinecraftLanguageServer)
                 }
             }
@@ -246,7 +246,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 if(params == null) return
                 val file = openFiles[params.textDocument.uri] ?: return
                 file.stopAnalyzing()
-                file.version = params.textDocument.version
                 for(change in params.contentChanges) {
                     file.applyContentChange(change)
                 }
@@ -751,7 +750,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             openFile.analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
         } else {
             client.getFileContent(uri).thenCompose { content ->
-                EditorDocument.fromString(uri, content, 0).analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
+                EditorDocument.fromString(uri, content).analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
             }
         }
     }
