@@ -251,12 +251,12 @@ object LanguageManager {
                                 }
 
                                 override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition> {
-                                    val client = languageServer.client
+                                    val fileAccess = languageServer.getFileAccess()
                                         ?: return MinecraftLanguageServer.emptyDefinitionNodeDefault
                                     val keywords = PackContentFileType.parseKeywords(string, idStart, idEnd).toSet()
                                     return PackContentFileType.findWorkspaceResourceFromId(
                                         Identifier.parse(string.substring(idStart, idEnd)),
-                                        client,
+                                        fileAccess,
                                         keywords
                                     ).thenApply {
                                         ActualSyntaxNode.Definition(Either.forLeft(

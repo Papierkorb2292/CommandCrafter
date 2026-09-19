@@ -149,7 +149,8 @@ export class MinecraftLanguageClientRunner implements Disposable, LanguageClient
                     initializationOptions: {
                         editorInfo: {
                             extensionVersion: this.extensionVersion,
-                            featureConfig: getFeatureConfig()
+                            featureConfig: getFeatureConfig(),
+                            fileAccessApiVersion: 1 // Only version at the moment
                         }
                     },
                     synchronize: {

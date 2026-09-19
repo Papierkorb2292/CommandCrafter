@@ -172,7 +172,8 @@ class EditorConnectionManager(
     fun createEditorInfo(args: ConnectToServiceArgs?): EditorInfo {
         return EditorInfo(
             FeatureConfig(args?.featureConfig ?: emptyMap()),
-            args?.extensionVersion
+            args?.extensionVersion,
+            -1
         )
     }
 
@@ -219,13 +220,20 @@ class EditorConnectionManager(
         constructor() : this("", null, null)
     }
 
-    data class EditorInfo(val featureConfig: FeatureConfig, val extensionVersion: String?) {
+    /**
+     * @param featureConfig The initial FeatureConfig the service should start with
+     * @param extensionVersion The current version of the extension that runs in the editor
+     * @param fileAccessApiVersion The backwards compatible version of file-access that the client supports over LSP.
+     * Currently only version 1 exists and corresponds to [EditorFileSystemAccess]. If this value is not positive, no file finding is supported at all.
+     */
+    data class EditorInfo(val featureConfig: FeatureConfig, val extensionVersion: String?, val fileAccessApiVersion: Int) {
         companion object {
-            val DEFAULT = EditorInfo(FeatureConfig.EMPTY, null)
+            val DEFAULT = EditorInfo(FeatureConfig.EMPTY, null, -1)
             val CODEC = RecordCodecBuilder.create<EditorInfo> { instance ->
                 instance.group(
                     FeatureConfig.CODEC.optionalFieldOf("featureConfig", FeatureConfig.EMPTY).forGetter { it.featureConfig },
-                    Codec.STRING.optionalFieldOf("extensionVersion", null).forGetter { it.extensionVersion }
+                    Codec.STRING.optionalFieldOf("extensionVersion", null).forGetter { it.extensionVersion },
+                    Codec.INT.optionalFieldOf("fileAccessApiVersion", -1).forGetter { it.fileAccessApiVersion },
                 ).apply(instance, ::EditorInfo)
             }.optionalFieldOf("editorInfo", DEFAULT).codec()
         }

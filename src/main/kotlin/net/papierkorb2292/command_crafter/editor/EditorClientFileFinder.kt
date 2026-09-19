@@ -8,5 +8,8 @@ interface EditorClientFileFinder {
      */
     fun findFiles(pattern: String): CompletableFuture<Array<String>>
 
-    fun fileExists(url: String): CompletableFuture<Boolean>
+    /**
+     * Returns whether a file exists. The uri is in the format of [EditorURI]
+     */
+    fun fileExists(uri: String): CompletableFuture<Boolean>
 }

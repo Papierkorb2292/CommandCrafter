@@ -270,6 +270,21 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
         editorInfo = EditorConnectionManager.EditorInfo.CODEC.parse(JavaOps.INSTANCE, args).promotePartial {
             CommandCrafter.LOGGER.warn("Error parsing editor info for debugger server: $it")
         }.result().getOrNull() ?: editorInfo
+
+        if(editorInfo.fileAccessApiVersion <= 0) {
+            // Use direct file system access as fallback
+            val workspaceFolders = args["workspaceFolders"]
+            if(workspaceFolders !is List<*> || workspaceFolders.any { it !is String }) {
+                throw IllegalArgumentException("'workspaceFolders' must be specified and must be a list of strings if the debug client does not support file access")
+            }
+            workspaceFileFinder = WorkspaceFileFinder(DirectFileSystemAccess(workspaceFolders.mapNotNull {
+                val workspaceUri = EditorURI.parseURI(it as String)
+                if(workspaceUri.scheme == "file") workspaceUri.parsePath() else null
+            }))
+        } else {
+            workspaceFileFinder = WorkspaceFileFinder(client!!)
+        }
+
         return CompletableFuture.completedFuture(null)
     }
 
@@ -510,7 +525,6 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
 
     fun connect(client: CommandCrafterDebugClient) {
         this.client = client
-        this.workspaceFileFinder = WorkspaceFileFinder(client)
     }
     
     private data class ClientBreakpointResource(val packContentFileType: PackContentFileType, val id: PackagedId, val sourceReference: Int?)

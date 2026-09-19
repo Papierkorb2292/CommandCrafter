@@ -34,6 +34,7 @@ import net.minecraft.world.level.storage.loot.LootParams
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProviders
 import net.minecraft.world.phys.Vec3
+import net.papierkorb2292.command_crafter.editor.DirectFileSystemAccess
 import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
@@ -1220,6 +1221,46 @@ object TestCommandCrafter {
             parseNumberProvider("{type:'command_crafter:term',term:'max(0,-2,5,3)'}").orThrow.getInt(lootContext),
             5,
             "function call"
+        )
+
+        context.succeed()
+    }
+
+    @GameTest
+    fun testFileSystemFileFinder(context: GameTestHelper) {
+        val finder = DirectFileSystemAccess(listOf(projectDirectory.resolve("src"), projectDirectory.resolve("gradle")))
+
+        context.assertTrue(
+            finder.fileExists("wrapper/gradle-wrapper.jar").get(),
+            "Gradle Wrapper Jar not found"
+        )
+        context.assertTrue(
+            finder.fileExists(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()).get(),
+            "Gradle Wrapper Jar not found with absolute path"
+        )
+        context.assertTrue(
+            finder.fileExists("main/resources/fabric.mod.json").get(),
+            "Fabric json not found"
+        )
+        context.assertFalse(
+            finder.fileExists("doesnt.exist").get(),
+            "Unknown file not supposed to be found"
+        )
+
+        context.assertValueEqual(
+            finder.findFiles("wrapper/*.jar").get().toList(),
+            listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
+            "Search for gradle jar"
+        )
+        context.assertValueEqual(
+            finder.findFiles("**/wrapper/*.jar").get().toList(),
+            listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
+            "Search for gradle jar with **"
+        )
+        context.assertValueEqual(
+            finder.findFiles(projectDirectory.resolve("gradle/wrapper/*.jar").toAbsolutePath().toString()).get().toList(),
+            listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
+            "Search for gradle jar with absolute path"
         )
 
         context.succeed()

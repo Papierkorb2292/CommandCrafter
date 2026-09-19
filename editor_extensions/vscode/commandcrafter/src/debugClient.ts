@@ -40,8 +40,10 @@ export class DebugClient implements ConnectionFeature {
             resolveDebugConfiguration(folder, debugConfiguration, token) {
                 debugConfiguration.editorInfo = {
                     extensionVersion: languageClientRunner.extensionVersion,
-                    featureConfig: getFeatureConfig()
+                    featureConfig: getFeatureConfig(),
+                    fileAccessApiVersion: 1 // Only version at the moment
                 }
+                debugConfiguration.workspaceFolders = vscode.workspace.workspaceFolders?.map(folder => folder.uri.toString())
                 return debugConfiguration;
             }
         }));

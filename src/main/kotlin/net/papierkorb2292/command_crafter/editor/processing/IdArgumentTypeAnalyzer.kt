@@ -31,8 +31,8 @@ object IdArgumentTypeAnalyzer {
                 }
 
             override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition> {
-                val client = languageServer.client ?: return emptyDefinitionNodeDefault
-                return findWorkspaceResourceFromIdAndPackContentFileType(id, packContentFileType, client)
+                val fileAccess = languageServer.getFileAccess() ?: return emptyDefinitionNodeDefault
+                return findWorkspaceResourceFromIdAndPackContentFileType(id, packContentFileType, fileAccess)
                     .thenApply { resource ->
                         ActualSyntaxNode.Definition(Either.forLeft(
                             if(resource == null) emptyList()

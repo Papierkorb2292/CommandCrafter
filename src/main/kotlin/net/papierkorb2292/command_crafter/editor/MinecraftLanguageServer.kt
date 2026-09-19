@@ -105,6 +105,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         get() = editorInfo.featureConfig
     private var datapackAutoReloadDelayedExecutor = MoreExecutors.directExecutor()
 
+    private var directFileSystemAccess: DirectFileSystemAccess? = null
+
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         val client = client ?: return
         val prevConsole = minecraftServer.serverLog
@@ -170,6 +172,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             editorInfo = EditorConnectionManager.EditorInfo.CODEC.parse(JsonOps.INSTANCE, initializationOptions).promotePartial {
                 CommandCrafter.LOGGER.warn("Error parsing editor info for language server: $it")
             }.result().getOrNull() ?: editorInfo
+        directFileSystemAccess = DirectFileSystemAccess(params.workspaceFolders.mapNotNull {
+            val workspaceUri = EditorURI.parseURI(it.uri)
+            if(workspaceUri.scheme == "file") workspaceUri.parsePath() else null
+        })
 
         currentSemanticTokensRegistration = buildSemanticTokensRegistrationOptions()
         return CompletableFuture.completedFuture(InitializeResult(ServerCapabilities().apply {
@@ -635,8 +641,25 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         fileResultProcessing.shutdown()
     }
 
+    fun getFileAccess(): EditorFileSystemAccess? =
+        if(editorInfo.fileAccessApiVersion >= 1) client else directFileSystemAccess
+
+    // Try to read it directly from the file system first, before falling back to asking VSCode
+    fun getFileContent(url: String): CompletableFuture<String> {
+        if(editorInfo.fileAccessApiVersion <= 0) {
+            // Editor doesn't support file access, only use direct file system
+            return directFileSystemAccess!!.getFileContent(url)
+        }
+        return directFileSystemAccess!!.getFileContent(url).exceptionallyCompose { directError ->
+            client!!.getFileContent(url).exceptionallyCompose { editorError ->
+                editorError.addSuppressed(directError)
+                CompletableFuture.failedFuture(editorError)
+            }
+        }
+    }
+
     fun markDocumentation(documentation: String): CompletableFuture<String> {
-        val client = client ?: return CompletableFuture.completedFuture(documentation)
+        val fileAccess = getFileAccess() ?: return CompletableFuture.completedFuture(documentation)
         val reader = StringReader(documentation)
         val replacements = mutableListOf<CompletableFuture<Pair<StringRange, String?>>>()
         while(reader.canRead()) {
@@ -669,7 +692,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 val range = StringRange(idStart, idEnd)
                 replacements += PackContentFileType.findWorkspaceResourceFromId(
                     Identifier.parse(documentation.substring(idStart, idEnd)),
-                    client,
+                    fileAccess,
                     resourceSearchKeywords
                 ).thenApply { resource ->
                     range to
@@ -704,11 +727,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     fun findFileAndAnalyze(id: Identifier, packContentFileType: PackContentFileType): CompletableFuture<out AnalyzingResult?> {
-        val client = client ?: return CompletableFuture.completedFuture(null)
+        val fileAccess = getFileAccess() ?: return CompletableFuture.completedFuture(null)
         return PackContentFileType.findWorkspaceResourceFromIdAndPackContentFileType(
             id,
             packContentFileType,
-            client
+            fileAccess
         ).thenCompose { fileUri ->
             if (fileUri == null) {
                 return@thenCompose CompletableFuture.completedFuture(null)
@@ -724,10 +747,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     fun findFileAndAnalyze(id: Identifier, packContentKeywords: Set<String>): CompletableFuture<out AnalyzingResult?> {
-        val client = client ?: return CompletableFuture.completedFuture(null)
+        val fileAccess = getFileAccess() ?: return CompletableFuture.completedFuture(null)
         return PackContentFileType.findWorkspaceResourceFromId(
             id,
-            client,
+            fileAccess,
             packContentKeywords
         ).thenCompose { fileUri ->
             if (fileUri == null) {
@@ -744,12 +767,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     fun analyzeFileFromUri(uri: String): CompletableFuture<out AnalyzingResult?> {
-        val client = client ?: return CompletableFuture.completedFuture(null)
         val openFile = openFiles[uri]
         return if (openFile != null) {
             openFile.analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
         } else {
-            client.getFileContent(uri).thenCompose { content ->
+            getFileContent(uri).thenCompose { content ->
                 EditorDocument.fromString(uri, content).analyzeFile(this)?.result ?: CompletableFuture.completedFuture(null)
             }
         }

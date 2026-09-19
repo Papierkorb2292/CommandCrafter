@@ -9,7 +9,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.LanguageClient
 import java.util.concurrent.CompletableFuture
 
-interface CommandCrafterLanguageClient : LanguageClient, EditorClientFileFinder {
+interface CommandCrafterLanguageClient : LanguageClient, EditorFileSystemAccess {
     @JsonNotification
     fun createChannel(channel: Channel)
 
@@ -23,13 +23,13 @@ interface CommandCrafterLanguageClient : LanguageClient, EditorClientFileFinder 
     fun logMinecraftMessage(message: ConsoleMessage)
 
     @JsonRequest
-    fun getFileContent(path: String): CompletableFuture<String>
+    override fun getFileContent(uri: String): CompletableFuture<String>
 
     @JsonRequest
     override fun findFiles(pattern: String): CompletableFuture<Array<String>>
 
     @JsonRequest
-    override fun fileExists(url: String): CompletableFuture<Boolean>
+    override fun fileExists(uri: String): CompletableFuture<Boolean>
 
     @JsonNotification("scoreboardStorageFileSystem/onDidChangeFile")
     fun onDidChangeScoreboardStorage(params: OnDidChangeScoreboardStorageParams)
