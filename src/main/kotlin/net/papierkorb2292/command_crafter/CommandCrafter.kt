@@ -238,6 +238,7 @@ object CommandCrafter: ModInitializer {
             ): EditorConnectionManager.LaunchedService {
                 val server = MinecraftDebuggerServer(serverConnection)
                 val messageWrapper = InitializedEventEmittingMessageWrapper()
+                val generateDebuggerTrace = getBooleanSystemProperty("cc_trace_debugger")
                 val launcher = DebugLauncher.Builder<CommandCrafterDebugClient>()
                     .setLocalService(server)
                     .setRemoteInterface(CommandCrafterDebugClient::class.java)
@@ -248,6 +249,7 @@ object CommandCrafter: ModInitializer {
                     .setExceptionHandler {
                         handleEditorServiceException("debugger", it)
                     }
+                    .traceMessages(if(generateDebuggerTrace) PrintWriter("logs/debugger_debug_trace") else null)
                     .create();
                 messageWrapper.client = launcher.remoteProxy
                 if(initialMessage != null)
