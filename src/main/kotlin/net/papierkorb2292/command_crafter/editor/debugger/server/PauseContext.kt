@@ -234,7 +234,7 @@ class PauseContext(val server: MinecraftServer, val oneTimeDebugConnection: Edit
         isPaused = true
         updateStackFrames(connection)
         connection.pauseStarted(debugPauseActionsWrapper, StoppedEventArguments().also {
-            it.reason = StoppedEventArgumentsReason.PAUSE
+            it.reason = StoppedEventArgumentsReason.STEP
         })
         return true
     }
