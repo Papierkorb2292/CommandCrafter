@@ -20,6 +20,7 @@
     "editor.CommandsAccessor",
     "editor.CommandsMixin",
     "editor.ConnectionAccessor",
+    "editor.MappedRegistryMixin",
     "editor.ServerGamePacketListenerImplMixin",
     "editor.debugger.BuildContextsAccessor",
     "editor.debugger.BuildContextsMixin",

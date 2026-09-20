@@ -22,7 +22,7 @@ import net.papierkorb2292.command_crafter.Util
 import net.papierkorb2292.command_crafter.client.editor.SyncedRegistriesListConsumer
 import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkDebugPauseActions
 import net.papierkorb2292.command_crafter.client.editor.debugger.NetworkVariablesReferencer
-import net.papierkorb2292.command_crafter.client.helper.ShouldCopyRegistriesContainer
+import net.papierkorb2292.command_crafter.client.helper.IsCustomRegistrySyncContainer
 import net.papierkorb2292.command_crafter.editor.DirectServerConnection
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
@@ -80,6 +80,8 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
             }
         })
 
+        val isCustomRegistrySync = ThreadLocal<Boolean>()
+
         private var currentConnectionRequest: Pair<UUID, CompletableFuture<NetworkServerConnection>>? = null
         private val currentBreakpointRequests: MutableMap<UUID, (Array<Breakpoint>) -> Unit> = Maps.newHashMap()
 
@@ -136,12 +138,13 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
 
                 if(pendingRegistrySyncIds.isEmpty()) {
                     (receivedClientRegistries as SyncedRegistriesListConsumer).`command_crafter$setSyncedRegistriesList`(NetworkServerConnectionHandler.getSyncedRegistries())
-                    (receivedClientRegistries as ShouldCopyRegistriesContainer).`command_crafter$setShouldCopyRegistries`(true)
+                    // Also copies builtin registries and allows missing tags for dynamic entries
+                    (receivedClientRegistries as IsCustomRegistrySyncContainer).`command_crafter$setIsCustomRegistrySync`(true)
                     //All registries have been received
                     receivedRegistryManager = receivedClientRegistries.collectGameRegistries(
                         //No resource loading is required, because no common packs were specified
                         ResourceProvider.EMPTY,
-                        // Only matters if there are no registrWQies to load, but there will always be some
+                        // Only matters if there are no registries to load, but there will always be some
                         Util.nullIsFine<RegistryAccess.Frozen>(null),
                         // False to load all tags, including of registries where the entries are not synced
                         false
