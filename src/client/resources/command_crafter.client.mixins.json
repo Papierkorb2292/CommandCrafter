@@ -18,5 +18,9 @@
     "game.KeyboardHandlerMixin",
     "game.MinecraftMixin",
     "parser.ClientPacketListenerAccessor"
+  ],
+  "mixins": [
+    "NetworkRegistryLoadTaskMixin",
+    "RegistryDataLoaderNetworkFactoryMixin"
   ]
 }
