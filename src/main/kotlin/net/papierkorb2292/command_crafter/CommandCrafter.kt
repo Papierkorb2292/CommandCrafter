@@ -16,7 +16,6 @@ import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.CommonComponents
 import net.minecraft.resources.Identifier
-import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
 import net.minecraft.server.notifications.EmptyNotificationService
@@ -262,7 +261,7 @@ object CommandCrafter: ModInitializer {
     )
 
     fun registerDynamicRegistries() {
-        val registries = DynamicRegistries.getWorldRegistries() + RegistryDataLoader.RELOADABLE_REGISTRIES
+        val registries = DynamicRegistries.getAllDynamicRegistries()
         val dynamicJsonResourceCodecs = registries.associate { dynamicRegistry ->
             PackContentFileType.getOrCreateTypeForDynamicRegistry(dynamicRegistry.key) to dynamicRegistry.elementCodec
         }
