@@ -828,6 +828,25 @@ object TestCommandCrafter {
         context.succeed()
     }
 
+    @GameTest
+    fun testCompletionAfterInlineFunctionWithVanillaNewline(context: GameTestHelper) {
+        // Note that there is a space after '}', test whether this is handled correctly.
+        val lines = """
+            @language vanilla inlineResources
+            function {
+            } §
+        """.trimIndent().lines()
+        val (processedLines, markedLocations) = getAndRemoveMarkedLocations(lines)
+        val analyzingResult = analyseCommand(context, processedLines)
+        val suggestions = analyzingResult.getCompletions(markedLocations[0].absoluteCursor, dummyCompletionContext)?.get()
+        context.assertValueEqual(
+            suggestions?.map { it.label },
+            listOf("with"),
+            "Suggestions after inline function"
+        )
+        context.succeed()
+    }
+
     fun testAllFunctionParsers(lines: List<String>, context: GameTestHelper) {
         val id = Identifier.parse("test")
         @Suppress("UNCHECKED_CAST")

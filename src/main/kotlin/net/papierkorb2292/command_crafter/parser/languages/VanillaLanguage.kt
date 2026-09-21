@@ -803,8 +803,12 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                     }
                 }
             }
-        } else if(reader.canRead() && reader.peek() == ' ' && reader.cursor > 0 && reader.peek(-1) != ' ')
-            reader.skip()
+        } else if(reader.canRead() && reader.peek() == ' ') {
+            if(reader.cursor > 0 && reader.peek(-1) != ' ')
+                reader.skip()
+            else if(reader.cursor == parentNode.range.end) // Important in case the parent node had an empty range, like inline functions
+                reader.skip()
+        }
 
         var furthestParsedReader: DirectiveStringReader<AnalyzingResourceCreator>? = null
         var furthestParsedContext: CommandContextBuilder<SharedSuggestionProvider>? = null
