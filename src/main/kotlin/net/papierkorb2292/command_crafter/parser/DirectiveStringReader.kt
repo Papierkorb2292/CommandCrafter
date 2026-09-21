@@ -46,7 +46,8 @@ class DirectiveStringReader<out ResourceCreator>(
         get() = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo, zeroBased = false).line
     var onlyReadEscapedMultiline = false
     var furthestAccessedCursor = 0
-    private var escapedMultilineTrimmed: String? = null
+    var escapedMultilineTrimmed: String? = null
+        private set
 
     fun convertInputToEscapedMultiline() {
         if(!onlyReadEscapedMultiline) {
@@ -273,12 +274,16 @@ class DirectiveStringReader<out ResourceCreator>(
 
     inline fun <Result> withNoMultilineRestriction(reader: (DirectiveStringReader<ResourceCreator>) -> Result): Result {
         val prevOnlyReadEscapedMultiline = onlyReadEscapedMultiline
+        val prevHadEscapedMultilineTrimmed = escapedMultilineTrimmed != null
         disableEscapedMultiline()
         try {
             return reader(this)
         } finally {
-            if(prevOnlyReadEscapedMultiline)
+            if(prevOnlyReadEscapedMultiline) {
                 convertInputToEscapedMultiline()
+                if(!prevHadEscapedMultilineTrimmed)
+                    disableTrimmingFromEscapedMultiline()
+            }
         }
     }
 
@@ -376,6 +381,7 @@ class DirectiveStringReader<out ResourceCreator>(
     fun skipTo(other: DirectiveStringReader<*>) {
         readCharacters += other.absoluteCursor - absoluteCursor
         skippedChars = other.skippedChars
+        escapedMultilineTrimmed = other.escapedMultilineTrimmed
         nextLine = other.nextLine
         setString(string.substring(0, cursor) + other.string.substring(other.cursor))
     }
