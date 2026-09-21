@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.client
 
 import com.mojang.serialization.Lifecycle
+import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.impl.loot.LootUtil
 import net.fabricmc.fabric.impl.resource.pack.ModResourcePackCreator
 import net.minecraft.core.*
@@ -14,7 +15,6 @@ import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.repository.ServerPacksSource
 import net.minecraft.server.packs.resources.MultiPackResourceManager
 import net.minecraft.tags.TagLoader
-import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 import java.util.stream.Stream
@@ -25,7 +25,7 @@ class LoadedClientsideRegistries(
     private val pendingComponents: List<DataComponentInitializers.PendingComponents<*>>
 ) {
     companion object {
-        fun getParseableRegistries() = NetworkServerConnectionHandler.getAllDatapackRegistries()
+        fun getParseableRegistries() = DynamicRegistries.getAllDynamicRegistries() - RegistryDataLoader.DIMENSION_REGISTRIES // Dynamic registries and reloadable registries. Dimension registries are parsed separately to match Minecraft's behavior
 
         fun load(executor: Executor): CompletableFuture<LoadedClientsideRegistries> {
             // Static registries are copied so tags don't modify the original registries
