@@ -16,3 +16,4 @@ accessible method net/minecraft/commands/arguments/item/ItemPredicateArgument$Co
 accessible class net/minecraft/nbt/SnbtGrammar$IntegerLiteral
 accessible class net/minecraft/nbt/SnbtGrammar$TypeSuffix
 accessible method net/minecraft/server/level/ServerPlayer readPlayerMode (Lnet/minecraft/world/level/storage/ValueInput;Ljava/lang/String;)Lnet/minecraft/world/level/GameType;
+accessible class net/minecraft/advancements/predicates/StatePropertiesPredicate$ValueMatcher

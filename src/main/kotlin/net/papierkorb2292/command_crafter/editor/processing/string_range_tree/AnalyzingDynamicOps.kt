@@ -48,14 +48,15 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
             operations: SchemaOperations<TNode>,
             analyzingResult: AnalyzingResult,
         ): Pair<AnalyzingDynamicOps<TNode>, DynamicOps<TNode>> {
-            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(operations.reader.resourceCreator.registries.createSerializationContext(operations.ops)) { innerDelegate ->
+            val registryOps = operations.reader.resourceCreator.registries.createSerializationContext(operations.ops)
+            val (analyzingOps, wrappedAnalyzingOps) = wrapDynamicOps(registryOps) { innerDelegate ->
                 AnalyzingDynamicOps(
                     innerDelegate,
                     analyzingResult,
                     operations.branchBehaviorProvider,
                     operations.reader,
                     operations.macroNodes,
-                    wrapDynamicOps(operations.ops) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second,
+                    wrapDynamicOps(registryOps) { ListPlaceholderRemovingDynamicOps(operations.placeholderNodes, it) }.second,
                     operations.macroParser
                 )
             }

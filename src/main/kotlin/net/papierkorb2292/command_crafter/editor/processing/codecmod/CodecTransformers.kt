@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
+import com.mojang.datafixers.kinds.App
 import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.*
 import com.mojang.serialization.codecs.PrimitiveCodec
@@ -16,9 +17,14 @@ import it.unimi.dsi.fastutil.ints.IntList
 import net.minecraft.ChatFormatting
 import net.minecraft.SharedConstants
 import net.minecraft.advancements.predicates.BlockPredicate
+import net.minecraft.advancements.predicates.FluidPredicate
 import net.minecraft.advancements.predicates.NbtPredicate
+import net.minecraft.advancements.predicates.StatePropertiesPredicate
 import net.minecraft.advancements.predicates.entity.EntityPredicate
 import net.minecraft.advancements.predicates.entity.EntityTypePredicate
+import net.minecraft.advancements.triggers.BeeNestDestroyedTrigger
+import net.minecraft.advancements.triggers.EnterBlockTrigger
+import net.minecraft.advancements.triggers.SlideDownBlockTrigger
 import net.minecraft.commands.Commands
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
 import net.minecraft.core.HolderLookup
@@ -56,6 +62,8 @@ import net.minecraft.world.item.component.TypedEntityData
 import net.minecraft.world.level.SpawnData
 import net.minecraft.world.level.block.entity.BeehiveBlockEntity
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.block.state.StateDefinition
+import net.minecraft.world.level.block.state.properties.Property
 import net.minecraft.world.level.levelgen.structure.templatesystem.rule.blockentity.AppendStatic
 import net.minecraft.world.level.storage.loot.providers.number.floats.ContextFloatProvider
 import net.minecraft.world.level.storage.loot.providers.number.floats.ContextFloatProviders
@@ -123,6 +131,25 @@ object CodecTransformers {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
             idToValue.keys.stream().map { idCodec.encodeStart(ops, it).getOrThrow() }
     })
+
+    @JvmStatic
+    @CodecMod(target = MapCodec::class, methodName = "orElse(Ljava/util/function/Consumer;Ljava/lang/Object;)Lcom/mojang/serialization/MapCodec;")
+    fun addWarningsToOrElse1(codec: MapCodec<*>): MapCodec<*> = codec.decodeAsWarnings()
+    @JvmStatic
+    @CodecMod(target = MapCodec::class, methodName = "orElse(Ljava/util/function/UnaryOperator;Ljava/lang/Object;)Lcom/mojang/serialization/MapCodec;")
+    fun addWarningsToOrElse2(codec: MapCodec<*>): MapCodec<*> = codec.decodeAsWarnings()
+    @JvmStatic
+    @CodecMod(target = MapCodec::class, methodName = "orElse(Ljava/lang/Object;)Lcom/mojang/serialization/MapCodec;")
+    fun addWarningsToOrElse3(codec: MapCodec<*>): MapCodec<*> = codec.decodeAsWarnings()
+    @JvmStatic
+    @CodecMod(target = MapCodec::class, methodName = "orElseGet(Ljava/util/function/Consumer;Ljava/util/function/Supplier;)Lcom/mojang/serialization/MapCodec;")
+    fun addWarningsToOrGet1(codec: MapCodec<*>): MapCodec<*> = codec.decodeAsWarnings()
+    @JvmStatic
+    @CodecMod(target = MapCodec::class, methodName = "orElseGet(Ljava/util/function/UnaryOperator;Ljava/util/function/Supplier;)Lcom/mojang/serialization/MapCodec;")
+    fun addWarningsToOrGet2(codec: MapCodec<*>): MapCodec<*> = codec.decodeAsWarnings()
+    @JvmStatic
+    @CodecMod(target = MapCodec::class, methodName = "orElseGet(Ljava/util/function/Supplier;)Lcom/mojang/serialization/MapCodec;")
+    fun addWarningsToOrGet3(codec: MapCodec<*>): MapCodec<*> = codec.decodeAsWarnings()
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs::class, javaFieldWrite = "RGB_COLOR_CODEC")
@@ -274,6 +301,13 @@ object CodecTransformers {
     }
 
     @JvmStatic
+    @CodecMod(target = Property::class, javaFieldWrite = "codec", fieldAccess = ["this"])
+    fun <T: Comparable<T>> addBlockStatePropertySuggestions(codec: Codec<T>, property: Property<T>): Codec<T> =
+        CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
+            override fun <A : Any> getSuggestions(ops: DynamicOps<A>): Stream<A> = property.possibleValues.map { codec.encodeStart<A>(ops, it).getOrThrow() }.stream()
+        })
+
+    @JvmStatic
     @CodecMod(target = ContextIntProviders::class, javaFieldWrite = "DIRECT_CODEC")
     fun disallowIntProviderTermSuggestions(codec: Codec<ContextIntProvider>): Codec<ContextIntProvider> =
         TermNumberProvider.disallowCodecTermSuggestions(codec)
@@ -323,6 +357,83 @@ object CodecTransformers {
             ),
             BranchBehaviorProvider.modifierForProvider(BranchBehaviorProvider.getForPathLookup(null))
         )
+
+    @JvmStatic
+    @CodecMod(target = BlockPredicate::class, codecField = "state")
+    fun wrapBlockPredicateStateCodec(codec: Codec<StatePropertiesPredicate>): Codec<StatePropertiesPredicate> =
+        wrapStateConditionCodec(codec, false)
+    @JvmStatic
+    @CodecMod(target = FluidPredicate::class, codecField = "state")
+    fun wrapFluidPredicateStateCodec(codec: Codec<StatePropertiesPredicate>): Codec<StatePropertiesPredicate> =
+        wrapStateConditionCodec(codec, true)
+    @JvmStatic
+    @CodecMod(target = EnterBlockTrigger.TriggerInstance::class, codecField = "state")
+    fun wrapEnterBlockTriggerStateCodec(codec: Codec<StatePropertiesPredicate>): Codec<StatePropertiesPredicate> =
+        wrapStateConditionCodec(codec, false)
+    @JvmStatic
+    @CodecMod(target = BeeNestDestroyedTrigger.TriggerInstance::class, codecField = "state")
+    fun wrapBeeNestDestroyedTriggerStateCodec(codec: Codec<StatePropertiesPredicate>): Codec<StatePropertiesPredicate> =
+        wrapStateConditionCodec(codec, false)
+    @JvmStatic
+    @CodecMod(target = SlideDownBlockTrigger.TriggerInstance::class, codecField = "state")
+    fun wrapSlideDownBlockTriggerStateCodec(codec: Codec<StatePropertiesPredicate>): Codec<StatePropertiesPredicate> =
+        wrapStateConditionCodec(codec, false)
+
+    fun wrapStateConditionCodec(codec: Codec<StatePropertiesPredicate>, isFluid: Boolean): Codec<StatePropertiesPredicate> {
+        // Try out all property codecs that belong to the blocks/fluids
+        val stateDefinitionsDecoder: Decoder<List<StateDefinition<*, *>>> = if(isFluid)
+            RegistryCodecs.holderSet(Registries.FLUID).optionalFieldOf("fluids").codec()
+                .map { fluids ->
+                    fluids.getOrNull()?.map { it.value().stateDefinition }
+                        ?: BuiltInRegistries.FLUID.listElements().map { it.value().stateDefinition }.toList()
+                }
+        else
+            RegistryCodecs.holderSet(Registries.BLOCK).optionalFieldOf("blocks").codec()
+                .map { blocks ->
+                    blocks.getOrNull()?.map { it.value().stateDefinition }
+                        ?: BuiltInRegistries.BLOCK.listElements().map { it.value().stateDefinition }.toList()
+                }
+        val stateDecoderProvider = stateDefinitionsDecoder.decodeParent().map { stateDefinitions ->
+            val uniqueDefinitions = stateDefinitions.distinctBy { it.properties }
+            val propertyNames = stateDefinitions.flatMapTo(mutableSetOf()) { it.properties.map { prop -> prop.name } }
+
+            val propertyCodecs = propertyNames.map { name ->
+                val properties = uniqueDefinitions.mapNotNull { definition -> definition.getProperty(name) }
+                createCodecForStatePropertyCondition(name, properties)
+            }
+
+            // Put everything in a record codec builder so all fields are always attempted
+            RecordCodecBuilder.create<Unit> { builder ->
+                val fields: List<App<RecordCodecBuilder.Mu<Unit>, Unit>> = propertyCodecs.map {
+                    it.forGetter { throw AssertionError() }
+                }
+                fields.reduceRight { value, acc -> builder.apply2({ left, right -> }, value, acc) }
+            }
+        }.onlyContextBehavior()
+
+        return codec.conditionalDecode({ VanillaLanguage.IS_ANALYZING_COMMANDS.getOrNull() != true }, Codec.PASSTHROUGH.flatMap { dynamic ->
+            val decoder = dynamic.decode(stateDecoderProvider).result()
+            val dummyPredicate = StatePropertiesPredicate.Builder.properties().build().get()
+            if(decoder.isEmpty)
+                return@flatMap DataResult.success(dummyPredicate)
+            decoder.get().first.decode(dynamic).map { dummyPredicate }
+        })
+    }
+
+    fun createCodecForStatePropertyCondition(name: String, properties: List<Property<*>>): MapCodec<Unit> {
+        val propertyCodecs: List<Codec<*>> = properties.map { it.codec() }
+        val combinedCodecWithWarnings = propertyCodecs.reduceRight { codec, acc -> Codec.either(codec, acc) }
+        val vanillaDecoder = StatePropertiesPredicate.ValueMatcher.CODEC.optionalFieldOf(name)
+        // Every property can either be a direct value, or a range of values with min and max
+        return Codec.either(combinedCodecWithWarnings, RecordCodecBuilder.create {
+            it.group(
+                combinedCodecWithWarnings.optionalFieldOf("min").forGetter { throw AssertionError() },
+                combinedCodecWithWarnings.optionalFieldOf("max").forGetter { throw AssertionError() }
+            ).apply(it) { min, max -> }
+        }).optionalFieldOf(name)
+            .xmap({ }, { throw AssertionError() })
+            .decodeAsWarnings(Unit, vanillaDecoder.map { true }) // Only keep errors, if the value actually can't be parsed by the game
+    }
     
     @JvmStatic
     @CodecMod(target = TagKey::class, methodName = "codec")
@@ -653,7 +764,7 @@ object CodecTransformers {
         DataObjectDecoding.wrapWithEmbeddedDecoder(
             codec,
             DataObjectDecoding.convertToDataObjectDecoder(
-                BlockState.CODEC.fieldOf("output_state").decoder().decodeParent().decodeParent().map { it.block },
+                BlockState.CODEC.fieldOf("output_state").decoder().decodeParent(2).map { it.block },
                 DataObjectDecoding::getDecoderForBlock,
             )
         )

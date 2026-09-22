@@ -68,6 +68,46 @@ fun <T> Codec<T>.nonCanonical(): Codec<T> = object : Codec<T> {
     }
 }
 
+/*fun <T> Codec<T>.decodeAsWarnings(replacement: T, downgradeCondition: (Dynamic<*>) -> Boolean = { true }): Codec<T> = object : Codec<T> {
+    override fun <A : Any> decode(ops: DynamicOps<A>, input: A): DataResult<Pair<T, A>> {
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops)
+        if(extraBehavior == null || !downgradeCondition(Dynamic(extraBehavior.onlyContextOps, input)))
+            return this@decodeAsWarnings.decode(ops, input)
+        return DataResult.success(extraBehavior.decodeWithBehavior(BranchBehaviorProvider.DEFAULT_BEHAVIOR_MODIFIER, true) {
+            this@decodeAsWarnings.decode(ops, input)
+        }.result().orElse(Pair.of(replacement, ops.empty())))
+    }
+
+    override fun <A : Any> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> =
+        this@decodeAsWarnings.encode(input, ops, prefix)
+}*/
+
+// Conditionally downgrades all errors from the codec to warnings. A replacement can be given, in case the result is passed to another codec, and it's not supposed to be marked as another error
+fun <T> MapCodec<T>.decodeAsWarnings(replacement: T? = null, downgradeCondition: MapDecoder<Boolean> = MapCodec.unit(true)): MapCodec<T> = object : MapCodec<T>() {
+    override fun <A> keys(ops: DynamicOps<A>) = this@decodeAsWarnings.keys(ops)
+    override fun <A : Any> decode(
+        ops: DynamicOps<A>,
+        input: MapLike<A>,
+    ): DataResult<T> {
+        val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return this@decodeAsWarnings.decode(ops, input)
+        val shouldDowngrade = downgradeCondition.decode(extraBehavior.onlyContextOps, input).result().getOrNull() ?: false
+        if(!shouldDowngrade)
+            return this@decodeAsWarnings.decode(ops, input)
+        val originalResult = extraBehavior.decodeWithBehavior(BranchBehaviorProvider.DEFAULT_BEHAVIOR_MODIFIER, true) {
+            this@decodeAsWarnings.decode(ops, input)
+        }
+        if(replacement == null)
+            return originalResult
+        return DataResult.success(originalResult.result().orElseGet { replacement })
+    }
+
+    override fun <A> encode(
+        input: T,
+        ops: DynamicOps<A>,
+        prefix: RecordBuilder<A>,
+    ): RecordBuilder<A> = this@decodeAsWarnings.encode(input, ops, prefix)
+}
+
 fun <T> Codec<T>.withMacroCheck(): Codec<MacroChecked<T>> = object : Codec<MacroChecked<T>> {
     override fun <A : Any> encode(input: MacroChecked<T>, ops: DynamicOps<A>, prefix: A): DataResult<A> =
         input.result.flatMap { this@withMacroCheck.encode(it, ops, prefix) }
@@ -133,15 +173,21 @@ fun <O, F : Any> Decoder<F>.onlyAnalyzingRecord(field: String): RecordCodecBuild
 fun <T> MapCodec<T>.forGetterIdent(): RecordCodecBuilder<T, T> = forGetter { it }
 fun <O, F : Any> MapCodec<Optional<F>>.forEmptyGetter(): RecordCodecBuilder<O, Optional<F>> = forGetter { Optional.empty() }
 
-fun <T> Decoder<T>.decodeParent() = object : Decoder<T> {
+fun <T> Decoder<T>.decodeParent(levels: Int = 1) = object : Codec<T> {
     override fun <A : Any> decode(
         ops: DynamicOps<A>,
         input: A,
     ): DataResult<Pair<T, A>> {
-        val parent = ExtraDecoderBehavior.getCurrentBehavior(ops)?.parentLinks?.getParent(input)
-            ?: return DataResult.error { "Node doesn't have parent" }
-        return parent.decode(this@decodeParent).map { it.mapSecond { ops.empty() } }
+        val parentLinks = ExtraDecoderBehavior.getCurrentBehavior(ops)?.parentLinks
+        var current: Dynamic<*> = Dynamic(ops, input)
+        repeat(levels) {
+            current = parentLinks?.getParent(current.value)
+                ?: return DataResult.error { "Node doesn't have parent" }
+        }
+        return current.decode(this@decodeParent).map { it.mapSecond { input } } // Returns input as second pair entry, so the codec can be chained with Codec.pair
     }
+
+    override fun <A> encode(input: T, ops: DynamicOps<A>, prefix: A): DataResult<A> = DataResult.success(prefix)
 }
 
 fun <T, V> Decoder<T>.withThreadLocal(threadLocal: ThreadLocal<V>, value: V): Decoder<T> = object : Decoder<T> {
