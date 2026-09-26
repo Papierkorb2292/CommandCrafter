@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.chars.CharSet
 import java.io.IOException
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.io.path.exists
@@ -11,35 +12,45 @@ import kotlin.io.path.exists
 class DirectFileSystemAccess(workspaceRoots: List<Path>) : EditorFileSystemAccess {
     private val absRoots = workspaceRoots.map { it.toAbsolutePath() }
 
+    override fun findFiles(pattern: String): CompletableFuture<Array<String>> =
+        findFiles(pattern, absRoots)
+
+    override fun findFilesRelative(params: FindFilesRelativeParams): CompletableFuture<Array<String>> {
+        val parsedUri = EditorURI.parseURI(params.baseUri)
+        if(parsedUri.scheme != "file")
+            return CompletableFuture.completedFuture(arrayOf())
+        val path = parsedUri.parseLocalPath()
+            ?: return CompletableFuture.completedFuture(arrayOf())
+        return findFiles(params.pattern, listOf(path))
+    }
+
     // Note that Java doesn't interpret glob patterns the same as VSCode. In Java, `**` always
     // matches zero or more of any characters, including path separators, whereas VSCode seems to only
     // treat `**` like that if there's a `/` directly in front of it and after it (or the string ends there). Otherwise, it behaves like `*`.
     // Additionally, a `**` segment for VSCode is also allowed to match no folder at all. To achieve
     // this behavior in Java, `**/` is replaced with `{**/,}`. The cases where `**` is directly next to normal characters
-    // is still not handled correctly, but CommandCrafter doesn't use such patterns anywhere.
-    override fun findFiles(pattern: String): CompletableFuture<Array<String>> {
-        val (prefix, patternSuffix) = splitStaticPrefixFromGlob(fixDoubleStarGlobPattern(pattern))
-        val matcher = FileSystems.getDefault().getPathMatcher("glob:$patternSuffix")
-
-        if(prefix.isAbsolute && absRoots.none { prefix.startsWith(it) })
-            return CompletableFuture.completedFuture(arrayOf()) // Only files within workspace roots are matched
-
-        val candidateRoots =
-            if(!prefix.isAbsolute) absRoots.map { it.resolve(prefix) }
-            else listOf(prefix)
-
+    // is still not handled correctly (matches more files than VSCode), but CommandCrafter doesn't use such patterns anywhere. Callers are expected to use `*` instead when `**` is not necessary.
+    private fun findFiles(pattern: String, roots: List<Path>): CompletableFuture<Array<String>> {
         try {
-            val matched = candidateRoots.flatMap { root ->
-                if(!root.exists())
+            val (prefix, patternSuffix) = splitStaticPrefixFromGlob(fixDoubleStarGlobPattern(pattern))
+            if(prefix.isAbsolute)
+                return CompletableFuture.completedFuture(emptyArray()) // Can't search for absolute patterns, since patterns are matched against the relative path from the root
+            val matcher = FileSystems.getDefault().getPathMatcher("glob:$patternSuffix")
+
+            val matched = roots.flatMap { root ->
+                val resolved = root.resolve(prefix)
+                if(!resolved.exists())
                     return@flatMap emptyList()
-                Files.walk(root).use { stream ->
+                Files.walk(resolved).use { stream ->
                     stream.filter { Files.isRegularFile(it) }.filter { path ->
-                        matcher.matches(root.relativize(path))
+                        matcher.matches(resolved.relativize(path))
                     }.map { it.toString() }.toList()
                 }
             }
             return CompletableFuture.completedFuture(matched.toTypedArray())
-        } catch (e: IOException) {
+        } catch(e: IOException) {
+            return CompletableFuture.failedFuture(e)
+        } catch(e: InvalidPathException) {
             return CompletableFuture.failedFuture(e)
         }
     }
@@ -54,8 +65,8 @@ class DirectFileSystemAccess(workspaceRoots: List<Path>) : EditorFileSystemAcces
         if(globIndex == -1)
             return Path.of(pattern) to ""
 
-        val staticPathEnd = pattern.lastIndexOf(FileSystems.getDefault().separator, globIndex)
-        // +1 to include last separator, which is especially necessary for Windows drive letters.
+        val staticPathEnd = pattern.lastIndexOf('/', globIndex)
+        // +1 to include last separator in static path, which also makes sure the remaining pattern is relative
         // This also works if staticPathEnd == -1, since the path will just act as `.` and the pattern doesn't change
         return Path.of(pattern.substring(0, staticPathEnd + 1)) to pattern.substring(staticPathEnd + 1)
     }
@@ -89,7 +100,8 @@ class DirectFileSystemAccess(workspaceRoots: List<Path>) : EditorFileSystemAcces
         val parsedUri = EditorURI.parseURI(uri)
         if(parsedUri.scheme != "file")
             return CompletableFuture.completedFuture(false)
-        val path = parsedUri.parsePath()
+        val path = parsedUri.parseLocalPath()
+            ?: return CompletableFuture.completedFuture(false)
         val exists = absRoots.any { root ->
             if(path.isAbsolute && !path.startsWith(root))
                 return@any false
@@ -102,8 +114,10 @@ class DirectFileSystemAccess(workspaceRoots: List<Path>) : EditorFileSystemAcces
         val parsedUri = EditorURI.parseURI(uri)
         if(parsedUri.scheme != "file")
             return CompletableFuture.failedFuture(IOException("Unknown file schema: ${parsedUri.scheme}"))
+        val path = parsedUri.parseLocalPath()
+            ?: return CompletableFuture.failedFuture(IOException("Invalid local path in uri: $uri"))
         return try {
-            CompletableFuture.completedFuture(Files.readString(parsedUri.parsePath()))
+            CompletableFuture.completedFuture(Files.readString(path))
         } catch(e: IOException) {
             CompletableFuture.failedFuture(e)
         }

@@ -29,6 +29,9 @@ interface CommandCrafterLanguageClient : LanguageClient, EditorFileSystemAccess 
     override fun findFiles(pattern: String): CompletableFuture<Array<String>>
 
     @JsonRequest
+    override fun findFilesRelative(params: FindFilesRelativeParams): CompletableFuture<Array<String>>
+
+    @JsonRequest
     override fun fileExists(uri: String): CompletableFuture<Boolean>
 
     @JsonNotification("scoreboardStorageFileSystem/onDidChangeFile")

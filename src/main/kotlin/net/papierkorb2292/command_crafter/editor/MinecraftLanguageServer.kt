@@ -174,7 +174,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }.result().getOrNull() ?: editorInfo
         directFileSystemAccess = DirectFileSystemAccess(params.workspaceFolders.mapNotNull {
             val workspaceUri = EditorURI.parseURI(it.uri)
-            if(workspaceUri.scheme == "file") workspaceUri.parsePath() else null
+            if(workspaceUri.scheme == "file") workspaceUri.parseLocalPath() else null
         })
 
         currentSemanticTokensRegistration = buildSemanticTokensRegistrationOptions()

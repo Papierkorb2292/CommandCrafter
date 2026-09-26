@@ -8,12 +8,12 @@ import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.minecraft.server.packs.metadata.pack.PackMetadataSection
 import net.minecraft.server.packs.resources.ResourceFilterSection
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.EditorDocument
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
@@ -49,9 +49,9 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
     override fun canHandle(file: EditorDocument) = file.parsedUri.path.endsWith("pack.mcmeta")
 
     override fun analyzeAsync(file: EditorDocument, languageServer: MinecraftLanguageServer, executor: ExecutorService, completableFuture: CompletableFuture<AnalyzingResult>): Future<*> {
-        val packFolder = file.parsedUri.parsePath().parent
-        val dataPath = file.parsedUri.copyWithPath(packFolder.resolve("data").toString()).toString()
-        val assetsPath = file.parsedUri.copyWithPath(packFolder.resolve("assets").toString()).toString()
+        val packFolder = file.parsedUri.getParent()
+        val dataPath = packFolder.resolve("data").toString()
+        val assetsPath = packFolder.resolve("assets").toString()
         return languageServer.client!!.fileExists(dataPath)
             .thenCombine(languageServer.client!!.fileExists(assetsPath)) { dataFolderExists, assetsFolderExists ->
                 if(!dataFolderExists.xor(assetsFolderExists))

@@ -36,6 +36,7 @@ import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntPr
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.DirectFileSystemAccess
 import net.papierkorb2292.command_crafter.editor.EditorDocument
+import net.papierkorb2292.command_crafter.editor.FindFilesRelativeParams
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
@@ -1277,7 +1278,7 @@ object TestCommandCrafter {
             "Search for gradle jar with **"
         )
         context.assertValueEqual(
-            finder.findFiles(projectDirectory.resolve("gradle/wrapper/*.jar").toAbsolutePath().toString()).get().toList(),
+            finder.findFilesRelative(FindFilesRelativeParams(projectDirectory.resolve("gradle/wrapper/").toAbsolutePath().toString(), "*.jar")).get().toList(),
             listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
             "Search for gradle jar with absolute path"
         )

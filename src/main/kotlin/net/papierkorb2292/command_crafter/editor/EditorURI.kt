@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor
 import net.minecraft.util.Util
 import org.eclipse.lsp4j.jsonrpc.util.ToStringBuilder
 import java.net.URLDecoder
+import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.regex.Pattern
 
@@ -11,6 +12,8 @@ import java.util.regex.Pattern
  *
  * An implementation similar to [VSCode Uri](https://github.com/microsoft/vscode-uri)
  * is used.
+ *
+ * Note that the path separator is always '/' and absolute paths always start with '/' (also on Windows, the drive letter will come after a '/')
  */
 class EditorURI private constructor(
     scheme: String,
@@ -85,12 +88,42 @@ class EditorURI private constructor(
                     else path
                 else -> path
             }
+
+        // VSCode paths always start with '/'. So on Windows this has to be removed to get the drive letter
+        fun parseLocalPath(path: String): Path? =
+            try {
+                if(IS_WINDOWS) Path.of(path.trimStart('/')) else Path.of(path)
+            } catch(e: InvalidPathException) {
+                // This could happen if URI is invalid or if the editor actually runs on a different OS
+                null
+            }
     }
 
-    // VSCode paths always start with '/'. So on Windows this has to be removed to get the drive letter
-    fun parsePath(): Path = if(IS_WINDOWS) Path.of(path.trimStart('/')) else Path.of(path)
+    fun parseLocalPath(): Path? = parseLocalPath(path)
+
+    fun getParent(): EditorURI {
+        // Trim everything after the last non-trailing slash, but keep the slash if it's the root path
+        val lastSlashIndex = path.lastIndexOf('/', path.lastIndex - 1) // Trailing slashes should not be kept, unless it's the root path
+        if(lastSlashIndex == -1) {
+            return copyWithPath("/")
+        }
+        return copyWithPath(path.substring(0, lastSlashIndex + 1))
+    }
+
+    fun resolve(relativePath: String): EditorURI =
+        if(relativePath == "") this
+        else if(relativePath.startsWith("/")) copyWithPath(relativePath)
+        else copyWithPath(pathWithTrailingSlash() + relativePath)
+
+    fun startsWith(other: EditorURI): Boolean {
+        if(scheme != other.scheme || authority != other.authority)
+            return false
+        return pathWithTrailingSlash().startsWith(other.pathWithTrailingSlash())
+    }
 
     fun copyWithPath(path: String) = EditorURI(scheme, authority, path, query, fragment)
+
+    private fun pathWithTrailingSlash() = if(path.endsWith("/")) path else "$path/"
 
     fun toPatternMatch(): String {
         val segments = path.split("/")
@@ -108,7 +141,10 @@ class EditorURI private constructor(
     override fun toString(): String {
         val query = if(query.isEmpty()) "" else "?$query"
         val fragment = if(fragment.isEmpty()) "" else "#$fragment"
-        return "$scheme://$authority$path$query$fragment"
+        // Encode '#' and '?' in the path, since they have a special meaning. Note that URIs technically only allow very few characters in the path,
+        // but this should be enough to communicate with the editor. It corresponds to VSCode's `encodeURIComponentMinimal`
+        val encodedPath = path.replace("#", "%23").replace("?", "%3F")
+        return "$scheme://$authority$encodedPath$query$fragment"
     }
 
     fun toDetailString(): String {

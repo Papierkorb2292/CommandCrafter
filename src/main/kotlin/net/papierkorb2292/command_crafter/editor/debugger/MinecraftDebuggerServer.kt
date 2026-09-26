@@ -279,7 +279,7 @@ class MinecraftDebuggerServer(private var minecraftServer: MinecraftServerConnec
             }
             workspaceFileFinder = WorkspaceFileFinder(DirectFileSystemAccess(workspaceFolders.mapNotNull {
                 val workspaceUri = EditorURI.parseURI(it as String)
-                if(workspaceUri.scheme == "file") workspaceUri.parsePath() else null
+                if(workspaceUri.scheme == "file") workspaceUri.parseLocalPath() else null
             }))
         } else {
             workspaceFileFinder = WorkspaceFileFinder(client!!)

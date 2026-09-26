@@ -130,7 +130,7 @@ export class DebugClient implements ConnectionFeature {
     }
 
     private handleReceivedMessage(message: any, vscodeHandleEventEmitter: vscode.EventEmitter<vscode.DebugProtocolMessage>, messageSender: (message: any) => void) {
-        if(message.type === 'request' && message.command == 'findFiles') {
+        if(message.type === 'request' && message.command === 'findFiles') {
             findFiles(message.arguments as string).then(files => {
                 messageSender({
                         type: 'response',
@@ -149,18 +149,26 @@ export class DebugClient implements ConnectionFeature {
             });
             return;
         }
-        // Only here to support older mod versions...
-        if(message.type === 'request' && message.command == 'getWorkspaceRoot') {
-            const workspaceFolders = vscode.workspace.workspaceFolders
-            messageSender({
-                type: 'response',
-                request_seq: message.seq,
-                success: true,
-                body: workspaceFolders == null || workspaceFolders.length != 1 ? null : workspaceFolders[0].uri.toString()
+        if(message.type === 'request' && message.command === 'findFilesRelative') {
+            findFiles(new vscode.RelativePattern(vscode.Uri.parse(message.arguments.baseUri), message.arguments.pattern)).then(files => {
+                messageSender({
+                        type: 'response',
+                        request_seq: message.seq,
+                        success: true,
+                        body: files
+                    });
+            }, error => {
+                messageSender({
+                    type: 'response',
+                    request_seq: message.seq,
+                    success: false,
+                    message: 'cancelled',
+                    body: { error: error.message }
+                });
             });
             return;
         }
-        if(message.type === 'request' && message.command == 'fileExists') {
+        if(message.type === 'request' && message.command === 'fileExists') {
             fileExists(message.arguments as string).then(files => {
                 messageSender({
                         type: 'response',
@@ -176,6 +184,17 @@ export class DebugClient implements ConnectionFeature {
                     message: 'cancelled',
                     body: { error: error.message }
                 });
+            });
+            return;
+        }
+        // Only here to support older mod versions...
+        if(message.type === 'request' && message.command === 'getWorkspaceRoot') {
+            const workspaceFolders = vscode.workspace.workspaceFolders
+            messageSender({
+                type: 'response',
+                request_seq: message.seq,
+                success: true,
+                body: workspaceFolders == null || workspaceFolders.length != 1 ? null : workspaceFolders[0].uri.toString()
             });
             return;
         }

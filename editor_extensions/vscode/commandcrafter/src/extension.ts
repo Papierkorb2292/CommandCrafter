@@ -11,6 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
 	activateLog(context)
 	startMinecraftLanguageClientRunner(context)
 	context.subscriptions.push(vscode.commands.registerCommand('commandcrafter.activate', () => { }));
+	findFiles(new vscode.RelativePattern("/home/papierkorb2292/Downloads", "**"))
 }
 
 export function startMinecraftLanguageClientRunner(context: vscode.ExtensionContext) {
@@ -51,8 +52,12 @@ export interface LanguageClientRunner {
 	stopLanguageClient(): void;
 }
 
-export function findFiles(filePattern: string): Thenable<string[]> {
-	outputChannel?.appendLine("Searching for files  '" + filePattern + "' in " + vscode.workspace.workspaceFolders?.map(folder => folder.uri.toString()))
+export function findFiles(filePattern: string | vscode.RelativePattern): Thenable<string[]> {
+	if (typeof (filePattern) === "string") {
+		outputChannel?.appendLine("Searching for files  '" + filePattern + "' in " + vscode.workspace.workspaceFolders?.map(folder => folder.uri.toString()))
+	} else {
+		outputChannel?.appendLine("Searching for files  '" + filePattern.pattern + "' in " + filePattern.baseUri.toString() + " (relative)")
+	}
 	return vscode.workspace.findFiles(filePattern, null).then((uris) => {
 		const result = uris.map(uri => uri.toString());
 		outputChannel?.appendLine("Result: " + result);
@@ -65,4 +70,9 @@ export function fileExists(file: string | vscode.Uri): Thenable<boolean> {
 		file = vscode.Uri.parse(file)
 	}
 	return vscode.workspace.fs.stat(file).then(() => true, () => false);
+}
+
+export interface FindFilesRelativeParams {
+	baseUri: string,
+	pattern: string
 }
