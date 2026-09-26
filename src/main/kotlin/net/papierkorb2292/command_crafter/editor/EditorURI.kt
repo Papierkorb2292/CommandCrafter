@@ -121,6 +121,11 @@ class EditorURI private constructor(
         return pathWithTrailingSlash().startsWith(other.pathWithTrailingSlash())
     }
 
+    fun getFileName(): String {
+        val lastSlashIndex = path.lastIndexOf('/')
+        return if(lastSlashIndex == -1) path else path.substring(lastSlashIndex + 1)
+    }
+
     fun copyWithPath(path: String) = EditorURI(scheme, authority, path, query, fragment)
 
     private fun pathWithTrailingSlash() = if(path.endsWith("/")) path else "$path/"

@@ -17,6 +17,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
@@ -34,6 +35,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.TextDocumentService
 import org.eclipse.lsp4j.services.WorkspaceService
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.jvm.optionals.getOrNull
@@ -106,6 +108,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private var datapackAutoReloadDelayedExecutor = MoreExecutors.directExecutor()
 
     private var directFileSystemAccess: DirectFileSystemAccess? = null
+    private val workspacePackInfos: MutableMap<String, WorkspacePackInfo> = ConcurrentHashMap()
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         val client = client ?: return
@@ -227,6 +230,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
         fetchSettings()
         connectServerConsole()
+        scanWorkspaceForPacks()
     }
 
     override fun shutdown(): CompletableFuture<Any> {
@@ -524,8 +528,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 fetchSettings()
             }
 
-            override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams?) {
-
+            override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams) {
+                for(change in params.changes) {
+                    onWorkspaceFileChange(change.uri, change.type)
+                }
             }
 
             override fun didDeleteFiles(params: DeleteFilesParams) {
@@ -643,6 +649,40 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     fun getFileAccess(): EditorFileSystemAccess? =
         if(editorInfo.fileAccessApiVersion >= 1) client else directFileSystemAccess
+
+    private fun scanWorkspaceForPacks() {
+        val fileAccess = getFileAccess() ?: return
+        fileAccess.findFiles("**/pack.mcmeta").thenAccept { packMetaFiles ->
+            for(packMetaFile in packMetaFiles) {
+                addWorkspacePackInfo(EditorURI.parseURI(packMetaFile))
+            }
+        }
+    }
+
+    private fun onWorkspaceFileChange(uri: String, changeType: org.eclipse.lsp4j.FileChangeType) {
+        val parsedUri = EditorURI.parseURI(uri)
+        if(parsedUri.getFileName() == "pack.mcmeta") {
+            when(changeType) {
+                org.eclipse.lsp4j.FileChangeType.Created -> addWorkspacePackInfo(parsedUri)
+                org.eclipse.lsp4j.FileChangeType.Deleted -> removeWorkspacePackInfo(parsedUri)
+                org.eclipse.lsp4j.FileChangeType.Changed -> {}
+            }
+        }
+    }
+
+    private fun addWorkspacePackInfo(packMetaUri: EditorURI) {
+        val parent = packMetaUri.getParent()
+        val parentString = parent.toString()
+        if(workspacePackInfos.containsKey(parentString))
+            return
+        val packInfo = WorkspacePackInfo.forFolder(parent, this)
+        workspacePackInfos[parentString] = packInfo
+    }
+
+    private fun removeWorkspacePackInfo(packMetaUri: EditorURI) {
+        val baseUri = packMetaUri.getParent().toString()
+        workspacePackInfos.remove(baseUri)
+    }
 
     // Try to read it directly from the file system first, before falling back to asking VSCode
     fun getFileContent(url: String): CompletableFuture<String> {
