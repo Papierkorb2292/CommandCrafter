@@ -9,6 +9,7 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.JsonOps
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
+import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
@@ -267,14 +268,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 PackContentFileType.POST_EFFECTS_FILE_TYPE
             )
 
-            private val relodableDatapackFileTypes = setOf(
-                PackContentFileType.LOOT_TABLES_FILE_TYPE,
-                PackContentFileType.PREDICATES_FILE_TYPE,
-                PackContentFileType.ITEM_MODIFIER_FILE_TYPE,
-                PackContentFileType.RECIPES_FILE_TYPE,
-                PackContentFileType.FUNCTIONS_FILE_TYPE,
-                PackContentFileType.ADVANCEMENTS_FILE_TYPE
-            )
+            private val reloadableDatapackFileTypes: Set<PackContentFileType> = DynamicRegistries.getReloadableRegistries()
+                .mapTo(mutableSetOf()) { PackContentFileType.getOrCreateTypeForDynamicRegistry(it.key) }
 
             override fun didSave(params: DidSaveTextDocumentParams) {
                 // If enabled: Automatically reload files
@@ -289,7 +284,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                                 AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH
                         if(!featureConfig.isEnabled(configPath, false))
                             return
-                        if(packContentFileType !in relodableDatapackFileTypes && !packContentFileType.contentTypePath.startsWith("tags/")) {
+                        if(packContentFileType !in reloadableDatapackFileTypes && !packContentFileType.contentTypePath.startsWith("tags/")) {
                             // Everything is reloadable with Worldgen Devtools (I think)
                             if(!minecraftServer.canReloadWorldgen) {
                                 if(minecraftClient?.isConnectedToServer != false)
