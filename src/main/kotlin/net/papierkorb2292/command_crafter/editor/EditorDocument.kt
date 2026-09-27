@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.PublishDiagnosticsParams
@@ -19,6 +20,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
     var currentAnalyzer: RunningAnalyzer? = null
     var runningAnalyzers = mutableSetOf<RunningAnalyzer>()
     var persistentAnalyzerData: Any? = null
+    var workspacePackInfo: WorkspacePackInfo? = null
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"

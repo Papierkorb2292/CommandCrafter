@@ -161,8 +161,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         }
     }
 
-    private fun analyzeAllFiles() {
+    private fun analyzeAllFiles(condition: ((EditorDocument) -> Boolean) = { true }) {
         for (file in openFiles.values) {
+            if(!condition(file))
+                continue
             file.stopAnalyzing()
             file.persistentAnalyzerData = null // Make sure all data is properly regenerated
             file.startAnalyzingFile(this)
@@ -248,9 +250,13 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun didOpen(params: DidOpenTextDocumentParams?) {
                 if(params == null) return
                 val textDocument = params.textDocument
-                openFiles[textDocument.uri] = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text)).also {
-                    it.startAnalyzingFile(this@MinecraftLanguageServer)
+                val document = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text))
+                document.workspacePackInfo = workspacePackInfos.entries.firstNotNullOfOrNull { (_, packInfo) ->
+                    if(document.parsedUri.startsWith(packInfo.baseUri)) packInfo
+                    else null
                 }
+                document.startAnalyzingFile(this@MinecraftLanguageServer)
+                openFiles[textDocument.uri] = document
             }
 
             override fun didChange(params: DidChangeTextDocumentParams?) {
@@ -656,11 +662,19 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private fun onWorkspaceFileChange(uri: String, changeType: org.eclipse.lsp4j.FileChangeType) {
         val parsedUri = EditorURI.parseURI(uri)
-        if(parsedUri.getFileName() == "pack.mcmeta") {
+        val fileName = parsedUri.getFileName()
+        if(fileName == "pack.mcmeta") {
             when(changeType) {
                 org.eclipse.lsp4j.FileChangeType.Created -> addWorkspacePackInfo(parsedUri)
                 org.eclipse.lsp4j.FileChangeType.Deleted -> removeWorkspacePackInfo(parsedUri)
                 org.eclipse.lsp4j.FileChangeType.Changed -> {}
+            }
+        } else if(fileName == "assets" || fileName == "data") {
+            val parent = parsedUri.getParent()
+            val pack = workspacePackInfos[parent.toString()]
+            if(pack != null) {
+                pack.updatePackType(this)
+                analyzeAllPackFiles(pack)
             }
         }
     }
@@ -672,11 +686,23 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             return
         val packInfo = WorkspacePackInfo.forFolder(parent, this)
         workspacePackInfos[parentString] = packInfo
+        for(file in openFiles.values) {
+            if(file.parsedUri.startsWith(parent)) {
+                file.workspacePackInfo = packInfo
+            }
+        }
+        analyzeAllPackFiles(packInfo)
     }
 
     private fun removeWorkspacePackInfo(packMetaUri: EditorURI) {
         val baseUri = packMetaUri.getParent().toString()
-        workspacePackInfos.remove(baseUri)
+        val pack = workspacePackInfos.remove(baseUri)
+        if(pack != null)
+            analyzeAllPackFiles(pack)
+    }
+
+    private fun analyzeAllPackFiles(pack: WorkspacePackInfo) {
+        analyzeAllFiles { file -> file.workspacePackInfo == pack }
     }
 
     // Try to read it directly from the file system first, before falling back to asking VSCode

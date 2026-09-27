@@ -48,31 +48,31 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
 
     override fun canHandle(file: EditorDocument) = file.parsedUri.path.endsWith("pack.mcmeta")
 
-    override fun analyzeAsync(file: EditorDocument, languageServer: MinecraftLanguageServer, executor: ExecutorService, completableFuture: CompletableFuture<AnalyzingResult>): Future<*> {
-        val packFolder = file.parsedUri.getParent()
-        val dataPath = packFolder.resolve("data").toString()
-        val assetsPath = packFolder.resolve("assets").toString()
-        return languageServer.client!!.fileExists(dataPath)
-            .thenCombine(languageServer.client!!.fileExists(assetsPath)) { dataFolderExists, assetsFolderExists ->
-                if(!dataFolderExists.xor(assetsFolderExists))
-                    MERGED_UNKNOWN_DECODER // There is either both a data folder and an assets folder or neither, so the type of the pack can't be determined
-                else if(dataFolderExists)
-                    MERGED_DATAPACK_DECODER
-                else
-                    MERGED_RESOURCEPACK_DECODER
-            }.thenApplyAsync({ decoder ->
-                val analyzingResult = StringRangeTreeJsonResourceAnalyzer.analyze(
-                    file,
-                    languageServer,
-                    decoder
+    override fun analyzeAsync(
+        file: EditorDocument,
+        languageServer: MinecraftLanguageServer,
+        executor: ExecutorService,
+        completableFuture: CompletableFuture<AnalyzingResult>
+    ): Future<*> {
+        val packType = file.workspacePackInfo?.packType ?: CompletableFuture.completedFuture(null)
+        return packType.thenApplyAsync({ packType ->
+            val decoder = when(packType) {
+                PackContentFileType.PackType.DATA -> MERGED_DATAPACK_DECODER
+                PackContentFileType.PackType.RESOURCE -> MERGED_RESOURCEPACK_DECODER
+                else -> MERGED_UNKNOWN_DECODER
+            }
+            val analyzingResult = StringRangeTreeJsonResourceAnalyzer.analyze(
+                file,
+                languageServer,
+                decoder
+            )
+            completableFuture.complete(analyzingResult.filterDisabledFeatures(
+                languageServer.featureConfig, listOf(
+                    StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX + ANALYZER_CONFIG_PATH,
+                    StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX,
+                    ""
                 )
-                completableFuture.complete(analyzingResult.filterDisabledFeatures(
-                    languageServer.featureConfig, listOf(
-                        StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX + ANALYZER_CONFIG_PATH,
-                        StringRangeTreeJsonResourceAnalyzer.JSON_ANALYZER_CONFIG_PATH_PREFIX,
-                        ""
-                    )
-                ))
-            }, executor)
+            ))
+        }, executor)
     }
 }

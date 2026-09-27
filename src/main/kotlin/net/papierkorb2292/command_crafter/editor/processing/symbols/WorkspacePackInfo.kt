@@ -7,25 +7,32 @@ import java.util.concurrent.CompletableFuture
 
 class WorkspacePackInfo(
     val baseUri: EditorURI,
-    val packType: CompletableFuture<PackContentFileType.PackType?>
+    var packType: CompletableFuture<PackContentFileType.PackType?>
 ) {
     companion object {
         fun forFolder(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): WorkspacePackInfo {
+            return WorkspacePackInfo(folderLocation, findType(folderLocation, languageServer))
+        }
+
+        fun findType(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): CompletableFuture<PackContentFileType.PackType?> {
             val dataPath = folderLocation.resolve("data").toString()
             val assetsPath = folderLocation.resolve("assets").toString()
-            val packType = languageServer.client!!.fileExists(dataPath)
+            return languageServer.client!!.fileExists(dataPath)
                 .thenCombine(languageServer.client!!.fileExists(assetsPath)) { dataFolderExists, assetsFolderExists ->
-                    if (dataFolderExists && assetsFolderExists) {
+                    if(dataFolderExists && assetsFolderExists) {
                         null
-                    } else if (dataFolderExists) {
+                    } else if(dataFolderExists) {
                         PackContentFileType.PackType.DATA
-                    } else if (assetsFolderExists) {
+                    } else if(assetsFolderExists) {
                         PackContentFileType.PackType.RESOURCE
                     } else {
                         null
                     }
                 }
-            return WorkspacePackInfo(folderLocation, packType)
         }
+    }
+
+    fun updatePackType(languageServer: MinecraftLanguageServer) {
+        packType = findType(baseUri, languageServer)
     }
 }

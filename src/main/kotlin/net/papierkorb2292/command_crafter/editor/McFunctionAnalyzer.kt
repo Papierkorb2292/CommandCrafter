@@ -21,7 +21,7 @@ class McFunctionAnalyzer(
 
     override fun analyze(
         file: EditorDocument,
-        languageServer: MinecraftLanguageServer,
+        languageServer: MinecraftLanguageServer
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
         val dispatcher = languageServer.minecraftServer.commandDispatcher
