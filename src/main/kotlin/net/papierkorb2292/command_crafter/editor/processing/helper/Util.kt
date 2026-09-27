@@ -194,8 +194,8 @@ fun completionItemsToSuggestions(completionItems: List<CompletionItem>, reader: 
         )
     }
     fuzzyMatchSuggestions(suggestions, reader.string, cursor)
-    // Range is only used to determine the display position for the suggestions
-    return Suggestions(StringRange.at(suggestions.minOf { it.suggestion.range.start }), suggestions.map { it.suggestion })
+    // Range is only used to determine the display position for the suggestions. If no suggestions are there, it is irrelevant because they won't be merged (but make sure to not throw)
+    return Suggestions(StringRange.at(suggestions.minOfOrNull { it.suggestion.range.start } ?: 0), suggestions.map { it.suggestion })
 }
 
 /**
