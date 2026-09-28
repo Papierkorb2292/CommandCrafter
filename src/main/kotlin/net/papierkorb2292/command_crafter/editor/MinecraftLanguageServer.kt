@@ -188,15 +188,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             setTextDocumentSync(TextDocumentSyncOptions().apply {
                 change = TextDocumentSyncKind.Incremental
                 openClose = true
-                hoverProvider = Either.forLeft(true)
-                definitionProvider = Either.forLeft(true)
                 save = Either.forLeft(true)
-                completionProvider = CompletionOptions().apply {
-                    triggerCharacters = allCompletionTriggerCharacters
-                    resolveProvider = true
-                }
-                colorProvider = Either.forLeft(true)
             })
+            hoverProvider = Either.forLeft(true)
+            definitionProvider = Either.forLeft(true)
+            completionProvider = CompletionOptions().apply {
+                triggerCharacters = allCompletionTriggerCharacters
+                resolveProvider = true
+            }
+            colorProvider = Either.forLeft(true)
             workspace = WorkspaceServerCapabilities().apply {
                 fileOperations = FileOperationsServerCapabilities().apply {
                     didDelete = FileOperationOptions(listOf(FileOperationFilter(FileOperationPattern("**"))))
