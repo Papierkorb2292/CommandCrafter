@@ -6,7 +6,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHa
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
-import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -153,14 +152,6 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         runningAnalyzers += newAnalyzer
         completableFuture.thenRun {
             runningAnalyzers -= newAnalyzer
-        }
-        completableFuture.thenAccept { result ->
-            // Don't just compare the version, because even if the version is still the same
-            // the diagnostics might be inaccurate, like when the file has been deleted
-            if(!newAnalyzer.softCancelled) {
-                MinecraftLanguageServer.fillDiagnosticsSource(result.diagnostics)
-                languageServer.client?.publishDiagnostics(PublishDiagnosticsParams(uri, result.diagnostics))
-            }
         }
         return newAnalyzer
     }

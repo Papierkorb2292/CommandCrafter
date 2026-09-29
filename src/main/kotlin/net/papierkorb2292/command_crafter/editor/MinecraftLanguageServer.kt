@@ -162,13 +162,18 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     private fun analyzeAllFiles(condition: ((EditorDocument) -> Boolean) = { true }) {
+        var anyMatched = false
         for (file in openFiles.values) {
             if(!condition(file))
                 continue
+            anyMatched = true
             file.stopAnalyzing()
             file.persistentAnalyzerData = null // Make sure all data is properly regenerated
             file.startAnalyzingFile(this)
         }
+
+        if(anyMatched)
+            client!!.refreshDiagnostics() // Diagnostics have to be pulled again
     }
 
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
@@ -196,6 +201,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 triggerCharacters = allCompletionTriggerCharacters
                 resolveProvider = true
             }
+            diagnosticProvider = DiagnosticRegistrationOptions()
             colorProvider = Either.forLeft(true)
             workspace = WorkspaceServerCapabilities().apply {
                 fileOperations = FileOperationsServerCapabilities().apply {
@@ -247,6 +253,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     override fun getTextDocumentService(): TextDocumentService {
         return object : TextDocumentService {
+            // Only use with the map instance as a lock
+            val waitForOpenFileFutures = mutableMapOf<String, MutableSet<CompletableFuture<in EditorDocument>>>()
+
             override fun didOpen(params: DidOpenTextDocumentParams?) {
                 if(params == null) return
                 val textDocument = params.textDocument
@@ -257,6 +266,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 }
                 document.startAnalyzingFile(this@MinecraftLanguageServer)
                 openFiles[textDocument.uri] = document
+                waitForOpenFileFutures.remove(textDocument.uri)?.forEach { future ->
+                    future.complete(document)
+                }
             }
 
             override fun didChange(params: DidChangeTextDocumentParams?) {
@@ -369,15 +381,20 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
             override fun diagnostic(params: DocumentDiagnosticParams?): CompletableFuture<DocumentDiagnosticReport> {
                 if(params == null) return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
-                val file = openFiles[params.textDocument.uri]
-                    ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
 
-                val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
-                    ?: return CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
-                return file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply {
-                    fillDiagnosticsSource(it.diagnostics)
-                    DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics))
-                })
+                // When opening a document, VSCode seems to call diagnostic before calling didOpen, so wait until the file content is known
+                return getOrWaitForOpenFile(params.textDocument.uri, 1000).thenCompose { file ->
+                    if(file == null) {
+                        // File is not open and didn't open within the timeout, so return an empty diagnostic report
+                        return@thenCompose CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
+                    }
+                    val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
+                        ?: return@thenCompose CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
+                    file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply {
+                        fillDiagnosticsSource(it.diagnostics)
+                        DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics))
+                    })
+                }
             }
 
             override fun documentColor(params: DocumentColorParams): CompletableFuture<List<ColorInformation>> {
@@ -427,6 +444,32 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 return file.registerAnalyzerCancel(analyzer, analyzer.result.thenComposeAsync({
                     it.getDefinition(cursor)?.thenApply { definition -> definition.location } ?: emptyDefinitionDefault
                 }, fileResultProcessing))
+            }
+
+            private fun getOrWaitForOpenFile(uri: String, timeoutMS: Long): CompletableFuture<EditorDocument?> {
+                val existingFile = openFiles[uri]
+                if(existingFile != null)
+                    return CompletableFuture.completedFuture(existingFile)
+
+                val future = CompletableFuture<EditorDocument?>()
+                synchronized(waitForOpenFileFutures) {
+                    waitForOpenFileFutures.getOrPut(uri) { mutableSetOf() }.add(future)
+                }
+                return future.completeOnTimeout(null, timeoutMS, TimeUnit.MILLISECONDS).thenApply { document ->
+                    if(document == null) {
+                        // Hit timeout
+                        synchronized(waitForOpenFileFutures) {
+                            val set = waitForOpenFileFutures[uri]
+                            if(set != null) {
+                                set.remove(future)
+                                if(set.isEmpty()) {
+                                    waitForOpenFileFutures.remove(uri)
+                                }
+                            }
+                        }
+                    }
+                    document
+                }
             }
         }
     }
@@ -537,9 +580,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
 
             override fun didDeleteFiles(params: DeleteFilesParams) {
-                params.files.forEach {
-                    client?.publishDiagnostics(PublishDiagnosticsParams(it.uri, listOf()))
-                }
+
             }
         }
     }
