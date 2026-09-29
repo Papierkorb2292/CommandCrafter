@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 @Suppress("unused")
-class TokenModifier(val name: String) {
+class TokenModifier private constructor(val name: String) {
     val bit = 1.shl(MODIFIERS_MUTABLE.size)
     init { MODIFIERS_MUTABLE.add(name) }
 

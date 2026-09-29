@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
 @Suppress("unused")
-class TokenType(val name: String) {
+class TokenType private constructor(val name: String) {
     val id = TYPES_MUTABLE.size
     init { TYPES_MUTABLE.add(name) }
 
