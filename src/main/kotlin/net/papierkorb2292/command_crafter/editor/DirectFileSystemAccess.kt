@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import it.unimi.dsi.fastutil.chars.CharSet
+import net.papierkorb2292.command_crafter.helper.ensurePrefixed
 import java.io.IOException
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -44,7 +45,11 @@ class DirectFileSystemAccess(workspaceRoots: List<Path>) : EditorFileSystemAcces
                 Files.walk(resolved).use { stream ->
                     stream.filter { Files.isRegularFile(it) }.filter { path ->
                         matcher.matches(resolved.relativize(path))
-                    }.map { it.toString() }.toList()
+                    }.map {
+                        val prefixedPath = it.toString().ensurePrefixed('/')
+                        val normalizedPath = if(EditorURI.IS_WINDOWS) prefixedPath.replace('\\', '/') else prefixedPath
+                        "file://$normalizedPath"
+                    }.toList()
                 }
             }
             return CompletableFuture.completedFuture(matched.toTypedArray())

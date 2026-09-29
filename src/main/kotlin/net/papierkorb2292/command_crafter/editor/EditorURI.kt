@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.minecraft.util.Util
+import net.papierkorb2292.command_crafter.helper.ensurePrefixed
 import org.eclipse.lsp4j.jsonrpc.util.ToStringBuilder
 import java.net.URLDecoder
 import java.nio.file.InvalidPathException
@@ -48,7 +49,8 @@ class EditorURI private constructor(
     companion object {
         private val uriRegex = Regex("^(([^:/?#]+?):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
         private val encodedAsHex = Regex("(%[0-9A-Za-z][0-9A-Za-z])+")
-        private val IS_WINDOWS = Util.getPlatform() == Util.OS.WINDOWS
+
+        val IS_WINDOWS = Util.getPlatform() == Util.OS.WINDOWS
 
         fun parseURI(uri: String, strict: Boolean = false): EditorURI {
             val match = uriRegex.matchEntire(uri)
@@ -82,10 +84,7 @@ class EditorURI private constructor(
 
         fun referenceResolution(scheme: String, path: String) =
             when(scheme) {
-                "https", "http", "file" ->
-                    if(path.isEmpty()) "/"
-                    else if(path[0] != '/') "/$path"
-                    else path
+                "https", "http", "file" -> path.ensurePrefixed('/')
                 else -> path
             }
 
