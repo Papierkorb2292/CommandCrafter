@@ -468,7 +468,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         }
 
         override fun createDirectory(params: UriParams): CompletableFuture<FileSystemResult<Unit>> {
-            return delegateFileSystem?.createDirectory(params)                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
+            return delegateFileSystem?.createDirectory(params)
+                ?: CompletableFuture.completedFuture(NO_SERVER_SUPPORT_ERROR)
         }
 
         override fun readFile(params: UriParams): CompletableFuture<FileSystemResult<ReadFileResult>> {
