@@ -201,7 +201,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 triggerCharacters = allCompletionTriggerCharacters
                 resolveProvider = true
             }
-            diagnosticProvider = DiagnosticRegistrationOptions()
+            diagnosticProvider = DiagnosticRegistrationOptions().apply {
+                isWorkspaceDiagnostics = true
+            }
             colorProvider = Either.forLeft(true)
             workspace = WorkspaceServerCapabilities().apply {
                 fileOperations = FileOperationsServerCapabilities().apply {
@@ -581,6 +583,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
             override fun didDeleteFiles(params: DeleteFilesParams) {
 
+            }
+
+            override fun diagnostic(params: WorkspaceDiagnosticParams): CompletableFuture<WorkspaceDiagnosticReport> {
+                // No-op for now, but by supporting workspace diagnostics VSCode doesn't discard a file's diagnostics when the file is closed
+                return CompletableFuture.completedFuture(WorkspaceDiagnosticReport(listOf()))
             }
         }
     }
