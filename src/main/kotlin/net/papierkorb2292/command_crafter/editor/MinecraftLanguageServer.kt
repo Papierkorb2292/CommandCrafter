@@ -9,6 +9,8 @@ import com.mojang.serialization.Codec
 import com.mojang.serialization.JsonOps
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
+import it.unimi.dsi.fastutil.objects.Object2IntMap
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
@@ -110,6 +112,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private var directFileSystemAccess: DirectFileSystemAccess? = null
     private val workspacePackInfos: MutableMap<String, WorkspacePackInfo> = ConcurrentHashMap()
+    // Only use with the map instance as lock
+    private val workspacePackFolderNames: Object2IntMap<Pair<String, PackContentFileType.PackType>> = Object2IntOpenHashMap()
 
     override fun setMinecraftServerConnection(connection: MinecraftServerConnection) {
         val client = client ?: return
@@ -722,7 +726,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             val parent = parsedUri.getParent()
             val pack = workspacePackInfos[parent.toString()]
             if(pack != null) {
+                changeWorkspacePackFolderNameCount(pack, -1)
                 pack.updatePackType(this)
+                changeWorkspacePackFolderNameCount(pack, 1)
                 analyzeAllPackFiles(pack)
             }
         }
@@ -735,6 +741,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             return
         val packInfo = WorkspacePackInfo.forFolder(parent, this)
         workspacePackInfos[parentString] = packInfo
+        changeWorkspacePackFolderNameCount(packInfo, 1)
         for(file in openFiles.values) {
             if(file.parsedUri.startsWith(parent)) {
                 file.workspacePackInfo = packInfo
@@ -746,8 +753,25 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private fun removeWorkspacePackInfo(packMetaUri: EditorURI) {
         val baseUri = packMetaUri.getParent().toString()
         val pack = workspacePackInfos.remove(baseUri)
-        if(pack != null)
+        if(pack != null) {
+            changeWorkspacePackFolderNameCount(pack, -1)
             analyzeAllPackFiles(pack)
+        }
+    }
+
+    private fun changeWorkspacePackFolderNameCount(pack: WorkspacePackInfo, amount: Int) {
+        pack.packType.thenAccept { packType ->
+            if(packType == null)
+                return@thenAccept
+            val key = pack.packFolderName to packType
+            synchronized(workspacePackFolderNames) {
+                val count = workspacePackFolderNames.getInt(key) + amount
+                if(count > 0)
+                    workspacePackFolderNames.put(key, count)
+                else
+                    workspacePackFolderNames.removeInt(key)
+            }
+        }
     }
 
     private fun analyzeAllPackFiles(pack: WorkspacePackInfo) {

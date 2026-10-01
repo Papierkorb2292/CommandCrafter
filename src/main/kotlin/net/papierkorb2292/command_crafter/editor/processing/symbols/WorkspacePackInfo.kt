@@ -7,11 +7,12 @@ import java.util.concurrent.CompletableFuture
 
 class WorkspacePackInfo(
     val baseUri: EditorURI,
+    val packFolderName: String,
     var packType: CompletableFuture<PackContentFileType.PackType?>
 ) {
     companion object {
         fun forFolder(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): WorkspacePackInfo {
-            return WorkspacePackInfo(folderLocation, findType(folderLocation, languageServer))
+            return WorkspacePackInfo(folderLocation, folderLocation.getFileName(), findType(folderLocation, languageServer))
         }
 
         fun findType(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): CompletableFuture<PackContentFileType.PackType?> {
