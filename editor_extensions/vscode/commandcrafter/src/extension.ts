@@ -11,14 +11,12 @@ export function activate(context: vscode.ExtensionContext) {
 	activateLog(context)
 	startMinecraftLanguageClientRunner(context)
 	context.subscriptions.push(vscode.commands.registerCommand('commandcrafter.activate', () => { }));
-	findFiles(new vscode.RelativePattern("/home/papierkorb2292/Downloads", "**"))
 }
 
 export function startMinecraftLanguageClientRunner(context: vscode.ExtensionContext) {
 	const minecraftConnection = getUpdatedMinecraftConnectionType()
 	minecraftLanguageClientRunner = new MinecraftLanguageClientRunner(minecraftConnection, context);
 	minecraftLanguageClientRunner.startLanguageClient();
-	
 }
 
 export function checkUpdateMinecraftAddress() {
