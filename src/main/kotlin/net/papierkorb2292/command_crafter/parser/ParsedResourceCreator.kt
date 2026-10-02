@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.collect.ImmutableMap
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
-import net.minecraft.core.Registry
-import net.minecraft.tags.TagEntry
-import net.minecraft.tags.TagLoader
-import net.minecraft.server.ReloadableServerResources
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.functions.CommandFunction
 import net.minecraft.commands.functions.FunctionBuilder
+import net.minecraft.core.Registry
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.server.ReloadableServerResources
+import net.minecraft.tags.TagEntry
+import net.minecraft.tags.TagLoader
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer
 import net.papierkorb2292.command_crafter.parser.helper.InlineTagFunctionIdContainer
 import java.util.*
@@ -114,10 +114,6 @@ class ParsedResourceCreator(
     interface ParseResourceContextContainer {
         fun `command_crafter$setResourceCreatorContext`(dataPackContents: ReloadableServerResources?)
         fun `command_crafter$getResourceCreatorContext`(): ReloadableServerResources?
-    }
-
-    interface DataPackRefresher {
-        fun `command_crafter$addCallback`(callback: () -> Unit)
     }
 
     class ResourceStackInfo(val id: Identifier, val range: StringRange)
