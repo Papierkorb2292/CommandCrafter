@@ -4,6 +4,7 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
+import net.papierkorb2292.command_crafter.helper.DaemonThreadFactory
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
@@ -23,7 +24,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
-        private val backingExecutor = Executors.newFixedThreadPool(5)
+        private val backingExecutor = Executors.newFixedThreadPool(5, DaemonThreadFactory("EditorDocumentAnalyzer"))
         val analyzerExecutor = WrappingExecutorService.withErrorCallback(backingExecutor) { e ->
             CommandCrafter.LOGGER.error("Analyzer task threw error", e)
         }
@@ -32,10 +33,6 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         fun linesFromStrings(lines: List<String>): MutableList<StringBuilder> = lines.mapTo(ArrayList(lines.size), ::StringBuilder)
         fun fromString(uri: String, content: String) = fromLines(uri, content.lines())
         fun fromLines(uri: String, lines: List<String>) = EditorDocument(uri, lines.mapTo(ArrayList(lines.size), ::StringBuilder))
-
-        fun shutdown() {
-            backingExecutor.shutdown()
-        }
     }
 
     @Synchronized

@@ -25,6 +25,7 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.RenameParams
+import net.papierkorb2292.command_crafter.helper.DaemonThreadFactory
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.mixin.editor.processing.IdentifierAccessor
@@ -52,6 +53,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
         val emptyDefinitionNodeDefault: CompletableFuture<ActualSyntaxNode.Definition> = CompletableFuture.completedFuture(ActualSyntaxNode.Definition(Either.forLeft(emptyList()), true))
         val emptyCompletionsDefault: CompletableFuture<Either<List<CompletionItem>, CompletionList>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
+
+        val resultProcessingThreadFactory = DaemonThreadFactory("LanguageServerResultProcessing")
 
         const val AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH = "autoreload.datapack_functions"
         const val AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH = "autoreload.datapack_json"
@@ -102,7 +105,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     private var currentSemanticTokensRegistration: SemanticTokensWithRegistrationOptions? = null
 
-    val fileResultProcessing = Executors.newSingleThreadExecutor() // AnalyzingResults are processed on the same thread to make sure caches are not corrupted
+    val fileResultProcessing = Executors.newSingleThreadExecutor(resultProcessingThreadFactory) // AnalyzingResults are processed on the same thread to make sure caches are not corrupted
 
     var editorInfo = EditorConnectionManager.EditorInfo.DEFAULT
         private set
@@ -698,7 +701,6 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     override fun onClosed() {
         running = false
-        fileResultProcessing.shutdown()
     }
 
     fun getFileAccess(): EditorFileSystemAccess? =

@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor
 import com.mojang.serialization.Codec
 import com.mojang.serialization.codecs.RecordCodecBuilder
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.helper.DaemonThreadFactory
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
 import net.papierkorb2292.command_crafter.helper.getType
 import net.papierkorb2292.command_crafter.mixin.editor.lsp4j.ConcurrentMessageProcessorAccessor
@@ -28,6 +29,8 @@ class EditorConnectionManager(
     private val serviceLaunchers: Map<String, ServiceLauncher>
 ) {
     companion object {
+        private val serviceThreadFactory = DaemonThreadFactory("EditorService")
+
         fun injectInitialMessage(launcher: Launcher<*>, message: Message) {
             if(launcher !is StandardLauncherAccessor) {
                 throw IllegalArgumentException("Expected LSP4J Launcher to be a StandardLauncher to inject message")
@@ -131,13 +134,13 @@ class EditorConnectionManager(
     }
 
     private fun startService(connection: EditorConnection, serviceLauncher: ServiceLauncher, editorInfo: EditorInfo? = null, initialMessage: Message? = null) {
-        val serviceRemover = ServiceRemover(runningServices, null, Executors.newCachedThreadPool())
+        val serviceRemover = ServiceRemover(runningServices, null)
         val launchedService = serviceLauncher.launch(
             minecraftServerConnection,
             minecraftClientConnection,
             connection,
             WrappingExecutorService.withFinishedCallback(
-                serviceRemover.threadPool,
+                Executors.newCachedThreadPool(serviceThreadFactory),
                 serviceRemover
             ),
             editorInfo,
@@ -204,11 +207,10 @@ class EditorConnectionManager(
         val connection: EditorConnection
     )
 
-    class ServiceRemover(private val runningServices: MutableMap<EditorService, *>, var service: EditorService?, val threadPool: ExecutorService) : () -> Unit {
+    class ServiceRemover(private val runningServices: MutableMap<EditorService, *>, var service: EditorService?) : () -> Unit {
         override fun invoke() {
             service?.onClosed()
             runningServices.remove(service)
-            threadPool.shutdown()
         }
     }
 
