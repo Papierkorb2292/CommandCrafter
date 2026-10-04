@@ -1,8 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.processing.symbols
 
+import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.types
 import java.util.concurrent.CompletableFuture
 
 class WorkspacePackInfo(
@@ -36,4 +38,25 @@ class WorkspacePackInfo(
     fun updatePackType(languageServer: MinecraftLanguageServer) {
         packType = findType(baseUri, languageServer)
     }
+
+    fun idFromUri(uri: EditorURI): TypedId? {
+        val relativePath = baseUri.relativePath(uri) ?: return null
+        val segments = relativePath.split('/')
+        if(segments.size < 3) return null
+        val packType = PackContentFileType.packTypeFolders[segments[0]] ?: return null
+        val namespace = segments[1]
+
+        for(i in segments.size - 1 downTo 3) {
+            val potentialContentTypePath = segments.subList(2, i).joinToString("/")
+            val type = types[potentialContentTypePath] ?: continue
+            if(type.packType != packType) continue
+            val remainingPath = segments.subList(i, segments.size).joinToString("/")
+            val resourceId = Identifier.tryBuild(namespace, remainingPath)
+            if(resourceId != null)
+                return TypedId(resourceId, type)
+        }
+        return null
+    }
+
+    data class TypedId(val id: Identifier, val type: PackContentFileType)
 }

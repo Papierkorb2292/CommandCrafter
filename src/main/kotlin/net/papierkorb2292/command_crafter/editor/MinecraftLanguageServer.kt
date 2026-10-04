@@ -269,10 +269,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 if(params == null) return
                 val textDocument = params.textDocument
                 val document = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text))
-                document.workspacePackInfo = workspacePackInfos.entries.firstNotNullOfOrNull { (_, packInfo) ->
+                document.setWorkspacePackInfo(workspacePackInfos.entries.firstNotNullOfOrNull { (_, packInfo) ->
                     if(document.parsedUri.startsWith(packInfo.baseUri)) packInfo
                     else null
-                }
+                })
                 document.startAnalyzingFile(this@MinecraftLanguageServer)
                 openFiles[textDocument.uri] = document
                 waitForOpenFileFutures.remove(textDocument.uri)?.forEach { future ->
@@ -310,7 +310,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             override fun didSave(params: DidSaveTextDocumentParams) {
                 // If enabled: Automatically reload files
                 val file = openFiles[params.textDocument.uri] ?: return
-                val packContentFileType = PackContentFileType.parsePath(file.parsedUri.path)?.type ?: return
+                val packContentFileType = file.typedId?.type ?: return
                 when(packContentFileType.packType) {
                     PackContentFileType.PackType.DATA -> {
                         val configPath =
@@ -746,7 +746,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         changeWorkspacePackFolderNameCount(packInfo, 1)
         for(file in openFiles.values) {
             if(file.parsedUri.startsWith(parent)) {
-                file.workspacePackInfo = packInfo
+                file.setWorkspacePackInfo(packInfo)
             }
         }
         analyzeAllPackFiles(packInfo)
@@ -757,6 +757,11 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val pack = workspacePackInfos.remove(baseUri)
         if(pack != null) {
             changeWorkspacePackFolderNameCount(pack, -1)
+            for(file in openFiles.values) {
+                if(file.workspacePackInfo == pack) {
+                    file.setWorkspacePackInfo(null)
+                }
+            }
             analyzeAllPackFiles(pack)
         }
     }

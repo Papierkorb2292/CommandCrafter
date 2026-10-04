@@ -111,8 +111,19 @@ class EditorURI private constructor(
 
     fun resolve(relativePath: String): EditorURI =
         if(relativePath == "") this
-        else if(relativePath.startsWith("/")) copyWithPath(relativePath)
+        else if(relativePath.startsWith('/')) copyWithPath(relativePath)
         else copyWithPath(pathWithTrailingSlash() + relativePath)
+
+    fun relativePath(uri: EditorURI): String? {
+        if(scheme != uri.scheme || authority != uri.authority)
+            return null
+        val parentWithTrailingSlash = pathWithTrailingSlash()
+        val otherWithTrailingSlash = uri.pathWithTrailingSlash()
+        if(parentWithTrailingSlash == otherWithTrailingSlash)
+            return ""
+        val relativePath = uri.path.substring(parentWithTrailingSlash.length)
+        return relativePath
+    }
 
     fun startsWith(other: EditorURI): Boolean {
         if(scheme != other.scheme || authority != other.authority)
@@ -127,10 +138,10 @@ class EditorURI private constructor(
 
     fun copyWithPath(path: String) = EditorURI(scheme, authority, path, query, fragment)
 
-    private fun pathWithTrailingSlash() = if(path.endsWith("/")) path else "$path/"
+    private fun pathWithTrailingSlash() = if(path.endsWith('/')) path else "$path/"
 
     fun toPatternMatch(): String {
-        val segments = path.split("/")
+        val segments = path.split('/')
         val pathRegex = segments.joinToString("/") { segment ->
             if(segment == "**")
                 return@joinToString ".+"

@@ -15,12 +15,20 @@ import java.util.concurrent.Future
 
 class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
     val parsedUri = EditorURI.parseURI(uri)
-    val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
-    val analyzeHandler: FileAnalyseHandler? = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
-    var currentAnalyzer: RunningAnalyzer? = null
-    var runningAnalyzers = mutableSetOf<RunningAnalyzer>()
+
+    private val cachedLineStrings: MutableList<String?> = lines.mapTo(ArrayList(lines.size)) { null }
+    private var analyzeHandler: FileAnalyseHandler? = null
+    private var currentAnalyzer: RunningAnalyzer? = null
+    val runningAnalyzers = mutableSetOf<RunningAnalyzer>()
     var persistentAnalyzerData: Any? = null
     var workspacePackInfo: WorkspacePackInfo? = null
+        private set
+    var typedId: WorkspacePackInfo.TypedId? = null
+        private set
+
+    init {
+        updateAnalyzeHandler()
+    }
 
     companion object {
         const val LINE_SEPARATOR = "\r\n"
@@ -172,6 +180,16 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         // Make sure to return the original future, because that's the one that LSP4J will complete with a CancellationException.
         // Completing the future returned by `whenComplete` wouldn't trigger the callback.
         return future
+    }
+
+    fun setWorkspacePackInfo(packInfo: WorkspacePackInfo?) {
+        workspacePackInfo = packInfo
+        typedId = packInfo?.idFromUri(parsedUri)
+        updateAnalyzeHandler()
+    }
+
+    private fun updateAnalyzeHandler() {
+        analyzeHandler = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
     }
 
     class RunningAnalyzer(val future: Future<*>, val result: CompletableFuture<AnalyzingResult>, var dependents: Int, var softCancelled: Boolean) {
