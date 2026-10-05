@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
@@ -21,7 +22,8 @@ class McFunctionAnalyzer(
 
     override fun analyze(
         file: EditorDocument,
-        languageServer: MinecraftLanguageServer
+        languageServer: MinecraftLanguageServer,
+        stopInfo: StopInfo?,
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
         val dispatcher = languageServer.minecraftServer.commandDispatcher
@@ -29,7 +31,14 @@ class McFunctionAnalyzer(
         val reader = DirectiveStringReader(
             mappingInfo,
             dispatcher,
-            AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, source, mappingInfo).apply {
+            AnalyzingResourceCreator(
+                languageServer,
+                file.uri,
+                languageServer.dynamicRegistryManager,
+                source,
+                mappingInfo,
+                stopInfo
+            ).apply {
                 loadCache(file, dispatcher)
             }
         )

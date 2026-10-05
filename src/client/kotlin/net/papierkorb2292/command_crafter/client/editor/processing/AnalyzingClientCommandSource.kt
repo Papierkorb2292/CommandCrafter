@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.function.Predicate
 import java.util.stream.Stream
 
-class AnalyzingClientCommandSource(
+class   AnalyzingClientCommandSource(
     private val clientCommandSource: ClientSuggestionProvider,
     private val hasNetworkHandler: Boolean,
     private val registries: RegistryAccess,

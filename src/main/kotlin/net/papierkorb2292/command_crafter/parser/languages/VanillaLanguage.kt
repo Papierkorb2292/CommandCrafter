@@ -142,7 +142,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
 
         var previousTextWasCommand = false
         while(skipToNextCommandAndAnalyze(reader, result, source, !easyNewLine || !previousTextWasCommand)) {
-            if(Thread.currentThread().isInterrupted)
+            if(reader.resourceCreator.shouldStop())
                 return
             if(LanguageManager.readAndAnalyzeDocComment(reader, result) != null) {
                 previousTextWasCommand = false

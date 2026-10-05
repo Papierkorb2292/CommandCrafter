@@ -194,7 +194,13 @@ object ClientCommandCrafter : ClientModInitializer {
         val directiveReader = DirectiveStringReader(
             mappingInfo,
             dispatcher,
-            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager, source, mappingInfo)
+            AnalyzingResourceCreator(
+                null,
+                "",
+                editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
+                source,
+                mappingInfo
+            )
         )
         directiveReader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
         if(directiveReader.canRead() && directiveReader.peek() == '/')

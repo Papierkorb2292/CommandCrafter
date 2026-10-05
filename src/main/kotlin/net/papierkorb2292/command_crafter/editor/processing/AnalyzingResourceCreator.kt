@@ -6,8 +6,8 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
 import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.EditorDocument
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
@@ -28,9 +28,10 @@ class AnalyzingResourceCreator(
     val registries: RegistryAccess,
     val source: SharedSuggestionProvider,
     val file: FileMappingInfo,
+    val stopInfo: StopInfo? = null,
     val macroTargetCursors: IntList = IntList(),
     var previousCache: CacheData? = null,
-    val newCache: CacheData = CacheData(file),
+    val newCache: CacheData = CacheData(file)
 ) {
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
 
@@ -48,20 +49,42 @@ class AnalyzingResourceCreator(
         return suggestionCursor !in absoluteStart..absoluteEnd
     }
 
+    fun shouldStop(): Boolean = stopInfo?.shouldStop() ?: false
+
     fun macroInRange(targetStart: Int, targetEndInclusive: Int): Boolean {
         val index = roundUpBinarySearch(macroTargetCursors.binarySearch(targetStart))
         // Test if the next macro after targetStart is before targetEndInclusive
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
 
-    fun copyInput() = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, file, macroTargetCursors.copy(), previousCache, newCache).also {
+    fun copyInput() = AnalyzingResourceCreator(
+        languageServer,
+        sourceFunctionUri,
+        registries,
+        source,
+        file,
+        stopInfo,
+        macroTargetCursors.copy(),
+        previousCache,
+        newCache
+    ).also {
         it.suggestionRequestInfo = suggestionRequestInfo
         it.macroQueue = macroQueue
         it.macroParserStack += macroParserStack
     }
 
     // Doesn't copy macroParserStack, because child macros don't need to know about the macro parsers of the parent
-    fun copyForMacro(macroMappingInfo: FileMappingInfo, absoluteStart: Int) = AnalyzingResourceCreator(languageServer, sourceFunctionUri, registries, source, macroMappingInfo, macroTargetCursors.copy(), previousCache, CacheData(macroMappingInfo, newCache.usedCommandDispatcher)).also {
+    fun copyForMacro(macroMappingInfo: FileMappingInfo, absoluteStart: Int) = AnalyzingResourceCreator(
+        languageServer,
+        sourceFunctionUri,
+        registries,
+        source,
+        macroMappingInfo,
+        stopInfo,
+        macroTargetCursors.copy(),
+        previousCache,
+        CacheData(macroMappingInfo, newCache.usedCommandDispatcher)
+    ).also {
         it.suggestionRequestInfo = suggestionRequestInfo?.let { info -> SuggestionRequestInfo(info.absoluteCursor - absoluteStart, info.isServersideSuggestionRequest) }
     }
 
@@ -74,14 +97,14 @@ class AnalyzingResourceCreator(
     }
 
     fun storeCacheKeepAnalyzingResult(file: EditorDocument) {
-        if(!Thread.currentThread().isInterrupted) {
+        if(!shouldStop()) {
             newCache.analyzingResult = previousCache?.analyzingResult
             file.persistentAnalyzerData = newCache
         }
     }
 
     fun storeCache(file: EditorDocument, analyzingResult: AnalyzingResult) {
-        if(!Thread.currentThread().isInterrupted) {
+        if(!shouldStop()) {
             newCache.analyzingResult = analyzingResult
             file.persistentAnalyzerData = newCache
         }
@@ -226,4 +249,5 @@ class AnalyzingResourceCreator(
          */
         val isServersideSuggestionRequest: Boolean
     )
+
 }

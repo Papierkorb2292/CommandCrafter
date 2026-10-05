@@ -10,11 +10,13 @@ import java.util.concurrent.CompletableFuture
 class WorkspacePackInfo(
     val baseUri: EditorURI,
     val packFolderName: String,
-    var packType: CompletableFuture<PackContentFileType.PackType?>
+    var packType: PackContentFileType.PackType?
 ) {
     companion object {
-        fun forFolder(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): WorkspacePackInfo {
-            return WorkspacePackInfo(folderLocation, folderLocation.getFileName(), findType(folderLocation, languageServer))
+        fun forFolder(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): CompletableFuture<WorkspacePackInfo> {
+            return findType(folderLocation, languageServer).thenApply { packType ->
+                WorkspacePackInfo(folderLocation, folderLocation.getFileName(), packType)
+            }
         }
 
         fun findType(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): CompletableFuture<PackContentFileType.PackType?> {
@@ -35,8 +37,10 @@ class WorkspacePackInfo(
         }
     }
 
-    fun updatePackType(languageServer: MinecraftLanguageServer) {
-        packType = findType(baseUri, languageServer)
+    fun updatePackType(languageServer: MinecraftLanguageServer): CompletableFuture<Void> {
+        return findType(baseUri, languageServer).thenAccept { packType ->
+            this.packType = packType
+        }
     }
 
     fun idFromUri(uri: EditorURI): TypedId? {

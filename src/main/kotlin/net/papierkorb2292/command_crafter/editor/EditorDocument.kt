@@ -1,6 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
+import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
@@ -11,7 +12,6 @@ import org.eclipse.lsp4j.TextDocumentContentChangeEvent
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
-import java.util.concurrent.Future
 
 class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
     val parsedUri = EditorURI.parseURI(uri)
@@ -144,6 +144,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         return analyzer
     }
 
+    @Synchronized
     fun startAnalyzingFile(languageServer: MinecraftLanguageServer): RunningAnalyzer? {
         val analyzeHandler = this.analyzeHandler ?: return null
         val runningAnalyzer = currentAnalyzer
@@ -151,8 +152,11 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
             return runningAnalyzer
 
         val completableFuture = CompletableFuture<AnalyzingResult>()
-        val future = analyzeHandler.analyzeAsync(this, languageServer, analyzerExecutor, completableFuture)
-        val newAnalyzer = RunningAnalyzer(future, completableFuture, 0, false)
+        analyzerExecutor.submit {
+            val result = analyzeHandler.analyze(this, languageServer, StopInfo(completableFuture, null))
+            completableFuture.complete(result)
+        }
+        val newAnalyzer = RunningAnalyzer(completableFuture, 0, false)
         currentAnalyzer = newAnalyzer
         runningAnalyzers += newAnalyzer
         completableFuture.thenRun {
@@ -161,11 +165,12 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         return newAnalyzer
     }
 
+    @Synchronized
     fun stopAnalyzing(forceCancel: Boolean = false) {
         runningAnalyzers.forEach {
             it.softCancelled = true
             if(forceCancel || it.dependents == 0)
-                it.future.cancel(true)
+                it.result.cancel(true)
         }
         runningAnalyzers.clear()
         currentAnalyzer = null
@@ -192,14 +197,14 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         analyzeHandler = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
     }
 
-    class RunningAnalyzer(val future: Future<*>, val result: CompletableFuture<AnalyzingResult>, var dependents: Int, var softCancelled: Boolean) {
+    class RunningAnalyzer(val result: CompletableFuture<AnalyzingResult>, var dependents: Int, var softCancelled: Boolean) {
         fun onNewDependent() {
             dependents++
         }
 
         fun onDependentCancelled(canCancelAnalyzer: Boolean): Boolean {
             if(--dependents == 0 && canCancelAnalyzer) {
-                future.cancel(true)
+                result.cancel(true)
                 return true
             }
             return false

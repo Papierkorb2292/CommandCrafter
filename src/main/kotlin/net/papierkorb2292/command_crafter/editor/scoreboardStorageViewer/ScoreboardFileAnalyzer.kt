@@ -1,10 +1,11 @@
 package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer
 
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.EditorDocument
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 
 object ScoreboardFileAnalyzer : FileAnalyseHandler {
     private const val ANALYZER_CONFIG_PATH = ".scoreboardStorage"
@@ -13,10 +14,11 @@ object ScoreboardFileAnalyzer : FileAnalyseHandler {
                 && file.parsedUri.path.startsWith("/scoreboards/")
                 && file.parsedUri.path.endsWith(".json")
 
-    override fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer): AnalyzingResult {
+    override fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?): AnalyzingResult {
         val analyzingResult = StringRangeTreeJsonResourceAnalyzer.analyze(
             file,
             languageServer,
+            stopInfo,
             ServerScoreboardStorageFileSystem.OBJECTIVE_CODEC
         )
         return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(

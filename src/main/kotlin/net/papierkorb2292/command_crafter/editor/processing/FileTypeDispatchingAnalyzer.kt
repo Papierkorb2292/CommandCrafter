@@ -4,8 +4,6 @@ import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ExecutorService
 
 object FileTypeDispatchingAnalyzer : FileAnalyseHandler {
     val analyzers = mutableMapOf<PackContentFileType, FileAnalyseHandler>()
@@ -14,10 +12,11 @@ object FileTypeDispatchingAnalyzer : FileAnalyseHandler {
 
     override fun canHandle(file: EditorDocument) = getAnalyzer(file)?.canHandle(file) ?: false
 
-    override fun analyzeAsync(
+    override fun analyze(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
-        executor: ExecutorService,
-        completableFuture: CompletableFuture<AnalyzingResult>
-    ) = getAnalyzer(file)!!.analyzeAsync(file, languageServer, executor, completableFuture)
+        stopInfo: StopInfo?
+    ): AnalyzingResult {
+        return getAnalyzer(file)!!.analyze(file, languageServer, stopInfo)
+    }
 }

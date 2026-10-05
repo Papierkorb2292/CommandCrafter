@@ -130,7 +130,7 @@ object LanguageManager {
         result.documentation = readAndAnalyzeDocComment(reader, result)
 
         while(reader.closureDepth != closureDepth) {
-            if(Thread.currentThread().isInterrupted)
+            if(reader.resourceCreator.shouldStop())
                 break
             val readerEnd = !reader.canRead()
             reader.currentLanguage?.analyze(reader, source, result)

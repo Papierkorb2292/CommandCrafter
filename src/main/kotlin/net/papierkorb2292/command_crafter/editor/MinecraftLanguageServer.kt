@@ -397,12 +397,14 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                         // File is not open and didn't open within the timeout, so return an empty diagnostic report
                         return@thenCompose CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
                     }
-                    val analyzer = file.analyzeFile(this@MinecraftLanguageServer)
+                    // Diagnostic requests aren't always canceled by vscode when the file changes, so don't add a dependency.
+                    // If another request cancels the analyzer this used, there was probably a change and another diagnostic request will be sent anyway
+                    val analyzer = file.startAnalyzingFile(this@MinecraftLanguageServer)
                         ?: return@thenCompose CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
-                    file.registerAnalyzerCancel(analyzer, analyzer.result.thenApply {
+                    analyzer.result.thenApply {
                         fillDiagnosticsSource(it.diagnostics)
                         DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics))
-                    })
+                    }
                 }
             }
 
@@ -729,9 +731,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             val pack = workspacePackInfos[parent.toString()]
             if(pack != null) {
                 changeWorkspacePackFolderNameCount(pack, -1)
-                pack.updatePackType(this)
-                changeWorkspacePackFolderNameCount(pack, 1)
-                analyzeAllPackFiles(pack)
+                pack.updatePackType(this).thenAccept {
+                    changeWorkspacePackFolderNameCount(pack, 1)
+                    analyzeAllPackFiles(pack)
+                }
             }
         }
     }
@@ -741,15 +744,16 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val parentString = parent.toString()
         if(workspacePackInfos.containsKey(parentString))
             return
-        val packInfo = WorkspacePackInfo.forFolder(parent, this)
-        workspacePackInfos[parentString] = packInfo
-        changeWorkspacePackFolderNameCount(packInfo, 1)
-        for(file in openFiles.values) {
-            if(file.parsedUri.startsWith(parent)) {
-                file.setWorkspacePackInfo(packInfo)
+        WorkspacePackInfo.forFolder(parent, this).thenAccept { packInfo ->
+            workspacePackInfos[parentString] = packInfo
+            changeWorkspacePackFolderNameCount(packInfo, 1)
+            for(file in openFiles.values) {
+                if(file.parsedUri.startsWith(parent)) {
+                    file.setWorkspacePackInfo(packInfo)
+                }
             }
+            analyzeAllPackFiles(packInfo)
         }
-        analyzeAllPackFiles(packInfo)
     }
 
     private fun removeWorkspacePackInfo(packMetaUri: EditorURI) {
@@ -767,17 +771,14 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     private fun changeWorkspacePackFolderNameCount(pack: WorkspacePackInfo, amount: Int) {
-        pack.packType.thenAccept { packType ->
-            if(packType == null)
-                return@thenAccept
-            val key = pack.packFolderName to packType
-            synchronized(workspacePackFolderNames) {
-                val count = workspacePackFolderNames.getInt(key) + amount
-                if(count > 0)
-                    workspacePackFolderNames.put(key, count)
-                else
-                    workspacePackFolderNames.removeInt(key)
-            }
+        val packType = pack.packType ?: return
+        val key = pack.packFolderName to packType
+        synchronized(workspacePackFolderNames) {
+            val count = workspacePackFolderNames.getInt(key) + amount
+            if(count > 0)
+                workspacePackFolderNames.put(key, count)
+            else
+                workspacePackFolderNames.removeInt(key)
         }
     }
 
