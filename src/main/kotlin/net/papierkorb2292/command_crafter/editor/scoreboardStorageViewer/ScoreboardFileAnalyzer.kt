@@ -27,4 +27,6 @@ object ScoreboardFileAnalyzer : FileAnalyseHandler {
             ""
         ))
     }
+
+    override fun addSymbolTypes() { }
 }

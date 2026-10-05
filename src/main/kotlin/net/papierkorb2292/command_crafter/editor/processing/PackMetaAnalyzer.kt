@@ -71,4 +71,6 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
             )
         )
     }
+
+    override fun addSymbolTypes() { }
 }

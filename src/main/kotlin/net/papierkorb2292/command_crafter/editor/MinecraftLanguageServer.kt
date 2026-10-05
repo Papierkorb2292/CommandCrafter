@@ -20,6 +20,7 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolTypeInfo
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
@@ -48,6 +49,10 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     : MinecraftServerConnectedLanguageServer, EditorClientAware {
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
+        // All analyzers add their own entry
+        val symbolTypes = mutableMapOf<PackContentFileType, SymbolTypeInfo>(
+            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolTypeInfo(".nbt", false) // Not associated with any analyzer, since it's now a text file
+        )
 
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
         val emptyDefinitionDefault: CompletableFuture<Either<List<Location>, List<LocationLink>>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
@@ -81,6 +86,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         fun fillDiagnosticsSource(diagnostics: List<Diagnostic>) {
             for(diagnostic in diagnostics) {
                 diagnostic.source = "CommandCrafter"
+            }
+        }
+
+        /**
+         * Should only be run after all analyzers have been registered
+         */
+        fun fillSymbolTypesFromAnalyseHandlers() {
+            for(analyzer in analyzers) {
+                analyzer.addSymbolTypes()
             }
         }
 

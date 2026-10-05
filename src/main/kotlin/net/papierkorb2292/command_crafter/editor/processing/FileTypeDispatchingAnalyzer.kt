@@ -19,4 +19,10 @@ object FileTypeDispatchingAnalyzer : FileAnalyseHandler {
     ): AnalyzingResult {
         return getAnalyzer(file)!!.analyze(file, languageServer, stopInfo)
     }
+
+    override fun addSymbolTypes() {
+        for(analyzer in analyzers.values) {
+            analyzer.addSymbolTypes()
+        }
+    }
 }

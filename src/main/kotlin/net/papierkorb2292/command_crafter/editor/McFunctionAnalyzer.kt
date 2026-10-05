@@ -2,10 +2,12 @@ package net.papierkorb2292.command_crafter.editor
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
+import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolTypeInfo
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.Language
@@ -68,5 +70,9 @@ class McFunctionAnalyzer(
                 return result
             }
         }
+    }
+
+    override fun addSymbolTypes() {
+        MinecraftLanguageServer.symbolTypes[PackContentFileType.FUNCTIONS_FILE_TYPE] = SymbolTypeInfo("mcfunction", true)
     }
 }

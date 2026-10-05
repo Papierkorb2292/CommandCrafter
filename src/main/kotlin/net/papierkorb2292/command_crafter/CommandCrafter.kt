@@ -116,6 +116,7 @@ object CommandCrafter: ModInitializer {
                 // Delayed so every mod had time to add its own registries
                 registerDynamicRegistries()
                 registerRegistryTags()
+                MinecraftLanguageServer.fillSymbolTypesFromAnalyseHandlers()
 
                 val serverDatagen = System.getProperty("cc_server_datagen_dir")
                 if(serverDatagen != null) {

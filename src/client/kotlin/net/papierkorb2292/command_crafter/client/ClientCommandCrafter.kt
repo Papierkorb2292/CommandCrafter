@@ -129,6 +129,8 @@ object ClientCommandCrafter : ClientModInitializer {
 
         StringRangeTreeJsonResourceAnalyzer.addJsonAnalyzers(clientsideJsonResourceCodecs)
 
+        MinecraftLanguageServer.fillSymbolTypesFromAnalyseHandlers()
+
         LoadedClientsideRegistries.load(Minecraft.getInstance()).thenApply { loadedClientsideRegistries ->
             ClientCommandCrafter.loadedClientsideRegistries = loadedClientsideRegistries
 
