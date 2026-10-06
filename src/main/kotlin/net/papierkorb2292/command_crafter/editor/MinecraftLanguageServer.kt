@@ -51,7 +51,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
         // All analyzers add their own entry
         val symbolTypes = mutableMapOf<PackContentFileType, SymbolTypeInfo>(
-            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolTypeInfo(".nbt", false) // Not associated with any analyzer, since it's now a text file
+            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolTypeInfo(".nbt", false) // Not associated with any analyzer, since it's not a text file
         )
 
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
