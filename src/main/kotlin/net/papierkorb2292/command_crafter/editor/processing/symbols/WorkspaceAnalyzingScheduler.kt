@@ -1,4 +1,4 @@
-package net.papierkorb2292.command_crafter.editor.workspace
+package net.papierkorb2292.command_crafter.editor.processing.symbols
 
 import net.papierkorb2292.command_crafter.CommandCrafter
 import java.util.concurrent.BlockingQueue

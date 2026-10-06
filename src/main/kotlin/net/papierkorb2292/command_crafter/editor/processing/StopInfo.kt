@@ -1,6 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import net.papierkorb2292.command_crafter.editor.workspace.WorkspaceAnalyzingScheduler
+import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspaceAnalyzingScheduler
 import java.util.concurrent.CompletableFuture
 
 data class StopInfo(val completableFuture: CompletableFuture<*>, val taskTimer: WorkspaceAnalyzingScheduler.TaskTimer?) {
