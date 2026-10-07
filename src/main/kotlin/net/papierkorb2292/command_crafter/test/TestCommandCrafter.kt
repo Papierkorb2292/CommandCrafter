@@ -47,6 +47,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSynt
 import net.papierkorb2292.command_crafter.editor.processing.helper.clampCompletionToCursor
 import net.papierkorb2292.command_crafter.editor.processing.helper.differenceTo
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangePath
+import net.papierkorb2292.command_crafter.editor.processing.symbols.AnalyzerSymbolAccess
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -734,6 +735,7 @@ object TestCommandCrafter {
             null,
             "testPack/data/minecraft/function/test.mcfunction",
             context.level.server.lootRegistries,
+            AnalyzerSymbolAccess.Dummy,
             getParsingCommandSource(context),
             mappingInfo
         )
@@ -896,6 +898,7 @@ object TestCommandCrafter {
                     null,
                     "testPack/data/minecraft/function/test.mcfunction",
                     source.server.registryAccess(),
+                    AnalyzerSymbolAccess.Dummy,
                     source,
                     analyzingResult.mappingInfo
                 )
@@ -1293,6 +1296,7 @@ object TestCommandCrafter {
             null,
             "testPack/data/minecraft/function/test.mcfunction",
             source.server.lootRegistries,
+            AnalyzerSymbolAccess.Dummy,
             source,
             FileMappingInfo(lines)
         )

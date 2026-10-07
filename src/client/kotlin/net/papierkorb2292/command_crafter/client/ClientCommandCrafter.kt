@@ -48,6 +48,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolManager
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.Language
@@ -200,6 +201,7 @@ object ClientCommandCrafter : ClientModInitializer {
                 null,
                 "",
                 editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
+                SymbolManager(), //TODO: Add serverside symbols
                 source,
                 mappingInfo
             )

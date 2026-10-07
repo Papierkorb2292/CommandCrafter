@@ -13,6 +13,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringContent
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
+import net.papierkorb2292.command_crafter.editor.processing.symbols.AnalyzerSymbolAccess
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.roundUpBinarySearch
@@ -26,6 +27,7 @@ class AnalyzingResourceCreator(
     val languageServer: MinecraftLanguageServer?,
     val sourceFunctionUri: String,
     val registries: RegistryAccess,
+    val symbols: AnalyzerSymbolAccess,
     val source: SharedSuggestionProvider,
     val file: FileMappingInfo,
     val stopInfo: StopInfo? = null,
@@ -61,6 +63,7 @@ class AnalyzingResourceCreator(
         languageServer,
         sourceFunctionUri,
         registries,
+        symbols,
         source,
         file,
         stopInfo,
@@ -78,6 +81,7 @@ class AnalyzingResourceCreator(
         languageServer,
         sourceFunctionUri,
         registries,
+        symbols,
         source,
         macroMappingInfo,
         stopInfo,

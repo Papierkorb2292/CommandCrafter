@@ -20,7 +20,8 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
-import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolTypeInfo
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolManager
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
@@ -50,8 +51,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
         // All analyzers add their own entry
-        val symbolTypes = mutableMapOf<PackContentFileType, SymbolTypeInfo>(
-            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolTypeInfo(".nbt", false) // Not associated with any analyzer, since it's not a text file
+        val fileSymbolTypes = mutableMapOf<PackContentFileType, SymbolFileInfo>(
+            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolFileInfo(".nbt", false) // Not associated with any analyzer, since it's not a text file
         )
 
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
@@ -109,6 +110,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         private set
 
     val dynamicRegistryManager get() = minecraftServer.dynamicRegistryManager
+    val symbolManager = SymbolManager()
 
     private var remote: Endpoint? = null
     private var running = true

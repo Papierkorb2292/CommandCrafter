@@ -16,7 +16,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
-import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolTypeInfo
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -52,14 +52,14 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
     }
 
     override fun addSymbolTypes() {
-        MinecraftLanguageServer.symbolTypes[packContentFileType] = sharedSymbolType
+        MinecraftLanguageServer.fileSymbolTypes[packContentFileType] = sharedSymbolType
     }
 
     companion object {
         const val JSON_ANALYZER_CONFIG_PATH_PREFIX = ".json"
         val CURRENT_TAG_ANALYZING_REGISTRY = ThreadLocal<HolderLookup.RegistryLookup<*>>()
 
-        private val sharedSymbolType = SymbolTypeInfo("json", true)
+        private val sharedSymbolType = SymbolFileInfo("json", true)
 
         fun addJsonAnalyzers(resourceTypes: Map<PackContentFileType, Codec<*>>) {
             FileTypeDispatchingAnalyzer.analyzers += resourceTypes.mapValues { entry ->
@@ -77,6 +77,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                     languageServer,
                     file.uri,
                     languageServer.dynamicRegistryManager,
+                    languageServer.symbolManager,
                     CommandCrafter.analyzingSourceProvider(languageServer),
                     mappingInfo,
                     stopInfo

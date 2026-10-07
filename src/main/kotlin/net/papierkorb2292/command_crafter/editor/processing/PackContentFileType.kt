@@ -11,11 +11,12 @@ import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.processing.helper.getKeywordsFromPath
 import net.papierkorb2292.command_crafter.editor.processing.helper.standardizeKeyword
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolType
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import kotlin.io.path.name
 
-class PackContentFileType private constructor(val contentTypePath: String, val packType: PackType, val keywords: List<String>) {
+class PackContentFileType private constructor(val contentTypePath: String, val packType: PackType, val keywords: List<String>) : SymbolType<Identifier> {
     private constructor(contentTypePath: String, packType: PackType) : this(contentTypePath, packType, getKeywordsFromPath(contentTypePath))
 
     init {
