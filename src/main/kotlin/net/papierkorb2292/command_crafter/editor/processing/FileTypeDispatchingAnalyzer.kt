@@ -4,7 +4,6 @@ import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
-import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
 
 object FileTypeDispatchingAnalyzer : FileAnalyseHandler {
     val analyzers = mutableMapOf<PackContentFileType, FileAnalyseHandler>()
@@ -16,10 +15,9 @@ object FileTypeDispatchingAnalyzer : FileAnalyseHandler {
     override fun analyze(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
-        stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo
+        stopInfo: StopInfo?
     ): AnalyzingResult {
-        return getAnalyzer(file)!!.analyze(file, languageServer, stopInfo, docInfo)
+        return getAnalyzer(file)!!.analyze(file, languageServer, stopInfo)
     }
 
     override fun addSymbolTypes() {

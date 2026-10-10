@@ -14,7 +14,6 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
-import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
 import java.util.concurrent.CompletableFuture
 
 class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>?) : FileAnalyseHandler {
@@ -50,8 +49,7 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
     override fun analyze(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
-        stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo
+        stopInfo: StopInfo?
     ): AnalyzingResult {
         val packType = file.workspacePackInfo?.packType ?: CompletableFuture.completedFuture(null)
         val decoder = when(packType) {
@@ -63,7 +61,6 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
             file,
             languageServer,
             stopInfo,
-            docInfo,
             decoder
         )
         return analyzingResult.filterDisabledFeatures(
