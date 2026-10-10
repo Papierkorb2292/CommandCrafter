@@ -11,7 +11,7 @@ interface FileAnalyseHandler {
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo?
+        docInfo: SymbolDocInfo
     ): AnalyzingResult
     fun addSymbolTypes()
 }

@@ -27,7 +27,7 @@ class McFunctionAnalyzer(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo?,
+        docInfo: SymbolDocInfo,
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
         val dispatcher = languageServer.minecraftServer.commandDispatcher

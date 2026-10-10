@@ -17,7 +17,7 @@ object FileTypeDispatchingAnalyzer : FileAnalyseHandler {
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo?
+        docInfo: SymbolDocInfo
     ): AnalyzingResult {
         return getAnalyzer(file)!!.analyze(file, languageServer, stopInfo, docInfo)
     }

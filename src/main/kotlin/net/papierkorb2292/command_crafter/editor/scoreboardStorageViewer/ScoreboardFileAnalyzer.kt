@@ -19,7 +19,7 @@ object ScoreboardFileAnalyzer : FileAnalyseHandler {
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo?
+        docInfo: SymbolDocInfo
     ): AnalyzingResult {
         val analyzingResult = StringRangeTreeJsonResourceAnalyzer.analyze(
             file,

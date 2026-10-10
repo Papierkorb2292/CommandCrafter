@@ -16,5 +16,5 @@ class SymbolLocationMap<TInfo> {
         return true
     }
 
-    class SymbolLocation<TInfo>(val rangeGetter: () -> Range, val extraInfo: TInfo)
+    class SymbolLocation<TInfo>(val rangeGetter: () -> Range, var extraInfo: TInfo)
 }

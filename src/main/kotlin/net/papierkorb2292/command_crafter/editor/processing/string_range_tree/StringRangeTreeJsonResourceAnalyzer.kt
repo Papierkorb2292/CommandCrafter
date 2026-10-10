@@ -36,7 +36,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo?
+        docInfo: SymbolDocInfo
     ): AnalyzingResult {
         val contentTypeFilePath = packContentFileType.contentTypePath
         val tagPrefix = "tags/"
@@ -73,7 +73,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
         }
 
-        fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?, docInfo: SymbolDocInfo?, fileDecoder: Decoder<*>): AnalyzingResult {
+        fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?, docInfo: SymbolDocInfo, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
             val mappingInfo = FileMappingInfo(lines)
             val directiveReader = DirectiveStringReader(

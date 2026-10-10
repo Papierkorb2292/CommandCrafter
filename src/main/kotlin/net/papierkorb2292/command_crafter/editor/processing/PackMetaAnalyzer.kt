@@ -51,7 +51,7 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
-        docInfo: SymbolDocInfo?
+        docInfo: SymbolDocInfo
     ): AnalyzingResult {
         val packType = file.workspacePackInfo?.packType ?: CompletableFuture.completedFuture(null)
         val decoder = when(packType) {

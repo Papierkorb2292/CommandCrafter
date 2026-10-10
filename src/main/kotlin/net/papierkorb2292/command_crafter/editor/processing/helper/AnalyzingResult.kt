@@ -23,13 +23,13 @@ class AnalyzingResult(
     val diagnostics: MutableList<Diagnostic>,
     val colorInfos: MutableList<ColorInfo>,
     val filePosition: Position,
-    val docInfo: SymbolDocInfo?,
+    val docInfo: SymbolDocInfo,
     private val actualSyntaxNodes: MutableList<RangedSyntaxNode<ActualSyntaxNode>>,
     private val finishedPotentialSyntaxNodes: MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
     private val buildingPotentialSyntaxNodes: MutableMap<String, MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
 ) : ActualSyntaxNode, PotentialSyntaxNode {
 
-    constructor(reader: FileMappingInfo, filePosition: Position, docInfo: SymbolDocInfo? = null) : this(
+    constructor(reader: FileMappingInfo, filePosition: Position, docInfo: SymbolDocInfo = SymbolDocInfo()) : this(
         reader,
         SemanticTokensBuilder(reader),
         mutableListOf(),
