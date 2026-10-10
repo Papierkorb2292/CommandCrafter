@@ -872,7 +872,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     fun hoverDocumentation(analyzingResult: AnalyzingResult, fileRange: Range): CompletableFuture<Hover> {
-        return hoverDocumentation(analyzingResult.documentation, fileRange)
+        return hoverDocumentation(analyzingResult.docInfo?.documentation, fileRange)
     }
     fun hoverDocumentation(documentation: String?, fileRange: Range): CompletableFuture<Hover> {
         if(documentation == null)
@@ -900,7 +900,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     fun findFileAndGetDocs(id: Identifier, packContentFileType: PackContentFileType): CompletableFuture<String?> {
         return findFileAndAnalyze(id, packContentFileType).thenApply {
-            it?.documentation
+            it?.docInfo?.documentation
         }
     }
 
@@ -920,7 +920,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
 
     fun findFileAndGetDocs(id: Identifier, packContentKeywords: Set<String>): CompletableFuture<String?> {
         return findFileAndAnalyze(id, packContentKeywords).thenApply {
-            it?.documentation
+            it?.docInfo?.documentation
         }
     }
 

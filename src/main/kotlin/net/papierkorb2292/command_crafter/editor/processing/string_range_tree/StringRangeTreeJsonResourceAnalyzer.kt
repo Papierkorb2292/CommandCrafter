@@ -16,6 +16,7 @@ import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
 import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
@@ -31,7 +32,12 @@ import kotlin.jvm.optionals.getOrNull
 class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackContentFileType, private val fileDecoder: Decoder<*>, private val analyzerConfigPath: String) : FileAnalyseHandler {
     override fun canHandle(file: EditorDocument) = file.parsedUri.path.endsWith(".json")
 
-    override fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?): AnalyzingResult {
+    override fun analyze(
+        file: EditorDocument,
+        languageServer: MinecraftLanguageServer,
+        stopInfo: StopInfo?,
+        docInfo: SymbolDocInfo?
+    ): AnalyzingResult {
         val contentTypeFilePath = packContentFileType.contentTypePath
         val tagPrefix = "tags/"
         val tagRegistry = if(contentTypeFilePath.startsWith(tagPrefix)) {
@@ -41,9 +47,9 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         } else null
         val analyzingResult = if(tagRegistry != null) {
             CURRENT_TAG_ANALYZING_REGISTRY.runWithValue(tagRegistry) {
-                analyze(file, languageServer, stopInfo, fileDecoder)
+                analyze(file, languageServer, stopInfo, docInfo, fileDecoder)
             }
-        } else Companion.analyze(file, languageServer, stopInfo, fileDecoder)
+        } else Companion.analyze(file, languageServer, stopInfo, docInfo, fileDecoder)
         return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(
             JSON_ANALYZER_CONFIG_PATH_PREFIX + analyzerConfigPath,
             JSON_ANALYZER_CONFIG_PATH_PREFIX,
@@ -67,7 +73,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
         }
 
-        fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?, fileDecoder: Decoder<*>): AnalyzingResult {
+        fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?, docInfo: SymbolDocInfo?, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
             val mappingInfo = FileMappingInfo(lines)
             val directiveReader = DirectiveStringReader(
@@ -91,7 +97,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                     var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(directiveReader)
                     if(result == null) {
                         // No cache hit, parse JSON instead
-                        result = AnalyzingResult(mappingInfo, Position())
+                        result = AnalyzingResult(mappingInfo, Position(), docInfo)
                         val concatenatedLines = lines.joinToString("\n")
                         val reader = StringReader(concatenatedLines)
                         val parsedStringRangeTree = try {

@@ -8,12 +8,12 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.maxWithNullable
 import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.*
-import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
 import kotlin.math.min
 
@@ -23,19 +23,19 @@ class AnalyzingResult(
     val diagnostics: MutableList<Diagnostic>,
     val colorInfos: MutableList<ColorInfo>,
     val filePosition: Position,
-    var documentation: String?,
+    val docInfo: SymbolDocInfo?,
     private val actualSyntaxNodes: MutableList<RangedSyntaxNode<ActualSyntaxNode>>,
     private val finishedPotentialSyntaxNodes: MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
     private val buildingPotentialSyntaxNodes: MutableMap<String, MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
 ) : ActualSyntaxNode, PotentialSyntaxNode {
 
-    constructor(reader: FileMappingInfo, filePosition: Position) : this(
+    constructor(reader: FileMappingInfo, filePosition: Position, docInfo: SymbolDocInfo? = null) : this(
         reader,
         SemanticTokensBuilder(reader),
         mutableListOf(),
         mutableListOf(),
         filePosition,
-        null,
+        docInfo,
         mutableListOf(),
         mutableListOf(),
         mutableMapOf(),
@@ -87,7 +87,7 @@ class AnalyzingResult(
             },
             colorInfos.mapTo(mutableListOf()) { OffsetColorInfo(it, position) },
             parent.filePosition,
-            parent.documentation,
+            parent.docInfo,
             getActualNodeCompressed(this.offsetActualInput(-cursorOffset).offsetActualOutput(position), cursorOffset),
             getPotentialNodeCompressed(this.offsetPotentialInput(-cursorOffset).offsetPotentialOutput(position), cursorOffset),
             mutableMapOf(),
@@ -120,7 +120,7 @@ class AnalyzingResult(
                 }
             },
             filePosition,
-            documentation,
+            docInfo,
             if(overlayActualRange == null) actualSyntaxNodes else mutableListOf(RangedSyntaxNode(maxWithNullable(overlayActualRange, currentActualRange), object : ActualSyntaxNode {
                 override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? =
                     getSyntaxNodeAtCursor(cursor, actualNodeOverlays, true)?.getDefinition(cursor)
@@ -203,8 +203,8 @@ class AnalyzingResult(
         val result = AnalyzingResult(
             mappingInfo.copy(),
             filePosition,
+            docInfo,
         )
-        result.documentation = documentation
         return result
     }
     fun copy() = copyInput().also {
@@ -228,7 +228,7 @@ class AnalyzingResult(
                 colorInfos
             else mutableListOf(),
             filePosition,
-            documentation,
+            docInfo,
             getActualNodeCompressed(
                 FeatureFilteredActualSyntaxNode(this, featureConfig, analyzerNameInserts)
             ),
@@ -247,7 +247,7 @@ class AnalyzingResult(
             diagnostics,
             colorInfos.mapTo(mutableListOf()) { it.withStringEscaper(escaper) },
             filePosition,
-            documentation,
+            docInfo,
             actualSyntaxNodes,
             finishedPotentialSyntaxNodes,
             buildingPotentialSyntaxNodes
@@ -285,7 +285,7 @@ class AnalyzingResult(
             diagnostics,
             colorInfos,
             filePosition,
-            documentation,
+            docInfo,
             actualSyntaxNodes,
             getPotentialNodeCompressed(wrapper(this)),
             mutableMapOf()
@@ -597,7 +597,7 @@ class AnalyzingResult(
             base.copyDiagnostics(),
             base.colorInfos.mapTo(mutableListOf(), ::OffsetColorInfo),
             base.filePosition,
-            base.documentation,
+            base.docInfo,
             mutableListOf(),
             mutableListOf(),
             mutableMapOf()

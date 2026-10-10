@@ -7,6 +7,7 @@ import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -26,6 +27,7 @@ class McFunctionAnalyzer(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
         stopInfo: StopInfo?,
+        docInfo: SymbolDocInfo?,
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
         val dispatcher = languageServer.minecraftServer.commandDispatcher
@@ -50,7 +52,7 @@ class McFunctionAnalyzer(
                 var result = AnalyzingResourceCreator.tryAnalyseOnlyMacroModification(reader)
                 if(result == null) {
                     // No cache hit, parse function instead
-                    result = AnalyzingResult(reader.fileMappingInfo, Position())
+                    result = AnalyzingResult(reader.fileMappingInfo, Position(), docInfo)
                     reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                     LanguageManager.analyse(
                         reader,

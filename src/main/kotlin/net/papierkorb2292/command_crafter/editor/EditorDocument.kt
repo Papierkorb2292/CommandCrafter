@@ -4,6 +4,7 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.helper.DaemonThreadFactory
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
@@ -153,7 +154,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
 
         val completableFuture = CompletableFuture<AnalyzingResult>()
         analyzerExecutor.submit {
-            val result = analyzeHandler.analyze(this, languageServer, StopInfo(completableFuture, null))
+            val result = analyzeHandler.analyze(this, languageServer, StopInfo(completableFuture, null), SymbolDocInfo())
             completableFuture.complete(result)
         }
         val newAnalyzer = RunningAnalyzer(completableFuture, 0, false)

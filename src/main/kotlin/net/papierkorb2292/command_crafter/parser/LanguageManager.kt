@@ -127,7 +127,8 @@ object LanguageManager {
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
 
-        result.documentation = readAndAnalyzeDocComment(reader, result)
+        val documentation = readAndAnalyzeDocComment(reader, result)
+        result.docInfo?.documentation = documentation
 
         while(reader.closureDepth != closureDepth) {
             if(reader.resourceCreator.shouldStop())
