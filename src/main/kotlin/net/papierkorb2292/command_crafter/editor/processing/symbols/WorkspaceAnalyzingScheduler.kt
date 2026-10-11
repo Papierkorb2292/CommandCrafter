@@ -102,7 +102,7 @@ class WorkspaceAnalyzingScheduler(
             while(true) {
                 do {
                     try {
-                        val completed = currentTask.run(if(isSlow) null else TaskTimer(this))
+                        val completed = currentTask.run(TaskTimer(this))
                         if(!completed) {
                             // Enqueue task as slow instead
                             slowTaskQueue.put(currentTask)
@@ -153,7 +153,7 @@ class WorkspaceAnalyzingScheduler(
         /**
          * Runs the task. Returns true if the task was completed, false if it ended early due the being canceled by the [TaskTimer]
          */
-        fun run(timer: TaskTimer?): Boolean
+        fun run(timer: TaskTimer): Boolean
     }
 
     class TaskTimer(private val worker: Worker) {
