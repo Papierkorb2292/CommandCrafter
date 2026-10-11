@@ -32,7 +32,7 @@ class WorkspaceAnalyzingScheduler(
 
     @Synchronized
     fun schedule(task: Task, isKnownSlow: Boolean = false) {
-        if(tryStartWorker(task)) return
+        if(tryStartWorker(task, isKnownSlow)) return
 
         if(isKnownSlow)
             slowTaskQueue.put(task)
@@ -41,8 +41,10 @@ class WorkspaceAnalyzingScheduler(
     }
 
     @Synchronized
-    private fun tryStartWorker(task: Task): Boolean {
+    private fun tryStartWorker(task: Task, isKnownSlow: Boolean): Boolean {
         if(currentWorkerCount >= maxWorkers)
+            return false
+        if(isKnownSlow && currentSlowWorkerCount >= maxSlowWorkers)
             return false
         if(hasIdlingWorker)
             return false // No need to start a new thread if there's already a worker waiting for new tasks
