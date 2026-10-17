@@ -38,7 +38,9 @@
     "line" : 0,
     "character" : 0
   },
-  "documentation" : " This is a doc comment\n",
+  "docInfo" : {
+    "documentation" : " This is a doc comment\n"
+  },
   "actualSyntaxNodes" : [ ],
   "finishedPotentialSyntaxNodes" : [ ],
   "buildingPotentialSyntaxNodes" : {
