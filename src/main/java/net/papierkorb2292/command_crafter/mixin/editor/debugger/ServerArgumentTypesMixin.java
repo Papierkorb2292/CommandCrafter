@@ -20,7 +20,7 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 @Mixin(targets = "net.kyori.adventure.platform.fabric.impl.ServerArgumentTypes")
 public class ServerArgumentTypesMixin {
     @Inject(
-            method = "knownArgumentTypes(Lnet/minecraft/class_3222;)Ljava/util/Set;",
+            method = "knownArgumentTypes(Lnet/minecraft/server/level/ServerPlayer;)Ljava/util/Set;",
             at = @At("HEAD"),
             remap = false,
             cancellable = true
