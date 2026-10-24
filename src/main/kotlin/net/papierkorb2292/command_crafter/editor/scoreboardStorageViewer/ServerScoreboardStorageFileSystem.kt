@@ -35,6 +35,8 @@ import net.minecraft.world.scores.ScoreHolder
 import net.minecraft.world.scores.criteria.ObjectiveCriteria
 import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType
 import net.papierkorb2292.command_crafter.editor.EditorURI
+import net.papierkorb2292.command_crafter.editor.files.FileStat
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.StringIdentifiableUnit
@@ -181,13 +183,27 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
             return CompletableFuture.completedFuture(it)
         }
         if(resolvedPath.fileName == null)
-            return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.DIRECTORY, 0, Util.getEpochMillis().toInt(), 1)))
+            return CompletableFuture.completedFuture(FileSystemResult(
+                FileStat(
+                    FileType.DIRECTORY,
+                    0,
+                    Util.getEpochMillis(),
+                    1
+                )
+            ))
         val contentResult = getFileContent(resolvedPath.directory, resolvedPath.fileName)
         val content = contentResult.handleErrorAndGetResult {
             return CompletableFuture.completedFuture(it)
         }
         val contentSize = content.size
-        return CompletableFuture.completedFuture(FileSystemResult(FileStat(FileType.FILE, 0, Util.getEpochMillis().toInt(), contentSize)))
+        return CompletableFuture.completedFuture(FileSystemResult(
+            FileStat(
+                FileType.FILE,
+                0,
+                Util.getEpochMillis(),
+                contentSize.toLong()
+            )
+        ))
     }
 
     override fun readDirectory(params: UriParams): CompletableFuture<FileSystemResult<Array<ReadDirectoryResultEntry>>> {

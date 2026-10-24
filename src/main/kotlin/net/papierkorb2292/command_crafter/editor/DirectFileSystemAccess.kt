@@ -1,12 +1,16 @@
 package net.papierkorb2292.command_crafter.editor
 
 import it.unimi.dsi.fastutil.chars.CharSet
+import net.papierkorb2292.command_crafter.editor.files.FilePermission
+import net.papierkorb2292.command_crafter.editor.files.FileStat
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import net.papierkorb2292.command_crafter.helper.ensurePrefixed
 import java.io.IOException
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.CompletableFuture
 import kotlin.io.path.exists
 
@@ -101,18 +105,36 @@ class DirectFileSystemAccess(workspaceRoots: List<Path>) : EditorFileSystemAcces
         return fixed.toString()
     }
 
-    override fun fileExists(uri: String): CompletableFuture<Boolean> {
+    override fun statFile(uri: String): CompletableFuture<FileStat?> {
         val parsedUri = EditorURI.parseURI(uri)
         if(parsedUri.scheme != "file")
-            return CompletableFuture.completedFuture(false)
+            return CompletableFuture.completedFuture(null)
         val path = parsedUri.parseLocalPath()
-            ?: return CompletableFuture.completedFuture(false)
-        val exists = absRoots.any { root ->
-            if(path.isAbsolute && !path.startsWith(root))
-                return@any false
-            Files.exists(root.resolve(path))
+            ?: return CompletableFuture.completedFuture(null)
+        if(!path.isAbsolute)
+            return CompletableFuture.completedFuture(null)
+        try {
+            val attributes = Files.readAttributes(path, BasicFileAttributes::class.java)
+            val isSymbolLink =
+                Files.isSymbolicLink(path) // Separate check, because the readAttributes call follows links
+            val type = when {
+                attributes.isDirectory -> FileType.DIRECTORY
+                attributes.isRegularFile -> FileType.FILE
+                else -> FileType.UNKNOWN
+            }
+            return CompletableFuture.completedFuture(
+                FileStat(
+                    type.withSymbolicLink(isSymbolLink),
+                    attributes.creationTime()
+                        .toMillis(), // The vscode documentation doesn't specify, whether these timestamps belong to the symbolic link or the target file. The current implementation returns the timestamps of the target file
+                    attributes.lastModifiedTime().toMillis(),
+                    attributes.size(),
+                    if(Files.isWritable(path)) null else FilePermission.READONLY
+                )
+            )
+        } catch(_: IOException) {
+            return CompletableFuture.completedFuture(null) // IO error or file didn't exist
         }
-        return CompletableFuture.completedFuture(exists)
     }
 
     override fun getFileContent(uri: String): CompletableFuture<String> {

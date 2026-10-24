@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger
 
 import net.papierkorb2292.command_crafter.editor.EditorClientFileFinder
+import net.papierkorb2292.command_crafter.editor.fileExistsOfType
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
@@ -52,7 +54,7 @@ class WorkspaceFileFinder(private val fileFinder: EditorClientFileFinder) {
 
     private fun checkCacheForPattern(pattern: String): CompletableFuture<String?> {
         val cached = cache[pattern] ?: return CompletableFuture.completedFuture(null)
-        return fileFinder.fileExists(cached).thenApply {
+        return fileFinder.fileExistsOfType(cached, FileType.FILE).thenApply {
             if(it) cached
             else {
                 cache.remove(pattern)

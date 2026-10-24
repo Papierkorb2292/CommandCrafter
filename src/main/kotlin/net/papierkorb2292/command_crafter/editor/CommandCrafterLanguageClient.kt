@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.editor
 import net.papierkorb2292.command_crafter.editor.console.Channel
 import net.papierkorb2292.command_crafter.editor.console.ConsoleMessage
 import net.papierkorb2292.command_crafter.editor.console.RemoveChannelNotification
+import net.papierkorb2292.command_crafter.editor.files.FileStat
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
@@ -32,7 +33,7 @@ interface CommandCrafterLanguageClient : LanguageClient, EditorFileSystemAccess 
     override fun findFilesRelative(params: FindFilesRelativeParams): CompletableFuture<Array<String>>
 
     @JsonRequest
-    override fun fileExists(uri: String): CompletableFuture<Boolean>
+    override fun statFile(uri: String): CompletableFuture<FileStat?>
 
     @JsonNotification("scoreboardStorageFileSystem/onDidChangeFile")
     fun onDidChangeScoreboardStorage(params: OnDidChangeScoreboardStorageParams)

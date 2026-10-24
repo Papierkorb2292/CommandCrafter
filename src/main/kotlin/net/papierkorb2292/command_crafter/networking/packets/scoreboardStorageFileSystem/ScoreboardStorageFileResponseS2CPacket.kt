@@ -6,6 +6,7 @@ import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.resources.Identifier
 import net.minecraft.core.UUIDUtil
+import net.papierkorb2292.command_crafter.editor.files.FileStat
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.networking.UNIT_CODEC
 import net.papierkorb2292.command_crafter.networking.array
@@ -14,7 +15,8 @@ import java.util.*
 class ScoreboardStorageFileResponseS2CPacket<TParams>(private val packetId: CustomPacketPayload.Type<ScoreboardStorageFileResponseS2CPacket<TParams>>, val requestId: UUID, val params: TParams) :
     CustomPacketPayload {
     companion object {
-        val STAT_RESPONSE_PACKET: Type<FileSystemResult<FileStat>> = createType(Identifier.fromNamespaceAndPath("command_crafter", "scoreboard_storage_file_stat_response"), FileSystemResult.createCodec(FileStat.PACKET_CODEC))
+        val STAT_RESPONSE_PACKET: Type<FileSystemResult<FileStat>> = createType(Identifier.fromNamespaceAndPath("command_crafter", "scoreboard_storage_file_stat_response"), FileSystemResult.createCodec(
+            FileStat.PACKET_CODEC))
         val READ_DIRECTORY_RESPONSE_PACKET: Type<FileSystemResult<Array<ReadDirectoryResultEntry>>> = createType(
             Identifier.fromNamespaceAndPath("command_crafter", "scoreboard_storage_file_read_directory_response"), FileSystemResult.createCodec(ReadDirectoryResultEntry.PACKET_CODEC.array()))
         val CREATE_DIRECTORY_RESPONSE_PACKET: Type<FileSystemResult<Unit>> = createType(Identifier.fromNamespaceAndPath("command_crafter", "scoreboard_storage_file_create_directory_response"), FileSystemResult.createCodec(UNIT_CODEC))

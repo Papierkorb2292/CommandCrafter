@@ -3,6 +3,8 @@ package net.papierkorb2292.command_crafter.editor.processing.symbols
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.EditorURI
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
+import net.papierkorb2292.command_crafter.editor.fileExistsOfType
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.types
 import java.util.concurrent.CompletableFuture
@@ -22,8 +24,8 @@ class WorkspacePackInfo(
         fun findType(folderLocation: EditorURI, languageServer: MinecraftLanguageServer): CompletableFuture<PackContentFileType.PackType?> {
             val dataPath = folderLocation.resolve("data").toString()
             val assetsPath = folderLocation.resolve("assets").toString()
-            return languageServer.client!!.fileExists(dataPath)
-                .thenCombine(languageServer.client!!.fileExists(assetsPath)) { dataFolderExists, assetsFolderExists ->
+            return languageServer.client!!.fileExistsOfType(dataPath, FileType.DIRECTORY)
+                .thenCombine(languageServer.client!!.fileExistsOfType(assetsPath, FileType.DIRECTORY)) { dataFolderExists, assetsFolderExists ->
                     if(dataFolderExists && assetsFolderExists) {
                         null
                     } else if(dataFolderExists) {

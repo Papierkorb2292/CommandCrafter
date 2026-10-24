@@ -1,8 +1,8 @@
-package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
+package net.papierkorb2292.command_crafter.editor.files
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 
 @JvmInline
 value class FilePermission(val value: Int) {

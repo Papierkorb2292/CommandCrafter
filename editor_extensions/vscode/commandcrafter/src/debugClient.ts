@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LanguageClientRunner, fileExists, findFiles } from './extension';
+import { LanguageClientRunner, fileExists, findFiles, statFile } from './extension';
 import { ConnectionFeature, MinecraftConnectionType } from './minecraftConnection';
 import { LanguageClient, StreamInfo } from 'vscode-languageclient/node';
 import { MinecraftConsole } from './minecraftConsole';
@@ -168,13 +168,33 @@ export class DebugClient implements ConnectionFeature {
             });
             return;
         }
-        if(message.type === 'request' && message.command === 'fileExists') {
-            fileExists(message.arguments as string).then(files => {
+        if(message.type === 'request' && message.command === 'statFile') {
+            statFile(message.arguments as string).then(meta => {
                 messageSender({
                         type: 'response',
                         request_seq: message.seq,
                         success: true,
-                        body: files
+                        body: meta
+                    });
+            }, error => {
+                messageSender({
+                    type: 'response',
+                    request_seq: message.seq,
+                    success: false,
+                    message: 'cancelled',
+                    body: { error: error.message }
+                });
+            });
+            return;
+        }
+        // Only here to support older mod versions (before v0.9.0)...
+        if(message.type === 'request' && message.command === 'fileExists') {
+            fileExists(message.arguments as string).then(exists => {
+                messageSender({
+                        type: 'response',
+                        request_seq: message.seq,
+                        success: true,
+                        body: exists
                     });
             }, error => {
                 messageSender({

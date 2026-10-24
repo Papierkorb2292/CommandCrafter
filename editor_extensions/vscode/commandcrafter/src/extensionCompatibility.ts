@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import { LanguageClient } from "vscode-languageclient/node"
 import { ConnectionFeature, MinecraftConnectionType } from "./minecraftConnection"
 import { FEATURE_CONFIG_DISABLE, FEATURE_CONFIG_ENABLE, getFeatureConfig, isCompatibilityCheckEnabled, SETTINGS_SCOPE, SETTINGS_SECTIONS, updateCurrentFeatureConfig, updateSettingWhereDefined } from './settings'
-import { fileExists } from './extension'
+import { fileExistsOfType } from './extension'
 import { applyEdits, JSONPath, modify, parse, ParseError } from 'jsonc-parser'
 import { outputChannel } from './extensionLog'
 
@@ -144,7 +144,7 @@ async function isSpyglassHighlightingOnInConfig(): Promise<boolean | undefined> 
         // Go through names in normal order, because Spyglass only uses the first one it can parse
         for (const name of SPYGLASS_CONFIG_FILES) {
             const uri = vscode.Uri.joinPath(projectRoot, name)
-            if(await fileExists(uri)) {
+            if(await fileExistsOfType(uri, vscode.FileType.File)) {
                 try {
                     const content = await vscode.workspace.fs.readFile(uri)
                     const config = JSON.parse(Buffer.from(content).toString())
@@ -187,7 +187,7 @@ async function removeSpyglassHighlightingConfig() {
     for(const workspaceFolder of vscode.workspace.workspaceFolders!!) {
         for (const name of SPYGLASS_CONFIG_FILES) {
             const uri = vscode.Uri.joinPath(workspaceFolder.uri, name)
-            if(await fileExists(uri)) {
+            if(await fileExistsOfType(uri, vscode.FileType.File)) {
                 try {
                     const content = await vscode.workspace.fs.readFile(uri) 
                     let config = Buffer.from(content).toString()

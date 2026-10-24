@@ -188,6 +188,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
     }
 
     fun setWorkspacePackInfo(packInfo: WorkspacePackInfo?) {
+        if(packInfo == workspacePackInfo) return
         workspacePackInfo = packInfo
         typedId = packInfo?.idFromUri(parsedUri)
         updateAnalyzeHandler()

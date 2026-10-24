@@ -15,14 +15,14 @@ import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.console.*
+import net.papierkorb2292.command_crafter.editor.files.FileStat
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
-import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
-import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolManager
-import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
+import net.papierkorb2292.command_crafter.editor.processing.symbols.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
@@ -51,8 +51,8 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     companion object {
         val analyzers: MutableList<FileAnalyseHandler> = mutableListOf()
         // All analyzers add their own entry
-        val fileSymbolTypes = mutableMapOf<PackContentFileType, SymbolFileInfo>(
-            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolFileInfo(".nbt", false) // Not associated with any analyzer, since it's not a text file
+        val fileSymbolInfos = mutableMapOf<PackContentFileType, SymbolFileInfo>(
+            PackContentFileType.STRUCTURES_FILE_TYPE to SymbolFileInfo(".nbt", SymbolAnalyzeMode.NoAnalyzer) // Not associated with any analyzer, since it's not a text file
         )
 
         val emptyHoverDefault: CompletableFuture<Hover> = CompletableFuture.completedFuture(Hover(emptyList()))
@@ -61,6 +61,9 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         val emptyCompletionsDefault: CompletableFuture<Either<List<CompletionItem>, CompletionList>> = CompletableFuture.completedFuture(Either.forLeft(emptyList()))
 
         val resultProcessingThreadFactory = DaemonThreadFactory("LanguageServerResultProcessing")
+        val workspaceFilesProcessingThreadFactory = DaemonThreadFactory("LanguageServerWorkspaceFilesProcessing")
+        // Use the same thread pool for all language server instances. There's probably only one anyway, and if there are multiple one thread pool should still be enough
+        val workspaceAnalyzingScheduler = WorkspaceAnalyzingScheduler("LanguageServerWorkspaceAnalyzing", 5, 2)
 
         const val AUTO_RELOAD_DATAPACK_FUNCTIONS_CONFIG_PATH = "autoreload.datapack_functions"
         const val AUTO_RELOAD_DATAPACK_JSON_CONFIG_PATH = "autoreload.datapack_json"
@@ -116,12 +119,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private var running = true
 
     private val openFiles: MutableMap<String, EditorDocument> = HashMap()
+    // The EditorDocuments associated with the URIs in the workspace. Note that the EditorDocument is empty if the symbol type doesn't have an analyzer, in which case the file might be binary
+    private val workspaceFiles: MutableMap<String, EditorDocument> = HashMap()
 
     private var serverCommandExecutor: CommandExecutor? = null
 
     private var currentSemanticTokensRegistration: SemanticTokensWithRegistrationOptions? = null
 
     val fileResultProcessing = Executors.newSingleThreadExecutor(resultProcessingThreadFactory) // AnalyzingResults are processed on the same thread to make sure caches are not corrupted
+    private val workspaceFilesProcessing = Executors.newSingleThreadExecutor(workspaceFilesProcessingThreadFactory) // All file events are processed on the same thread, to prevent race-conditions. For example when a search finds a file that is deleted shortly after
 
     var editorInfo = EditorConnectionManager.EditorInfo.DEFAULT
         private set
@@ -190,13 +196,65 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             if(!condition(file))
                 continue
             anyMatched = true
+
+            file.stopAnalyzing()
+            file.persistentAnalyzerData = null // Make sure all data is properly regenerated
+            file.startAnalyzingFile(this)
+        }
+        //TODO: Analyze workspace files too
+
+        if(anyMatched)
+            client!!.refreshDiagnostics() // Diagnostics have to be pulled again
+    }
+
+    // Should only be called from the workspaceFilesProcessing executor
+    private fun updateAllFilePackInfos() {
+        var anyChanged = false
+        for (file in openFiles.values) {
+            val prevPackInfo = file.workspacePackInfo
+            val newPackInfo = findDatapackForUri(file.parsedUri)
+            if(prevPackInfo == newPackInfo)
+                continue
+            anyChanged = true
+            file.setWorkspacePackInfo(newPackInfo)
+
             file.stopAnalyzing()
             file.persistentAnalyzerData = null // Make sure all data is properly regenerated
             file.startAnalyzingFile(this)
         }
 
-        if(anyMatched)
-            client!!.refreshDiagnostics() // Diagnostics have to be pulled again
+        val workspaceFilesIt = workspaceFiles.iterator()
+        while(workspaceFilesIt.hasNext()) {
+            val (uri, file) = workspaceFilesIt.next()
+            val prevPackInfo = file.workspacePackInfo
+            val newPackInfo = findDatapackForUri(file.parsedUri)
+            if(prevPackInfo == newPackInfo)
+                continue
+
+            // Stop tracking since the old symbol is no longer correct. But the file content can stay for the new pack info.
+            // (Unless the new pack info is null, in which case the file can be directly removed through the iterator)
+            stopTrackingWorkspaceFile(uri, false)
+            anyChanged = true
+
+            if(newPackInfo == null) {
+                workspaceFilesIt.remove()
+                continue
+            }
+
+            file.setWorkspacePackInfo(newPackInfo)
+
+            if(file.typedId == null) {
+                workspaceFilesIt.remove()
+                continue
+            }
+
+            startTrackingWorkspaceFile(uri, file.parsedUri, useExistingFile = true)
+
+            //TODO: Analyze workspace files too
+        }
+
+        if(anyChanged)
+            client!!.refreshDiagnostics()
     }
 
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
@@ -285,10 +343,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                 if(params == null) return
                 val textDocument = params.textDocument
                 val document = EditorDocument(textDocument.uri, EditorDocument.linesFromString(textDocument.text))
-                document.setWorkspacePackInfo(workspacePackInfos.entries.firstNotNullOfOrNull { (_, packInfo) ->
-                    if(document.parsedUri.startsWith(packInfo.baseUri)) packInfo
-                    else null
-                })
+                document.setWorkspacePackInfo(findDatapackForUri(document.parsedUri))
                 document.startAnalyzingFile(this@MinecraftLanguageServer)
                 openFiles[textDocument.uri] = document
                 waitForOpenFileFutures.remove(textDocument.uri)?.forEach { future ->
@@ -501,6 +556,17 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
         }
     }
 
+    private fun findDatapackForUri(uri: EditorURI): WorkspacePackInfo? {
+        var result: WorkspacePackInfo? = null
+        for(packInfo in workspacePackInfos.values) {
+            if(!uri.startsWith(packInfo.baseUri)) continue
+            // Even if packs are nested (for whatever reason), try to associate packs in a deterministic way (always select the innermost pack)
+            if(result == null || packInfo.baseUri.path.length > result.baseUri.path.length)
+                result = packInfo
+        }
+        return result
+    }
+
     @JsonDelegate
     fun getScoreboardStorageFileSystem() = scoreboardStorageFileSystem
 
@@ -601,9 +667,15 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
             }
 
             override fun didChangeWatchedFiles(params: DidChangeWatchedFilesParams) {
-                for(change in params.changes) {
-                    onWorkspaceFileChange(change.uri, change.type)
-                }
+                val fileAccess = getFileAccess() ?: return
+                val createdStats = params.changes.map { change ->
+                    if(change.type == org.eclipse.lsp4j.FileChangeType.Created) fileAccess.statFile(change.uri) else CompletableFuture.completedFuture(null)
+                }.toTypedArray()
+                CompletableFuture.allOf(*createdStats).thenAcceptAsync({
+                    for((i, change) in params.changes.withIndex()) {
+                        onWorkspaceFileChange(change.uri, change.type, createdStats[i].get())
+                    }
+                }, workspaceFilesProcessing)
             }
 
             override fun didDeleteFiles(params: DeleteFilesParams) {
@@ -727,75 +799,173 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     private fun scanWorkspaceForPacks() {
         val fileAccess = getFileAccess() ?: return
         fileAccess.findFiles("**/pack.mcmeta").thenAccept { packMetaFiles ->
-            for(packMetaFile in packMetaFiles) {
-                addWorkspacePackInfo(EditorURI.parseURI(packMetaFile))
-            }
-        }
-    }
-
-    private fun onWorkspaceFileChange(uri: String, changeType: org.eclipse.lsp4j.FileChangeType) {
-        val parsedUri = EditorURI.parseURI(uri)
-        val fileName = parsedUri.getFileName()
-        if(fileName == "pack.mcmeta") {
-            when(changeType) {
-                org.eclipse.lsp4j.FileChangeType.Created -> addWorkspacePackInfo(parsedUri)
-                org.eclipse.lsp4j.FileChangeType.Deleted -> removeWorkspacePackInfo(parsedUri)
-                org.eclipse.lsp4j.FileChangeType.Changed -> {}
-            }
-        } else if(fileName == "assets" || fileName == "data") {
-            val parent = parsedUri.getParent()
-            val pack = workspacePackInfos[parent.toString()]
-            if(pack != null) {
-                changeWorkspacePackFolderNameCount(pack, -1)
-                pack.updatePackType(this).thenAccept {
-                    changeWorkspacePackFolderNameCount(pack, 1)
-                    analyzeAllPackFiles(pack)
+            workspaceFilesProcessing.execute {
+                for(packMetaFile in packMetaFiles) {
+                    addWorkspacePackInfo(EditorURI.parseURI(packMetaFile))
                 }
             }
         }
     }
 
+    // Should only be called from the workspaceFilesProcessing executor
+    private fun onWorkspaceFileChange(uri: String, changeType: org.eclipse.lsp4j.FileChangeType, createdStats: FileStat?) {
+        if(changeType == org.eclipse.lsp4j.FileChangeType.Created)
+            require(createdStats != null) { "Created file must have metadata" }
+
+        val parsedUri = EditorURI.parseURI(uri)
+        val fileName = parsedUri.getFileName()
+        if(fileName == "pack.mcmeta") {
+            when(changeType) {
+                org.eclipse.lsp4j.FileChangeType.Created ->
+                    if(createdStats!!.type.hasFlag(FileType.FILE))
+                        addWorkspacePackInfo(parsedUri)
+                org.eclipse.lsp4j.FileChangeType.Deleted ->
+                    removeWorkspacePackInfo(parsedUri)
+                org.eclipse.lsp4j.FileChangeType.Changed -> {}
+            }
+        } else if(fileName == "assets" || fileName == "data") {
+            if(createdStats == null || createdStats.type.hasFlag(FileType.DIRECTORY)) {
+                val parent = parsedUri.getParent()
+                val pack = workspacePackInfos[parent.toString()]
+                if(pack != null) {
+                    changeWorkspacePackFolderNameCount(pack, -1)
+                    pack.updatePackType(this).thenAccept {
+                        changeWorkspacePackFolderNameCount(pack, 1)
+                        analyzeAllPackFiles(pack)
+                    }
+                }
+            }
+        }
+
+        if(changeType == org.eclipse.lsp4j.FileChangeType.Deleted) {
+            stopTrackingWorkspaceFile(uri)
+        } else if(changeType == org.eclipse.lsp4j.FileChangeType.Created && createdStats!!.type.hasFlag(FileType.FILE)) {
+            startTrackingWorkspaceFile(uri, parsedUri)
+        }
+    }
+
+    // Should only be called from the workspaceFilesProcessing executor
+    private fun startTrackingWorkspaceFile(uri: String, parsedUri: EditorURI = EditorURI.parseURI(uri), useExistingFile: Boolean = false) {
+        val document: EditorDocument
+        if(!useExistingFile) {
+            val filePackInfo = findDatapackForUri(parsedUri) ?: return
+            document = EditorDocument(uri, mutableListOf()).apply {
+                setWorkspacePackInfo(filePackInfo)
+            }
+            val symbolInfo = fileSymbolInfos[document.typedId?.type] ?: return
+            val fileExtension = parsedUri.getFileName().substringAfter('.', "")
+            if(symbolInfo.fileExtension != fileExtension)
+                return
+
+            // Immediately add dummy entry, so even if there's an analyzer and the file content has to be requested before creating the EditorDocument, another pack can not add the same file
+            workspaceFiles[uri] = document
+        } else {
+            document = workspaceFiles[uri]!!
+        }
+
+        val filePackInfo = document.workspacePackInfo!!
+        val (id, type) = document.typedId!!
+        val symbolInfo = fileSymbolInfos[type]!!
+
+        // Immediately add symbol declaration. If the analyzer provides documentation, the symbol will be updated later
+        val position = Position()
+        symbolManager.getRegistry(type).getOrCreateSymbol(id).declarations.workspaceLocations[uri] = listOf(
+            SymbolLocationMap.SymbolLocation({ Range(position, position) }, null)
+        )
+
+        if(symbolInfo.analyzeMode == SymbolAnalyzeMode.NoAnalyzer)
+            return // That's all that needs to happen if no analyzer is known for this file type
+
+        fun analyzeContent() {
+            // TODO: Analyze
+
+            if(symbolInfo.analyzeMode == SymbolAnalyzeMode.AnalyzerWithDocumentation) {
+                // TODO: Add symbol again later if analyzer provides documentation, but only if analyzer wasn't cancelled (file was deleted, packs changed, etc.)
+            }
+        }
+
+        if(useExistingFile) {
+            // No need to request the file content, it's already there
+            analyzeContent()
+            return
+        }
+
+        getFileContent(uri).thenAcceptAsync({ content ->
+            val currentDocument = workspaceFiles[uri]
+            if(currentDocument == null || currentDocument.workspacePackInfo != filePackInfo)
+                return@thenAcceptAsync // File was deleted or another pack owns it now (and that pack will analyze it if necessary)
+            val fullDocument = EditorDocument.fromString(uri, content)
+            fullDocument.setWorkspacePackInfo(filePackInfo)
+            workspaceFiles[uri] = fullDocument
+
+            analyzeContent()
+        }, workspaceFilesProcessing)
+    }
+
+    // Should only be called from the workspaceFilesProcessing executor
+    private fun stopTrackingWorkspaceFile(uri: String, removeEntry: Boolean = true) {
+        val file = if(removeEntry) workspaceFiles.remove(uri) else workspaceFiles[uri]
+        val typedId = file?.typedId
+        if(typedId != null) {
+            val registry = symbolManager.getRegistry(typedId.type)
+            registry.getSymbolOrNull(typedId.id)?.declarations?.removeWorkspaceLocation(uri)
+            registry.tryRemoveEmptySymbol(typedId.id)
+
+            //TODO: Stop running analyzers
+        }
+    }
+
+    // Should only be called from the workspaceFilesProcessing executor
     private fun addWorkspacePackInfo(packMetaUri: EditorURI) {
         val parent = packMetaUri.getParent()
         val parentString = parent.toString()
         if(workspacePackInfos.containsKey(parentString))
             return
-        WorkspacePackInfo.forFolder(parent, this).thenAccept { packInfo ->
-            workspacePackInfos[parentString] = packInfo
-            changeWorkspacePackFolderNameCount(packInfo, 1)
-            for(file in openFiles.values) {
-                if(file.parsedUri.startsWith(parent)) {
-                    file.setWorkspacePackInfo(packInfo)
+        WorkspacePackInfo.forFolder(parent, this).thenAcceptAsync({ newPackInfo ->
+            workspacePackInfos[parentString] = newPackInfo
+            changeWorkspacePackFolderNameCount(newPackInfo, 1)
+            updateAllFilePackInfos()
+            // Scan all files that the pack contains
+            val fileAccess = getFileAccess() ?: return@thenAcceptAsync
+            // Block workspaceFilesProcessing while searching for files, so any delete or create events that happen during the search are processed after the search is done
+            val files = fileAccess.findFilesRelative(FindFilesRelativeParams(newPackInfo.baseUri.toString(), "**")).get()
+
+            for(uri in files) {
+                val existingFile = workspaceFiles[uri]
+                if(existingFile != null) {
+                    val newFilePackInfo = findDatapackForUri(existingFile.parsedUri)
+                    if(newFilePackInfo == newPackInfo) {
+                        // File is already tracked, but belongs to another pack now (probably because packs are nested), so stop tracking it and start tracking it again with the new pack
+                        stopTrackingWorkspaceFile(uri, false)
+                        existingFile.setWorkspacePackInfo(newPackInfo)
+                        startTrackingWorkspaceFile(uri, existingFile.parsedUri, true)
+                    }
+                } else {
+                    startTrackingWorkspaceFile(uri)
                 }
             }
-            analyzeAllPackFiles(packInfo)
-        }
+        }, workspaceFilesProcessing)
     }
 
+    // Should only be called from the workspaceFilesProcessing executor
     private fun removeWorkspacePackInfo(packMetaUri: EditorURI) {
         val baseUri = packMetaUri.getParent().toString()
         val pack = workspacePackInfos.remove(baseUri)
         if(pack != null) {
             changeWorkspacePackFolderNameCount(pack, -1)
-            for(file in openFiles.values) {
-                if(file.workspacePackInfo == pack) {
-                    file.setWorkspacePackInfo(null)
-                }
-            }
-            analyzeAllPackFiles(pack)
+            updateAllFilePackInfos()
         }
     }
 
+    // Should only be called from the workspaceFilesProcessing executor
     private fun changeWorkspacePackFolderNameCount(pack: WorkspacePackInfo, amount: Int) {
         val packType = pack.packType ?: return
         val key = pack.packFolderName to packType
-        synchronized(workspacePackFolderNames) {
-            val count = workspacePackFolderNames.getInt(key) + amount
-            if(count > 0)
-                workspacePackFolderNames.put(key, count)
-            else
-                workspacePackFolderNames.removeInt(key)
-        }
+        val count = workspacePackFolderNames.getInt(key) + amount
+        if(count > 0)
+            workspacePackFolderNames.put(key, count)
+        else
+            workspacePackFolderNames.removeInt(key)
     }
 
     private fun analyzeAllPackFiles(pack: WorkspacePackInfo) {
@@ -872,7 +1042,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
     }
 
     fun hoverDocumentation(analyzingResult: AnalyzingResult, fileRange: Range): CompletableFuture<Hover> {
-        return hoverDocumentation(analyzingResult.docInfo?.documentation, fileRange)
+        return hoverDocumentation(analyzingResult.docInfo.documentation, fileRange)
     }
     fun hoverDocumentation(documentation: String?, fileRange: Range): CompletableFuture<Hover> {
         if(documentation == null)

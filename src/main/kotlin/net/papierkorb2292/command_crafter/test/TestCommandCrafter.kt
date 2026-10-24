@@ -34,9 +34,8 @@ import net.minecraft.world.level.storage.loot.LootParams
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProviders
 import net.minecraft.world.phys.Vec3
-import net.papierkorb2292.command_crafter.editor.DirectFileSystemAccess
-import net.papierkorb2292.command_crafter.editor.EditorDocument
-import net.papierkorb2292.command_crafter.editor.FindFilesRelativeParams
+import net.papierkorb2292.command_crafter.editor.*
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
@@ -1253,36 +1252,32 @@ object TestCommandCrafter {
     fun testFileSystemFileFinder(context: GameTestHelper) {
         val finder = DirectFileSystemAccess(listOf(projectDirectory.resolve("src"), projectDirectory.resolve("gradle")))
 
-        context.assertTrue(
-            finder.fileExists("wrapper/gradle-wrapper.jar").get(),
-            "Gradle Wrapper Jar not found"
+        context.assertFalse(
+            finder.fileExistsOfType("wrapper/gradle-wrapper.jar", FileType.FILE).get(),
+            "Gradle Wrapper Jar was found with relative path, which shouldn't work"
         )
         context.assertTrue(
-            finder.fileExists(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()).get(),
+            finder.fileExistsOfType(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString(), FileType.FILE).get(),
             "Gradle Wrapper Jar not found with absolute path"
         )
-        context.assertTrue(
-            finder.fileExists("main/resources/fabric.mod.json").get(),
-            "Fabric json not found"
-        )
         context.assertFalse(
-            finder.fileExists("doesnt.exist").get(),
-            "Unknown file not supposed to be found"
+            finder.fileExistsOfType("main/resources/fabric.mod.json", FileType.FILE).get(),
+            "Fabric json was found with relative path, which shouldn't work"
         )
 
         context.assertValueEqual(
             finder.findFiles("wrapper/*.jar").get().toList(),
-            listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
+            listOf(EditorURI.parseURI(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()).toString()),
             "Search for gradle jar"
         )
         context.assertValueEqual(
             finder.findFiles("**/wrapper/*.jar").get().toList(),
-            listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
+            listOf(EditorURI.parseURI(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()).toString()),
             "Search for gradle jar with **"
         )
         context.assertValueEqual(
             finder.findFilesRelative(FindFilesRelativeParams(projectDirectory.resolve("gradle/wrapper/").toAbsolutePath().toString(), "*.jar")).get().toList(),
-            listOf(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()),
+            listOf(EditorURI.parseURI(projectDirectory.resolve("gradle/wrapper/gradle-wrapper.jar").toAbsolutePath().toString()).toString()),
             "Search for gradle jar with absolute path"
         )
 

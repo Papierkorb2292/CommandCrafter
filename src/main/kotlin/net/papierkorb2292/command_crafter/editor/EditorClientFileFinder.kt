@@ -1,5 +1,7 @@
 package net.papierkorb2292.command_crafter.editor
 
+import net.papierkorb2292.command_crafter.editor.files.FileStat
+import net.papierkorb2292.command_crafter.editor.files.FileType
 import java.util.concurrent.CompletableFuture
 
 interface EditorClientFileFinder {
@@ -15,7 +17,13 @@ interface EditorClientFileFinder {
     fun findFilesRelative(params: FindFilesRelativeParams): CompletableFuture<Array<String>>
 
     /**
-     * Returns whether a file exists. The uri is in the format of [EditorURI]
+     * Returns metadata for a file or null if the file wasn't found. The uri is in the format of [EditorURI] and must be absolute
      */
-    fun fileExists(uri: String): CompletableFuture<Boolean>
+    fun statFile(uri: String): CompletableFuture<FileStat?>
+}
+
+fun EditorClientFileFinder.fileExistsOfType(uri: String, type: FileType): CompletableFuture<Boolean> {
+    return statFile(uri).thenApply { stat ->
+        stat != null && stat.type.hasFlag(type) // Use hasFlag in-case the file is a symbolic link
+    }
 }

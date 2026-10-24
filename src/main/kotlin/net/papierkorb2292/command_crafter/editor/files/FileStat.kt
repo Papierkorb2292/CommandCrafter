@@ -1,8 +1,8 @@
-package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
+package net.papierkorb2292.command_crafter.editor.files
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 import net.papierkorb2292.command_crafter.networking.optional
 import net.papierkorb2292.command_crafter.networking.toOptional
 
@@ -17,7 +17,7 @@ class FileStat(
     /**
      * The creation timestamp in milliseconds elapsed since January 1, 1970 00:00:00 UTC.
      */
-    var ctime: Int,
+    var ctime: Long,
     /**
      * The modification timestamp in milliseconds elapsed since January 1, 1970 00:00:00 UTC.
      *
@@ -25,7 +25,7 @@ class FileStat(
      * from the previous value. Otherwise there may be optimizations in place that will not show
      * the updated file contents in an editor for example.
      */
-    var mtime: Int,
+    var mtime: Long,
     /**
      * The size in bytes.
      *
@@ -33,7 +33,7 @@ class FileStat(
      * may be optimizations in place that will not show the updated file contents in an editor for
      * example.
      */
-    var size: Int,
+    var size: Long,
     /**
      * The permissions of the file, e.g. whether the file is readonly.
      *
@@ -45,11 +45,11 @@ class FileStat(
         val PACKET_CODEC: StreamCodec<ByteBuf, FileStat> = StreamCodec.composite(
             FileType.PACKET_CODEC,
             FileStat::type,
-            ByteBufCodecs.INT,
+            ByteBufCodecs.LONG,
             FileStat::ctime,
-            ByteBufCodecs.INT,
+            ByteBufCodecs.LONG,
             FileStat::mtime,
-            ByteBufCodecs.INT,
+            ByteBufCodecs.LONG,
             FileStat::size,
             FilePermission.PACKET_CODEC.optional(),
             FileStat::permissions.toOptional(),

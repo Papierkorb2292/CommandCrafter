@@ -1,8 +1,8 @@
-package net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api
+package net.papierkorb2292.command_crafter.editor.files
 
 import io.netty.buffer.ByteBuf
-import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.minecraft.network.codec.StreamCodec
 
 @JvmInline
 value class FileType(val value: Int) {
@@ -16,5 +16,17 @@ value class FileType(val value: Int) {
             ::FileType,
             FileType::value
         )
+    }
+
+    fun withSymbolicLink(isSymbolLink: Boolean): FileType {
+        return if (isSymbolLink) {
+            FileType(value or SYMBOLIC_LINK.value)
+        } else {
+            FileType(value and SYMBOLIC_LINK.value.inv())
+        }
+    }
+
+    fun hasFlag(flag: FileType): Boolean {
+        return (value and flag.value) == flag.value
     }
 }

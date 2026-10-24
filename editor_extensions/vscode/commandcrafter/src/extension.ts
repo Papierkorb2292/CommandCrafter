@@ -70,6 +70,17 @@ export function fileExists(file: string | vscode.Uri): Thenable<boolean> {
 	return vscode.workspace.fs.stat(file).then(() => true, () => false);
 }
 
+export function fileExistsOfType(file: string | vscode.Uri, type: vscode.FileType): Thenable<boolean> {
+	return statFile(file).then(meta => meta !== null && (meta.type & type) === type) // Binary AND in case the file is a symbol link
+}
+
+export function statFile(file: string | vscode.Uri): Thenable<vscode.FileStat | null> {
+	if(typeof(file) === "string") {
+		file = vscode.Uri.parse(file)
+	}
+	return vscode.workspace.fs.stat(file).then(meta => meta, () => null);
+}
+
 export interface FindFilesRelativeParams {
 	baseUri: string,
 	pattern: string

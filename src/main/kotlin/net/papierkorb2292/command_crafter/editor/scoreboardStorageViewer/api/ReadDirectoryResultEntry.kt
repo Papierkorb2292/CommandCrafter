@@ -5,6 +5,7 @@ import com.google.gson.stream.JsonWriter
 import io.netty.buffer.ByteBuf
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.network.codec.ByteBufCodecs
+import net.papierkorb2292.command_crafter.editor.files.FileType
 
 class ReadDirectoryResultEntry(
     var name: String,
