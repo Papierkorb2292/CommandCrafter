@@ -801,12 +801,13 @@ object TestCommandCrafter {
 
     @GameTest
     fun parseTestFunction(context: GameTestHelper) {
+        // Also tests that the parser handles trailing/leading spaces and tabs correctly
         val lines = """
             # This is a doc \    
                 comment
-            execute as @a run say HI!
+            ${'\t'}execute as @a run say HI!
             execute if entity @s \ 
-                run tp @s ~ ~1 ~
+                run tp @s ~ ~1 ~${'\t'}
             @language vanilla improved
             execute
                 align xyz

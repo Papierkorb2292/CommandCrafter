@@ -1,22 +1,22 @@
 {
   "mappingInfo" : {
-    "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+    "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
     "cursorMapper" : {
-      "sourceCursors" : [ 34, 60, 88, 210 ],
-      "targetCursors" : [ 34, 60, 81, 203 ],
+      "sourceCursors" : [ 35, 61, 89, 211 ],
+      "targetCursors" : [ 35, 61, 82, 204 ],
       "lengths" : [ 25, 21, 16, 15 ],
       "expandedCharEnds" : { },
-      "prevSourceEnd" : 225,
-      "prevTargetEnd" : 218
+      "prevSourceEnd" : 226,
+      "prevTargetEnd" : 219
     },
-    "readCharacters" : 340,
+    "readCharacters" : 341,
     "skippedChars" : 7,
-    "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+    "accumulatedLineLengths" : [ 22, 34, 61, 85, 106, 133, 141, 155, 192, 203, 227, 229, 260, 288, 306, 341, 363 ]
   },
   "semanticTokens" : [
     0,0,22,17,0,
     1,4,8,17,0,
-    1,0,7,15,0, 0,8,2,15,0, 0,3,2,1,0, 0,3,3,15,0, 0,4,3,15,0, 0,4,3,10,0,
+    1,1,7,15,0, 0,8,2,15,0, 0,3,2,1,0, 0,3,3,15,0, 0,4,3,15,0, 0,4,3,10,0,
     1,0,7,15,0, 0,8,2,15,0, 0,3,6,19,0, 0,7,2,1,0,
     1,4,3,15,0, 0,4,2,15,0, 0,3,2,1,0, 0,3,6,20,0,
     1,0,9,4,0, 0,10,7,11,0, 0,8,8,18,0,
@@ -45,37 +45,238 @@
     "directive" : [ {
       "cursorRange" : {
         "start" : 34,
-        "end" : 34
+        "end" : 35
       }
     }, {
       "cursorRange" : {
-        "start" : 60,
+        "start" : 61,
+        "end" : 61
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 106,
+        "end" : 106
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 106,
+        "end" : 115
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 116,
+        "end" : 123
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 133,
+        "end" : 133
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 192,
+        "end" : 192
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 229,
+        "end" : 229
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 229,
+        "end" : 238
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 239,
+        "end" : 246
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 260,
+        "end" : 260
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 288,
+        "end" : 288
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 288,
+        "end" : 297
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 298,
+        "end" : 305
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 306,
+        "end" : 310
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 310,
+        "end" : 319
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 320,
+        "end" : 327
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 341,
+        "end" : 345
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 345,
+        "end" : 354
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 355,
+        "end" : 362
+      }
+    } ],
+    "language" : [ {
+      "cursorRange" : {
+        "start" : 34,
+        "end" : 35
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 35,
+        "end" : 42
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 43,
+        "end" : 45
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 46,
+        "end" : 48
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 49,
+        "end" : 52
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 53,
+        "end" : 56
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 57,
         "end" : 60
       }
     }, {
       "cursorRange" : {
-        "start" : 105,
+        "start" : 61,
+        "end" : 61
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 61,
+        "end" : 68
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 69,
+        "end" : 71
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 72,
+        "end" : 78
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 79,
+        "end" : 81
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 82,
+        "end" : 92
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 93,
+        "end" : 95
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 96,
+        "end" : 98
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 99,
         "end" : 105
       }
     }, {
       "cursorRange" : {
-        "start" : 105,
-        "end" : 114
+        "start" : 106,
+        "end" : 106
       }
     }, {
       "cursorRange" : {
-        "start" : 115,
-        "end" : 122
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 132,
+        "start" : 124,
         "end" : 132
       }
     }, {
       "cursorRange" : {
-        "start" : 191,
+        "start" : 133,
+        "end" : 133
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 133,
+        "end" : 140
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 141,
+        "end" : 150
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 151,
+        "end" : 154
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 155,
+        "end" : 162
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 163,
+        "end" : 169
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 170,
         "end" : 191
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 192,
+        "end" : 192
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 192,
+        "end" : 200
       }
     }, {
       "cursorRange" : {
@@ -84,276 +285,75 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 228,
-        "end" : 237
+        "start" : 229,
+        "end" : 229
       }
     }, {
       "cursorRange" : {
-        "start" : 238,
-        "end" : 245
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 259,
+        "start" : 247,
         "end" : 259
       }
     }, {
       "cursorRange" : {
-        "start" : 287,
-        "end" : 287
+        "start" : 260,
+        "end" : 260
       }
     }, {
       "cursorRange" : {
-        "start" : 287,
-        "end" : 296
+        "start" : 288,
+        "end" : 288
       }
     }, {
       "cursorRange" : {
-        "start" : 297,
-        "end" : 304
+        "start" : 306,
+        "end" : 310
       }
     }, {
       "cursorRange" : {
-        "start" : 305,
-        "end" : 309
+        "start" : 328,
+        "end" : 340
       }
     }, {
       "cursorRange" : {
-        "start" : 309,
-        "end" : 318
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 319,
-        "end" : 326
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 340,
-        "end" : 344
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 344,
-        "end" : 353
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 354,
-        "end" : 361
+        "start" : 341,
+        "end" : 345
       }
     } ],
-    "language" : [ {
+    "language_customSuggestions" : [ {
       "cursorRange" : {
-        "start" : 34,
-        "end" : 34
+        "start" : 201,
+        "end" : 201
       }
     }, {
       "cursorRange" : {
-        "start" : 34,
-        "end" : 41
+        "start" : 203,
+        "end" : 207
       }
     }, {
       "cursorRange" : {
-        "start" : 42,
-        "end" : 44
+        "start" : 207,
+        "end" : 210
       }
     }, {
       "cursorRange" : {
-        "start" : 45,
-        "end" : 47
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 48,
-        "end" : 51
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 52,
-        "end" : 55
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 56,
-        "end" : 59
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 60,
-        "end" : 60
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 60,
-        "end" : 67
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 68,
-        "end" : 70
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 71,
-        "end" : 77
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 78,
-        "end" : 80
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 81,
-        "end" : 91
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 92,
-        "end" : 94
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 95,
-        "end" : 97
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 98,
-        "end" : 104
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 105,
-        "end" : 105
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 123,
-        "end" : 131
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 132,
-        "end" : 132
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 132,
-        "end" : 139
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 140,
-        "end" : 149
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 150,
-        "end" : 153
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 154,
-        "end" : 161
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 162,
-        "end" : 168
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 169,
-        "end" : 190
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 191,
-        "end" : 191
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 191,
-        "end" : 199
+        "start" : 211,
+        "end" : 214
       }
     }, {
       "cursorRange" : {
         "start" : 227,
         "end" : 227
       }
-    }, {
-      "cursorRange" : {
-        "start" : 228,
-        "end" : 228
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 246,
-        "end" : 258
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 259,
-        "end" : 259
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 287,
-        "end" : 287
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 305,
-        "end" : 309
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 327,
-        "end" : 339
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 340,
-        "end" : 344
-      }
-    } ],
-    "language_customSuggestions" : [ {
-      "cursorRange" : {
-        "start" : 200,
-        "end" : 200
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 202,
-        "end" : 206
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 206,
-        "end" : 209
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 210,
-        "end" : 213
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 226,
-        "end" : 226
-      }
     } ],
     "directive_customSuggestions" : [ {
       "cursorRange" : {
-        "start" : 202,
-        "end" : 206
+        "start" : 203,
+        "end" : 207
       }
     }, {
       "cursorRange" : {
-        "start" : 226,
-        "end" : 226
+        "start" : 227,
+        "end" : 227
       }
     } ]
   }

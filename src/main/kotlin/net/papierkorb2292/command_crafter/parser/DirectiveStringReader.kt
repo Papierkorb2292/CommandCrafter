@@ -250,7 +250,8 @@ class DirectiveStringReader<out ResourceCreator>(
 
     fun readIndentation(): Int {
         val start = cursor
-        while(canRead() && peek() == ' ') skip()
+        // Indent can also be tabs or other whitespace characters, so we can't just count spaces
+        skipWhitespace(false)
         return cursor - start
     }
 
