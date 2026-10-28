@@ -5,22 +5,27 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap
 import net.papierkorb2292.command_crafter.editor.files.FileStat
 import net.papierkorb2292.command_crafter.editor.files.FileType
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.symbols.*
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolAnalyzeMode
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolLocationMap
+import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.helper.DaemonThreadFactory
+import net.papierkorb2292.command_crafter.helper.TrackingThreadFactory
 import org.eclipse.lsp4j.FileChangeType
-import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
     companion object {
         private val processingThreadFactory = DaemonThreadFactory("LanguageServerWorkspaceFilesProcessing")
     }
 
+    private val trackingThreadFactory = TrackingThreadFactory(processingThreadFactory)
+
     private val workspaceFiles: MutableMap<String, EditorDocument> = HashMap()
     private val workspacePackInfos: MutableMap<String, WorkspacePackInfo> = HashMap()
     private val workspacePackFolderNames: Object2IntMap<Pair<String, PackContentFileType.PackType>> = Object2IntOpenHashMap()
 
-    val processingExecutor: ExecutorService = Executors.newSingleThreadExecutor(processingThreadFactory)
+    val processingExecutor: ExecutorService = Executors.newSingleThreadExecutor(trackingThreadFactory)
 
     fun findDatapackForUri(uri: EditorURI): WorkspacePackInfo? {
         var result: WorkspacePackInfo? = null
@@ -127,6 +132,7 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
 
     // Should only be called from the processing executor
     private fun startTrackingWorkspaceFile(uri: String, parsedUri: EditorURI = EditorURI.parseURI(uri), useExistingFile: Boolean = false) {
+        trackingThreadFactory.assertCurrentThread()
         val document: EditorDocument
         if(!useExistingFile) {
             val filePackInfo = findDatapackForUri(parsedUri) ?: return
@@ -179,6 +185,7 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
 
     // Should only be called from the processing executor
     private fun stopTrackingWorkspaceFile(uri: String, removeEntry: Boolean = true) {
+        trackingThreadFactory.assertCurrentThread()
         val file = if(removeEntry) workspaceFiles.remove(uri) else workspaceFiles[uri]
         val typedId = file?.typedId
         if(typedId != null) {
@@ -190,6 +197,7 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
 
     // Should only be called from the processing executor
     private fun addWorkspacePackInfo(packMetaUri: EditorURI) {
+        trackingThreadFactory.assertCurrentThread()
         val parent = packMetaUri.getParent()
         val parentString = parent.toString()
         if(workspacePackInfos.containsKey(parentString))
@@ -219,6 +227,7 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
 
     // Should only be called from the processing executor
     private fun removeWorkspacePackInfo(packMetaUri: EditorURI) {
+        trackingThreadFactory.assertCurrentThread()
         val baseUri = packMetaUri.getParent().toString()
         val pack = workspacePackInfos.remove(baseUri)
         if(pack != null) {
@@ -229,6 +238,7 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
 
     // Should only be called from the processing executor
     private fun changeWorkspacePackFolderNameCount(pack: WorkspacePackInfo, amount: Int) {
+        trackingThreadFactory.assertCurrentThread()
         val packType = pack.packType ?: return
         val key = pack.packFolderName to packType
         val count = workspacePackFolderNames.getInt(key) + amount
