@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.editor.processing.symbols
 
-import net.papierkorb2292.command_crafter.editor.EditorURI
 import org.eclipse.lsp4j.Range
 
 class SymbolLocationMap<TInfo> {

@@ -154,8 +154,10 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
         val symbolInfo = MinecraftLanguageServer.fileSymbolInfos[type]!!
 
         val position = org.eclipse.lsp4j.Position()
-        languageServer.symbolManager.getRegistry(type).getOrCreateSymbol(id).declarations.workspaceLocations[uri] =
-            listOf(SymbolLocationMap.SymbolLocation({ org.eclipse.lsp4j.Range(position, position) }, null))
+        languageServer.symbolManager.modifyRegistry(type) { registry ->
+            registry.getOrCreateSymbol(id).declarations.workspaceLocations[uri] =
+                listOf(SymbolLocationMap.SymbolLocation({ org.eclipse.lsp4j.Range(position, position) }, null))
+        }
 
         if(symbolInfo.analyzeMode == SymbolAnalyzeMode.NoAnalyzer)
             return
@@ -189,9 +191,10 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
         val file = if(removeEntry) workspaceFiles.remove(uri) else workspaceFiles[uri]
         val typedId = file?.typedId
         if(typedId != null) {
-            val registry = languageServer.symbolManager.getRegistry(typedId.type)
-            registry.getSymbolOrNull(typedId.id)?.declarations?.removeWorkspaceLocation(uri)
-            registry.tryRemoveEmptySymbol(typedId.id)
+            languageServer.symbolManager.modifyRegistry(typedId.type) { registry ->
+                registry.getSymbolOrNull(typedId.id)?.declarations?.removeWorkspaceLocation(uri)
+                registry.tryRemoveEmptySymbol(typedId.id)
+            }
         }
     }
 

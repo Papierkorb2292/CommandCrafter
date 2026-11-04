@@ -28,7 +28,7 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
-import net.papierkorb2292.command_crafter.editor.processing.symbols.AnalyzerSymbolAccess
+import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSymbolAccess
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
@@ -241,7 +241,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 null,
                 "",
                 server.registryAccess(),
-                AnalyzerSymbolAccess.Dummy,
+                ImmutableSymbolAccess.Dummy,
                 server.createCommandSourceStack(),
                 mappingInfo
             ))
@@ -259,7 +259,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 null,
                 "",
                 server.registryAccess(),
-                AnalyzerSymbolAccess.Dummy,
+                ImmutableSymbolAccess.Dummy,
                 server.createCommandSourceStack(),
                 mappingInfo
             ))
