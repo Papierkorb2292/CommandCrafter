@@ -4,6 +4,6 @@ interface SymbolLocationVisitable {
     fun visit(visitor: SymbolLocationVisitor)
 
     interface SymbolLocationVisitor {
-        fun <TKindInfo> acceptSymbolLocation(kind: SymbolKind<TKindInfo>, location: SymbolLocationMap.SymbolLocation<TKindInfo>)
+        fun <TKey, TKindInfo> acceptSymbolLocation(type: SymbolType<TKey>, symbolKey: TKey, kind: SymbolKind<TKindInfo>, location: SymbolLocationMap.SymbolLocation<TKindInfo>)
     }
 }

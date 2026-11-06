@@ -18,5 +18,5 @@ class SymbolLocationMap<TInfo> {
     fun removeWorkspaceLocation(uri: String): Boolean =
         workspaceLocations.remove(uri) != null
 
-    class SymbolLocation<TInfo>(val rangeGetter: () -> Range, var extraInfo: TInfo)
+    class SymbolLocation<TInfo>(val range: Range, val selectionRangeOverride: Range?, var extraInfo: TInfo)
 }

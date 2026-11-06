@@ -156,7 +156,7 @@ class WorkspaceManager(private val languageServer: MinecraftLanguageServer) {
         val position = org.eclipse.lsp4j.Position()
         languageServer.symbolManager.modifyRegistry(type) { registry ->
             registry.getOrCreateSymbol(id).declarations.workspaceLocations[uri] =
-                listOf(SymbolLocationMap.SymbolLocation({ org.eclipse.lsp4j.Range(position, position) }, null))
+                listOf(SymbolLocationMap.SymbolLocation(org.eclipse.lsp4j.Range(position, position), null, null))
         }
 
         if(symbolInfo.analyzeMode == SymbolAnalyzeMode.NoAnalyzer)

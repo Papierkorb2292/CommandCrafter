@@ -22,8 +22,12 @@ class Symbol {
     fun getDefinition(originSelectionRange: Range? = null): CompletableFuture<ActualSyntaxNode.Definition> {
         val links = declarations.workspaceLocations.flatMap { (uri, workspaceLocations) ->
             workspaceLocations.map { workspaceLocation ->
-                val range = workspaceLocation.rangeGetter()
-                LocationLink(uri, range, range, originSelectionRange)
+                LocationLink(
+                    uri,
+                    workspaceLocation.range,
+                    workspaceLocation.selectionRangeOverride ?: workspaceLocation.range,
+                    originSelectionRange
+                )
         } }
         return CompletableFuture.completedFuture(ActualSyntaxNode.Definition(Either.forRight(links), true))
     }
@@ -32,7 +36,7 @@ class Symbol {
         declarations.workspaceLocations.firstNotNullOfOrNull { (_, workspaceLocations) ->
             workspaceLocations.firstNotNullOfOrNull { workspaceLocation ->
                 val documentation = workspaceLocation.extraInfo?.documentation ?: return@firstNotNullOfOrNull null
-                languageServer.hoverDocumentation(documentation, workspaceLocation.rangeGetter())
+                languageServer.hoverDocumentation(documentation, workspaceLocation.range)
             }
         }
 }
