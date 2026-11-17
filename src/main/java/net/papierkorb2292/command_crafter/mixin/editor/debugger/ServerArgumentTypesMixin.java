@@ -13,6 +13,7 @@ import java.util.Set;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
+//TODO: This totally changes for 26.4
 // Create compatibility with adventure-platform-mod
 // The mod expects a player entity in CommandManager.makeTreeForSource, which CommandCrafter
 // does not provide. This mixin adds a null check when syncing the tree to fix the issue.
@@ -22,7 +23,6 @@ public class ServerArgumentTypesMixin {
     @Inject(
             method = "knownArgumentTypes(Lnet/minecraft/server/level/ServerPlayer;)Ljava/util/Set;",
             at = @At("HEAD"),
-            remap = false,
             cancellable = true
     )
     private static void command_crafter$checkForNullWhenSyncingCommandCrafterTree(ServerPlayer player, CallbackInfoReturnable<Set<Identifier>> cir) {

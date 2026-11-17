@@ -19,6 +19,7 @@ import org.eclipse.lsp4j.jsonrpc.json.StreamMessageProducer
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.jsonrpc.messages.Message
 import org.eclipse.lsp4j.services.LanguageClient
+import java.util.*
 import java.util.concurrent.*
 
 class EditorConnectionManager(
@@ -225,8 +226,11 @@ class EditorConnectionManager(
             val CODEC = RecordCodecBuilder.create<EditorInfo> { instance ->
                 instance.group(
                     FeatureConfig.CODEC.optionalFieldOf("featureConfig", FeatureConfig.EMPTY).forGetter { it.featureConfig },
-                    Codec.STRING.optionalFieldOf("extensionVersion", null).forGetter { it.extensionVersion }
-                ).apply(instance, ::EditorInfo)
+                    Codec.STRING.optionalFieldOf("extensionVersion").forGetter { Optional.ofNullable(it.extensionVersion) }
+                ).apply(instance) { featureConfig, extensionVersion ->
+                    EditorInfo(featureConfig, extensionVersion.orElse(null))
+                }
+
             }.optionalFieldOf("editorInfo", DEFAULT).codec()
         }
 

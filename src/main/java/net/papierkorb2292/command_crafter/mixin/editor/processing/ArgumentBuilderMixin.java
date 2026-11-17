@@ -13,8 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ArgumentBuilderMixin<S, T> {
     @Inject(
             method = "forward",
-            at = @At("HEAD"),
-            remap = false
+            at = @At("HEAD")
     )
     private void command_crafter$makeTargetChildrenAwareOfRedirect(CommandNode<S> target, RedirectModifier<S> modifier, boolean fork, CallbackInfoReturnable<T> cir) {
         if(target instanceof RedirectTargetAware redirectTargetAware) {

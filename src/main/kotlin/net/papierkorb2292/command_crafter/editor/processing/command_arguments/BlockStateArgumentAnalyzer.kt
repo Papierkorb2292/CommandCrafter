@@ -3,8 +3,9 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.SerializableArgument
 import net.minecraft.commands.arguments.blocks.BlockStateArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.registries.Registries
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -13,13 +14,13 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockStatePars
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
-class BlockStateArgumentAnalyzer : CommandArgumentAnalyzerService<BlockStateArgument> {
-    override val argumentTypes: List<Class<out BlockStateArgument>>
+class BlockStateArgumentAnalyzer : CommandArgumentAnalyzerService {
+    override val argumentTypes
         get() = listOf(BlockStateArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: BlockStateArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,

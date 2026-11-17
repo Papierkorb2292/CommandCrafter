@@ -5,7 +5,7 @@ import com.mojang.serialization.DynamicOps
 import java.util.function.Consumer
 import java.util.stream.Stream
 
-class ListPlaceholderRemovingDynamicOps<T>(private val placeholders: Set<T>, override val delegate: DynamicOps<T>):
+class ListPlaceholderRemovingDynamicOps<T : Any>(private val placeholders: Set<T>, override val delegate: DynamicOps<T>):
     DelegatingDynamicOps<T> {
     override fun getList(input: T): DataResult<Consumer<Consumer<T>>> {
         return delegate.getList(input).map { list ->

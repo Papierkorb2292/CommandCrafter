@@ -17,8 +17,7 @@ public class CommandNodeMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;peek()C"
-            ),
-            remap = false
+            )
     )
     private char command_crafter$endLiteralWithNewLineOrClosure(char original, StringReader input) {
         if(!VanillaLanguage.Companion.isReaderVanilla(input))

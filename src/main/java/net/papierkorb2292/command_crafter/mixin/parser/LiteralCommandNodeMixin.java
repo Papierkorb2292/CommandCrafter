@@ -17,8 +17,7 @@ public class LiteralCommandNodeMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;peek()C"
-            ),
-            remap = false
+            )
     )
     private char command_crafter$endLiteralWithNewLineOrClosure(char c, StringReader reader) {
         if(!(reader instanceof DirectiveStringReader<?> directiveStringReader)) {

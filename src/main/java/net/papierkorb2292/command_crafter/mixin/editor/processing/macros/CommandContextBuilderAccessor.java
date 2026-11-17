@@ -8,10 +8,10 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(CommandContextBuilder.class)
 public interface CommandContextBuilderAccessor<S> {
-    @Accessor(remap = false)
+    @Accessor
     void setRange(StringRange range);
-    @Accessor(remap = false)
+    @Accessor
     void setModifier(RedirectModifier<S> modifier);
-    @Accessor(remap = false)
+    @Accessor
     void setForks(boolean forks);
 }

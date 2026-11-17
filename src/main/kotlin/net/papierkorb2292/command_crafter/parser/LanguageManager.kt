@@ -7,7 +7,6 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.serialization.Decoder
 import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.functions.FunctionBuilder
 import net.minecraft.core.Registry
 import net.minecraft.nbt.NbtOps
@@ -67,14 +66,14 @@ object LanguageManager {
             }
     }
 
-    fun parseToVanilla(reader: DirectiveStringReader<RawZipResourceCreator>, source: CommandSourceStack, resource: RawResource, closure: Language.LanguageClosure) {
+    fun parseToVanilla(reader: DirectiveStringReader<RawZipResourceCreator>, resource: RawResource, closure: Language.LanguageClosure) {
         //TODO: Keep doc comment (or all comments)
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
         reader.resourceCreator.resourceStack.push(resource)
         while(reader.closureDepth != closureDepth) {
             val readerEnd = !reader.canRead()
-            reader.currentLanguage?.parseToVanilla(reader, source, resource)
+            reader.currentLanguage?.parseToVanilla(reader, resource)
             reader.updateLanguage()
             if(readerEnd && reader.closureDepth != closureDepth) {
                 throw UNCLOSED_SCOPE_EXCEPTION.create(reader.scopeStack.element().startLine)
@@ -85,7 +84,7 @@ object LanguageManager {
 
     private val UNCLOSED_SCOPE_EXCEPTION = DynamicCommandExceptionType { Component.nullToEmpty("Encountered unclosed scope started at line $it") }
 
-    fun parseToCommands(reader: DirectiveStringReader<ParsedResourceCreator?>, source: CommandSourceStack, closure: Language.LanguageClosure): FunctionBuilder<CommandSourceStack> {
+    fun parseToCommands(reader: DirectiveStringReader<ParsedResourceCreator>, closure: Language.LanguageClosure): FunctionBuilder<CommandSourceStack> {
         val closureDepth = reader.closureDepth
         val builder = FunctionBuilderAccessor.init<CommandSourceStack>()
         reader.enterClosure(closure)
@@ -98,7 +97,7 @@ object LanguageManager {
                 .`command_crafter$setPauseHandlerCreatorIndex`(debugInformations.size)
             val readerEnd = !reader.canRead()
             reader.currentLanguage?.run {
-                val debugInformation = parseToCommands(reader, source, builder)
+                val debugInformation = parseToCommands(reader, builder)
                 debugInformations += debugInformation ?: SKIP_DEBUG_INFORMATION
             }
             reader.updateLanguage()
@@ -122,7 +121,7 @@ object LanguageManager {
         return builder
     }
 
-    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, source: SharedSuggestionProvider, result: AnalyzingResult, closure: Language.LanguageClosure) {
+    fun analyse(reader: DirectiveStringReader<AnalyzingResourceCreator>, result: AnalyzingResult, closure: Language.LanguageClosure) {
         reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
         val closureDepth = reader.closureDepth
         reader.enterClosure(closure)
@@ -133,7 +132,7 @@ object LanguageManager {
             if(Thread.currentThread().isInterrupted)
                 break
             val readerEnd = !reader.canRead()
-            reader.currentLanguage?.analyze(reader, source, result)
+            reader.currentLanguage?.analyze(reader, result)
             reader.updateLanguage()
             if(readerEnd && reader.closureDepth != closureDepth) {
                 val position = Position(reader.lines.size - 1, reader.lines.last().length)

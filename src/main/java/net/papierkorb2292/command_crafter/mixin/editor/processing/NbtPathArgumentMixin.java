@@ -83,8 +83,7 @@ public abstract class NbtPathArgumentMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
-                    ordinal = 1,
-                    remap = false
+                    ordinal = 1
             )
     )
     private static int command_crafter$allowEmptyUnquotedTagWhenAnalyzing(int endCursor) {

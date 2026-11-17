@@ -16,8 +16,8 @@ public class NbtPathArgumentTypeFilteredRootNodeAccessor implements NbtPathFilte
             method = "<init>",
             at = @At("RETURN")
     )
-    private void command_crafter$storeFilterCompound(CompoundTag filter, CallbackInfo ci) {
-        this.command_crafter$filter = filter;
+    private void command_crafter$storeFilterCompound(CompoundTag pattern, CallbackInfo ci) {
+        this.command_crafter$filter = pattern;
     }
 
     @NotNull

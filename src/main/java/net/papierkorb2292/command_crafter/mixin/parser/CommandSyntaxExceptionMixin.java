@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.Shadow;
 @Mixin(CommandSyntaxException.class)
 public class CommandSyntaxExceptionMixin implements VanillaLanguage.CursorAwareException {
 
-    @Shadow(remap = false) @Final private int cursor;
+    @Shadow @Final private int cursor;
 
     @Override
     public int command_crafter$getCursor() {

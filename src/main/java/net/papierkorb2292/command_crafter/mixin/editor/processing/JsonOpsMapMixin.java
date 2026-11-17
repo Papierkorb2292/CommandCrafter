@@ -19,8 +19,7 @@ public class JsonOpsMapMixin {
             at = @At(
                     value = "CONSTANT",
                     args = "classValue=com/google/gson/JsonNull"
-            ),
-            remap = false
+            )
     )
     private boolean command_crafter$allowJsonNullForStringRangeTree(Object element, Operation<Boolean> op) {
         final var isAnalyzingDecoder = getOrNull(TreeOperations.Companion.getIS_ANALYZING_DECODER());

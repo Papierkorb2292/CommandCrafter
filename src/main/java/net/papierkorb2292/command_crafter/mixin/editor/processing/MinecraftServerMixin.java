@@ -18,7 +18,7 @@ public class MinecraftServerMixin {
             method = "reloadResources",
             at = @At("RETURN")
     )
-    private CompletableFuture<Void> command_crafter$reloadBreakpoints(CompletableFuture<Void> completionFuture) {
+    private CompletableFuture<Void> command_crafter$syncRegistries(CompletableFuture<Void> completionFuture) {
         return completionFuture.thenRun(() -> {
             for(final var player : playerList.getPlayers()) {
                 NetworkServerConnectionHandler.INSTANCE.sendDynamicRegistries((MinecraftServer)(Object)this, player.connection);

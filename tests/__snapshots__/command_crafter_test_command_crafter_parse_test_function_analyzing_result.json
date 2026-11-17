@@ -1,17 +1,17 @@
 {
   "mappingInfo" : {
-    "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+    "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
     "cursorMapper" : {
-      "sourceCursors" : [ 35, 61, 89, 211 ],
-      "targetCursors" : [ 35, 61, 82, 204 ],
-      "lengths" : [ 25, 21, 16, 15 ],
+      "sourceCursors" : [ 35, 61, 89, 212 ],
+      "targetCursors" : [ 35, 61, 82, 205 ],
+      "lengths" : [ 25, 21, 17, 15 ],
       "expandedCharEnds" : { },
-      "prevSourceEnd" : 226,
-      "prevTargetEnd" : 219
+      "prevSourceEnd" : 227,
+      "prevTargetEnd" : 220
     },
-    "readCharacters" : 341,
+    "readCharacters" : 342,
     "skippedChars" : 7,
-    "accumulatedLineLengths" : [ 22, 34, 61, 85, 106, 133, 141, 155, 192, 203, 227, 229, 260, 288, 306, 341, 363 ]
+    "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
   },
   "semanticTokens" : [
     0,0,22,17,0,
@@ -32,7 +32,20 @@
     1,4,9,4,0, 0,10,7,11,0, 0,8,12,18,0,
     1,4,9,4,0, 0,10,7,11,0
   ],
-  "diagnostics" : [ ],
+  "diagnostics" : [ {
+    "range" : {
+      "start" : {
+        "line" : 4,
+        "character" : 20
+      },
+      "end" : {
+        "line" : 4,
+        "character" : 21
+      }
+    },
+    "severity" : "Error",
+    "message" : "Incorrect argument for command at position 37: ... @s ~ ~1 ~<--[HERE]"
+  } ],
   "colorInfos" : [ ],
   "filePosition" : {
     "line" : 0,
@@ -54,93 +67,93 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 106,
-        "end" : 106
+        "start" : 107,
+        "end" : 107
       }
     }, {
       "cursorRange" : {
-        "start" : 106,
-        "end" : 115
+        "start" : 107,
+        "end" : 116
       }
     }, {
       "cursorRange" : {
-        "start" : 116,
-        "end" : 123
+        "start" : 117,
+        "end" : 124
       }
     }, {
       "cursorRange" : {
-        "start" : 133,
-        "end" : 133
+        "start" : 134,
+        "end" : 134
       }
     }, {
       "cursorRange" : {
-        "start" : 192,
-        "end" : 192
+        "start" : 193,
+        "end" : 193
       }
     }, {
       "cursorRange" : {
-        "start" : 229,
-        "end" : 229
+        "start" : 230,
+        "end" : 230
       }
     }, {
       "cursorRange" : {
-        "start" : 229,
-        "end" : 238
+        "start" : 230,
+        "end" : 239
       }
     }, {
       "cursorRange" : {
-        "start" : 239,
-        "end" : 246
+        "start" : 240,
+        "end" : 247
       }
     }, {
       "cursorRange" : {
-        "start" : 260,
-        "end" : 260
+        "start" : 261,
+        "end" : 261
       }
     }, {
       "cursorRange" : {
-        "start" : 288,
-        "end" : 288
+        "start" : 289,
+        "end" : 289
       }
     }, {
       "cursorRange" : {
-        "start" : 288,
-        "end" : 297
+        "start" : 289,
+        "end" : 298
       }
     }, {
       "cursorRange" : {
-        "start" : 298,
-        "end" : 305
+        "start" : 299,
+        "end" : 306
       }
     }, {
       "cursorRange" : {
-        "start" : 306,
-        "end" : 310
+        "start" : 307,
+        "end" : 311
       }
     }, {
       "cursorRange" : {
-        "start" : 310,
-        "end" : 319
+        "start" : 311,
+        "end" : 320
       }
     }, {
       "cursorRange" : {
-        "start" : 320,
-        "end" : 327
+        "start" : 321,
+        "end" : 328
       }
     }, {
       "cursorRange" : {
-        "start" : 341,
-        "end" : 345
+        "start" : 342,
+        "end" : 346
       }
     }, {
       "cursorRange" : {
-        "start" : 345,
-        "end" : 354
+        "start" : 346,
+        "end" : 355
       }
     }, {
       "cursorRange" : {
-        "start" : 355,
-        "end" : 362
+        "start" : 356,
+        "end" : 363
       }
     } ],
     "language" : [ {
@@ -225,63 +238,58 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 106,
-        "end" : 106
+        "start" : 107,
+        "end" : 107
       }
     }, {
       "cursorRange" : {
-        "start" : 124,
-        "end" : 132
-      }
-    }, {
-      "cursorRange" : {
-        "start" : 133,
+        "start" : 125,
         "end" : 133
       }
     }, {
       "cursorRange" : {
-        "start" : 133,
-        "end" : 140
+        "start" : 134,
+        "end" : 134
       }
     }, {
       "cursorRange" : {
-        "start" : 141,
-        "end" : 150
+        "start" : 134,
+        "end" : 141
       }
     }, {
       "cursorRange" : {
-        "start" : 151,
-        "end" : 154
+        "start" : 142,
+        "end" : 151
       }
     }, {
       "cursorRange" : {
-        "start" : 155,
-        "end" : 162
+        "start" : 152,
+        "end" : 155
       }
     }, {
       "cursorRange" : {
-        "start" : 163,
-        "end" : 169
+        "start" : 156,
+        "end" : 163
       }
     }, {
       "cursorRange" : {
-        "start" : 170,
-        "end" : 191
+        "start" : 164,
+        "end" : 170
       }
     }, {
       "cursorRange" : {
-        "start" : 192,
+        "start" : 171,
         "end" : 192
       }
     }, {
       "cursorRange" : {
-        "start" : 192,
-        "end" : 200
+        "start" : 193,
+        "end" : 193
       }
     }, {
       "cursorRange" : {
-        "start" : 228,
-        "end" : 228
+        "start" : 193,
+        "end" : 201
       }
     }, {
       "cursorRange" : {
@@ -290,70 +298,75 @@
       }
     }, {
       "cursorRange" : {
-        "start" : 247,
-        "end" : 259
+        "start" : 230,
+        "end" : 230
       }
     }, {
       "cursorRange" : {
-        "start" : 260,
+        "start" : 248,
         "end" : 260
       }
     }, {
       "cursorRange" : {
-        "start" : 288,
-        "end" : 288
+        "start" : 261,
+        "end" : 261
       }
     }, {
       "cursorRange" : {
-        "start" : 306,
-        "end" : 310
+        "start" : 289,
+        "end" : 289
       }
     }, {
       "cursorRange" : {
-        "start" : 328,
-        "end" : 340
+        "start" : 307,
+        "end" : 311
       }
     }, {
       "cursorRange" : {
-        "start" : 341,
-        "end" : 345
+        "start" : 329,
+        "end" : 341
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 342,
+        "end" : 346
       }
     } ],
     "language_customSuggestions" : [ {
       "cursorRange" : {
-        "start" : 201,
-        "end" : 201
+        "start" : 202,
+        "end" : 202
       }
     }, {
       "cursorRange" : {
-        "start" : 203,
-        "end" : 207
+        "start" : 204,
+        "end" : 208
       }
     }, {
       "cursorRange" : {
-        "start" : 207,
-        "end" : 210
+        "start" : 208,
+        "end" : 211
       }
     }, {
       "cursorRange" : {
-        "start" : 211,
-        "end" : 214
+        "start" : 212,
+        "end" : 215
       }
     }, {
       "cursorRange" : {
-        "start" : 227,
-        "end" : 227
+        "start" : 228,
+        "end" : 228
       }
     } ],
     "directive_customSuggestions" : [ {
       "cursorRange" : {
-        "start" : 203,
-        "end" : 207
+        "start" : 204,
+        "end" : 208
       }
     }, {
       "cursorRange" : {
-        "start" : 227,
-        "end" : 227
+        "start" : 228,
+        "end" : 228
       }
     } ]
   }

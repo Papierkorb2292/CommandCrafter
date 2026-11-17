@@ -3,14 +3,12 @@ package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.datafixers.util.Either;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.item.FunctionArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
 import net.papierkorb2292.command_crafter.parser.helper.RawResourceFunctionArgument;
-import net.papierkorb2292.command_crafter.parser.helper.SourceAware;
 import net.papierkorb2292.command_crafter.parser.helper.StringifiableArgumentType;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.jetbrains.annotations.NotNull;
@@ -23,9 +21,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Mixin(FunctionArgument.class)
-public class FunctionArgumentMixin implements SourceAware, StringifiableArgumentType {
-
-    private SharedSuggestionProvider command_crafter$commandSource;
+public class FunctionArgumentMixin implements StringifiableArgumentType {
 
     @Inject(
             method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/commands/arguments/item/FunctionArgument$Result;",
@@ -33,21 +29,16 @@ public class FunctionArgumentMixin implements SourceAware, StringifiableArgument
             cancellable = true
     )
     private void command_crafter$parseFunctionInlining(StringReader reader, CallbackInfoReturnable<FunctionArgument.Result> cir) {
-        if(!reader.canRead() || !VanillaLanguage.Companion.isReaderInlineResources(reader) || command_crafter$commandSource == null) {
+        if(!reader.canRead() || !VanillaLanguage.Companion.isReaderInlineResources(reader)) {
             return;
         }
         var directiveStringReader = (DirectiveStringReader<?>) reader;
         var copiedReader = directiveStringReader.copy();
-        var argument = VanillaLanguage.Companion.parseImprovedFunctionReference(copiedReader, command_crafter$commandSource);
+        var argument = VanillaLanguage.Companion.parseImprovedFunctionReference(copiedReader);
         directiveStringReader.skipTo(copiedReader);
         if(argument != null) {
             cir.setReturnValue(argument);
         }
-    }
-
-    @Override
-    public void command_crafter$setCommandSource(@NotNull SharedSuggestionProvider source) {
-        command_crafter$commandSource = source;
     }
 
     @Override

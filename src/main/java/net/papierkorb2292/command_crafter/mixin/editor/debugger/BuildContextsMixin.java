@@ -82,8 +82,7 @@ public class BuildContextsMixin<T extends ExecutionCommandSource<T>> implements 
             method = "execute",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/context/ContextChain;nextStage()Lcom/mojang/brigadier/context/ContextChain;",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/context/ContextChain;nextStage()Lcom/mojang/brigadier/context/ContextChain;"
             )
     )
     private void command_crafter$advanceCommandSection(T baseSource, List<T> sources, ExecutionContext<T> context, Frame frame, ChainModifiers flags, CallbackInfo ci, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
@@ -99,7 +98,7 @@ public class BuildContextsMixin<T extends ExecutionCommandSource<T>> implements 
                     value = "STORE",
                     ordinal = 0
             ),
-            ordinal = 1
+            name = "currentSources"
     )
     private List<T> command_crafter$createFirstSectionSources(List<T> sources, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         var debugFrame = debugFrameRef.get();
@@ -119,7 +118,7 @@ public class BuildContextsMixin<T extends ExecutionCommandSource<T>> implements 
     @ModifyVariable(
             method = "execute",
             at = @At("STORE"),
-            ordinal = 2
+            name = "nextSources"
     )
     private List<T> command_crafter$createNextSectionSources(List<T> sources, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {
         var debugFrame = debugFrameRef.get();
@@ -153,8 +152,7 @@ public class BuildContextsMixin<T extends ExecutionCommandSource<T>> implements 
             method = "execute",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/context/CommandContext;getRedirectModifier()Lcom/mojang/brigadier/RedirectModifier;",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/context/CommandContext;getRedirectModifier()Lcom/mojang/brigadier/RedirectModifier;"
             )
     )
     private RedirectModifier<T> command_crafter$createNextForwardedSectionSources(RedirectModifier<T> modifier, @Share("commandInfo") LocalRef<FunctionDebugFrame.CommandInfo> commandInfoRef, @Share("debugFrame") LocalRef<FunctionDebugFrame> debugFrameRef) {

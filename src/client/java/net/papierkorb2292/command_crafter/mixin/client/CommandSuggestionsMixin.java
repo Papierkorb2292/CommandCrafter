@@ -3,14 +3,12 @@ package net.papierkorb2292.command_crafter.mixin.client;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.suggestion.Suggestions;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.CommandSuggestions;
-import net.minecraft.client.multiplayer.ClientSuggestionProvider;
+import net.minecraft.commands.SuggestionBox;
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter;
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.ResourceOrIdArgumentAnalyzer;
 import net.papierkorb2292.command_crafter.helper.UtilKt;
@@ -29,17 +27,17 @@ public class CommandSuggestionsMixin {
             method = "updateCommandInfo",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/CommandDispatcher;getCompletionSuggestions(Lcom/mojang/brigadier/ParseResults;I)Ljava/util/concurrent/CompletableFuture;"
+                    target = "Lnet/minecraft/commands/SuggestionBox$Result;computeSuggestions(I)Ljava/util/concurrent/CompletableFuture;"
             )
     )
-    private CompletableFuture<Suggestions> command_crafter$addCustomSuggestions(CommandDispatcher<ClientSuggestionProvider> instance, ParseResults<ClientSuggestionProvider> parseResults, int cursor, Operation<CompletableFuture<Suggestions>> op) {
+    private CompletableFuture<Suggestions> command_crafter$addCustomSuggestions(SuggestionBox.Result instance, int cursorPosition, Operation<CompletableFuture<Suggestions>> op) {
         final var vanillaFuture = UtilKt.runWithValueSwap(
                 ResourceOrIdArgumentAnalyzer.Companion.getShouldSkipResourceOrIdSuggestions(),
                 true,
-                () -> op.call(instance, parseResults, cursor)
+                () -> op.call(instance, cursorPosition)
         );
         return vanillaFuture.thenCompose(vanillaSuggestions ->
-                ClientCommandCrafter.INSTANCE.getCustomIngameSuggestions(parseResults.getReader().getString(), cursor).thenApply(customSuggestions -> {
+                ClientCommandCrafter.INSTANCE.getCustomIngameSuggestions(instance.parseResults().getReader().getString(), cursorPosition).thenApply(customSuggestions -> {
                     if(vanillaSuggestions.isEmpty()) return customSuggestions;
                     if(customSuggestions.isEmpty()) return vanillaSuggestions;
                     final var suggestionList = new ArrayList<Suggestion>();

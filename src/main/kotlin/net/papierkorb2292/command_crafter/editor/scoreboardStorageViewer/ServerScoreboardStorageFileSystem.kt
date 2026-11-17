@@ -64,7 +64,7 @@ class ServerScoreboardStorageFileSystem(val server: MinecraftServer) : Scoreboar
         private val CRITERION_CODEC = CodecSuggestionWrapper.simple(Codec.STRING.flatXmap(
             {  criterionName ->
                 ObjectiveCriteria.byName(criterionName).map(DataResult<ObjectiveCriteria>::success)
-                    .orElse(DataResult.error { "Unknown criterion '$criterionName'" })
+                    .orElse(DataResult.error { "Unknown criterion '$criterionName'" })!!
             },
             { DataResult.success(it.name) }
         ), object : CodecSuggestionWrapper.SuggestionsProvider {

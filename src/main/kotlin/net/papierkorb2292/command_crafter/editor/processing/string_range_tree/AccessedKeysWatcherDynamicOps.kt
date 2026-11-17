@@ -10,7 +10,7 @@ import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.stream.Stream
 
-class AccessedKeysWatcherDynamicOps<T>(override val delegate: DynamicOps<T>): DelegatingDynamicOps<T> {
+class AccessedKeysWatcherDynamicOps<T : Any>(override val delegate: DynamicOps<T>): DelegatingDynamicOps<T> {
     // accessedKeyNodes uses an identity hash set, accessedKey uses a faster list
     val accessedKeyNodes = IdentityHashMap<T, MutableSet<T>>()
     val accessedKeys = IdentityHashMap<T, MutableList<T>>()

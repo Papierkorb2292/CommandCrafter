@@ -4,13 +4,12 @@ import com.mojang.authlib.GameProfile
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.serialization.*
-import com.mojang.serialization.codecs.RecordCodecBuilder
 import io.netty.buffer.ByteBuf
 import net.minecraft.advancements.predicates.NbtPredicate
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceArgument
 import net.minecraft.commands.arguments.selector.EntitySelectorParser
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderSet
 import net.minecraft.core.RegistryAccess
@@ -36,12 +35,10 @@ import net.minecraft.world.level.block.entity.BlockEntityType
 import net.minecraft.world.level.storage.ValueInput
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.Util
+import net.papierkorb2292.command_crafter.editor.processing.AdditionalArgumentTypeData
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.*
-import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
-import net.papierkorb2292.command_crafter.editor.processing.helper.IsNonPlayerSelector
 import net.papierkorb2292.command_crafter.helper.*
 import net.papierkorb2292.command_crafter.mixin.CommandContextAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BlockEntityTypeAccessor
@@ -73,54 +70,16 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         // Applied by the nbt= selector option
         val SELECTOR_NBT_DECODER = ThreadLocal<Decoder<*>>()
 
-        private val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
+        val DATA_OBJECT_SOURCE_PACKET_CODEC: StreamCodec<ByteBuf, DataObjectSource> = StreamCodec.composite(
             enumConstantCodec(DataObjectSourceKind::class.java),
             DataObjectSource::kind,
             ByteBufCodecs.STRING_UTF8,
             DataObjectSource::argumentName,
             ::DataObjectSource
         )
-        private val DATA_OBJECT_SOURCE_CODEC = RecordCodecBuilder.create { instance ->
-            instance.group(
-                Codec.STRING.xmap({ DataObjectSourceKind.valueOf(it) }, { it.toString() }).fieldOf("kind")
-                    .forGetter(DataObjectSource::kind),
-                Codec.STRING.fieldOf("argument_name").forGetter(DataObjectSource::argumentName),
-            ).apply(instance, ::DataObjectSource)
-        }
 
         private val entitiesWithError = mutableSetOf<EntityType<*>>()
         private var playerThrewError = false
-
-        fun registerAdditionalDataTypes() {
-            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
-                Identifier.fromNamespaceAndPath("command_crafter", "data_object_source"),
-                { argumentType ->
-                    if(argumentType is DataObjectSourceContainer) {
-                        argumentType.`command_crafter$getDataObjectSource`()
-                    } else null
-                },
-                { argumentType, dataObjectSource ->
-                    if(argumentType is DataObjectSourceContainer) {
-                        argumentType.`command_crafter$setDataObjectSource`(dataObjectSource)
-                        true
-                    } else false
-                }, DATA_OBJECT_SOURCE_PACKET_CODEC.cast(), DATA_OBJECT_SOURCE_CODEC
-            )
-            ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
-                Identifier.fromNamespaceAndPath("command_crafter", "non_player_selector"),
-                { argumentType ->
-                    if(argumentType is IsNonPlayerSelector) {
-                        argumentType.`command_crafter$getIsNonPlayerSelector`()
-                    } else null
-                },
-                { argumentType, isNonPlayerSelector ->
-                    if(argumentType is IsNonPlayerSelector) {
-                        argumentType.`command_crafter$setIsNonPlayerSelector`(isNonPlayerSelector)
-                        true
-                    } else false
-                }, ByteBufCodecs.BOOL.cast(), Codec.BOOL
-            )
-        }
 
         fun getForReader(directiveStringReader: DirectiveStringReader<AnalyzingResourceCreator>): DataObjectDecoding {
             return GET_FOR_REGISTRIES(directiveStringReader.resourceCreator.registries)
@@ -135,7 +94,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             return if(decoderData?.node == node) decoderData else null
         }
 
-        fun <TResult> wrapWithEmbeddedDecoder(
+        fun <TResult : Any> wrapWithEmbeddedDecoder(
             delegate: Codec<TResult>,
             embeddedDecoderProvider: Decoder<out Decoder<*>>,
             branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier = BranchBehaviorProvider.DEFAULT_BEHAVIOR_MODIFIER,
@@ -159,7 +118,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             }
         }
 
-        fun <TDataObjectRef> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef?) -> Decoder<Unit>) = object : Decoder<Decoder<Unit>> {
+        fun <TDataObjectRef : Any> convertToDataObjectDecoder(delegate: Decoder<TDataObjectRef>, decoderConverter: (DataObjectDecoding, TDataObjectRef?) -> Decoder<Unit>) = object : Decoder<Decoder<Unit>> {
             override fun <T : Any> decode(
                 ops: DynamicOps<T>,
                 input: T,
@@ -205,7 +164,7 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
         }
     }
 
-    fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SharedSuggestionProvider>, reader: DirectiveStringReader<*>): Decoder<Unit>? {
+    fun getDecoderForSource(dataObjectSource: DataObjectSource, context: CommandContext<SuggestionContext>, reader: DirectiveStringReader<AnalyzingResourceCreator>): Decoder<Unit>? {
         return when(dataObjectSource.kind) {
             DataObjectSourceKind.ENTITY_SUMMON -> {
                 try {
@@ -257,7 +216,9 @@ class DataObjectDecoding(private val registries: RegistryAccess) {
             DataObjectSourceKind.PATH_SET_MUTATION, DataObjectSourceKind.PATH_MERGE_MUTATION, DataObjectSourceKind.PATH_APPEND_MUTATION -> {
                 // Use the decoder from the path argument
                 val pathCommandNode = context.nodes.firstOrNull { it.node.name == dataObjectSource.argumentName }?.node
-                val delegateSource = ((pathCommandNode as? ArgumentCommandNode<*, *>)?.type as? DataObjectSourceContainer)?.`command_crafter$getDataObjectSource`()
+                if(pathCommandNode !is ArgumentCommandNode<*, *>)
+                    return null
+                val delegateSource = reader.resourceCreator.commandTree.getAdditionalData(pathCommandNode.type, AdditionalArgumentTypeData.dataObjectSource)
                     ?: return null
                 getDecoderForSource(delegateSource, context, reader)
             }

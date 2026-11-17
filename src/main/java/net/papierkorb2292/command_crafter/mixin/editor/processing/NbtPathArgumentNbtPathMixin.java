@@ -25,7 +25,7 @@ public class NbtPathArgumentNbtPathMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$static$0", // Targets comapFlatMap for CODEC
+            method = "<clinit> -> Ljava/util/function/Function;apply(Ljava/lang/String;)Lcom/mojang/serialization/DataResult;", // Targets comapFlatMap for CODEC
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/DataResult;success(Ljava/lang/Object;)Lcom/mojang/serialization/DataResult;"
@@ -37,7 +37,7 @@ public class NbtPathArgumentNbtPathMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$static$0", // Targets comapFlatMap for CODEC
+            method = "<clinit> -> Ljava/util/function/Function;apply(Ljava/lang/String;)Lcom/mojang/serialization/DataResult;", // Targets comapFlatMap for CODEC
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/DataResult;error(Ljava/util/function/Supplier;)Lcom/mojang/serialization/DataResult;"

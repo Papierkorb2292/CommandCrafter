@@ -5,6 +5,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.commands.arguments.item.ItemInput
 import net.minecraft.commands.arguments.item.ItemParser
 import net.minecraft.core.Holder
+import net.minecraft.core.HolderGetter
 import net.minecraft.core.HolderLookup
 import net.minecraft.core.component.DataComponentPatch
 import net.minecraft.core.component.TypedDataComponent
@@ -37,23 +38,23 @@ class SlotAccessValueReference(
             return ItemStack.OPTIONAL_CODEC.parse(RegistryOps.create(NbtOps.INSTANCE, registries), tag).result().get()
         }
 
-        fun formatItem(item: Holder<Item>, components: DataComponentPatch.SplitResult, count: Int, registries: HolderLookup.Provider): String {
+        fun formatItem(item: Holder<Item>, components: DataComponentPatch.SplitResult, count: Int, registries: HolderGetter.Provider): String {
             val stringBuilder = StringBuilder()
 
             for(added in components.added()) {
                 val encoded: Tag = formatComponent(added, registries) ?: continue
-                if(!stringBuilder.isEmpty()) stringBuilder.append(',')
+                if(stringBuilder.isNotEmpty()) stringBuilder.append(',')
                 stringBuilder.append(BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(added.type())!!.toShortString())
                 stringBuilder.append('=')
                 stringBuilder.append(encoded)
             }
             for(removed in components.removed()) {
-                if(!stringBuilder.isEmpty()) stringBuilder.append(',')
+                if(stringBuilder.isNotEmpty()) stringBuilder.append(',')
                 stringBuilder.append('!')
                 stringBuilder.append(BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(removed)!!.toShortString())
             }
 
-            if(!stringBuilder.isEmpty()) {
+            if(stringBuilder.isNotEmpty()) {
                 stringBuilder.insert(0, '[')
                 stringBuilder.append(']')
             }
@@ -68,11 +69,11 @@ class SlotAccessValueReference(
             return stringBuilder.toString()
         }
 
-        fun <T: Any> formatComponent(component: TypedDataComponent<T>, registries: HolderLookup.Provider): Tag? {
+        fun <T: Any> formatComponent(component: TypedDataComponent<T>, registries: HolderGetter.Provider): Tag? {
             val codec = component.type().codec() ?: return null;
             val encoded = codec.encode(
                 component.value(),
-                RegistryOps.create(NbtOps.INSTANCE, registries),
+                registries.createSerializationContext(NbtOps.INSTANCE),
                 NbtOps.INSTANCE.empty()
             );
             return encoded.result().orElse(CompoundTag());

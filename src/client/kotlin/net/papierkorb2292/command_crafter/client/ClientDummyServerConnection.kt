@@ -1,18 +1,17 @@
 package net.papierkorb2292.command_crafter.client
 
-import com.mojang.brigadier.CommandDispatcher
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.minecraft.server.permissions.PermissionSet
 import net.papierkorb2292.command_crafter.editor.MinecraftServerConnection
 import net.papierkorb2292.command_crafter.editor.console.CommandExecutor
 import net.papierkorb2292.command_crafter.editor.console.Log
 import net.papierkorb2292.command_crafter.editor.debugger.ServerDebugConnectionService
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingCommandTree
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.ScoreboardStorageFileSystem
 
 class ClientDummyServerConnection(
-    override val commandDispatcher: CommandDispatcher<SharedSuggestionProvider>,
+    override val commandTree: AnalyzingCommandTree,
     override val functionPermissions: PermissionSet,
     override val serverLog: Log? = null,
     override val commandExecutor: CommandExecutor? = null,

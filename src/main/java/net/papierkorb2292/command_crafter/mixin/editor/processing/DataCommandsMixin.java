@@ -6,8 +6,10 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.NbtTagArgument;
+import net.minecraft.commands.arguments.SerializableArgument;
 import net.minecraft.server.commands.data.DataCommands;
-import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer;
+import net.papierkorb2292.command_crafter.editor.processing.AdditionalArgumentTypeData;
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingCommandTree;
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.Slice;
 public class DataCommandsMixin {
 
     @ModifyExpressionValue(
-            method = "lambda$register$8", // Targets lambda passed to decorateModification
+            method = "register -> accept(Lcom/mojang/brigadier/builder/ArgumentBuilder;Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;)V", // Targets lambda passed to decorateModification
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;create(Lnet/minecraft/server/commands/data/DataCommands$DataManipulator;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
@@ -35,7 +37,7 @@ public class DataCommandsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$register$8", // Targets lambda passed to decorateModification
+            method = "register -> accept(Lcom/mojang/brigadier/builder/ArgumentBuilder;Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;)V", // Targets lambda passed to decorateModification
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;create(Lnet/minecraft/server/commands/data/DataCommands$DataManipulator;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
@@ -53,7 +55,7 @@ public class DataCommandsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$register$8", // Targets lambda passed to decorateModification
+            method = "register -> accept(Lcom/mojang/brigadier/builder/ArgumentBuilder;Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;)V", // Targets lambda passed to decorateModification
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;create(Lnet/minecraft/server/commands/data/DataCommands$DataManipulator;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
@@ -71,7 +73,7 @@ public class DataCommandsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$register$8", // Targets lambda passed to decorateModification
+            method = "register -> accept(Lcom/mojang/brigadier/builder/ArgumentBuilder;Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;)V", // Targets lambda passed to decorateModification
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;create(Lnet/minecraft/server/commands/data/DataCommands$DataManipulator;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
@@ -89,7 +91,7 @@ public class DataCommandsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$register$8", // Targets lambda passed to decorateModification
+            method = "register -> accept(Lcom/mojang/brigadier/builder/ArgumentBuilder;Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;)V", // Targets lambda passed to decorateModification
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/server/commands/data/DataCommands$DataManipulatorDecorator;create(Lnet/minecraft/server/commands/data/DataCommands$DataManipulator;)Lcom/mojang/brigadier/builder/ArgumentBuilder;"
@@ -107,10 +109,16 @@ public class DataCommandsMixin {
     }
 
     private static void command_crafter$addValueDataObjectSource(final ArgumentBuilder<CommandSourceStack, ?> valueProviderNode, DataObjectDecoding.DataObjectSource dataObjectSource) {
+        if(!AnalyzingCommandTree.Companion.getBUILDER().isBound())
+            return;
+        var builder = AnalyzingCommandTree.Companion.getBUILDER().get();
         if(valueProviderNode instanceof LiteralArgumentBuilder<?> literalBuilder && literalBuilder.getLiteral().equals("value")) {
             for(final var child : literalBuilder.getArguments()) {
-                if(child instanceof ArgumentCommandNode<?,?> argument && argument.getName().equals("value") && argument.getType() instanceof NbtTagArgument nbtTagArgument) {
-                    ((DataObjectSourceContainer)nbtTagArgument).command_crafter$setDataObjectSource(dataObjectSource);
+                if(child instanceof ArgumentCommandNode<?,?> argument && argument.getName().equals("value")) {
+                    var serializable = SerializableArgument.unwrapOrThrow(argument.getType()).argument();
+                    if(serializable instanceof NbtTagArgument) {
+                        builder.addData(argument.getType(), AdditionalArgumentTypeData.INSTANCE.getDataObjectSource(), dataObjectSource);
+                    }
                 }
             }
         }

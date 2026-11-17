@@ -28,7 +28,7 @@ public class HolderReferenceMixin<T> {
             },
             at = @At(
                     value = "FIELD",
-                    target = "components",
+                    target = "Lnet/minecraft/core/Holder$Reference;components:Lnet/minecraft/core/component/DataComponentMap;",
                     opcode = Opcodes.GETFIELD
             )
     )

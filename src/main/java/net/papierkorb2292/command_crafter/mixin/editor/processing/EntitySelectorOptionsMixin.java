@@ -4,12 +4,11 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.llamalad7.mixinextras.sugar.Share;
-import com.llamalad7.mixinextras.sugar.ref.LocalIntRef;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.IdentifierException;
+import net.minecraft.advancements.predicates.MinMaxBounds;
 import net.minecraft.commands.arguments.selector.EntitySelectorParser;
 import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -36,10 +35,8 @@ import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.Slice;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.function.Predicate;
 
@@ -447,7 +444,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @WrapOperation(
-            method = "lambda$bootStrap$44",
+            method = "bootStrap -> *", // Targets lambda passed to register for the nbt option
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/nbt/TagParser;parseCompoundAsArgument(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/nbt/CompoundTag;"
@@ -478,12 +475,17 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$bootStrap$46",
+            method = "bootStrap -> *", // Targets lambda passed to register for the score option
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
             ),
-            remap = false
+            slice = @Slice(
+                    to = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;scoresOption()Lnet/minecraft/commands/arguments/selector/options/SetOnceOptionState;"
+                    )
+            )
     )
     private static String command_crafter$highlightScoreOptionScoreboardName(String name, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
@@ -498,75 +500,75 @@ public class EntitySelectorOptionsMixin {
         return name;
     }
 
-    @Inject(
-            method = "lambda$bootStrap$46",
+    @WrapOperation(
+            method = "bootStrap -> *", // Targets lambda passed to register for the score option
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/advancements/predicates/MinMaxBounds$Ints;fromReader(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/advancements/predicates/MinMaxBounds$Ints;"
+            ),
+            slice = @Slice(
+                    to = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;scoresOption()Lnet/minecraft/commands/arguments/selector/options/SetOnceOptionState;"
+                    )
             )
     )
-    private static void command_crafter$storeScoreOptionNumberCursor(EntitySelectorParser reader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
-        numberCursorRef.set(reader.getReader().getCursor());
-    }
-
-    @Inject(
-            method = "lambda$bootStrap$46",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/advancements/predicates/MinMaxBounds$Ints;fromReader(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/advancements/predicates/MinMaxBounds$Ints;",
-                    shift = At.Shift.AFTER
-            )
-    )
-    private static void command_crafter$highlightScoreOptionNumber(EntitySelectorParser selectorReader, CallbackInfo ci, @Share("numberCursor") LocalIntRef numberCursorRef) {
+    private static MinMaxBounds.Ints command_crafter$highlightScoreOptionNumber(StringReader reader, Operation<MinMaxBounds.Ints> op, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
-        if(analyzingResult != null) {
-            analyzingResult.getSemanticTokens().addMultiline(
-                    numberCursorRef.get(),
-                    selectorReader.getReader().getCursor() - numberCursorRef.get(),
-                    TokenType.Companion.getNUMBER(),
-                    0
-            );
-        }
+        if (analyzingResult == null)
+            return op.call(reader);
+
+        var startCursor = reader.getCursor();
+        var result = op.call(reader);
+        analyzingResult.getSemanticTokens().addMultiline(
+                startCursor,
+                selectorReader.getReader().getCursor() - startCursor,
+                TokenType.Companion.getNUMBER(),
+                0
+        );
+        return result;
     }
 
-    @Inject(
-            method = "lambda$bootStrap$49",
+    @WrapOperation(
+            method = "bootStrap -> *", // Targets lambda passed to register for the advancements option
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;"
+            ),
+            slice = @Slice(
+                    to = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;advancementsOption()Lnet/minecraft/commands/arguments/selector/options/SetOnceOptionState;"
+                    )
             )
     )
-    private static void command_crafter$storeAdvancementOptionIdentifierCursor(EntitySelectorParser reader, CallbackInfo ci, @Share("startCursor") LocalIntRef startCursorRef) {
-        startCursorRef.set(reader.getReader().getCursor());
-    }
-
-    @ModifyExpressionValue(
-            method = "lambda$bootStrap$49",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/resources/Identifier;read(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/resources/Identifier;"
-            )
-    )
-    private static Identifier command_crafter$highlightAdvancementOptionIdentifier(Identifier id, EntitySelectorParser selectorReader, @Share("startCursor") LocalIntRef startCursorRef) {
+    private static Identifier command_crafter$highlightAdvancementOptionIdentifier(StringReader reader, Operation<Identifier> original, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
-        if(analyzingResult != null) {
-            analyzingResult.getSemanticTokens().addMultiline(
-                    startCursorRef.get(),
-                    selectorReader.getReader().getCursor() - startCursorRef.get(),
-                    TokenType.Companion.getPROPERTY(),
-                    0
-            );
-        }
+        if (analyzingResult == null)
+            return original.call(reader);
+        var startCursor = reader.getCursor();
+        var id = original.call(reader);
+        analyzingResult.getSemanticTokens().addMultiline(
+                startCursor,
+                selectorReader.getReader().getCursor() - startCursor,
+                TokenType.Companion.getPROPERTY(),
+                0
+        );
         return id;
     }
 
     @ModifyExpressionValue(
-            method = "lambda$bootStrap$49",
+            method = "bootStrap -> *", // Targets lambda passed to register for the advancements option
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readUnquotedString()Ljava/lang/String;"
             ),
-            remap = false
+            slice = @Slice(
+                    to = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;advancementsOption()Lnet/minecraft/commands/arguments/selector/options/SetOnceOptionState;"
+                    )
+            )
     )
     private static String command_crafter$highlightAdvancementOptionCriterionName(String name, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
@@ -582,12 +584,17 @@ public class EntitySelectorOptionsMixin {
     }
 
     @ModifyExpressionValue(
-            method = "lambda$bootStrap$49",
+            method = "bootStrap -> *", // Targets lambda passed to register for the advancements option
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readBoolean()Z"
             ),
-            remap = false
+            slice = @Slice(
+                    to = @At(
+                            value = "INVOKE",
+                            target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;advancementsOption()Lnet/minecraft/commands/arguments/selector/options/SetOnceOptionState;"
+                    )
+            )
     )
     private static boolean command_crafter$highlightAdvancementOptionBoolean(boolean value, EntitySelectorParser selectorReader) {
         var analyzingResult = ((AnalyzingResultDataContainer)selectorReader).command_crafter$getAnalyzingResult();
@@ -604,7 +611,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @WrapOperation(
-            method = "lambda$bootStrap$35",
+            method = "bootStrap -> *", // Targets lambda passed to register for the type option
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"
@@ -624,7 +631,7 @@ public class EntitySelectorOptionsMixin {
     }
 
     @WrapOperation(
-            method = "lambda$bootStrap$35",
+            method = "bootStrap -> *", // Targets lambda passed to register for the type option
             at = @At(
                     value = "INVOKE:FIRST",
                     target = "Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;addPredicate(Ljava/util/function/Predicate;)V"

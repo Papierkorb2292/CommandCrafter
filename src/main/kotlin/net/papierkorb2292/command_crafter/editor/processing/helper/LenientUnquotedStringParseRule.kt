@@ -1,18 +1,18 @@
 package net.papierkorb2292.command_crafter.editor.processing.helper
 
-import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import net.minecraft.util.parsing.packrat.DelayedException
 import net.minecraft.util.parsing.packrat.ParseState
 import net.minecraft.util.parsing.packrat.Rule
+import net.minecraft.util.parsing.packrat.commands.CommandParserState
 
 /**
  * Reads unquoted strings like [net.minecraft.util.parsing.packrat.commands.UnquotedStringParseRule],
  * but also allows : and # in the string (for ids)
  */
-class LenientUnquotedStringParseRule(val minSize: Int, val error: DelayedException<CommandSyntaxException>) : Rule<StringReader, String> {
-    override fun parse(parseState: ParseState<StringReader>): String? {
-        val reader = parseState.input()
+class LenientUnquotedStringParseRule(val minSize: Int, val error: DelayedException<CommandSyntaxException>) : Rule<CommandParserState, String> {
+    override fun parse(parseState: ParseState<CommandParserState>): String? {
+        val reader = parseState.input().reader()
         reader.skipWhitespace()
         val startCursor = parseState.mark()
         while(reader.canRead() && isAllowed(reader.peek())) {

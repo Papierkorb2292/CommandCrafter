@@ -25,9 +25,9 @@ import java.util.List;
 public class ArgumentCommandNodeMixin<S, T> implements StringifiableCommandNode {
 
 
-    @Shadow(remap = false) @Final private ArgumentType<T> type;
+    @Shadow @Final private ArgumentType<T> type;
 
-    @Shadow(remap = false) @Final private String name;
+    @Shadow @Final private String name;
 
     @Override
     public @NotNull List<Either<String, RawResource>> command_crafter$stringifyNode(@NotNull CommandContext<CommandSourceStack> context, @NotNull StringRange range, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {

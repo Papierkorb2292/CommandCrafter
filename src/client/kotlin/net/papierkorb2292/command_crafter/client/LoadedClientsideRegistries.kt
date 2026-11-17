@@ -61,7 +61,8 @@ class LoadedClientsideRegistries(
                             RegistryLayer.RELOADABLE,
                             dynamicRegistries
                         )
-                        val pendingComponents = BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(finalRegistries.compositeAccess())
+                        // Use tagAndDynamicRegistries instead of finalRegistries to include tags of static registries
+                        val pendingComponents = BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(HolderLookup.Provider.create(tagAndDynamicRegistries.stream()))
                         val registryLoader = LoadedClientsideRegistries(
                             finalRegistries,
                             pendingTagLoads,

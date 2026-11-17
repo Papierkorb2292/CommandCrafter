@@ -5,7 +5,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.Decoder
 import com.mojang.serialization.DynamicOps
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.nbt.Tag
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.helper.getOrNull
@@ -152,10 +152,10 @@ object PackratParserAdditionalArgs {
         }
     }
 
-    data class CommandContextBuilderBranchingArgument(var commandContextBuilder: CommandContextBuilder<SharedSuggestionProvider>): BranchingArgument<CommandContextBuilder<SharedSuggestionProvider>> {
+    data class CommandContextBuilderBranchingArgument(var commandContextBuilder: CommandContextBuilder<SuggestionContext>): BranchingArgument<CommandContextBuilder<SuggestionContext>> {
         override fun get() = commandContextBuilder
-        override fun createBranch(): CommandContextBuilder<SharedSuggestionProvider> = commandContextBuilder.copy()
-        override fun mergeBranch(argument: CommandContextBuilder<SharedSuggestionProvider>, success: Boolean) {
+        override fun createBranch(): CommandContextBuilder<SuggestionContext> = commandContextBuilder.copy()
+        override fun mergeBranch(argument: CommandContextBuilder<SuggestionContext>, success: Boolean) {
             if(success)
                 commandContextBuilder = argument
         }

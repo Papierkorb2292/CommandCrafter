@@ -255,7 +255,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         branchBehaviorProvider.onDecodeStart(input)
     }
 
-    override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
+    override fun <TResult : Any> onResult(result: TResult, isPartial: Boolean, input: TNode) {
         @Suppress("UNCHECKED_CAST")
         if(!isPartial) {
             successfullyDecodedNodes += input
@@ -263,7 +263,7 @@ class AnalyzingDynamicOps<TNode: Any> private constructor(
         }
     }
 
-    override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
+    override fun <TResult : Any> onError(error: DataResult.Error<TResult>, input: TNode) {
         branchBehaviorProvider.onDecodeEnd(input)
     }
 

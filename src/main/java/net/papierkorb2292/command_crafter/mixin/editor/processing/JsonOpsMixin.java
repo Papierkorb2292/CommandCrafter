@@ -14,14 +14,13 @@ public class JsonOpsMixin {
 
     @WrapOperation(
             method = {
-                    "lambda$getStream$19",
-                    "lambda$getList$21"
+                    "getStream(Lcom/google/gson/JsonElement;)Lcom/mojang/serialization/DataResult; -> Ljava/util/function/Function;apply(Lcom/google/gson/JsonElement;)Lcom/google/gson/JsonElement;",
+                    "getList(Lcom/google/gson/JsonElement;)Lcom/mojang/serialization/DataResult; -> Ljava/util/function/Consumer;accept(Ljava/util/function/Consumer;)V"
             },
             at = @At(
                     value = "CONSTANT",
                     args = "classValue=com/google/gson/JsonNull"
-            ),
-            remap = false
+            )
     )
     private static boolean command_crafter$allowJsonNullForStringRangeTree(Object element, Operation<Boolean> op) {
         final var isAnalyzingDecoder = getOrNull(TreeOperations.Companion.getIS_ANALYZING_DECODER());

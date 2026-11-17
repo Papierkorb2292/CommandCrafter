@@ -14,7 +14,7 @@ import java.util.List;
 public class MacroFunctionMixin<T extends ExecutionCommandSource<T>> {
 
     @ModifyReturnValue(
-            method = "substituteAndParse(Ljava/util/List;Ljava/util/List;Lcom/mojang/brigadier/CommandDispatcher;)Lnet/minecraft/commands/functions/InstantiatedFunction;",
+            method = "substituteAndParse(Ljava/util/List;Ljava/util/List;)Lnet/minecraft/commands/functions/InstantiatedFunction;",
             at = @At("RETURN")
     )
     private InstantiatedFunction<T> command_crafter$setProcedureMacroValues(InstantiatedFunction<T> procedure, List<String> macroNames, List<String> macroValues) {

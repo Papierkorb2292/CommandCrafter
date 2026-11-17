@@ -17,8 +17,7 @@ public class WorldCoordinateMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;peek()C",
-                    ordinal = 1,
-                    remap = false
+                    ordinal = 1
             )
     )
     private static char command_crafter$allowTildeAtEndOfLine(char c) {

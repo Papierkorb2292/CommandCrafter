@@ -1,17 +1,17 @@
 package net.papierkorb2292.command_crafter.mixin.parser;
 
-import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import net.minecraft.commands.CommandBuildContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.arguments.StringArgument;
+import net.minecraft.commands.suggestions.SuggestionContext;
+import net.minecraft.commands.suggestions.SuggestionProviders;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.commands.DataPackCommand;
 import net.minecraft.server.packs.FilePackResources;
@@ -39,44 +39,46 @@ public class DataPackCommandMixin {
 
     @Shadow @Final private static DynamicCommandExceptionType ERROR_UNKNOWN_PACK;
 
+    private static SuggestionProvider<CommandSourceStack> command_crafter$DATAPCK_NAME_SUGGESTION_PROVIDER = SuggestionProviders.serverOnly((server, context, builder) -> {
+        var resourcePackManager = server.getPackRepository();
+        return SuggestionContext.suggest(
+                resourcePackManager.getAvailablePacks().stream()
+                        .map(Pack::getId)
+                        .filter(id -> id.startsWith("file/"))
+                        .map(StringArgumentType::escapeIfRequired),
+                builder
+        );
+    });
+
     @ModifyArg(
             method = "register",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/CommandDispatcher;register(Lcom/mojang/brigadier/builder/LiteralArgumentBuilder;)Lcom/mojang/brigadier/tree/LiteralCommandNode;",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/CommandDispatcher;register(Lcom/mojang/brigadier/builder/LiteralArgumentBuilder;)Lcom/mojang/brigadier/tree/LiteralCommandNode;"
             )
     )
-    private static LiteralArgumentBuilder<CommandSourceStack> command_crafter$addDatapackBuildCommand(LiteralArgumentBuilder<CommandSourceStack> builder, @Local(argsOnly = true) CommandBuildContext buildContext) {
+    private static LiteralArgumentBuilder<CommandSourceStack> command_crafter$addDatapackBuildCommand(LiteralArgumentBuilder<CommandSourceStack> builder) {
         return builder.then(
                 Commands.literal("build")
-                        .then(Commands.argument("name", StringArgumentType.string())
-                                .suggests((context, suggestionsBuilder) ->
-                                        SharedSuggestionProvider.suggest(
-                                            context.getSource().getServer().getPackRepository()
-                                                    .getAvailablePacks().stream()
-                                                    .map(Pack::getId)
-                                                    .filter(id -> id.startsWith("file/"))
-                                                    .map(StringArgumentType::escapeIfRequired),
-                                            suggestionsBuilder)
-                                )
+                        .then(Commands.argument("name", StringArgument.string())
+                                .suggests(command_crafter$DATAPCK_NAME_SUGGESTION_PROVIDER)
                                 .executes(context -> {
-                                    command_crafter$buildDatapack(context, buildContext, new DatapackBuildArgs.DatapackBuildArgsBuilder());
+                                    command_crafter$buildDatapack(context, new DatapackBuildArgs.DatapackBuildArgsBuilder());
                                     return 1;
                                 })
-                                .then(Commands.argument("args", StringArgumentType.greedyString())
+                                .then(Commands.argument("args", StringArgument.greedyString())
                                         .suggests(DatapackBuildArgs.DatapackBuildArgsParser.INSTANCE.getSUGGESTION_PROVIDER())
                                         .executes(context -> {
                                             var rawArgs = StringArgumentType.getString(context, "args");
                                             var parsedArgs = DatapackBuildArgs.DatapackBuildArgsParser.INSTANCE.parse(new StringReader(rawArgs));
-                                            command_crafter$buildDatapack(context, buildContext, parsedArgs);
+                                            command_crafter$buildDatapack(context, parsedArgs);
                                             return 1;
                                         }))));
     }
 
     private static final LevelResource command_crafter$builtDatapackSavePath = LevelResourceAccessor.callConstructor("builtDatapacks");
 
-    private static void command_crafter$buildDatapack(CommandContext<CommandSourceStack> context, CommandBuildContext buildContext, DatapackBuildArgs.DatapackBuildArgsBuilder argsBuilder) throws CommandSyntaxException {
+    private static void command_crafter$buildDatapack(CommandContext<CommandSourceStack> context, DatapackBuildArgs.DatapackBuildArgsBuilder argsBuilder) throws CommandSyntaxException {
         var name = StringArgumentType.getString(context, "name");
         var packUnknownError = ERROR_UNKNOWN_PACK.create(name);
         if(!name.startsWith("file/")) {
@@ -105,12 +107,10 @@ public class DataPackCommandMixin {
             output.getParentFile().mkdirs();
             try(var outputStream = new FileOutputStream(output)) {
                 var zipOutput = new ZipOutputStream(outputStream);
-                //noinspection unchecked
                 RawZipResourceCreator.Companion.buildDatapack(
                         primaryPack,
                         argsBuilder.build(),
-                        (CommandDispatcher<SharedSuggestionProvider>)(Object)context.getSource().getServer().getCommands().getDispatcher(),
-                        buildContext,
+                        ((ServerFunctionLibraryAccessor)((ServerFunctionManagerAccessor)context.getSource().getServer().getFunctions()).getLibrary()).getParserProvider(),
                         zipOutput
                 );
                 zipOutput.close();

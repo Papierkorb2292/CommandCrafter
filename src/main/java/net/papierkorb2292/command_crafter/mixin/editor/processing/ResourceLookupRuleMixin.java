@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.brigadier.StringReader;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.parsing.packrat.ParseState;
+import net.minecraft.util.parsing.packrat.commands.CommandParserState;
 import net.minecraft.util.parsing.packrat.commands.ResourceLookupRule;
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer;
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType;
@@ -24,11 +24,11 @@ public class ResourceLookupRuleMixin implements PackContentFileTypeContainer {
             method = "parse(Lnet/minecraft/util/parsing/packrat/ParseState;)Ljava/lang/Object;",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/parsing/packrat/commands/ResourceLookupRule;validateElement(Lcom/mojang/brigadier/ImmutableStringReader;Lnet/minecraft/resources/Identifier;)Ljava/lang/Object;"
+                    target = "Lnet/minecraft/util/parsing/packrat/commands/ResourceLookupRule;validateElement(Lnet/minecraft/util/parsing/packrat/commands/CommandParserState;Lnet/minecraft/resources/Identifier;)Ljava/lang/Object;"
             )
     )
-    private Identifier command_crafter$analyzeId(Identifier id, @Local(argsOnly = true) ParseState<StringReader> state, @Local int start) {
-        IdArgumentTypeAnalyzer.INSTANCE.analyzePackrat(id, start + startOffset, state.input(), command_crafter$packContentFileType);
+    private Identifier command_crafter$analyzeId(Identifier id, @Local(argsOnly = true) ParseState<CommandParserState> state, @Local int start) {
+        IdArgumentTypeAnalyzer.INSTANCE.analyzePackrat(id, start + startOffset, state.input().reader(), command_crafter$packContentFileType);
         return id;
     }
 

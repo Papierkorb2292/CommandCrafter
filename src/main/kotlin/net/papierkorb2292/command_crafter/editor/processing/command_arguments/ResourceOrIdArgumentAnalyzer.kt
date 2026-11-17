@@ -3,13 +3,15 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ResourceOrIdArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.registries.codec.RegistryFileCodec
 import net.minecraft.nbt.EndTag
 import net.minecraft.nbt.StringTag
 import net.minecraft.nbt.Tag
 import net.minecraft.resources.Identifier
+import net.minecraft.util.parsing.packrat.commands.CommandParserState
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer.analyzeForId
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -28,7 +30,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.processing.ResourceOrIdAr
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
-class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrIdArgument<*>> {
+class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService {
     companion object {
         val shouldSkipResourceOrIdSuggestions = ThreadLocal<Boolean>()
 
@@ -36,7 +38,7 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
          * Reads the ResourceOrIdArgument from the reader and analyzes it
          */
         fun analyzeReader(
-            type: ResourceOrIdArgument<*>,
+            type: ResourceOrIdArgument<*, *>,
             result: AnalyzingResult,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             range: StringRange,
@@ -53,7 +55,7 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
                 nbtStringRangeTreeBuilder.set(StringRangeTreeBranchingArgument<Tag>(partialBuilder))
                 allowMalformed.set(true)
                 analyzingResult.set(PackratParserAdditionalArgs.AnalyzingResultBranchingArgument(result.copyInput()))
-                val parsed = grammar.parseForCommands(reader)
+                val parsed = grammar.parseForCommands(CommandParserState.Simple(reader))
                 PackratParserAdditionalArgs.popAnalyzingResult(result, null)
                 parsed
             } catch(_: CommandSyntaxException) {
@@ -123,7 +125,7 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
          * Tries analyzing a ResourceOrIdArgument at the given cursor, assuming that a different argument already matched the input
          */
         fun analyzeEmpty(
-            type: ResourceOrIdArgument<*>,
+            type: ResourceOrIdArgument<*, *>,
             result: AnalyzingResult,
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
             position: Int,
@@ -152,18 +154,18 @@ class ResourceOrIdArgumentAnalyzer : CommandArgumentAnalyzerService<ResourceOrId
         }
     }
 
-    override val argumentTypes: List<Class<out ResourceOrIdArgument<*>>>
+    override val argumentTypes: List<Class<out ResourceOrIdArgument<*, *>>>
         get() = listOf(ResourceOrIdArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: ResourceOrIdArgument<*>,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
-        analyzeReader(type, result, reader, range, analyzingExecutor)
+        analyzeReader(type.argument() as ResourceOrIdArgument<*, *>, result, reader, range, analyzingExecutor)
     }
 }

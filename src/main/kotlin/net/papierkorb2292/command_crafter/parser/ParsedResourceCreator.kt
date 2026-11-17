@@ -6,6 +6,7 @@ import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.functions.CommandFunction
+import net.minecraft.commands.functions.CommandParser
 import net.minecraft.commands.functions.FunctionBuilder
 import net.minecraft.core.Registry
 import net.minecraft.network.chat.Component
@@ -20,6 +21,8 @@ import java.util.*
 class ParsedResourceCreator(
     val functionId: Identifier,
     val functionPackId: String,
+    @JsonIgnore // Prevents some self references through ServerFunctionLibrary, and it probably just contains some cryptic stuff anyway
+    val parserProvider: CommandParser.Provider<CommandSourceStack>
 ) {
     companion object {
         val PLACEHOLDER_ID = Identifier.fromNamespaceAndPath("command_crafter", "placeholder")
@@ -49,7 +52,7 @@ class ParsedResourceCreator(
             var resourceId = 0
             for(childFunction in resourceCreator.functions) {
                 val functionId = resourceCreator.getPath(resourceId++)
-                val generatedChildFunction = childFunction.resource.build(functionId)
+                val generatedChildFunction = childFunction.resource.build(functionId, resourceCreator.parserProvider)
                 if(function is FileSourceContainer && generatedChildFunction is FileSourceContainer) {
                     val lines = function.`command_crafter$getFileSourceLines`()
                     val fileId = function.`command_crafter$getFileSourceId`()

@@ -3,8 +3,9 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.ParticleArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.particles.SimpleParticleType
 import net.minecraft.core.registries.Registries
 import net.minecraft.nbt.NbtOps
@@ -24,13 +25,13 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
-class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument> {
-    override val argumentTypes: List<Class<out ParticleArgument>>
+class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService {
+    override val argumentTypes
         get() = listOf(ParticleArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: ParticleArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -45,7 +46,7 @@ class ParticleArgumentAnalyzer : CommandArgumentAnalyzerService<ParticleArgument
             if(registry.isPresent) {
                 val particleType = registry.get().get(ResourceKey.create(Registries.PARTICLE_TYPE, particleId))
                 if(particleType.isPresent && particleType.get().value() !is SimpleParticleType) {
-                    particleType.get().value()!!.codec().decoder()
+                    particleType.get().value().codec().decoder()
                 } else null
             } else null
         } catch(_: CommandSyntaxException) {

@@ -3,14 +3,19 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.serialization.Decoder
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.CompoundTagArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.Tag
 import net.minecraft.nbt.TagParser
+import net.papierkorb2292.command_crafter.editor.processing.AdditionalArgumentTypeData
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
-import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
@@ -18,7 +23,7 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
-class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagArgument> {
+class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService {
     companion object {
         fun analyzeReader(
             reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -49,15 +54,15 @@ class CompoundTagArgumentAnalyzer : CommandArgumentAnalyzerService<CompoundTagAr
         get() = listOf(CompoundTagArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: CompoundTagArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
-        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
+        val dataObjectSource = reader.resourceCreator.commandTree.getAdditionalData(type, AdditionalArgumentTypeData.dataObjectSource)
         val decoder = if(dataObjectSource != null) DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader) else null
         analyzeReader(
             reader,

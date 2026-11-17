@@ -10,9 +10,9 @@ import java.util.List;
 @Mixin(ContextChain.class)
 public interface ContextChainAccessor<S> {
 
-    @Accessor(remap = false)
+    @Accessor
     CommandContext<S> getExecutable();
 
-    @Accessor(remap = false)
+    @Accessor
     List<CommandContext<S>> getModifiers();
 }

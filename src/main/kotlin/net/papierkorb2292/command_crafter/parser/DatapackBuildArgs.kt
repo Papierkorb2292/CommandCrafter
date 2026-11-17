@@ -4,13 +4,12 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
-import com.mojang.brigadier.suggestion.SuggestionProvider
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
+import net.minecraft.commands.suggestions.SuggestionProviders
+import net.minecraft.network.chat.Component
 import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.server.permissions.PermissionLevel
 import net.minecraft.server.permissions.PermissionSet
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.network.chat.Component
 import net.papierkorb2292.command_crafter.parser.DatapackBuildArgs.DatapackBuildArgsParser.ARG_ALREADY_SPECIFIED_EXCEPTION
 
 class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: PermissionSet? = null) {
@@ -80,18 +79,18 @@ class DatapackBuildArgs(val keepDirectives: Boolean = false, val permissions: Pe
 
         val ARG_ALREADY_SPECIFIED_EXCEPTION = DynamicCommandExceptionType { Component.nullToEmpty("Error while parsing datapack build args: Argument $it is specified multiple times") }
 
-        val SUGGESTION_PROVIDER = SuggestionProvider<CommandSourceStack> { _, builder ->
+        val SUGGESTION_PROVIDER = SuggestionProviders.serverOnly { _, _, builder ->
             val prefix = StringBuilder()
             val reader = StringReader(builder.remaining)
             val arguments = HashMap(ARGUMENTS)
-            while(!reader.canRead() || reader.peek( ) != '\n') {
+            while(!reader.canRead() || reader.peek() != '\n') {
                 if(reader.cursor != 0) {
                     if(reader.canRead()) reader.skip()
                     prefix.append(' ')
                 }
                 val name = reader.readUnquotedString()
                 val completedArg = arguments[name]
-                if (completedArg == null) {
+                if(completedArg == null) {
                     for((argName, arg) in arguments) {
                         if(argName.startsWith(name)) {
                             builder.suggest(prefix.toString() + arg.nameSuggestion)

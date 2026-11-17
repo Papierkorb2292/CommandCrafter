@@ -22,7 +22,7 @@ import kotlin.jvm.optionals.getOrNull
 class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dynamic<out Any>) -> TContext, private val analyzer: StringAnalyzer<TContext>) {
     private val codecInput = ThreadLocal<Dynamic<out Any>>()
 
-    fun <A> wrapCodec(delegate: Codec<A>): Codec<A> = object : Codec<A> {
+    fun <A: Any> wrapCodec(delegate: Codec<A>): Codec<A> = object : Codec<A> {
         override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> =
             delegate.encode(input, ops, prefix)
 
@@ -32,14 +32,14 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
             }
     }
 
-    fun <A> wrapDecoder(delegate: Decoder<A>): Decoder<A> = object : Decoder<A> {
+    fun <A: Any> wrapDecoder(delegate: Decoder<A>): Decoder<A> = object : Decoder<A> {
         override fun <T : Any> decode(ops: DynamicOps<T>, input: T): DataResult<Pair<A, T>> =
             codecInput.runWithValueSwap(Dynamic(ops, input)) {
                 delegate.decode(ops, input)
             }
     }
 
-    fun <A> wrapCodecWithError(delegate: Codec<A>, errorProvider: Decoder<Optional<kotlin.Pair<Int, String>>>, errorIsWarning: Boolean = false): Codec<A> = object : Codec<A> {
+    fun <A: Any> wrapCodecWithError(delegate: Codec<A>, errorProvider: Decoder<Optional<kotlin.Pair<Int, String>>>, errorIsWarning: Boolean = false): Codec<A> = object : Codec<A> {
         override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> =
             delegate.encode(input, ops, prefix)
 
@@ -51,7 +51,7 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
         }
     }
 
-    fun <A> wrapCodecWithoutError(delegate: Codec<A>): Codec<A> = object : Codec<A> {
+    fun <A: Any> wrapCodecWithoutError(delegate: Codec<A>): Codec<A> = object : Codec<A> {
         override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> =
             delegate.encode(input, ops, prefix)
 
@@ -62,7 +62,7 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
         }
     }
 
-    fun <A> wrapCodecWithoutError(delegate: PrimitiveCodec<A>): PrimitiveCodec<A> = object : PrimitiveCodec<A> {
+    fun <A: Any> wrapCodecWithoutError(delegate: PrimitiveCodec<A>): PrimitiveCodec<A> = object : PrimitiveCodec<A> {
         override fun <T : Any> write(ops: DynamicOps<T>, input: A): T =
             delegate.write(ops, input)
 
@@ -111,7 +111,6 @@ class MalformedStringDecoderAnalyzing<TContext>(private val contextGetter: (Dyna
 
             val directiveReader = DirectiveStringReader(
                 analyzingResult.mappingInfo,
-                originalReader.dispatcher,
                 originalReader.resourceCreator.copyInput().apply {
                     stringContent.cursorMapper.mapAllToTargetSorted(macroTargetCursors, true)
                     val macroParser = extraBehavior.macroParser

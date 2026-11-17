@@ -127,7 +127,6 @@ object MacroMerger {
             oldMacroNode.stringEscaper,
             oldMacroNode.children,
             newReader,
-            newReader.resourceCreator.source,
             FileModificationData(
                 oldMacroNode.updatedFile,
                 oldMacroNode.analyzingResult,
@@ -169,7 +168,6 @@ object MacroMerger {
                 isFirstParser = false
                 DirectiveStringReader.createReaderAtAbsoluteCursor(
                     lastReader.fileMappingInfo,
-                    lastReader.dispatcher,
                     lastReader.resourceCreator,
                     startCursor
                 )
@@ -185,7 +183,6 @@ object MacroMerger {
 
             lastReader = DirectiveStringReader(
                 lastReader.fileMappingInfo.copyWithoutMapping(),
-                lastReader.dispatcher,
                 lastReader.resourceCreator,
             )
             lastReader.fileMappingInfo.cursorMapper.copyFrom(decodedMacro.string.cursorMapper)

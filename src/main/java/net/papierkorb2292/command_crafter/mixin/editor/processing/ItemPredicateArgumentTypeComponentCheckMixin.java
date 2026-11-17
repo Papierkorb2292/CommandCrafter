@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.mixin.editor.processing;
 
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReceiver;
 import com.mojang.brigadier.ImmutableStringReader;
 import com.mojang.serialization.DataResult;
@@ -27,8 +26,7 @@ public class ItemPredicateArgumentTypeComponentCheckMixin {
             method = "decode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/serialization/Decoder;parse(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/DataResult;",
-                    remap = false
+                    target = "Lcom/mojang/serialization/Decoder;parse(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/DataResult;"
             )
     )
     private <T> Decoder<?> command_crafter$invokeDelayedDecodeNbtAnalyzing(Decoder<?> instance, Dynamic<T> input) {
@@ -44,8 +42,7 @@ public class ItemPredicateArgumentTypeComponentCheckMixin {
             method = "decode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;",
-                    remap = false
+                    target = "Lcom/mojang/serialization/DataResult;getOrThrow(Ljava/util/function/Function;)Ljava/lang/Object;"
             )
     )
     private DataResult<Predicate<ItemStack>> command_crafter$suppressDecoderErrorsWhenAnalyzing(DataResult<Predicate<ItemStack>> original, Function<?, ?> exceptionSupplier, ImmutableStringReader reader) {

@@ -11,7 +11,7 @@ interface StringEscaper {
 
     companion object {
         val CODECS_BY_ID = mutableMapOf<Identifier, MapCodec<out StringEscaper>>()
-        val CODEC = Identifier.CODEC.dispatch(StringEscaper::typeId, CODECS_BY_ID::get)
+        val CODEC = Identifier.CODEC.dispatch(StringEscaper::typeId) { CODECS_BY_ID[it]!! }
 
         val IDENTITY_TYPE = Identifier.withDefaultNamespace("identity")
         val QUOTE_TYPE = Identifier.withDefaultNamespace("quote")

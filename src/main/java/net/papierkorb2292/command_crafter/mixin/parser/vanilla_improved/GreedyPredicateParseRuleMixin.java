@@ -2,9 +2,9 @@ package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.brigadier.StringReader;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.util.parsing.packrat.ParseState;
+import net.minecraft.util.parsing.packrat.commands.CommandParserState;
 import net.minecraft.util.parsing.packrat.commands.GreedyPredicateParseRule;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
@@ -22,16 +22,17 @@ public class GreedyPredicateParseRuleMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Ljava/lang/String;length()I"
-            )
+            ),
+            name = "fullString"
     )
-    private String command_crafter$extendStringAtNewline(String string, ParseState<StringReader> parsingState, @Local(ordinal = 1) int j) {
-        final var reader = parsingState.input();
+    private String command_crafter$extendStringAtNewline(String fullString, ParseState<CommandParserState> state, @Local(name = "pos") int pos) {
+        final var reader = state.input().reader();
         if(reader instanceof DirectiveStringReader<?>) {
             // Extend to cursor, include the next character because the method will make a `<` check
-            reader.canRead(j - reader.getCursor() + 1);
+            reader.canRead(pos - reader.getCursor() + 1);
             return reader.getString();
         }
-        return string;
+        return fullString;
     }
 
     @ModifyReturnValue(

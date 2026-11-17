@@ -8,11 +8,12 @@ import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.server.packs.metadata.MetadataSectionType
 import net.papierkorb2292.command_crafter.CommandCrafter
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.EditorDocument
+import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.forNeverGetter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -61,12 +62,12 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
 
         fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
+            val commandTree = languageServer.minecraftServer.commandTree
             val mappingInfo = FileMappingInfo(lines)
             val directiveReader = DirectiveStringReader(
                 mappingInfo,
-                languageServer.minecraftServer.commandDispatcher,
-                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer), mappingInfo).apply {
-                    loadCache(file, languageServer.minecraftServer.commandDispatcher)
+                AnalyzingResourceCreator(languageServer, file.uri, languageServer.dynamicRegistryManager, CommandCrafter.analyzingSourceProvider(languageServer), commandTree, languageServer.fileResultProcessing, mappingInfo).apply {
+                    loadCache(file, languageServer.minecraftServer.commandTree)
                 }
             )
 
@@ -101,9 +102,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
         }
 
-        private val NULL_PROVIDER = { _: Any? -> null }
         fun codecFromMetaSection(section: MetadataSectionType<*>, optional: Boolean): RecordCodecBuilder<Unit, *> =
-            if(optional) section.codec.optionalFieldOf(section.name).forGetter(NULL_PROVIDER)
-            else section.codec.fieldOf(section.name).forGetter(NULL_PROVIDER)
+            if(optional) section.codec.optionalFieldOf(section.name).forNeverGetter()
+            else section.codec.fieldOf(section.name).forNeverGetter()
     }
 }

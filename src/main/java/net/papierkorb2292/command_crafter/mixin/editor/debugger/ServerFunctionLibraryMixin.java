@@ -30,7 +30,7 @@ public class ServerFunctionLibraryMixin implements IdentifiedDebugInformationPro
     private Map<Identifier, RangeFunctionTagDebugInformation> command_crafter$tagDebugInformations = new HashMap<>();
 
     @Inject(
-            method = "lambda$reload$5",
+            method = "reload -> Ljava/util/function/Consumer;accept(Lcom/mojang/datafixers/util/Pair;)V", // Targets lambda passed to final thenAcceptAsync
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/tags/TagLoader;build(Ljava/util/Map;)Ljava/util/Map;",

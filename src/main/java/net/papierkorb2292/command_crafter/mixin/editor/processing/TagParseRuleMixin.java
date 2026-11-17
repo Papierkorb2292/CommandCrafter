@@ -8,6 +8,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import kotlin.Unit;
 import net.minecraft.nbt.*;
 import net.minecraft.util.parsing.packrat.ParseState;
+import net.minecraft.util.parsing.packrat.commands.CommandParserState;
 import net.minecraft.util.parsing.packrat.commands.TagParseRule;
 import net.papierkorb2292.command_crafter.MixinUtil;
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator;
@@ -34,7 +35,7 @@ public class TagParseRuleMixin<T> {
                     target = "Lnet/minecraft/nbt/TagParser;parseAsArgument(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
             )
     )
-    private T command_crafter$analyzeNbt(TagParser<T> instance, StringReader reader, Operation<T> op, ParseState<StringReader> state) {
+    private T command_crafter$analyzeNbt(TagParser<T> instance, StringReader reader, Operation<T> op, ParseState<CommandParserState> state) {
         if (!PackratParserAdditionalArgs.INSTANCE.shouldAllowMalformed())
             return op.call(instance, reader);
         final var semanticAnalyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
@@ -45,7 +46,7 @@ public class TagParseRuleMixin<T> {
         ((AllowMalformedContainer)nbtReader).command_crafter$setAllowMalformed(true);
         if(semanticAnalyzingResultArg != null)
             ((AnalyzingResultCreator)nbtReader).command_crafter$setAnalyzingResult(semanticAnalyzingResultArg.getAnalyzingResult());
-        final var startCursor = state.input().getCursor();
+        final var startCursor = state.input().reader().getCursor();
         T parsed = null;
         Tag nbt;
         try {
@@ -55,10 +56,10 @@ public class TagParseRuleMixin<T> {
             nbt = (Tag) parsed;
         } catch(CommandSyntaxException e) {
             nbt = EndTag.INSTANCE;
-            treeBuilder.addNode(EndTag.INSTANCE, new StringRange(startCursor, state.input().getCursor()), startCursor);
+            treeBuilder.addNode(EndTag.INSTANCE, new StringRange(startCursor, state.input().reader().getCursor()), startCursor);
         }
         var tree = treeBuilder.build(nbt);
-        if(state.errorCollector() instanceof MalformedParseErrorList<StringReader> malformedParseErrorList) {
+        if(state.errorCollector() instanceof MalformedParseErrorList malformedParseErrorList) {
             // Check if the nbt was ended correctly (otherwise don't give other suggestions)
             if(!tree.isFinishedNbt(reader.getString())) {
                 malformedParseErrorList.setLastMalformedEndCursor(reader.getCursor());
@@ -68,7 +69,7 @@ public class TagParseRuleMixin<T> {
             var analyzingResultArg = getOrNull(PackratParserAdditionalArgs.INSTANCE.getAnalyzingResult());
             if(analyzingResultArg != null) {
                 //noinspection unchecked
-                var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input();
+                var directiveReader = (DirectiveStringReader<AnalyzingResourceCreator>)state.input().reader();
                 var treeOps = TreeOperations.Companion.forNbt(tree, directiveReader);
                 var registryTreeOps = treeOps.withOps(ops);
                 registryTreeOps.analyzeFull(analyzingResultArg.getAnalyzingResult(), decoder);

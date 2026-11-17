@@ -5,13 +5,13 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
+import net.minecraft.util.parsing.packrat.commands.CommandParserState;
 import net.minecraft.util.parsing.packrat.commands.Grammar;
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider;
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CompoundTagArgumentAnalyzer;
@@ -52,13 +52,13 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     }
 
     @WrapOperation(
-            method = {"parseFully(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;", "parseAsArgument"},
+            method = {"parseFully(Lnet/minecraft/util/parsing/packrat/commands/CommandParserState;)Ljava/lang/Object;","parseAsArgument"},
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/util/parsing/packrat/commands/Grammar;parseForCommands(Lcom/mojang/brigadier/StringReader;)Ljava/lang/Object;"
+                    target = "Lnet/minecraft/util/parsing/packrat/commands/Grammar;parseForCommands(Lnet/minecraft/util/parsing/packrat/commands/CommandParserState;)Ljava/lang/Object;"
             )
     )
-    private T command_crafter$setAdditionalPackratParserArgs(Grammar<@NotNull T> instance, StringReader reader, Operation<T> op) {
+    private T command_crafter$setAdditionalPackratParserArgs(Grammar<CommandParserState, T> instance, CommandParserState reader, Operation<T> op) {
         var restoreArgsCallback = PackratParserAdditionalArgs.INSTANCE.temporarilyClearArgs();
 
         PackratParserAdditionalArgs.INSTANCE.getAllowMalformed().set(command_crafter$allowMalformed);
@@ -95,8 +95,7 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/serialization/codecs/PrimitiveCodec;comapFlatMap(Ljava/util/function/Function;Ljava/util/function/Function;)Lcom/mojang/serialization/Codec;"
-            ),
-            remap = false
+            )
     )
     private static Codec<CompoundTag> command_crafter$storeFlattenedCodecInput(Codec<CompoundTag> codec) {
         command_crafter$decoderAnalyzing = new MalformedStringDecoderAnalyzing<>(
@@ -115,9 +114,8 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     }
 
     @ModifyReturnValue(
-            method = "lambda$static$0",
-            at = @At("RETURN:FIRST"),
-            remap = false
+            method = "<clinit> -> Ljava/util/function/Function;apply(Ljava/lang/String;)Lcom/mojang/serialization/DataResult;",  // Targets comapFlatMap for CODEC
+            at = @At("RETURN:FIRST")
     )
     private static DataResult<?> command_crafter$finishFlattenedCodecAnalyzingResult(DataResult<?> result, String s) {
         command_crafter$decoderAnalyzing.onParsed(result.isSuccess() ? Integer.MAX_VALUE : s.length(), null);
@@ -125,9 +123,8 @@ public abstract class TagParserMixin<T> implements StringRangeTreeCreator<Tag>, 
     }
 
     @ModifyReturnValue(
-            method = "lambda$static$0",
-            at = @At("RETURN:LAST"),
-            remap = false
+            method = "<clinit> -> Ljava/util/function/Function;apply(Ljava/lang/String;)Lcom/mojang/serialization/DataResult;",  // Targets comapFlatMap for CODEC
+            at = @At("RETURN:LAST")
     )
     private static DataResult<?> command_crafter$markFlattenedCodecSyntaxError(DataResult<?> result, String s, @Local CommandSyntaxException exception) {
         command_crafter$decoderAnalyzing.onParsed(exception.getCursor(), exception.getMessage());

@@ -1,11 +1,7 @@
 package net.papierkorb2292.command_crafter.parser
 
-import com.mojang.brigadier.CommandDispatcher
 import net.minecraft.commands.CommandBuildContext
-import net.minecraft.commands.Commands
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.resources.Identifier
-import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
@@ -22,15 +18,11 @@ object McfunctionZipCreatorProcessor : RawZipResourceCreator.DataTypeProcessor {
         id: Identifier,
         content: BufferedReader,
         resourceCreator: RawZipResourceCreator,
-        dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-        buildContext: CommandBuildContext,
     ) {
-        val reader = DirectiveStringReader(FileMappingInfo(content.lines().toList()), dispatcher, resourceCreator)
+        val reader = DirectiveStringReader(FileMappingInfo(content.lines().toList()), resourceCreator)
         val resource = RawResource(RawResource.FUNCTION_TYPE)
-        val source = Commands.createCompilationContext(args.permissions ?: LevelBasedPermissionSet.GAMEMASTER)
         LanguageManager.parseToVanilla(
             reader,
-            source,
             resource,
             Language.TopLevelClosure(VanillaLanguage())
         )
@@ -41,9 +33,8 @@ object McfunctionZipCreatorProcessor : RawZipResourceCreator.DataTypeProcessor {
         args: DatapackBuildArgs,
         id: Identifier,
         content: BufferedReader,
-        dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-        buildContext: CommandBuildContext,
+        resourceCreator: RawZipResourceCreator,
     ) {
-        process(args, id, content, RawZipResourceCreator(), dispatcher, buildContext)
+        process(args, id, content, resourceCreator)
     }
 }

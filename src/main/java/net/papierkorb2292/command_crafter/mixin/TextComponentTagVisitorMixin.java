@@ -3,6 +3,7 @@ package net.papierkorb2292.command_crafter.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import net.minecraft.nbt.TextComponentTagVisitor;
 import net.papierkorb2292.command_crafter.CommandCrafter;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -37,7 +38,8 @@ public class TextComponentTagVisitorMixin {
             },
             at = @At(
                     value = "FIELD",
-                    target = "Lnet/minecraft/nbt/TextComponentTagVisitor;depth:I"
+                    target = "Lnet/minecraft/nbt/TextComponentTagVisitor;depth:I",
+                    opcode = Opcodes.GETFIELD
             )
     )
     private int command_crafter$deactivateEllipsisForDepth(int value) {

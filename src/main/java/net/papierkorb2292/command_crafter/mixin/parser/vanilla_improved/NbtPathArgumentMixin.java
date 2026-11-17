@@ -28,8 +28,7 @@ public class NbtPathArgumentMixin implements StringifiableArgumentType {
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;peek()C",
-                    ordinal = 0,
-                    remap = false
+                    ordinal = 0
             )
     )
     private static char command_crafter$endTagOnNewline(char c, StringReader reader) {
@@ -40,8 +39,7 @@ public class NbtPathArgumentMixin implements StringifiableArgumentType {
             method = "parse(Lcom/mojang/brigadier/StringReader;)Lnet/minecraft/commands/arguments/NbtPathArgument$NbtPath;",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;peek()C",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/StringReader;peek()C"
             )
     )
     private char command_crafter$endPathOnNewline(char c, StringReader reader) {

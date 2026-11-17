@@ -43,10 +43,7 @@ import net.minecraft.server.packs.PackType
 import net.minecraft.server.packs.metadata.pack.PackFormat
 import net.minecraft.tags.TagEntry
 import net.minecraft.tags.TagKey
-import net.minecraft.util.ARGB
-import net.minecraft.util.ExtraCodecs
-import net.minecraft.util.InclusiveRange
-import net.minecraft.util.StringRepresentable
+import net.minecraft.util.*
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.entity.item.FallingBlockEntity
 import net.minecraft.world.item.DyeColor
@@ -77,6 +74,7 @@ import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.St
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.CURRENT_TAG_ANALYZING_REGISTRY
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
+import net.papierkorb2292.command_crafter.mixin.editor.CommandBoxAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.BeehiveBlockEntityAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.LanguageImplAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -119,7 +117,7 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = ExtraCodecs.LateBoundIdMapper::class, methodName = "codec", fieldAccess = ["idToValue"])
-    fun <T, I> addIdMapperSuggestions(codec: Codec<T>, idToValue: BiMap<I, *>, idCodec: Codec<I>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
+    fun <T: Any, I: Any> addIdMapperSuggestions(codec: Codec<T>, idToValue: BiMap<I, *>, idCodec: Codec<I>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> =
             idToValue.keys.stream().map { idCodec.encodeStart(ops, it).getOrThrow() }
     })
@@ -184,9 +182,9 @@ object CodecTransformers {
     fun addLegacyDyeColorCodecColorInfo(codec: Codec<DyeColor>): Codec<DyeColor> = PackedEncoderColorInfo.wrapCodec(
         codec,
         false,
-        DyeColor::getTextureDiffuseColor, // Use textureDiffuseColor because it is used most commonly by Minecraft
+        CommonColors.TEXTURE_TINT_COLORS::pick, // Use CommonColors.TEXTURE_TINT_COLORS because it is used most commonly by Minecraft
         { rgb ->
-            PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor)
+            PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, CommonColors.TEXTURE_TINT_COLORS::pick)
         },
         { DyeColor.entries },
         { "$it (${it.id})" },
@@ -195,7 +193,7 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(targetName = $$"Lnet/minecraft/core/component/DataComponentPatch$PatchKey;", javaFieldWrite = "CODEC")
-    fun <T> addComponentKeySuggestions(codec: Codec<T>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
+    fun <T: Any> addComponentKeySuggestions(codec: Codec<T>): Codec<T> = CodecSuggestionWrapper.simple(codec, object : SuggestionsProvider {
         override fun <T: Any> getSuggestions(ops: DynamicOps<T>): Stream<T> {
             val ids = BuiltInRegistries.DATA_COMPONENT_TYPE.keySet()
             return Stream.concat(
@@ -215,10 +213,10 @@ object CodecTransformers {
         else
             registry.keySet().stream()
 
-    private fun <T> getRegistrySuggestions(ops: DynamicOps<T>, registry: Registry<*>, namespaceOptional: Boolean, blacklist: Set<Any>?): Stream<T> =
+    private fun <T: Any> getRegistrySuggestions(ops: DynamicOps<T>, registry: Registry<*>, namespaceOptional: Boolean, blacklist: Set<Any>?): Stream<T> =
         getIdSuggestions(ops, namespaceOptional) { getFilteredIds(registry, blacklist) }
 
-    private inline fun <T> getIdSuggestions(ops: DynamicOps<T>, namespaceOptional: Boolean, prefix: String = "", ids: () -> Stream<Identifier>): Stream<T> {
+    private inline fun <T: Any> getIdSuggestions(ops: DynamicOps<T>, namespaceOptional: Boolean, prefix: String = "", ids: () -> Stream<Identifier>): Stream<T> {
         val namespacedStream = ids().map { ops.createString(prefix + it.toString()) }
         if(!namespaceOptional)
             return namespacedStream
@@ -228,7 +226,7 @@ object CodecTransformers {
 
     @JvmStatic
     @CodecMod(target = Registry::class, methodName = "referenceHolderWithLifecycle", fieldAccess = ["this"])
-    fun <T> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> =
+    fun <T: Any> addRegistryKeySuggestions(codec: Codec<T>, registry: Registry<*>): Codec<T> =
         CodecSuggestionWrapper.withContext(codec, idContextGetter(REGISTRY_SUGGESTIONS_BLACKLIST), object : ContextSuggestionsProvider<IdSuggestionContext<Set<Any>>> {
             override fun <T: Any> getSuggestions(ops: DynamicOps<T>, context: IdSuggestionContext<Set<Any>>): Stream<T> =
                 getRegistrySuggestions(ops, registry, context.namespaceOptional, context.extra)
@@ -258,9 +256,9 @@ object CodecTransformers {
             return PackedEncoderColorInfo.wrapCodec(
                 codec,
                 false,
-                { (it as DyeColor).textureDiffuseColor }, // Use textureDiffuseColor because it is used most commonly by Minecraft
+                { CommonColors.TEXTURE_TINT_COLORS.pick(it as DyeColor) }, // Use CommonColors.TEXTURE_TINT_COLORS because it is used most commonly by Minecraft
                 { rgb ->
-                    PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, DyeColor::getTextureDiffuseColor) as T
+                    PackedEncoderColorInfo.roundColorLab(DyeColor.entries, rgb, CommonColors.TEXTURE_TINT_COLORS::pick) as T
                 },
                 { DyeColor.entries as List<T> }
             )
@@ -549,17 +547,17 @@ object CodecTransformers {
     fun decodeEmbeddedBucketEntityData(codec: Codec<CustomData>): Codec<CustomData> =
         DataObjectDecoding.wrapWithEmbeddedDecoder(codec, unitDecoder(RecordCodecBuilder.create {
             it.group( // Use custom codec, because Minecraft is still using CompoundTags instead of ValueInputs
-                Codec.BOOL.lenientOptionalFieldOf("NoAI").forEmptyGetter(),
-                Codec.BOOL.lenientOptionalFieldOf("Silent").forEmptyGetter(),
-                Codec.BOOL.lenientOptionalFieldOf("NoGravity").forEmptyGetter(),
-                Codec.BOOL.lenientOptionalFieldOf("Glowing").forEmptyGetter(),
-                Codec.BOOL.lenientOptionalFieldOf("Invulnerable").forEmptyGetter(),
-                Codec.FLOAT.lenientOptionalFieldOf("Health").forEmptyGetter(),
-                Codec.INT.lenientOptionalFieldOf("Age").forEmptyGetter(),
-                Codec.BOOL.lenientOptionalFieldOf("AgeLocked").forEmptyGetter(),
-                Codec.INT.lenientOptionalFieldOf("age").forEmptyGetter(), // Sulfur cube uses snake_case
-                Codec.BOOL.lenientOptionalFieldOf("age_locked").forEmptyGetter(),
-                Codec.LONG.lenientOptionalFieldOf("HuntingCooldown").forEmptyGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("NoAI").forNeverGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("Silent").forNeverGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("NoGravity").forNeverGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("Glowing").forNeverGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("Invulnerable").forNeverGetter(),
+                Codec.FLOAT.lenientOptionalFieldOf("Health").forNeverGetter(),
+                Codec.INT.lenientOptionalFieldOf("Age").forNeverGetter(),
+                Codec.BOOL.lenientOptionalFieldOf("AgeLocked").forNeverGetter(),
+                Codec.INT.lenientOptionalFieldOf("age").forNeverGetter(), // Sulfur cube uses snake_case
+                Codec.BOOL.lenientOptionalFieldOf("age_locked").forNeverGetter(),
+                Codec.LONG.lenientOptionalFieldOf("HuntingCooldown").forNeverGetter(),
             ).apply(it) { _, _, _, _, _, _, _, _, _, _, _, -> }
         }))
 
@@ -581,7 +579,7 @@ object CodecTransformers {
                     // Make use of the existing dispatch behavior.
                     var idDispatcher = nonPlayerIdCodec.dispatch(
                         "id",
-                        { null },
+                        { throw AssertionError("Dummy type getter should never be called") },
                         { id ->
                             candidates += id
                             MapCodec.unit(Unit)
@@ -702,7 +700,7 @@ object CodecTransformers {
     fun analyzeCommandTemplate(codec: Codec<ParsedTemplate>): Codec<ParsedTemplate> =
         wrapCommandStringCodec(codec, isTemplate = true, isSuggestCommand = false, ParsedTemplate.CODEC.parse(JavaOps.INSTANCE, "$(placeholder)").result().orElseThrow())
 
-    private fun <A> wrapCommandStringCodec(codec: Codec<A>, isTemplate: Boolean, isSuggestCommand: Boolean, defaultValue: A): Codec<A> {
+    private fun <A: Any> wrapCommandStringCodec(codec: Codec<A>, isTemplate: Boolean, isSuggestCommand: Boolean, defaultValue: A): Codec<A> {
         fun getContextChainError(parseResults: ParseResults<*>, input: String): CommandSyntaxException? {
             val flattened = ContextChain.tryFlatten(parseResults.context.build(input))
             return if(flattened.isEmpty) CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parseResults.reader) else null
@@ -720,13 +718,15 @@ object CodecTransformers {
             if(!isMacro) {
                 reader.enterClosure(TopLevelClosure(VanillaLanguage.DEFAULT))
                 TermNumberProvider.DISALLOW_EXPRESSIONS.runWithValueSwap(true) {
-                    val parseResults = reader.dispatcher.parse(reader, reader.resourceCreator.source)
+                    val parseResults = reader.resourceCreator.commandTree.suggestionBox.parse(reader, reader.resourceCreator.source).parseResults()
                     val commandException = Commands.getParseException(parseResults)
                         ?: getContextChainError(parseResults, reader.string)
                     @Suppress("UNCHECKED_CAST")
                     val resultReader = parseResults.reader as DirectiveStringReader<AnalyzingResourceCreator>
                     val commandAnalyzingResult = result.copyInput()
-                    VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader, NodeAnalyzingExecutor.Immediate)
+                    CommandBoxAccessor.callRunWithParseContext({
+                        VanillaLanguage.DEFAULT.analyzeParsedCommand(parseResults, commandAnalyzingResult, resultReader, NodeAnalyzingExecutor.Immediate)
+                    }, reader.resourceCreator.source)
                     VanillaLanguage.addIllegalCharactersDiagnostic(reader.string, commandAnalyzingResult.mappingInfo, commandAnalyzingResult.diagnostics, DiagnosticSeverity.Error)
                     // Add exception from command as warning. suggest_command doesn't show errors at the end, since the player might be supposed to finish the command.
                     if(commandException != null && (!isSuggestCommand || commandException.cursor < resultReader.string.length)) {
@@ -763,7 +763,7 @@ object CodecTransformers {
                         string.escaper
                     ), absoluteRange
                 )
-                VanillaLanguage.analyzeMacroString(input, macro, reader.resourceCreator.getMacroParserStartCursors(), StringEscaper.combine(reader.resourceCreator.macroParserStack.map { it.escaper }), null, reader, reader.resourceCreator.source)
+                VanillaLanguage.analyzeMacroString(input, macro, reader.resourceCreator.getMacroParserStartCursors(), StringEscaper.combine(reader.resourceCreator.macroParserStack.map { it.escaper }), null, reader)
             }
         })
         // Don't use the decoder that could return errors while analyzing, all errors are handled by the above analyzer instead. This is

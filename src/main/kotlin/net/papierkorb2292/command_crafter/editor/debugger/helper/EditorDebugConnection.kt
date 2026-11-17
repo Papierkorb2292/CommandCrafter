@@ -6,6 +6,7 @@ import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.network.codec.StreamCodec
 import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
+import net.minecraft.server.ServerFunctionManager
 import net.papierkorb2292.command_crafter.editor.debugger.DebugPauseActions
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
@@ -98,7 +99,7 @@ private fun EditorDebugConnection.runOneTimeDebugTarget(server: MinecraftServer,
                     })
                     return@ifPresentOrElse
                 }
-                server.functions.execute(it, server.createCommandSourceStack())
+                ServerFunctionManager.execute(it, server.createCommandSourceStack())
             }, {
                 output(OutputEventArguments().apply {
                     category = OutputEventArgumentsCategory.IMPORTANT

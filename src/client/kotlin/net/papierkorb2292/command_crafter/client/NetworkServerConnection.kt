@@ -3,15 +3,12 @@ package net.papierkorb2292.command_crafter.client
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
 import com.google.common.collect.Maps
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.datafixers.util.Either
 import io.netty.channel.local.LocalChannel
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.RegistryDataCollector
-import net.minecraft.commands.CommandBuildContext
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.resources.ResourceProvider
@@ -38,8 +35,6 @@ import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionPro
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
-import net.papierkorb2292.command_crafter.helper.memoizeLast
-import net.papierkorb2292.command_crafter.mixin.client.parser.ClientPacketListenerAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.ConnectionAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
@@ -277,15 +272,9 @@ class NetworkServerConnection private constructor(private val client: Minecraft,
         }
     }
 
-    private val commandDispatcherFactory: (RegistryAccess) -> CommandDispatcher<SharedSuggestionProvider> = { registryManager: RegistryAccess ->
-        @Suppress("UNCHECKED_CAST")
-        CommandDispatcher(initializePacket.commandTree.getRoot(CommandBuildContext.simple(registryManager, client.connection!!.enabledFeatures()), ClientPacketListenerAccessor.getCOMMAND_NODE_BUILDER())) as CommandDispatcher<SharedSuggestionProvider>
-    }.memoizeLast()
-
     override val dynamicRegistryManager: RegistryAccess
         get() = receivedRegistryManager ?: ClientCommandCrafter.getLoadedClientsideRegistries().combinedRegistries.compositeAccess()
-    override val commandDispatcher
-        get() = commandDispatcherFactory(dynamicRegistryManager)
+    override val commandTree = initializePacket.commandTree
     override val functionPermissions = LevelBasedPermissionSet.forLevel(PermissionLevel.byId(initializePacket.functionPermissionLevel))
     override val serverLog =
         if(client.connection?.run { (connection as ConnectionAccessor).channel } is LocalChannel) {

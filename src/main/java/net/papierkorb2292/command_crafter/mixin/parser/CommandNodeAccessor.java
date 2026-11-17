@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import java.util.Map;
 
-@Mixin(value = CommandNode.class, remap = false)
+@Mixin(value = CommandNode.class)
 public interface CommandNodeAccessor {
     @Accessor
     Map<String, CommandNode<?>> getChildren();

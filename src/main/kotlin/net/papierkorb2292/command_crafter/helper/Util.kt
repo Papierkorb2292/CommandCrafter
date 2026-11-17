@@ -5,8 +5,8 @@ import com.mojang.datafixers.util.Pair
 import com.mojang.serialization.Codec
 import com.mojang.serialization.DataResult
 import com.mojang.serialization.DynamicOps
-import net.minecraft.server.MinecraftServer
 import net.minecraft.core.RegistryAccess
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 import java.lang.reflect.Type
 import java.util.*
@@ -140,8 +140,8 @@ fun <T> MutableCollection<T>?.appendNullable(other: MutableCollection<T>?): Muta
     else -> this.toMutableList().apply { addAll(other) }
 }
 
-fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
-    override fun <T> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> {
+fun <A : Any> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
+    override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> {
         return if(input == defaultValue) DataResult.success(prefix) else this@orEmpty.encode(input, ops, prefix)
     }
 

@@ -4,8 +4,7 @@ import com.google.gson.FormattingStyle
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.stream.JsonWriter
-import com.mojang.brigadier.CommandDispatcher
-import net.minecraft.commands.synchronization.ArgumentUtils
+import net.minecraft.commands.SuggestionBox
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.Registries
@@ -21,16 +20,16 @@ import kotlin.jvm.optionals.getOrNull
 
 object ModdedDatagenRunner {
 
-    fun exportToDirectory(dispatcher: CommandDispatcher<*>, registries: RegistryAccess, outputDirectory: Path, includeVanilla: Boolean, additionalRegistries: Map<Identifier, Iterable<Identifier>> = emptyMap()) {
+    fun exportToDirectory(suggestionBox: SuggestionBox, registries: RegistryAccess, outputDirectory: Path, includeVanilla: Boolean, additionalRegistries: Map<Identifier, Iterable<Identifier>> = emptyMap()) {
         outputDirectory.createDirectories()
-        exportCommands(dispatcher, outputDirectory.resolve("commands.json"))
+        exportCommands(suggestionBox, outputDirectory.resolve("commands.json"))
         exportBlocks(registries, outputDirectory.resolve("blocks.json"), includeVanilla)
         exportRegistries(registries, additionalRegistries, outputDirectory.resolve("registries.json"), includeVanilla)
     }
 
-    fun <S : Any> exportCommands(dispatcher: CommandDispatcher<S>, outputPath: Path) {
+    fun exportCommands(suggestionBox: SuggestionBox, outputPath: Path) {
         getJsonWriter(outputPath).use { writer ->
-            val json = ArgumentUtils.serializeNodeToJson(dispatcher, dispatcher.getRoot())
+            val json = suggestionBox.dumpReport()
             GsonHelper.writeValue(writer, json, DataProvider.KEY_COMPARATOR)
         }
     }

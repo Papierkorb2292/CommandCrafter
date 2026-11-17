@@ -19,6 +19,7 @@ import net.papierkorb2292.command_crafter.client.NetworkServerConnection;
 import net.papierkorb2292.command_crafter.client.editor.SyncedRegistriesListConsumer;
 import net.papierkorb2292.command_crafter.client.helper.IsCustomRegistrySyncContainer;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Coerce;
@@ -67,13 +68,11 @@ public class RegistryDataCollectorMixin implements SyncedRegistriesListConsumer,
     }
 
     @ModifyExpressionValue(
-            method = "lambda$loadNewElementsAndTags$1",
+            method = "loadNewElementsAndTags -> Ljava/util/function/BiConsumer;accept(Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/tags/TagNetworkSerialization$NetworkPayload;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/core/RegistrySynchronization;isNetworkable(Lnet/minecraft/resources/ResourceKey;)Z",
-                    remap = true
-            ),
-            remap = false
+                    target = "Lnet/minecraft/core/RegistrySynchronization;isNetworkable(Lnet/minecraft/resources/ResourceKey;)Z"
+            )
     )
     private static boolean command_crafter$checkCustomSyncedRegistriesList(boolean original, Map<?, ?> map, boolean local, List<?> list, RegistryAccess.Frozen immutable, ResourceKey<? extends Registry<?>> registryRef) {
         final var syncedRegistryKeys = getOrNull(command_crafter$syncedRegistryKeys);
@@ -84,7 +83,8 @@ public class RegistryDataCollectorMixin implements SyncedRegistriesListConsumer,
             method = "loadNewElementsAndTags(Lnet/minecraft/server/packs/resources/ResourceProvider;Lnet/minecraft/client/multiplayer/RegistryDataCollector$ContentsCollector;Z)Lnet/minecraft/core/RegistryAccess;",
             at = @At(
                     value = "FIELD",
-                    target = "Lnet/minecraft/resources/RegistryDataLoader;SYNCHRONIZED_REGISTRIES:Ljava/util/List;"
+                    target = "Lnet/minecraft/resources/RegistryDataLoader;SYNCHRONIZED_REGISTRIES:Ljava/util/List;",
+                    opcode = Opcodes.GETSTATIC
             )
     )
     private List<RegistryDataLoader.RegistryData<?>> command_crafter$passSyncedRegistryListToRegistryLoader(List<RegistryDataLoader.RegistryData<?>> original) {
