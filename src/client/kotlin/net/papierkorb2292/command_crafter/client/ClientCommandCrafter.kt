@@ -196,7 +196,7 @@ object ClientCommandCrafter : ClientModInitializer {
         try {
             analyzer.analyze(
                 context,
-                SerializableArgument.unwrapOrThrow(node.type),
+                SerializableArgument.castOrThrow(node.type),
                 parsedNode.range,
                 node.name,
                 directiveReader,

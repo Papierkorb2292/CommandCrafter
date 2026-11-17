@@ -115,7 +115,7 @@ public class DataCommandsMixin {
         if(valueProviderNode instanceof LiteralArgumentBuilder<?> literalBuilder && literalBuilder.getLiteral().equals("value")) {
             for(final var child : literalBuilder.getArguments()) {
                 if(child instanceof ArgumentCommandNode<?,?> argument && argument.getName().equals("value")) {
-                    var serializable = SerializableArgument.unwrapOrThrow(argument.getType()).argument();
+                    var serializable = SerializableArgument.unwrapOrThrow(argument.getType());
                     if(serializable instanceof NbtTagArgument) {
                         builder.addData(argument.getType(), AdditionalArgumentTypeData.INSTANCE.getDataObjectSource(), dataObjectSource);
                     }

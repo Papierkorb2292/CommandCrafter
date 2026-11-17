@@ -137,7 +137,7 @@ fun interface NodeEvaluator {
             val entry = context.nodes.withIndex()
                 .filter {
                     val argumentType = (it.value.node as? ArgumentCommandNode<*, *>)?.type ?: return@filter false
-                    val serializable = SerializableArgument.unwrapOrThrow(argumentType).argument()
+                    val serializable = SerializableArgument.unwrapOrThrow(argumentType)
                     serializable.javaClass in types
                 }
                 .minByOrNull { (it.index - startIndex).absoluteValue }
@@ -518,7 +518,7 @@ fun interface NodeEvaluator {
 
             private fun getNodeEvaluator(node: CommandNode<CommandSourceStack>, context: CommandContext<CommandSourceStack>): EvaluationProvider? =
                 if(node is ArgumentCommandNode<*, *>) {
-                    val serializable = SerializableArgument.unwrapOrThrow(node.type).argument()
+                    val serializable = SerializableArgument.unwrapOrThrow(node.type)
                     nodeEvaluators[serializable.javaClass]?.getEvaluationProvider(
                         node.name,
                         context,

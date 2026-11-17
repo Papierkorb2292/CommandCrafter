@@ -543,7 +543,7 @@ object CodecTransformers {
         })
 
     @JvmStatic
-    @CodecMod(target = DataComponents::class, methodName = $$"lambda$static$61", javaFieldRead = "net/minecraft/world/item/component/CustomData.CODEC")
+    @CodecMod(target = DataComponents::class, methodName = $$"lambda$static$62", javaFieldRead = "net/minecraft/world/item/component/CustomData.CODEC")
     fun decodeEmbeddedBucketEntityData(codec: Codec<CustomData>): Codec<CustomData> =
         DataObjectDecoding.wrapWithEmbeddedDecoder(codec, unitDecoder(RecordCodecBuilder.create {
             it.group( // Use custom codec, because Minecraft is still using CompoundTags instead of ValueInputs

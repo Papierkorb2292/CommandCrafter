@@ -29,7 +29,7 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     companion object {
         val keyParser: Grammar<CommandParserState, String>
         init {
-            val snbtRules = SnbtGrammar.createParser<CommandParserState, _>(NbtOps.INSTANCE).rules
+            val snbtRules = SnbtGrammar.createParser<Tag>(NbtOps.INSTANCE).rules
             @Suppress("UNCHECKED_CAST")
             val mapKeySymbol = snbtRules.getSymbolByName("map_key") as Atom<String>
             keyParser = Grammar(snbtRules, snbtRules.getOrThrow(mapKeySymbol));

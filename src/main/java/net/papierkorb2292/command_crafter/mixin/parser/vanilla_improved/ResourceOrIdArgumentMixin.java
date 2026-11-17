@@ -7,6 +7,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.commands.CommandBox;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.ResourceOrIdArgument;
+import net.minecraft.commands.arguments.ValidationWrapper;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
@@ -25,18 +26,26 @@ import java.util.Collections;
 import java.util.List;
 
 @Mixin(ResourceOrIdArgument.class)
-public class ResourceOrIdArgumentMixin<T> implements StringifiableArgumentType {
-    @Shadow @Final private Codec<T> codec;
+public class ResourceOrIdArgumentMixin<Raw, Value> implements StringifiableArgumentType {
+    @Shadow @Final private Codec<Raw> codec;
 
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<CommandSourceStack> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
-        //noinspection unchecked
-        var argument = (Holder<T>)context.getArgument(name, Holder.class);
+        var argument = context.getArgument(name, Object.class);
+        Holder<?> holder;
+        if(argument instanceof Holder<?> holder2) {
+            holder = holder2;
+        } else if(argument instanceof ValidationWrapper<?> wrapper) {
+            holder = ((ValidationWrapperAccessor<?>)wrapper).getResult();
+        } else {
+            throw new IllegalStateException("ResourceOrIdArgument value was expected to be either a holder or validation wrapper");
+        }
         RegistryOps<Tag> registryOps = CommandBox.grabParseContext().holderGetters().createSerializationContext(NbtOps.INSTANCE);
-        return Collections.singletonList(Either.left(argument.unwrap().map(
+        //noinspection unchecked
+        return Collections.singletonList(Either.left(holder.unwrap().map(
                 key -> key.identifier().toShortString(),
-                value -> codec.encode(value, registryOps, registryOps.empty()).getOrThrow().toString()
+                value -> codec.encode((Raw)value, registryOps, registryOps.empty()).getOrThrow().toString()
         )));
     }
 }

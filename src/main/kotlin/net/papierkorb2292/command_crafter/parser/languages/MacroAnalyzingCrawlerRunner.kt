@@ -34,7 +34,6 @@ import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.roundUpBinarySearch
 import net.papierkorb2292.command_crafter.mixin.editor.CommandBoxAccessor
-import net.papierkorb2292.command_crafter.mixin.editor.processing.StringArgumentAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandContextBuilderAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.macros.CommandDispatcherAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -1135,7 +1134,7 @@ class MacroAnalyzingCrawlerRunner(
                     suggestionProvider = null
                 }
                 is ArgumentCommandNode<SuggestionContext, *> -> {
-                    val serializableArg = SerializableArgument.unwrapOrThrow(node.type).argument()
+                    val serializableArg = SerializableArgument.unwrapOrThrow(node.type)
                     typeId = BuiltInRegistries.COMMAND_ARGUMENT_TYPE.getId(serializableArg.type())
                     writeArgumentTypeUnsafe(serializableArg, serializableArg.type().streamCodec, buf)
                     suggestionProvider = node.customSuggestions
@@ -1225,10 +1224,10 @@ class MacroAnalyzingCrawlerRunner(
             if(node !is ArgumentCommandNode<*, *>)
                 return true
             val argumentType: ArgumentType<*> = node.type
-            val serializable = SerializableArgument.unwrapOrThrow(argumentType).argument()
+            val serializable = SerializableArgument.unwrapOrThrow(argumentType)
             if(serializable.javaClass in KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES)
                 return false
-            if(serializable is StringArgumentAccessor && serializable.stringType == StringArgument.StringType.WORD)
+            if(serializable is StringArgument.Word)
                 return false
             return true
         }
@@ -1237,8 +1236,8 @@ class MacroAnalyzingCrawlerRunner(
             if(node !is ArgumentCommandNode<*, *>)
                 return false
             val argumentType = node.type
-            val serializable = SerializableArgument.unwrapOrThrow(argumentType).argument()
-            if(serializable is StringArgumentAccessor && serializable.stringType == StringArgument.StringType.GREEDY)
+            val serializable = SerializableArgument.unwrapOrThrow(argumentType)
+            if(serializable is StringArgument.Greedy)
                 return true
             if(serializable is MessageArgument)
                 return true

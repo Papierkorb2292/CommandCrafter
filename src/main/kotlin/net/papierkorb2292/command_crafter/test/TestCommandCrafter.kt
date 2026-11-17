@@ -1115,7 +1115,9 @@ object TestCommandCrafter {
         ItemArgument::class.java,
         ResourceOrIdArgument::class.java,
         GameProfileArgument::class.java,
-        SlotSourceArgument::class.java
+        SlotSourceArgument::class.java,
+        ParticleArgument::class.java,
+        ResourceSelectorArgument::class.java,
     )
 
     @GameTest
@@ -1144,7 +1146,7 @@ object TestCommandCrafter {
     ) {
         if(node is ArgumentCommandNode<T, *>) {
             val argumentType = node.type
-            val serializable = SerializableArgument.unwrapOrThrow(argumentType).argument()
+            val serializable = SerializableArgument.unwrapOrThrow(argumentType)
             var argumentClass: Class<*> = serializable.javaClass
             var argumentHasEquals = true
             while(argumentClass != Any::class.java) {

@@ -624,8 +624,8 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
         analyzeReader.cursor = parsedNode.range.start
         try {
             val nodeAnalyzingResult = analyzingResult.copyInput()
-            val serializableWrapper = if(node is ArgumentCommandNode<*, *>) SerializableArgument.unwrapOrThrow(node.type) else null
-            val hasCustomCompletions = serializableWrapper != null && CommandArgumentAnalyzerService.getAnalyzerForType(serializableWrapper.argument()::class.java)!!.hasCustomCompletions(context, node.name)
+            val serializable = if(node is ArgumentCommandNode<*, *>) SerializableArgument.unwrapOrThrow(node.type) else null
+            val hasCustomCompletions = serializable != null && CommandArgumentAnalyzerService.getAnalyzerForType(serializable.javaClass)!!.hasCustomCompletions(context, node.name)
             // Skip analyzing when generating serverside suggestions, because everything but the vanilla
             // suggestions has already been done by the client and shouldn't be done twice. Custom completions
             // have to be added so suggestions inside inline functions are added.
@@ -642,10 +642,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             0
                         )
                     } else if(node is ArgumentCommandNode<*, *>) {
-                        val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(serializableWrapper!!.argument()::class.java)!!
+                        val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(serializable!!.javaClass)!!
                         analyzer.analyze(
                             context,
-                            serializableWrapper,
+                            SerializableArgument.castOrThrow((node as ArgumentCommandNode<*, *>).type),
                             range,
                             node.name,
                             analyzeReader,

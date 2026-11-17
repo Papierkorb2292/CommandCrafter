@@ -2,6 +2,7 @@ package net.papierkorb2292.command_crafter.editor.processing.string_range_tree
 
 import com.mojang.serialization.Codec
 import com.mojang.serialization.MapCodec
+import net.minecraft.nbt.NbtAccounter
 import net.minecraft.network.codec.ByteBufCodecs
 import net.minecraft.resources.Identifier
 
@@ -23,7 +24,7 @@ interface StringEscaper {
             CODECS_BY_ID[COMBINED_TYPE] = CODEC.listOf().fieldOf("escapers").xmap(::CombinedEscaper, CombinedEscaper::escapers)
         }
 
-        val PACKET_CODEC = ByteBufCodecs.fromCodec(CODEC)
+        val PACKET_CODEC = ByteBufCodecs.fromCodec(CODEC, NbtAccounter::defaultQuota)
 
         fun escapeForQuotes(quotes: String) = QuoteEscaper(quotes)
         fun combine(escapers: List<StringEscaper>) = CombinedEscaper(escapers)

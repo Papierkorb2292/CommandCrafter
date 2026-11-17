@@ -52,7 +52,7 @@ public class EntityDataAccessDataProviderMixin {
             for(final var child : arg.getArguments()) {
                 if(!(child instanceof ArgumentCommandNode<?,?> argument))
                     continue;
-                var serializable = SerializableArgument.unwrapOrThrow(argument.getType()).argument();
+                var serializable = SerializableArgument.unwrapOrThrow(argument.getType());
                 if(serializable instanceof CompoundTagArgument) {
                     builder.addData(argument.getType(), AdditionalArgumentTypeData.INSTANCE.getDataObjectSource(), new DataObjectDecoding.DataObjectSource(DataObjectDecoding.DataObjectSourceKind.ENTITY_CHANGE, argumentName));
                 } else if(serializable instanceof NbtPathArgument) {
