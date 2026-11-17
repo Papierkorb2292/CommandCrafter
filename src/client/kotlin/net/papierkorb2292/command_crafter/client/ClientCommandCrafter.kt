@@ -179,7 +179,7 @@ object ClientCommandCrafter : ClientModInitializer {
         val mappingInfo = FileMappingInfo(listOf(input))
         val directiveReader = DirectiveStringReader(
             mappingInfo,
-            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager, source, commandTree, mappingInfo)
+            AnalyzingResourceCreator(null, "", editorConnectionManager.minecraftServerConnection.dynamicRegistryManager, source, commandTree, Minecraft.getInstance(), mappingInfo)
         )
         directiveReader.enterClosure(Language.TopLevelClosure(VanillaLanguage()))
         if(directiveReader.canRead() && directiveReader.peek() == '/')
