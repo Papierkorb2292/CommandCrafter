@@ -332,8 +332,10 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                 elementBreakpointParsers += FunctionElementDebugInformation.CommandContextElementProcessor(contextChain.topContext)
                 builder.addCommand(BuildContexts.Unbound(string, contextChain))
             } }
-            if(reader.canRead(0) && reader.peek(-1) != '\n')
+            if(reader.canRead(0) && reader.peek(-1) != '\n') {
+                reader.checkEndLanguage() // Make sure to check if the scope ends here. Otherwise, LanguageManager will call the same language a second time
                 break
+            }
         }
         return reader.resourceCreator.run {
             @Suppress("UNCHECKED_CAST")
