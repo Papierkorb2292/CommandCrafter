@@ -80,6 +80,11 @@ object TestCommandCrafter {
 
     val fileResultProcessing = Executors.newSingleThreadExecutor()
 
+    fun <T> evaluateOnFileProcessingThread(block: () -> CompletableFuture<T>): CompletableFuture<T> =
+        CompletableFuture.supplyAsync(block, fileResultProcessing).thenCompose { it }
+    fun <T> evaluateOnFileProcessingThreadNullable(block: () -> CompletableFuture<T>?): CompletableFuture<T?> =
+        CompletableFuture.supplyAsync(block, fileResultProcessing).thenCompose { it ?: CompletableFuture.completedFuture(null) }
+
     @GameTest
     fun exampleTest(context: GameTestHelper) {
         context.assertValueEqual(1, 1, Component.literal("example"))
@@ -344,7 +349,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testAnalyzingResultAddOffset(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testAnalyzingResultAddOffset(context: GameTestHelper) {
         fun createTestAnalyzingResult(fileInfo: FileMappingInfo): AnalyzingResult {
             // All example data is chosen such that it can be compared when this method is called for the entire file once and for the end of the file once (and offset afterward)
             val result = AnalyzingResult(fileInfo, Position())
@@ -564,7 +569,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testCommandSuggestions(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testCommandSuggestions(context: GameTestHelper) {
         val markedLines = """
             §execute §\
                 §if predicate {§\
@@ -588,8 +593,7 @@ object TestCommandCrafter {
         for(rootIndex in rootIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
-                analyzingResult
-                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }
                     .get()
                     .any { it.label == "execute" },
                 Component.literal("Root suggestions for marker at index $rootIndex")
@@ -598,8 +602,7 @@ object TestCommandCrafter {
         for(rootIndex in subcommandIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
-                analyzingResult
-                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }
                     .get()
                     .any { it.label == "if" },
                 Component.literal("Subcommand suggestions for marker at index $rootIndex")
@@ -608,8 +611,7 @@ object TestCommandCrafter {
         for(rootIndex in predicateIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
-                analyzingResult
-                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }
                     .get()
                     .any { it.label == "type" },
                 Component.literal("Predicate suggestions for marker at index $rootIndex")
@@ -620,7 +622,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testMalformedItemSuggestions(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testMalformedItemSuggestions(context: GameTestHelper) {
         val markedLines = """
             clear @a §nothing[§d§oesnt_exist,minecraft:custom_name=§{text:"Blue Stone",,§}§]
             give @a §something[c§ustom_name={text:"Red Rock",,§}§,§]
@@ -631,41 +633,41 @@ object TestCommandCrafter {
 
         for((i, location) in markedLocations.withIndex()) {
             context.assertFalse(
-                analyzingResult.getCompletions(location.absoluteCursor, dummyCompletionContext)
-                    ?.get()
+                evaluateOnFileProcessingThreadNullable { analyzingResult.getCompletions(location.absoluteCursor, dummyCompletionContext) }
+                    .get()
                     .isNullOrEmpty(),
                 Component.literal("Missing item predicate suggestions for marker at $i")
             )
         }
 
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[4].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[4].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" || it.label == "," },
             Component.literal("Suggestion leaking into item predicate nbt")
         )
         context.assertTrue(
-            analyzingResult.getCompletions(markedLocations[1].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[1].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" },
             Component.literal("No '!' suggestion in item predicate")
         )
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[8].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[8].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" || it.label == "," },
             Component.literal("Suggestion leaking into item argument nbt")
         )
         context.assertTrue(
-            analyzingResult.getCompletions(markedLocations[10].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[10].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" },
             Component.literal("No '!' suggestion in item argument")
         )
         context.assertTrue(
-            analyzingResult.getCompletions(markedLocations[6].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[6].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "minecraft:diamond" },
             Component.literal("No item suggestion in item argument")
         )
 
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "~" },
             Component.literal("Item predicate '~' suggestion after '='")
         )
@@ -674,7 +676,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testEntityMergeNbtAnalyzing(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testEntityMergeNbtAnalyzing(context: GameTestHelper) {
         val markedLines = """
             data merge entity @s {§NoAI:1b,CustomName:[§{}]}
             # This can't be combined with the first command, because you wouldn't get all click_event suggestions inside a list, where no merging can happen
@@ -689,14 +691,14 @@ object TestCommandCrafter {
         for(index in multipleSuggestionsLocationIndices) {
             val absoluteCursor = markedLocations[index].absoluteCursor
             context.assertTrue(
-                analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!!.get().size >= 5,
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }.get().size >= 5,
                 "Multiple suggestions at index $index"
             )
         }
 
         context.assertValueEqual(
             1,
-            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get().size,
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!! }.get().size,
             "Suggestion count for click_event inside list"
         )
 
@@ -826,7 +828,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testCompletionAfterInlineFunctionWithVanillaNewline(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testCompletionAfterInlineFunctionWithVanillaNewline(context: GameTestHelper) {
         // Note that there is a space after '}', test whether this is handled correctly.
         val lines = """
             @language vanilla inlineResources
@@ -835,7 +837,7 @@ object TestCommandCrafter {
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(lines)
         val analyzingResult = analyseCommand(context, processedLines)
-        val suggestions = analyzingResult.getCompletions(markedLocations[0].absoluteCursor, dummyCompletionContext)?.get()
+        val suggestions = evaluateOnFileProcessingThreadNullable { analyzingResult.getCompletions(markedLocations[0].absoluteCursor, dummyCompletionContext) }.get()
         context.assertValueEqual(
             suggestions?.map { it.label },
             listOf("with"),
@@ -897,7 +899,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testMacroSuggestions(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testMacroSuggestions(context: GameTestHelper) {
         val markedLines = $$"""
             $execute $(sub) run §
             $execute if entity $(selector) run §execute run execute run $(something)
@@ -909,7 +911,7 @@ object TestCommandCrafter {
         val result = analyseCommand(context, processedLines)
 
         val suggestions = markedLocations.map { location ->
-            result.getCompletions(location.absoluteCursor, dummyCompletionContext)?.get()
+            evaluateOnFileProcessingThreadNullable { result.getCompletions(location.absoluteCursor, dummyCompletionContext) }.get()
         }
 
         val line1Suggestions = suggestions[0]?.map { it.label }?.toSet()
@@ -943,7 +945,7 @@ object TestCommandCrafter {
     }
 
     @GameTest
-    fun testMacroModificationTracker(context: GameTestHelper) = fileResultProcessing.execute { // Executor is necessary to prevent race-conditions since command completions can also run async
+    fun testMacroModificationTracker(context: GameTestHelper) {
         val file = EditorDocument.fromString("", $$"""
             $execute $(sub) run §
             $execute unless entity @e[gamemode=§creative] if entity @e[tag=$(anchor),distance=..10] run
@@ -1006,8 +1008,8 @@ object TestCommandCrafter {
 
             for((initialLocation, newLocation) in initialFileLocations.zip(newFileLocations)) {
                 context.assertValueEqual(
-                    newResult.getCompletions(newLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
-                    expectedResult.getCompletions(initialLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
+                    evaluateOnFileProcessingThread { newResult.getCompletions(newLocation.absoluteCursor, dummyCompletionContext)!! }.get().size,
+                    evaluateOnFileProcessingThread { expectedResult.getCompletions(initialLocation.absoluteCursor, dummyCompletionContext)!! }.get().size,
                     Component.literal("Expected $modificationName to not change macro completions at initial position ${initialLocation.position}")
                 )
             }
