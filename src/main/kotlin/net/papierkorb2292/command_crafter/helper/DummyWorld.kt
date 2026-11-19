@@ -46,15 +46,14 @@ import net.minecraft.world.ticks.LevelTickAccess
 import java.util.function.BooleanSupplier
 
 class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet) : Level(DummyProperties(), OVERWORLD, registryManager, registryManager.getOrThrow(
-    BuiltinDimensionTypes.OVERWORLD), false, false, 0, 0) {
+    BuiltinDimensionTypes.OVERWORLD), false, 0) {
     private val chunkManager = DummyChunkManager()
     override fun players(): MutableList<out Player> = mutableListOf()
 
     private var nextEntityId = 1
 
     override fun getNextEntityId(): Int = nextEntityId++
-
-    override fun getUncachedNoiseBiome(biomeX: Int, biomeY: Int, biomeZ: Int): Holder<Biome> {
+    override fun getUncachedBiome(x: Int, y: Int, z: Int): Holder<Biome> {
         return registryAccess().getOrThrow(Biomes.PLAINS)
     }
 
@@ -101,22 +100,20 @@ class DummyWorld(registryManager: RegistryAccess, val featureSet: FeatureFlagSet
     ) { }
 
     override fun explode(
-        entity: Entity?,
+        source: Entity?,
         damageSource: DamageSource?,
-        behavior: ExplosionDamageCalculator?,
+        damageCalculator: ExplosionDamageCalculator?,
         x: Double,
         y: Double,
         z: Double,
-        power: Float,
-        createFire: Boolean,
-        explosionSourceType: ExplosionInteraction,
-        smallParticle: ParticleOptions,
-        largeParticle: ParticleOptions,
+        r: Float,
+        fire: Boolean,
+        interactionType: ExplosionInteraction,
+        smallExplosionParticles: ParticleOptions?,
+        largeExplosionParticles: ParticleOptions?,
         blockParticles: WeightedList<ExplosionParticleInfo>,
-        soundEvent: Holder<SoundEvent>,
+        explosionSound: Holder<SoundEvent>?,
     ) { }
-
-    override fun gatherChunkSourceStats() = "DummyWorld"
 
     override fun setRespawnData(spawnPoint: LevelData.RespawnData) {
         levelData.setSpawn(spawnPoint)

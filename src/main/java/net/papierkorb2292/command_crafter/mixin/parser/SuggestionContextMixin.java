@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.mixin.parser;
 
 import com.mojang.brigadier.Message;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.suggestions.SuggestionContext;
 import net.minecraft.resources.Identifier;
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,14 +14,13 @@ import java.util.function.Function;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(SharedSuggestionProvider.class)
-public interface SharedSuggestionProviderMixin {
+@Mixin(SuggestionContext.class)
+public interface SuggestionContextMixin {
 
     @Inject(
-            method = "lambda$suggestResource$1",
+            method = "suggestResource(Ljava/lang/Iterable;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture; ->{1} accept(Lnet/minecraft/resources/Identifier;)V",
             at = @At("HEAD"),
-            cancellable = true,
-            remap = false
+            cancellable = true
     )
     private static void command_crafter$preventSuggestingGeneratedResources(SuggestionsBuilder suggestionsBuilder, String string, Identifier id, CallbackInfo ci) {
         if(id.getPath().endsWith("--craftergen")) {
@@ -30,10 +29,9 @@ public interface SharedSuggestionProviderMixin {
     }
 
     @Inject(
-            method = "lambda$suggestResource$3",
+            method = "suggestResource(Ljava/lang/Iterable;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture; ->{1} accept(Lnet/minecraft/resources/Identifier;)V",
             at = @At("HEAD"),
-            cancellable = true,
-            remap = false
+            cancellable = true
     )
     private static void command_crafter$preventSuggestingGeneratedResources(SuggestionsBuilder suggestionsBuilder, Identifier id, CallbackInfo ci) {
         if(id.getPath().endsWith("--craftergen")) {
@@ -42,9 +40,8 @@ public interface SharedSuggestionProviderMixin {
     }
 
     @Inject(
-            method = "lambda$suggestResource$1",
-            at = @At("HEAD"),
-            remap = false
+            method = "suggestResource(Ljava/lang/Iterable;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;Ljava/lang/String;)Ljava/util/concurrent/CompletableFuture; ->{1} accept(Lnet/minecraft/resources/Identifier;)V",
+            at = @At("HEAD")
     )
     private static void command_crafter$suggestShortId(SuggestionsBuilder suggestionsBuilder, String prefix, Identifier id, CallbackInfo ci) {
         if(!id.getNamespace().equals("minecraft"))
@@ -56,9 +53,8 @@ public interface SharedSuggestionProviderMixin {
     }
 
     @Inject(
-            method = "lambda$suggestResource$3",
-            at = @At("HEAD"),
-            remap = false
+            method = "suggestResource(Ljava/lang/Iterable;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;)Ljava/util/concurrent/CompletableFuture; ->{1} accept(Lnet/minecraft/resources/Identifier;)V",
+            at = @At("HEAD")
     )
     private static void command_crafter$suggestShortId(SuggestionsBuilder builder, Identifier id, CallbackInfo ci) {
         if(!id.getNamespace().equals("minecraft"))
@@ -70,9 +66,8 @@ public interface SharedSuggestionProviderMixin {
     }
 
     @Inject(
-            method = "lambda$suggestResource$4",
-            at = @At("HEAD"),
-            remap = false
+            method = "suggestResource(Ljava/lang/Iterable;Lcom/mojang/brigadier/suggestion/SuggestionsBuilder;Ljava/util/function/Function;Ljava/util/function/Function;)Ljava/util/concurrent/CompletableFuture; ->{1} accept",
+            at = @At("HEAD")
     )
     private static void command_crafter$suggestShortId(SuggestionsBuilder builder, Function<Object, Identifier> idFun, Function<Object, Message> tooltip, Object v, CallbackInfo ci) {
         final var id = idFun.apply(v);

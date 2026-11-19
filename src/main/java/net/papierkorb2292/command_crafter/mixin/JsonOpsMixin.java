@@ -14,8 +14,7 @@ public class JsonOpsMixin {
             at = @At(
                     value = "CONSTANT",
                     args = "classValue=com.google.gson.JsonNull"
-            ),
-            remap = false
+            )
     )
     private boolean checkForNullInputInConvertTo(Object object, Operation<Boolean> op) {
         return op.call(object) || object == null;

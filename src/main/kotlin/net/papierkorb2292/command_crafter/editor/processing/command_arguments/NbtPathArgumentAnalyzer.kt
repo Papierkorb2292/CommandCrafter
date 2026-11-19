@@ -5,13 +5,14 @@ import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.CommandSyntaxException
 import com.mojang.serialization.Decoder
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.NbtPathArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.nbt.Tag
+import net.papierkorb2292.command_crafter.editor.processing.AdditionalArgumentTypeData
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.BranchBehaviorProvider
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.DataObjectSourceContainer
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.MalformedStringDecoderAnalyzing
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.PathOperations
@@ -21,7 +22,7 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
-class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> {
+class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService {
     companion object {
         val currentAnalyzingResult = ThreadLocal<AnalyzingResult>()
         val currentPathBuilder = ThreadLocal<StringRangePath.Builder>()
@@ -55,7 +56,7 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
             currentAnalyzingResult.runWithValueSwap(analyzingResult) {
                 currentPathBuilder.runWithValueSwap(builder) {
                     try {
-                        NbtPathArgument().parse(reader)
+                        NbtPathArgument.nbtPath().parse(reader)
                     } catch(_: CommandSyntaxException) {}
                 }
             }
@@ -67,15 +68,15 @@ class NbtPathArgumentAnalyzer : CommandArgumentAnalyzerService<NbtPathArgument> 
         get() = listOf(NbtPathArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: NbtPathArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
         analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
-        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
+        val dataObjectSource = reader.resourceCreator.commandTree.getAdditionalData(type, AdditionalArgumentTypeData.dataObjectSource)
         val decoder: Decoder<*>? = if(dataObjectSource != null) DataObjectDecoding.getForReader(reader).getDecoderForSource(dataObjectSource, context, reader) else null
 
         analyzeReader(reader, result, dataObjectSource?.getNBTBranchBehavior(), decoder, analyzingExecutor)

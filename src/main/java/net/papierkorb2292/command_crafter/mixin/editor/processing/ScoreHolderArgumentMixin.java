@@ -14,7 +14,7 @@ import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 public class ScoreHolderArgumentMixin {
 
     @ModifyExpressionValue(
-            method = "lambda$static$0",
+            method = "<clinit> -> Lnet/minecraft/commands/suggestions/ServerOnlyCustomSuggestion;",
             at = @At(
                     value = "NEW",
                     target = "(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/commands/arguments/selector/EntitySelectorParser;"

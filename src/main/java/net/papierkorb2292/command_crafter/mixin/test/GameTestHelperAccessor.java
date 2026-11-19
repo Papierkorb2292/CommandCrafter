@@ -8,5 +8,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(GameTestHelper.class)
 public interface GameTestHelperAccessor {
     @Accessor
-    public GameTestInfo getTestInfo();
+    GameTestInfo getTestInfo();
 }

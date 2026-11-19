@@ -6,8 +6,8 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ObjectiveCriteriaArgument;
+import net.minecraft.commands.suggestions.SuggestionContext;
 import org.spongepowered.asm.mixin.Mixin;
 
 import java.util.ArrayList;
@@ -32,6 +32,6 @@ public class ObjectiveCriteriaArgumentMixin {
             }
             command_crafter$cachedSuggestions = list;
         }
-        return SharedSuggestionProvider.suggest(command_crafter$cachedSuggestions, builder);
+        return SuggestionContext.suggest(command_crafter$cachedSuggestions, builder);
     }
 }

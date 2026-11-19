@@ -25,8 +25,7 @@ public class CommandContextBuilderMixin<S> implements DirectiveStringReaderConsu
             at = @At(
                     value = "NEW",
                     target = "com/mojang/brigadier/context/ParsedCommandNode"
-            ),
-            remap = false
+            )
     )
     private ParsedCommandNode<S> command_crafter$addCursorOffsetToParsedNode(ParsedCommandNode<S> parsedNode) {
         if(command_crafter$reader != null)
@@ -39,8 +38,7 @@ public class CommandContextBuilderMixin<S> implements DirectiveStringReaderConsu
             at = @At(
                     value = "NEW",
                     target = "com/mojang/brigadier/context/CommandContextBuilder"
-            ),
-            remap = false
+            )
     )
     private CommandContextBuilder<S> command_crafter$setCopyReader(CommandContextBuilder<S> builder) {
         if(command_crafter$reader != null)

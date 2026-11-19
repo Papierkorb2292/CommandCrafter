@@ -31,7 +31,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
             return behavior.callback as ExtraDecoderBehavior<TNode>
         }
 
-        fun <TResult, TNode : Any> decodeWithBehavior(
+        fun <TResult : Any, TNode : Any> decodeWithBehavior(
             decoder: Decoder<TResult>,
             ops: DynamicOps<TNode>,
             input: TNode,
@@ -41,7 +41,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
                 decoder.decode(ops, input)
             }
 
-        fun <TResult, TNode : Any> decodeWithBehavior(
+        fun <TResult : Any, TNode : Any> decodeWithBehavior(
             decoder: MapDecoder<TResult>,
             ops: DynamicOps<TNode>,
             input: MapLike<TNode>,
@@ -51,7 +51,7 @@ interface ExtraDecoderBehavior<TNode : Any> {
                 decoder.decode(ops, input)
             }
 
-        fun <TResult, TNode : Any> decodeWithoutBehavior(
+        fun <TResult : Any, TNode : Any> decodeWithoutBehavior(
             decoder: Decoder<TResult>,
             ops: DynamicOps<TNode>,
             input: TNode,
@@ -92,9 +92,9 @@ interface ExtraDecoderBehavior<TNode : Any> {
     val macroParser: AnalyzingResourceCreator.MacroParser?
         get() = null
 
-    fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {}
+    fun <TResult : Any> onError(error: DataResult.Error<TResult>, input: TNode) {}
     fun markStringParseError(input: TNode) {}
-    fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
+    fun <TResult : Any> onResult(result: TResult, isPartial: Boolean, input: TNode) {}
     fun onDecodeStart(input: TNode) {}
     fun <TResult> decodeWithBehavior(branchBehaviorModifier: BranchBehaviorProvider.BranchBehaviorModifier, convertToWarnings: Boolean, decodeCallback: () -> TResult): TResult = decodeCallback()
     fun markErrorLateAddition(): LateAdditionRunner = IDENTITY_LATE_ADDITION_RUNNER

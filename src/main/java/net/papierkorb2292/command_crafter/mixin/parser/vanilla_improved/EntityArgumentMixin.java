@@ -3,12 +3,12 @@ package net.papierkorb2292.command_crafter.mixin.parser.vanilla_improved;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Either;
-import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
-import net.minecraft.commands.arguments.selector.EntitySelectorParser;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.nbt.TagParser;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.selector.EntitySelectorParser;
+import net.minecraft.commands.arguments.selector.options.EntitySelectorOptions;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.TagParser;
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader;
 import net.papierkorb2292.command_crafter.parser.RawZipResourceCreator;
 import net.papierkorb2292.command_crafter.parser.helper.RawResource;
@@ -56,7 +56,7 @@ public class EntityArgumentMixin implements StringifiableArgumentType {
                 if(reader.peek() == '!') reader.skip();
                 result.add(Either.left(reader.getString().substring(sectionStartCursor, reader.getCursor()) + '#'));
                 reader.skipWhitespace();
-                var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, BuiltInRegistries.ENTITY_TYPE);
+                var entryList = VanillaLanguage.Companion.parseRawRegistryTagTuple(reader, Registries.ENTITY_TYPE);
                 result.add(Either.right(entryList.getResource()));
                 sectionStartCursor = reader.getCursor();
             } else if(argumentName.equals("nbt") && reader.canRead()) {

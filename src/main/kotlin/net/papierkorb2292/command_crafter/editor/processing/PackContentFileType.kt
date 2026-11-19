@@ -70,6 +70,10 @@ class PackContentFileType private constructor(val contentTypePath: String, val p
             // Will be registered in constructor
             return PackContentFileType(path, PackType.DATA)
         }
+        fun getTypeForDynamicRegistry(key: ResourceKey<out Registry<*>>): PackContentFileType? {
+            val path = Registries.elementsDirPath(key)
+            return types[path]
+        }
         fun getOrCreateTypeForRegistryTag(key: ResourceKey<out Registry<*>>): PackContentFileType {
             // Note that Fabric mixes into elementsDirPath to add namespace
             val path = Registries.tagsDirPath(key)

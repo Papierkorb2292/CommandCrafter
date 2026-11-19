@@ -3,11 +3,16 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.NbtTagArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.nbt.*
+import net.papierkorb2292.command_crafter.editor.processing.AdditionalArgumentTypeData
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.helper.*
+import net.papierkorb2292.command_crafter.editor.processing.helper.AllowMalformedContainer
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
+import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResultCreator
+import net.papierkorb2292.command_crafter.editor.processing.helper.StringRangeTreeCreator
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTree
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.TreeOperations
@@ -16,13 +21,13 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.DiagnosticSeverity
 
-class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
+class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService {
     override val argumentTypes
         get() = listOf(NbtTagArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: NbtTagArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -37,7 +42,7 @@ class NbtTagArgumentAnalyzer : CommandArgumentAnalyzerService<NbtTagArgument> {
         (nbtReader as AnalyzingResultCreator).`command_crafter$setAnalyzingResult`(result)
         val nbt = nbtReader.parseAsArgument(reader)
 
-        val dataObjectSource = (type as DataObjectSourceContainer).`command_crafter$getDataObjectSource`()
+        val dataObjectSource = reader.resourceCreator.commandTree.getAdditionalData(type, AdditionalArgumentTypeData.dataObjectSource)
         val isPath = dataObjectSource?.isPathReference() ?: false
         if(!isPath) return
         analyzingExecutor.submit { // This part isn't necessary to generate most of the semantic tokens (except for within strings, but we can ignore those for the macro parser)

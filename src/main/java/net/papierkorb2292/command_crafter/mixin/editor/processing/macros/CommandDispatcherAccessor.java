@@ -10,6 +10,6 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(CommandDispatcher.class)
 public interface CommandDispatcherAccessor<S> {
-    @Invoker(remap = false)
+    @Invoker
     ParseResults<S> callParseNodes(final CommandNode<S> node, final StringReader originalReader, final CommandContextBuilder<S> contextSoFar);
 }

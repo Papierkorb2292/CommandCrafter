@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
-import com.mojang.brigadier.StringReader;
+import com.llamalad7.mixinextras.expression.Expression;
 import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.chars.CharSet;
 import net.minecraft.commands.arguments.item.ComponentPredicateParser;
@@ -15,8 +15,7 @@ import net.minecraft.util.parsing.packrat.Atom;
 import net.minecraft.util.parsing.packrat.Dictionary;
 import net.minecraft.util.parsing.packrat.Rule;
 import net.minecraft.util.parsing.packrat.Term;
-import net.papierkorb2292.command_crafter.parser.helper.InlineTagPackratParsingCallbacks;
-import org.apache.commons.lang3.ArrayUtils;
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -33,41 +32,40 @@ public class ComponentPredicateParserMixin {
     private static final Atom<?> COMMAND_CRAFTER$INLINE_TAG_SYMBOL = new Atom<>("command_crafter:inline_tag");
     private static final Atom<?> COMMAND_CRAFTER$MALFORMED_FALLBACK = new Atom<>("command_crafter:malformed_fallback");
 
+    @Expression("'#'")
     @ModifyArg(
             method = "createGrammar",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;put(Lnet/minecraft/util/parsing/packrat/Atom;Lnet/minecraft/util/parsing/packrat/Term;Lnet/minecraft/util/parsing/packrat/Rule$SimpleRuleAction;)Lnet/minecraft/util/parsing/packrat/NamedRule;",
-                    ordinal = 0
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;put(Lnet/minecraft/util/parsing/packrat/Atom;Lnet/minecraft/util/parsing/packrat/Term;Lnet/minecraft/util/parsing/packrat/Rule$SimpleRuleAction;)Lnet/minecraft/util/parsing/packrat/NamedRule;"
             ),
             slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "intValue=35" // '#' char
-                    )
+                    from = @At("MIXINEXTRAS:EXPRESSION")
             )
     )
-    private static <T, C, P> Term<StringReader> command_crafter$addInlineTagRule(Term<StringReader> original, @Local(argsOnly = true) ComponentPredicateParser.Context<T, C, P> callbacks, @Local Dictionary<StringReader> parsingRules) {
-        if(!(callbacks instanceof InlineTagPackratParsingCallbacks<?> inlineTagRuleProvider)) {
-            return original;
-        }
+    private static <T, C, P, S extends ComponentPredicateParser.Context<T, C, P>> Term<S> command_crafter$addInlineTagRule(Term<S> original, @Local Dictionary<S> parsingRules) {
         //noinspection unchecked
-        parsingRules.put((Atom<T>)COMMAND_CRAFTER$INLINE_TAG_SYMBOL, (Rule<StringReader, T>)inlineTagRuleProvider.command_crafter$getInlineTagRule());
+        parsingRules.put((Atom<T>)COMMAND_CRAFTER$INLINE_TAG_SYMBOL, new VanillaLanguage.InlineTagRule<S, T>());
         return Term.alternative(original, parsingRules.named(COMMAND_CRAFTER$INLINE_TAG_SYMBOL));
     }
 
+    @Expression("'#'")
     @ModifyArg(
-            method = "lambda$createGrammar$1",
+            method = "createGrammar",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/util/parsing/packrat/Scope;getAny([Lnet/minecraft/util/parsing/packrat/Atom;)Ljava/lang/Object;"
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;put(Lnet/minecraft/util/parsing/packrat/Atom;Lnet/minecraft/util/parsing/packrat/Term;Lnet/minecraft/util/parsing/packrat/Rule$SimpleRuleAction;)Lnet/minecraft/util/parsing/packrat/NamedRule;"
+            ),
+            slice = @Slice(
+                    from = @At("MIXINEXTRAS:EXPRESSION")
             )
     )
-    private static <T> Atom<T>[] command_crafter$retrieveInlineTagResult(Atom<T>[] original) {
+    private static <T, C, P, S extends ComponentPredicateParser.Context<T, C, P>> Rule.SimpleRuleAction<S, Optional<T>> command_crafter$retrieveInlineTagRule(Rule.SimpleRuleAction<S, Optional<T>> action) {
         //noinspection unchecked
-        return ArrayUtils.addAll(original, (Atom<T>)COMMAND_CRAFTER$INLINE_TAG_SYMBOL);
+        return (scope) -> Optional.ofNullable(scope.get((Atom<T>)COMMAND_CRAFTER$INLINE_TAG_SYMBOL)).or(() -> action.run(scope));
     }
 
+    @Expression("'!'")
     @ModifyArg(
             method = "createGrammar",
             at = @At(
@@ -76,32 +74,33 @@ public class ComponentPredicateParserMixin {
                     ordinal = 0
             ),
             slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "intValue=33" // '!'
-                    )
+                    from = @At("MIXINEXTRAS:EXPRESSION")
             )
     )
-    private static <T, C, P> Term<StringReader> command_crafter$allowMalformedEntries(Atom<T> symbol, Term<StringReader> term, Rule.SimpleRuleAction<StringReader, T> action, @Local(argsOnly=true) ComponentPredicateParser.Context<T, C, P> callbacks) {
+    private static <T, C, P, S extends ComponentPredicateParser.Context<T, C, P>> Term<S> command_crafter$allowMalformedEntries(Atom<T> symbol, Term<S> term, Rule.SimpleRuleAction<S, T> action) {
         //noinspection unchecked
         return wrapTermSkipToNextEntryIfMalformed(
                 term,
                 CharSet.of('|', ',', ']'),
                 (Atom<T>)COMMAND_CRAFTER$MALFORMED_FALLBACK,
-                () -> callbacks.anyOf(Collections.emptyList())
+                context -> context.anyOf(Collections.emptyList())
         );
     }
 
+    @Expression("'!'")
     @ModifyArg(
-            method = "lambda$createGrammar$7",
+            method = "createGrammar",
             at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/util/parsing/packrat/Scope;getAnyOrThrow([Lnet/minecraft/util/parsing/packrat/Atom;)Ljava/lang/Object;"
+                    value = "INVOKE:FIRST",
+                    target = "Lnet/minecraft/util/parsing/packrat/Dictionary;put(Lnet/minecraft/util/parsing/packrat/Atom;Lnet/minecraft/util/parsing/packrat/Term;Lnet/minecraft/util/parsing/packrat/Rule$SimpleRuleAction;)Lnet/minecraft/util/parsing/packrat/NamedRule;"
+            ),
+            slice = @Slice(
+                    from = @At("MIXINEXTRAS:EXPRESSION")
             )
     )
-    private static <T> Atom<T>[] command_crafter$retrieveMalformedFallback(Atom<T>[] original) {
+    private static <T, C, P, S extends ComponentPredicateParser.Context<T, C, P>> Rule.SimpleRuleAction<S, T> command_crafter$retrieveMalformedFallback(Rule.SimpleRuleAction<S, T> action) {
         //noinspection unchecked
-        return ArrayUtils.addAll(original, (Atom<T>)COMMAND_CRAFTER$MALFORMED_FALLBACK);
+        return (scope) -> Optional.ofNullable(scope.get((Atom<T>)COMMAND_CRAFTER$MALFORMED_FALLBACK)).orElseGet(() -> action.run(scope));
     }
 
     private static final ItemPredicateArgument.ComponentWrapper command_crafter$fallbackComponentCheck = new ItemPredicateArgument.ComponentWrapper(Identifier.fromNamespaceAndPath("command_crafter", "fallback"), stack -> true, Codec.PASSTHROUGH.map(dynamic -> stack -> true));
@@ -113,16 +112,16 @@ public class ComponentPredicateParserMixin {
                     target = "Lnet/minecraft/util/parsing/packrat/Dictionary;named(Lnet/minecraft/util/parsing/packrat/Atom;)Lnet/minecraft/util/parsing/packrat/Term;"
             )
     )
-    private static Term<StringReader> command_crafter$allowMalformedIds(
-            Dictionary<StringReader> instance,
+    private static <T, C, P, S extends ComponentPredicateParser.Context<T, C, P>> Term<S> command_crafter$allowMalformedIds(
+            Dictionary<S> instance,
             Atom<Object> symbol,
-            Operation<Term<StringReader>> op,
+            Operation<Term<S>> op,
             @Share("component_type_symbol") LocalRef<Atom<Object>> componentTypeSymbolRef
     ) {
         final var originalTerm = op.call(instance, symbol);
         switch (symbol.name()) {
             case "type" -> {
-                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of('[', ' '), symbol, Optional::empty);
+                return wrapTermSkipToNextEntryIfMalformed(originalTerm, CharSet.of('[', ' '), symbol, _ -> Optional.empty());
             }
             case "component_type" -> {
                 componentTypeSymbolRef.set(symbol);
@@ -131,7 +130,7 @@ public class ComponentPredicateParserMixin {
                         CharSet.of(',', '=', '~', '|', ']', ' '),
                         CharSet.of('!'),
                         componentTypeSymbolRef.get(),
-                        () -> command_crafter$fallbackComponentCheck
+                        _ -> command_crafter$fallbackComponentCheck
                 );
             }
             case "predicate_type" -> {
@@ -141,7 +140,7 @@ public class ComponentPredicateParserMixin {
                         CharSet.of(',', '=', '~', '|', ']', ' '),
                         CharSet.of('!'),
                         componentTypeSymbolRef.get(),
-                        () -> command_crafter$fallbackComponentCheck
+                        _ -> command_crafter$fallbackComponentCheck
                 );
             }
             default -> {

@@ -18,8 +18,7 @@ public class CharLiteralMixin {
             method = "parse",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;read()C",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/StringReader;read()C"
             )
     )
     private char command_crafter$unparseCharLiteral(char c) {

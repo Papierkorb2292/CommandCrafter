@@ -1,9 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
-import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -17,21 +17,21 @@ import java.util.*
  * Implementations are discovered through a [java.util.ServiceLoader] and must
  * be specified in `resources/META-INF/services/net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService`
  */
-interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
+interface CommandArgumentAnalyzerService {
     companion object {
-        private var analyzers: Map<Class<out Any>, CommandArgumentAnalyzerService<*>> =
+        private var analyzers: Map<Class<out Any>, CommandArgumentAnalyzerService> =
             ServiceLoader.load(CommandArgumentAnalyzerService::class.java)
                 .flatMap { provider -> provider.argumentTypes.map { argumentClass -> argumentClass to provider } }
                 .toMap(mutableMapOf())
 
         init {
             // Special fallback implementation for types without an analyzer
-            analyzers += Any::class.java to object : CommandArgumentAnalyzerService<ArgumentType<*>> {
-                override val argumentTypes: List<Class<ArgumentType<*>>> = emptyList()
+            analyzers += Any::class.java to object : CommandArgumentAnalyzerService {
+                override val argumentTypes: List<Class<SerializableArgument<*>>> = emptyList()
 
                 override fun analyze(
-                    context: CommandContext<SharedSuggestionProvider>,
-                    type: ArgumentType<*>,
+                    context: CommandContext<SuggestionContext>,
+                    type: SerializableArgument.BrigadierWrapper<*>,
                     range: StringRange,
                     name: String,
                     reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -43,7 +43,7 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
             }
         }
 
-        fun getAnalyzerForType(argumentClass: Class<out Any>): CommandArgumentAnalyzerService<*>? {
+        fun getAnalyzerForType(argumentClass: Class<out Any>): CommandArgumentAnalyzerService? {
             val analyzer = analyzers[argumentClass]
             if(analyzer != null)
                 return analyzer
@@ -75,7 +75,7 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
     /**
      * The classes (or interfaces) of the argument types for which analyzing is provided (subclasses included)
      */
-    val argumentTypes: List<Class<out TArgumentType>>
+    val argumentTypes: List<Class<out SerializableArgument<*>>>
 
     /**
      * When analyzing a command argument, this method is called on an implementation with the
@@ -87,8 +87,8 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
      * can be used by the caller to determine how far the lenient parser could read the argument.
      */
     fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: TArgumentType,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -96,6 +96,6 @@ interface CommandArgumentAnalyzerService<TArgumentType : ArgumentType<*>> {
         result: AnalyzingResult,
     )
 
-    fun hasCustomCompletions(context: CommandContext<SharedSuggestionProvider>, name: String): Boolean = false
+    fun hasCustomCompletions(context: CommandContext<SuggestionContext>, name: String): Boolean = false
     fun modifyVanillaCompletion(completion: CompletionItem) { }
 }

@@ -2,20 +2,18 @@ package net.papierkorb2292.command_crafter.editor.processing.helper
 
 import com.mojang.brigadier.LiteralMessage
 import com.mojang.brigadier.Message
-import com.mojang.brigadier.StringReader
+import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import it.unimi.dsi.fastutil.chars.CharSet
 import it.unimi.dsi.fastutil.chars.CharSets
-import net.minecraft.commands.SharedSuggestionProvider
-import net.minecraft.util.parsing.packrat.ParseState
-import net.minecraft.util.parsing.packrat.SuggestionSupplier
+import net.minecraft.commands.suggestions.SuggestionContext
+import net.minecraft.util.parsing.packrat.Suggestion
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import java.util.concurrent.CompletableFuture
-import java.util.stream.Stream
 
-object UnicodeNameSuggestionSupplier : SuggestionSupplier<StringReader> {
+object UnicodeNameSuggestionSupplier : SuggestionContext.Provider, Suggestion {
     private val allowedNameChars = CharSet.of(
         *(charSetFromToInclusive('a', 'z')
                 + charSetFromToInclusive('A', 'Z')
@@ -32,14 +30,11 @@ object UnicodeNameSuggestionSupplier : SuggestionSupplier<StringReader> {
             .apply { sortBy { it.first } } // Sort now so Minecraft doesn't have to do so repeatedly
     }
 
-    override fun possibleValues(parseState: ParseState<StringReader>): Stream<String> =
-        characters.stream().map { it.first }
-
-    fun getSuggestions(suggestionsBuilder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+    override fun getSuggestions(context: CommandContext<out SuggestionContext>, suggestionsBuilder: SuggestionsBuilder): CompletableFuture<Suggestions> {
         return CompletableFuture.supplyAsync {
             // The characters are already unique and sorted. This saves a lot of time
             VanillaLanguage.SKIP_SUGGESTION_SORT_AND_DISTINCT.runWithValueSwap(true) {
-                SharedSuggestionProvider.suggest(
+                SuggestionContext.suggest(
                     characters,
                     suggestionsBuilder,
                     Pair<String, Message>::first,
@@ -50,4 +45,6 @@ object UnicodeNameSuggestionSupplier : SuggestionSupplier<StringReader> {
     }
 
     private fun charSetFromToInclusive(from: Char, to: Char) = CharSets.fromTo(from, (to.code + 1).toChar())
+
+    override fun asCommandSuggestions() = this
 }

@@ -21,8 +21,7 @@ public abstract class BlockAttachedEntityMixin extends Entity {
             method = "readAdditionalSaveData",
             at = @At(
                     value = "INVOKE",
-                    target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;)V",
-                    remap = false
+                    target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;)V"
             ),
             allow = 1
     )

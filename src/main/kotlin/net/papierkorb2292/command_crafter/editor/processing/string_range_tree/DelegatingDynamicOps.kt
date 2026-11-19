@@ -10,14 +10,14 @@ import java.util.stream.IntStream
 import java.util.stream.LongStream
 import java.util.stream.Stream
 
-interface DelegatingDynamicOps<T>: DynamicOps<T> {
+interface DelegatingDynamicOps<T : Any>: DynamicOps<T> {
     val delegate: DynamicOps<T>
     val delegateTypedLists: Boolean
         get() = true
     override fun empty(): T = delegate.empty()
     override fun emptyMap(): T = delegate.emptyMap()
     override fun emptyList(): T = delegate.emptyList()
-    override fun <U> convertTo(outOps: DynamicOps<U>, input: T): U = delegate.convertTo(outOps, input)
+    override fun <U : Any> convertTo(outOps: DynamicOps<U>, input: T): U = delegate.convertTo(outOps, input)
     override fun getNumberValue(input: T): DataResult<Number> = delegate.getNumberValue(input)
     override fun getNumberValue(input: T, defaultValue: Number): Number = delegate.getNumberValue(input, defaultValue)
     override fun createNumeric(i: Number): T = delegate.createNumeric(i)
@@ -63,9 +63,9 @@ interface DelegatingDynamicOps<T>: DynamicOps<T> {
     override fun updateGeneric(input: T, key: T, function: Function<T, T>): T = delegate.updateGeneric(input, key, function)
     override fun listBuilder(): ListBuilder<T> = delegate.listBuilder()
     override fun mapBuilder(): RecordBuilder<T> = delegate.mapBuilder()
-    override fun <E> withEncoder(encoder: Encoder<E>): Function<E, DataResult<T>> = delegate.withEncoder(encoder)
-    override fun <E> withDecoder(decoder: Decoder<E>): Function<T, DataResult<Pair<E, T>>> = delegate.withDecoder(decoder)
-    override fun <E> withParser(decoder: Decoder<E>): Function<T, DataResult<E>> = delegate.withParser(decoder)
-    override fun <U> convertList(outOps: DynamicOps<U>, input: T): U = delegate.convertList(outOps, input)
-    override fun <U> convertMap(outOps: DynamicOps<U>, input: T): U = delegate.convertMap(outOps, input)
+    override fun <E : Any> withEncoder(encoder: Encoder<E>): Function<E, DataResult<T>> = delegate.withEncoder(encoder)
+    override fun <E : Any> withDecoder(decoder: Decoder<E>): Function<T, DataResult<Pair<E, T>>> = delegate.withDecoder(decoder)
+    override fun <E : Any> withParser(decoder: Decoder<E>): Function<T, DataResult<E>> = delegate.withParser(decoder)
+    override fun <U : Any> convertList(outOps: DynamicOps<U>, input: T): U = delegate.convertList(outOps, input)
+    override fun <U : Any> convertMap(outOps: DynamicOps<U>, input: T): U = delegate.convertMap(outOps, input)
 }

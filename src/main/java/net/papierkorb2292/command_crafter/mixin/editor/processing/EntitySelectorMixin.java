@@ -9,7 +9,7 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.tree.RootCommandNode;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.suggestions.SuggestionContext;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.selector.EntitySelector;
 import net.minecraft.util.CompilableString;
@@ -34,8 +34,8 @@ public class EntitySelectorMixin {
     )
     private static <T> Codec<CompilableString<T>> command_crafter$analyzeEmbeddedSelector(Function<String, DataResult<T>> compiler, Operation<Codec<CompilableString<T>>> op) {
         final var parser = (CompilableString.CommandParserHelper<T>)compiler;
-        final var rootNode = new RootCommandNode<SharedSuggestionProvider>();
-        rootNode.addChild(RequiredArgumentBuilder.<SharedSuggestionProvider, EntitySelector>argument("entity", EntityArgument.entities()).build());
+        final var rootNode = new RootCommandNode<SuggestionContext>();
+        rootNode.addChild(RequiredArgumentBuilder.<SuggestionContext, EntitySelector>argument("entity", EntityArgument.entities()).build());
         final var entityNode = rootNode.getChild("entity");
         final var language = new VanillaLanguage();
         final var stringAnalyzing = new MalformedStringDecoderAnalyzing<>(
@@ -45,7 +45,7 @@ public class EntitySelectorMixin {
                     language.analyzeCommandNode(
                             new ParsedCommandNode<>(entityNode, new StringRange(reader.getCursor(), reader.getRemainingLength())),
                             new ParsedCommandNode<>(rootNode, StringRange.at(reader.getCursor() - 1)),
-                            new CommandContextBuilder<>(reader.getDispatcher(), reader.getResourceCreator().getSource(), rootNode, reader.getCursor()),
+                            new CommandContextBuilder<>(reader.getResourceCreator().getCommandTree().getDispatcher(), reader.getResourceCreator().getSource(), rootNode, reader.getCursor()),
                             result,
                             reader,
                             NodeAnalyzingExecutor.Immediate.INSTANCE,

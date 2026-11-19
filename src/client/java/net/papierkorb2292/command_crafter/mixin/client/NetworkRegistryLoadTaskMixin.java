@@ -30,7 +30,7 @@ abstract public class NetworkRegistryLoadTaskMixin<T> extends RegistryLoadTask<T
     }
 
     @Inject(
-            method = "lambda$load$2", // The lambda that calls registryTags()
+            method = "load -> Ljava/util/function/Consumer;accept(Ljava/util/List;)V", // The lambda that calls registerTags()
             at = @At("TAIL")
     )
     private void command_crafter$deleteUnboundTagsFurCustomRegistrySync(RegistryDataLoader.NetworkedRegistryData registryEntries, List<?> pendingRegistrations, CallbackInfo ci) {

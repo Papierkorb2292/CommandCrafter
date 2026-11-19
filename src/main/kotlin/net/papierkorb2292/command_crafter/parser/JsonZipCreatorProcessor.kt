@@ -1,11 +1,10 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.google.gson.stream.JsonWriter
-import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.StringReader
 import com.mojang.datafixers.util.Either
 import com.mojang.serialization.JsonOps
-import net.minecraft.commands.CommandBuildContext
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.ParseContext
 import net.minecraft.core.registries.Registries
 import net.minecraft.data.DataProvider
 import net.minecraft.resources.Identifier
@@ -13,6 +12,7 @@ import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.resources.RegistryOps
 import net.minecraft.util.GsonHelper
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
+import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage.Companion.parseWithCallbackOverride
 import java.io.BufferedReader
 import java.io.StringWriter
 
@@ -27,33 +27,35 @@ class JsonZipCreatorProcessor<T: Any>(val registry: RegistryDataLoader.RegistryD
         id: Identifier,
         content: BufferedReader,
         resourceCreator: RawZipResourceCreator,
-        dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-        buildContext: CommandBuildContext,
     ) {
-        val decoded = decode(content, buildContext, id)
-        val resource = encode(decoded, buildContext, id)
-        resourceCreator.addResource(id, resource)
+        // Get the registries from the parser provider
+        resourceCreator.parserProvider.create(resourceCreator.functionId).parseWithCallbackOverride(StringReader("")) { _, context ->
+            val decoded = decode(content, context, id)
+            val resource = encode(decoded, context, id)
+            resourceCreator.addResource(id, resource)
+        }
     }
 
     override fun validate(
         args: DatapackBuildArgs,
         id: Identifier,
         content: BufferedReader,
-        dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-        buildContext: CommandBuildContext,
+        resourceCreator: RawZipResourceCreator,
     ) {
-        decode(content, buildContext, id)
+        resourceCreator.parserProvider.create(resourceCreator.functionId).parseWithCallbackOverride(StringReader("")) { _, context ->
+            decode(content, context, id)
+        }
     }
 
-    private fun decode(content: BufferedReader, buildContext: CommandBuildContext, id: Identifier): T {
+    private fun decode(content: BufferedReader, parseContext: ParseContext, id: Identifier): T {
         val json = GsonHelper.parse(content)
-        return registry.elementCodec.parse(RegistryOps.create(JsonOps.INSTANCE, buildContext), json).getOrThrow {
+        return registry.elementCodec.parse(RegistryOps.create(JsonOps.INSTANCE, parseContext.holderGetters()), json).getOrThrow {
             IllegalArgumentException("Error reading registry entry $id in ${registry.key.identifier()}: $it")
         }
     }
 
-    private fun encode(resource: T, buildContext: CommandBuildContext, id: Identifier): RawResource {
-        val json = registry.elementCodec.encodeStart(RegistryOps.create(JsonOps.INSTANCE, buildContext), resource).getOrThrow {
+    private fun encode(resource: T, parseContext: ParseContext, id: Identifier): RawResource {
+        val json = registry.elementCodec.encodeStart(RegistryOps.create(JsonOps.INSTANCE, parseContext.holderGetters()), resource).getOrThrow {
             IllegalArgumentException("Error writing registry entry $id in ${registry.key.identifier()}: $it")
         }
         val stringWriter = StringWriter()

@@ -66,7 +66,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
         stack.add(ErrorStackEntry(root.value, 0))
     }
 
-    override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
+    override fun <TResult : Any> onError(error: DataResult.Error<TResult>, input: TNode) {
         addError(error, input, stack.last().depth)
         popStack()
         branchBehaviorProvider.onDecodeEnd(input)
@@ -86,7 +86,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
         }
     }
 
-    override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
+    override fun <TResult : Any> onResult(result: TResult, isPartial: Boolean, input: TNode) {
         if(isPartial) return
         // Since decoding was successful, all other errors that children added are cleared.
         // Warnings are kept, since they exist even if the result was decoded correctly
@@ -210,7 +210,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
 
     inner class PathErrorSuppressingDynamicOps(override val delegate: DynamicOps<TNode>):
         DelegatingDynamicOps<TNode> {
-        fun <TResult> onNodeAccess(input: TNode, dataResult: DataResult<TResult>, requireThatNoTypeHintIsPresent: Boolean = false): DataResult<TResult> {
+        fun <TResult : Any> onNodeAccess(input: TNode, dataResult: DataResult<TResult>, requireThatNoTypeHintIsPresent: Boolean = false): DataResult<TResult> {
             // Don't show errors for missing keys or invalid list lengths when Minecraft doesn't actually enforce it (like in a path or for a merge)
             if(dataResult.isSuccess && branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
                 if(requireThatNoTypeHintIsPresent && typeHints.containsKey(input))
@@ -220,7 +220,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
             return dataResult
         }
 
-        fun <TResult> errorForMismatchedTypeHint(input: TNode, expectedType: StringRangeTree.NodeTypeHint, dataResult: DataResult<TResult>): DataResult<TResult> {
+        fun <TResult : Any> errorForMismatchedTypeHint(input: TNode, expectedType: StringRangeTree.NodeTypeHint, dataResult: DataResult<TResult>): DataResult<TResult> {
             if(dataResult.isSuccess && branchBehavior.isAllPossibleEncoded()) {
                 val actualTypeHint = typeHints[input]
                 if(actualTypeHint != null && actualTypeHint != expectedType) {
@@ -239,7 +239,7 @@ class LeafErrorDecoderCallback<TNode : Any>(
         override fun getMapEntries(input: TNode) = onNodeAccess(input, delegate.getMapEntries(input))
         override fun getList(input: TNode) = errorForMismatchedTypeHint(input, StringRangeTree.NodeTypeHint.LIST, onNodeAccess(input, delegate.getList(input)))
         override fun getStream(input: TNode) = onNodeAccess(input, delegate.getStream(input))
-        override fun <U> convertTo(outOps: DynamicOps<U>, input: TNode): U {
+        override fun <U : Any> convertTo(outOps: DynamicOps<U>, input: TNode): U {
             if(branchBehavior.isAllPossibleEncoded() && input == stack.last().node) {
                 stack.last().ignoreErrors = true
             }

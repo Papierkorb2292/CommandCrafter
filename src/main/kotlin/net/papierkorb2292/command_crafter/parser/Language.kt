@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.parser
 
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.functions.FunctionBuilder
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugInformation
@@ -11,19 +10,16 @@ import net.papierkorb2292.command_crafter.parser.helper.RawResource
 interface Language {
     fun parseToVanilla(
         reader: DirectiveStringReader<RawZipResourceCreator>,
-        source: CommandSourceStack,
         resource: RawResource
     )
 
     fun analyze(
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
-        source: SharedSuggestionProvider,
         result: AnalyzingResult
     )
 
     fun parseToCommands(
-        reader: DirectiveStringReader<ParsedResourceCreator?>,
-        source: CommandSourceStack,
+        reader: DirectiveStringReader<ParsedResourceCreator>,
         builder: FunctionBuilder<CommandSourceStack>
     ): FunctionDebugInformation?
 

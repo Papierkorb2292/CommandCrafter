@@ -26,7 +26,7 @@ object DecoderOutputTracker {
     // Calls to this method are injected by the coprocessor at
     // every `return` statement in every Decoder.decode implementation
     @Suppress("unused")
-    fun <TInput : Any, TResult> onDecoded(dataResult: DataResult<TResult>, ops: DynamicOps<TInput>, input: TInput) {
+    fun <TInput : Any, TResult : Any> onDecoded(dataResult: DataResult<TResult>, ops: DynamicOps<TInput>, input: TInput) {
         val callback = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return
         dataResult.mapOrElse(
             { result -> callback.onResult(result, false, input) },
@@ -39,7 +39,7 @@ object DecoderOutputTracker {
         )
     }
 
-    fun <TInput : Any, TResult> onDecoded(dataResult: DataResult<TResult>, dynamic: Dynamic<TInput>) {
+    fun <TInput : Any, TResult : Any> onDecoded(dataResult: DataResult<TResult>, dynamic: Dynamic<TInput>) {
         onDecoded(dataResult, dynamic.ops, dynamic.value)
     }
 }

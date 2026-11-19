@@ -4,15 +4,16 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.collect.ImmutableMap
 import com.mojang.brigadier.context.StringRange
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
-import net.minecraft.core.Registry
-import net.minecraft.tags.TagEntry
-import net.minecraft.tags.TagLoader
-import net.minecraft.server.ReloadableServerResources
 import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.functions.CommandFunction
+import net.minecraft.commands.functions.CommandParser
 import net.minecraft.commands.functions.FunctionBuilder
+import net.minecraft.core.Registry
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.server.ReloadableServerResources
+import net.minecraft.tags.TagEntry
+import net.minecraft.tags.TagLoader
 import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer
 import net.papierkorb2292.command_crafter.parser.helper.InlineTagFunctionIdContainer
 import java.util.*
@@ -20,6 +21,8 @@ import java.util.*
 class ParsedResourceCreator(
     val functionId: Identifier,
     val functionPackId: String,
+    @JsonIgnore // Prevents some self references through ServerFunctionLibrary, and it probably just contains some cryptic stuff anyway
+    val parserProvider: CommandParser.Provider<CommandSourceStack>
 ) {
     companion object {
         val PLACEHOLDER_ID = Identifier.fromNamespaceAndPath("command_crafter", "placeholder")
@@ -49,7 +52,7 @@ class ParsedResourceCreator(
             var resourceId = 0
             for(childFunction in resourceCreator.functions) {
                 val functionId = resourceCreator.getPath(resourceId++)
-                val generatedChildFunction = childFunction.resource.build(functionId)
+                val generatedChildFunction = childFunction.resource.build(functionId, resourceCreator.parserProvider)
                 if(function is FileSourceContainer && generatedChildFunction is FileSourceContainer) {
                     val lines = function.`command_crafter$getFileSourceLines`()
                     val fileId = function.`command_crafter$getFileSourceId`()
@@ -114,10 +117,6 @@ class ParsedResourceCreator(
     interface ParseResourceContextContainer {
         fun `command_crafter$setResourceCreatorContext`(dataPackContents: ReloadableServerResources?)
         fun `command_crafter$getResourceCreatorContext`(): ReloadableServerResources?
-    }
-
-    interface DataPackRefresher {
-        fun `command_crafter$addCallback`(callback: () -> Unit)
     }
 
     class ResourceStackInfo(val id: Identifier, val range: StringRange)

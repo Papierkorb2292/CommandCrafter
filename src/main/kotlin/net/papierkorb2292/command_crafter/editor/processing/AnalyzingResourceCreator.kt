@@ -1,10 +1,9 @@
 package net.papierkorb2292.command_crafter.editor.processing
 
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.StringRange
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.RegistryAccess
 import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
@@ -22,19 +21,45 @@ import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.Position
 import java.util.*
+import java.util.concurrent.Executor
 
 class AnalyzingResourceCreator(
-    val languageServer: MinecraftLanguageServer?,
-    val sourceFunctionUri: String,
-    val registries: RegistryAccess,
-    val symbols: ImmutableSymbolAccess, // Analyzers shouldn't mutate the symbol table, that's done afterwards
-    val source: SharedSuggestionProvider,
+    val contextInfo: ContextInfo,
     val file: FileMappingInfo,
-    val stopInfo: StopInfo? = null,
     val macroTargetCursors: IntList = IntList(),
     var previousCache: CacheData? = null,
     val newCache: CacheData = CacheData(file)
 ) {
+    constructor(
+        languageServer: MinecraftLanguageServer?,
+        sourceFunctionUri: String,
+        registries: RegistryAccess,
+        symbols: ImmutableSymbolAccess, // Analyzers shouldn't mutate the symbol table, that's done afterwards
+        source: SuggestionContext,
+        commandTree: AnalyzingCommandTree,
+        fileResultProcessing: Executor,
+        file: FileMappingInfo,
+        stopInfo: StopInfo? = null,
+        macroTargetCursors: IntList = IntList(),
+        previousCache: CacheData? = null,
+        newCache: CacheData = CacheData(file),
+    ) : this(
+        ContextInfo(languageServer, sourceFunctionUri, registries, symbols, source, commandTree, fileResultProcessing, stopInfo),
+        file,
+        macroTargetCursors,
+        previousCache,
+        newCache,
+    )
+
+    val languageServer by contextInfo::languageServer
+    val sourceFunctionUri by contextInfo::sourceFunctionUri
+    val registries by contextInfo::registries
+    val symbols by contextInfo::symbols
+    val source by contextInfo::source
+    val commandTree by contextInfo::commandTree
+    val fileResultProcessing by contextInfo::fileResultProcessing
+    val stopInfo by contextInfo::stopInfo
+
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
 
     /**
@@ -59,45 +84,23 @@ class AnalyzingResourceCreator(
         return index < macroTargetCursors.size && macroTargetCursors[index] <= targetEndInclusive
     }
 
-    fun copyInput() = AnalyzingResourceCreator(
-        languageServer,
-        sourceFunctionUri,
-        registries,
-        symbols,
-        source,
-        file,
-        stopInfo,
-        macroTargetCursors.copy(),
-        previousCache,
-        newCache
-    ).also {
+    fun copyInput() = AnalyzingResourceCreator(contextInfo, file, macroTargetCursors.copy(), previousCache, newCache).also {
         it.suggestionRequestInfo = suggestionRequestInfo
         it.macroQueue = macroQueue
         it.macroParserStack += macroParserStack
     }
 
     // Doesn't copy macroParserStack, because child macros don't need to know about the macro parsers of the parent
-    fun copyForMacro(macroMappingInfo: FileMappingInfo, absoluteStart: Int) = AnalyzingResourceCreator(
-        languageServer,
-        sourceFunctionUri,
-        registries,
-        symbols,
-        source,
-        macroMappingInfo,
-        stopInfo,
-        macroTargetCursors.copy(),
-        previousCache,
-        CacheData(macroMappingInfo, newCache.usedCommandDispatcher)
-    ).also {
+    fun copyForMacro(macroMappingInfo: FileMappingInfo, absoluteStart: Int) = AnalyzingResourceCreator(contextInfo, macroMappingInfo, macroTargetCursors.copy(), previousCache, CacheData(macroMappingInfo, newCache.usedCommandTree)).also {
         it.suggestionRequestInfo = suggestionRequestInfo?.let { info -> SuggestionRequestInfo(info.absoluteCursor - absoluteStart, info.isServersideSuggestionRequest) }
     }
 
-    fun loadCache(file: EditorDocument, dispatcher: CommandDispatcher<SharedSuggestionProvider>) {
+    fun loadCache(file: EditorDocument, commandTree: AnalyzingCommandTree) {
         (file.persistentAnalyzerData as? CacheData)?.let { persistentCache ->
-            if(persistentCache.usedCommandDispatcher == dispatcher)
+            if(persistentCache.usedCommandTree == commandTree) {}
                 previousCache = persistentCache
         }
-        newCache.usedCommandDispatcher = dispatcher
+        newCache.usedCommandTree = commandTree
     }
 
     fun storeCacheKeepAnalyzingResult(file: EditorDocument) {
@@ -139,12 +142,12 @@ class AnalyzingResourceCreator(
 
     class CacheData(
         val file: FileMappingInfo,
-        var usedCommandDispatcher: CommandDispatcher<SharedSuggestionProvider>? = null,
+        var usedCommandTree: AnalyzingCommandTree? = null,
         var analyzingResult: AnalyzingResult? = null,
         val macroCache: MacroCache = MacroCache(),
     ) {
         fun copyForMacro(macroCache: MacroCache): CacheData =
-            CacheData(file, usedCommandDispatcher, analyzingResult, macroCache)
+            CacheData(file, usedCommandTree, analyzingResult, macroCache)
     }
 
     class MacroCache(
@@ -249,9 +252,19 @@ class AnalyzingResourceCreator(
          */
         val absoluteCursor: Int,
         /**
-         * `true` if the suggestions were requested through [net.minecraft.commands.SharedSuggestionProvider.customSuggestion]
+         * `true` if the suggestions were requested through [net.minecraft.commands.suggestions.SuggestionContext.customSuggestion]
          */
         val isServersideSuggestionRequest: Boolean
     )
 
+    class ContextInfo(
+        val languageServer: MinecraftLanguageServer?,
+        val sourceFunctionUri: String,
+        val registries: RegistryAccess,
+        val symbols: ImmutableSymbolAccess,
+        val source: SuggestionContext,
+        val commandTree: AnalyzingCommandTree,
+        val fileResultProcessing: Executor,
+        val stopInfo: StopInfo?
+    )
 }

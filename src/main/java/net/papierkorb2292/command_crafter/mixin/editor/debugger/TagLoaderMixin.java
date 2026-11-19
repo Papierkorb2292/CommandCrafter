@@ -58,7 +58,8 @@ public class TagLoaderMixin<T> implements FinalTagContentProvider {
 
     @ModifyVariable(
             method = "load",
-            at = @At("STORE")
+            at = @At("STORE"),
+            name = "entry"
     )
     private Map.Entry<Identifier, List<Resource>> command_crafter$saveTagFileContents(Map.Entry<Identifier, List<Resource>> resources) {
         var id = resources.getKey();
@@ -79,8 +80,7 @@ public class TagLoaderMixin<T> implements FinalTagContentProvider {
             method = "load",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/serialization/Codec;parse(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/DataResult;",
-                    remap = false
+                    target = "Lcom/mojang/serialization/Codec;parse(Lcom/mojang/serialization/Dynamic;)Lcom/mojang/serialization/DataResult;"
             )
     )
     private DataResult<TagFile> command_crafter$provideElementRanges(Codec<TagFile> instance, Dynamic<JsonElement> dynamic, Operation<DataResult<TagFile>> op, @Local Resource resource) throws IOException {
@@ -113,7 +113,7 @@ public class TagLoaderMixin<T> implements FinalTagContentProvider {
     }
 
     @Inject(
-            method = "lambda$build$1",
+            method = "build -> Ljava/util/function/BiConsumer;accept(Lnet/minecraft/resources/Identifier;Lnet/minecraft/tags/TagLoader$SortingEntry;)V", // The lambda that calls tryBuildTag
             at = @At("HEAD")
     )
     private void command_crafter$createFinalEntriesForTagDebugging(TagEntry.Lookup<T> valueGetter, Map<Identifier, Collection<T>> map, Identifier id, @Coerce Object dependencies, CallbackInfo ci) {

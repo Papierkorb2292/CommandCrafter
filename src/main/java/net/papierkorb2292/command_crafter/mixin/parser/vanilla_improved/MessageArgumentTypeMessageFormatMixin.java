@@ -12,15 +12,15 @@ public class MessageArgumentTypeMessageFormatMixin {
     @WrapMethod(
             method = "parseText(Lcom/mojang/brigadier/StringReader;Z)Lnet/minecraft/commands/arguments/MessageArgument$Message;"
     )
-    private static MessageArgument.Message command_crafter$fixMultiline(StringReader reader, boolean canUseSelectors, Operation<MessageArgument.Message> op) {
+    private static MessageArgument.Message command_crafter$fixMultiline(StringReader reader, boolean allowSelectors, Operation<MessageArgument.Message> op) {
         if(!(reader instanceof DirectiveStringReader<?> directiveReader) || directiveReader.getOnlyReadEscapedMultiline()) {
-            return op.call(reader, canUseSelectors);
+            return op.call(reader, allowSelectors);
         }
 
         directiveReader.convertInputToEscapedMultiline();
         try {
             directiveReader.canRead();
-            return op.call(reader, canUseSelectors);
+            return op.call(reader, allowSelectors);
         } finally {
             directiveReader.disableEscapedMultiline();
             // Don't restore mappings on error, because the input should probably still be interpreted as a message argument

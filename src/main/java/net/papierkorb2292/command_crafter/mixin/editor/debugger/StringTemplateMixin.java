@@ -99,6 +99,7 @@ public class StringTemplateMixin implements MacroCursorMapperProvider {
         return mapper;
     }
 
+    @Expression("')'")
     @ModifyExpressionValue(
             method = "fromString",
             at = @At(
@@ -106,10 +107,7 @@ public class StringTemplateMixin implements MacroCursorMapperProvider {
                     target = "Ljava/lang/String;indexOf(II)I"
             ),
             slice = @Slice(
-                    from = @At(
-                            value = "CONSTANT",
-                            args = "intValue=41" // ')'
-                    )
+                    from = @At("MIXINEXTRAS:EXPRESSION")
             )
     )
     private static int command_crafter$allowMalformedUnterminatedMacroVariable(int macroEnd, String command, @Local(ordinal = 2) int k, @Share("allowMalformed") LocalBooleanRef allowMalformedRef) {

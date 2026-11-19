@@ -1,14 +1,11 @@
 package net.papierkorb2292.command_crafter.editor
 
-import com.mojang.brigadier.tree.RootCommandNode
 import it.unimi.dsi.fastutil.ints.IntArrayList
 import it.unimi.dsi.fastutil.ints.IntList
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.PacketSender
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.Commands
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
 import net.minecraft.nbt.NbtOps
@@ -18,7 +15,6 @@ import net.minecraft.network.protocol.common.ClientCommonPacketListener
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload
 import net.minecraft.network.protocol.configuration.ClientboundRegistryDataPacket
-import net.minecraft.network.protocol.game.ClientboundCommandsPacket
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.resources.ResourceKey
@@ -26,21 +22,20 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.server.network.ServerGamePacketListenerImpl
 import net.minecraft.server.permissions.LevelBasedPermissionSet
+import net.minecraft.server.permissions.Permissions
 import net.minecraft.tags.TagNetworkSerialization
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ReservedBreakpointIdStart
 import net.papierkorb2292.command_crafter.editor.debugger.server.ServerNetworkDebugConnection
-import net.papierkorb2292.command_crafter.editor.processing.ArgumentTypeAdditionalDataSerializer
+import net.papierkorb2292.command_crafter.editor.processing.AnalyzingCommandTree
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerScoreboardStorageFileSystem
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.lootRegistries
-import net.papierkorb2292.command_crafter.helper.runWithValue
 import net.papierkorb2292.command_crafter.mixin.editor.processing.RegistrySynchronizationAccessor
 import net.papierkorb2292.command_crafter.mixin.editor.processing.TagPacketSerializerSerializedAccessor
-import net.papierkorb2292.command_crafter.mixin.parser.CommandsAccessor
 import net.papierkorb2292.command_crafter.networking.packets.*
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationC2SPacket
 import net.papierkorb2292.command_crafter.networking.packets.scoreboardStorageFileSystem.ScoreboardStorageFileNotificationS2CPacket
@@ -92,7 +87,7 @@ object NetworkServerConnectionHandler {
     }
 
     fun isPlayerAllowedConnection(player: ServerPlayer) =
-        Commands.LEVEL_GAMEMASTERS.check(player.permissions())
+        player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)
 
     fun registerPacketHandlers() {
         // Don't use registerAsyncServerPacketHandler here, because the client wouldn't be able to check whether a handler is registered for the packet
@@ -102,7 +97,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "insufficient permissions",
-                        ClientboundCommandsPacket(RootCommandNode(), CommandsAccessor.getCOMMAND_NODE_INSPECTOR()),
+                        AnalyzingCommandTree.EMPTY,
                         0,
                         payload.requestId
                     )
@@ -114,7 +109,7 @@ object NetworkServerConnectionHandler {
                     InitializeNetworkServerConnectionS2CPacket(
                         false,
                         "mismatched mod version (client=${payload.clientModVersion},server=${CommandCrafter.VERSION})",
-                        ClientboundCommandsPacket(RootCommandNode(), CommandsAccessor.getCOMMAND_NODE_INSPECTOR()),
+                        AnalyzingCommandTree.EMPTY,
                         0,
                         payload.requestId
                     )
@@ -338,18 +333,15 @@ object NetworkServerConnectionHandler {
         val functionPermissionLevel = (server.functionCompilationPermissions as? LevelBasedPermissionSet)?.level()?.id()
         if(functionPermissionLevel == null)
             CommandCrafter.LOGGER.warn("Unable to get function permission level for connection request: unexpected predicate type")
-        @Suppress("UNCHECKED_CAST")
         val responsePacket = InitializeNetworkServerConnectionS2CPacket(
             true,
             null,
-            ClientboundCommandsPacket(connection.commandDispatcher.root as RootCommandNode<CommandSourceStack>, CommandsAccessor.getCOMMAND_NODE_INSPECTOR()),
+            connection.commandTree,
             functionPermissionLevel ?: 2,
             requestPacket.requestId
         )
 
-        ArgumentTypeAdditionalDataSerializer.shouldWriteAdditionalDataTypes.runWithValue(true) {
-            packetSender.sendPacket(responsePacket)
-        }
+        packetSender.sendPacket(responsePacket)
     }
 
     fun sendDynamicRegistries(

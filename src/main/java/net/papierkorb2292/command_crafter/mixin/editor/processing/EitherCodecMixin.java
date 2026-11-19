@@ -17,15 +17,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(EitherCodec.class)
 public class EitherCodecMixin<F, S> {
 
-    @Shadow(remap = false) @Final private Codec<S> second;
+    @Shadow @Final private Codec<S> second;
 
     @Inject(
             method = "decode",
             at = @At(
                     value = "RETURN",
                     ordinal = 0
-            ),
-            remap = false
+            )
     )
     private <T> void command_crafter$suggestSecondCodecWhenFirstWasSuccessful(DynamicOps<T> ops, T input, CallbackInfoReturnable<DataResult<Pair<Either<F, S>, T>>> cir) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);

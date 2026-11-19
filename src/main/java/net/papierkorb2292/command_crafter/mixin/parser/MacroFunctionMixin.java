@@ -18,7 +18,7 @@ public abstract class MacroFunctionMixin<T> {
     @Shadow public abstract Identifier id();
 
     @ModifyReturnValue(
-            method = "instantiate(Lnet/minecraft/nbt/CompoundTag;Lcom/mojang/brigadier/CommandDispatcher;)Lnet/minecraft/commands/functions/InstantiatedFunction;",
+            method = "instantiate",
             at = @At("RETURN")
     )
     private InstantiatedFunction<T> command_crafter$addDebugInformationToMacroReplaced(InstantiatedFunction<T> procedure) {

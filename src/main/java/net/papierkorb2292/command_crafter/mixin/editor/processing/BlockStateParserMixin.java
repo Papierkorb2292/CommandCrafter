@@ -74,8 +74,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
                     ordinal = 0,
-                    shift = At.Shift.AFTER,
-                    remap = false
+                    shift = At.Shift.AFTER
             )
     )
     private void command_crafter$highlightBlockPropertyName(CallbackInfo ci, @Local int startCursor) {
@@ -90,8 +89,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
                     ordinal = 1,
-                    shift = At.Shift.AFTER,
-                    remap = false
+                    shift = At.Shift.AFTER
             )
     )
     private void command_crafter$highlightBlockPropertyValue(CallbackInfo ci, @Local(ordinal = 1) int startCursor) {
@@ -125,8 +123,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
             method = "parse",
             at = @At(
                     value = "INVOKE:FIRST",
-                    target = "Lcom/mojang/brigadier/StringReader;peek()C",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/StringReader;peek()C"
             )
     )
     private char command_crafter$analyzeInlineTag(char original) {
@@ -170,8 +167,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
                     ordinal = 0,
-                    shift = At.Shift.AFTER,
-                    remap = false
+                    shift = At.Shift.AFTER
             )
     )
     private void command_crafter$highlightTagPropertyName(CallbackInfo ci, @Local(ordinal = 1) int startCursor) {
@@ -186,8 +182,7 @@ public class BlockStateParserMixin implements AnalyzingResultCreator {
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;readString()Ljava/lang/String;",
                     ordinal = 1,
-                    shift = At.Shift.AFTER,
-                    remap = false
+                    shift = At.Shift.AFTER
             )
     )
     private void command_crafter$highlightTagPropertyValue(CallbackInfo ci, @Local(ordinal = 0) int startCursor) {

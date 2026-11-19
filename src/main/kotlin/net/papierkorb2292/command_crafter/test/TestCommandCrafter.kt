@@ -13,14 +13,17 @@ import com.mojang.brigadier.tree.RootCommandNode
 import com.mojang.serialization.DataResult
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.Commands
+import net.minecraft.commands.ParseContext
 import net.minecraft.commands.arguments.*
 import net.minecraft.commands.arguments.blocks.BlockPredicateArgument
 import net.minecraft.commands.arguments.blocks.BlockStateArgument
 import net.minecraft.commands.arguments.item.FunctionArgument
 import net.minecraft.commands.arguments.item.ItemArgument
 import net.minecraft.commands.arguments.item.ItemPredicateArgument
+import net.minecraft.commands.functions.CommandParser
 import net.minecraft.commands.functions.StringTemplate
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.ListTag
@@ -28,9 +31,12 @@ import net.minecraft.nbt.NbtOps
 import net.minecraft.nbt.TagParser
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.server.permissions.LevelBasedPermissionSet
 import net.minecraft.util.context.ContextMap
+import net.minecraft.world.flag.FeatureFlags
 import net.minecraft.world.level.storage.loot.LootContext
 import net.minecraft.world.level.storage.loot.LootParams
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProvider
 import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntProviders
 import net.minecraft.world.phys.Vec3
@@ -40,6 +46,8 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
+import net.papierkorb2292.command_crafter.editor.EditorDocument
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PotentialSyntaxNode
@@ -50,6 +58,9 @@ import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSym
 import net.papierkorb2292.command_crafter.helper.IntList.Companion.intListOf
 import net.papierkorb2292.command_crafter.helper.lootRegistries
 import net.papierkorb2292.command_crafter.helper.runWithValue
+import net.papierkorb2292.command_crafter.mixin.editor.CommandBoxAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.ServerFunctionLibraryAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.ServerFunctionManagerAccessor
 import net.papierkorb2292.command_crafter.parser.*
 import net.papierkorb2292.command_crafter.parser.helper.RawResource
 import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
@@ -65,6 +76,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executors
 
 object TestCommandCrafter {
     val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
@@ -72,6 +84,13 @@ object TestCommandCrafter {
     val inputDirectory = projectDirectory.resolve("tests/inputs")
 
     val dummyCompletionContext = CompletionContext(CompletionTriggerKind.Invoked)
+
+    val fileResultProcessing = Executors.newSingleThreadExecutor()
+
+    fun <T> evaluateOnFileProcessingThread(block: () -> CompletableFuture<T>): CompletableFuture<T> =
+        CompletableFuture.supplyAsync(block, fileResultProcessing).thenCompose { it }
+    fun <T> evaluateOnFileProcessingThreadNullable(block: () -> CompletableFuture<T>?): CompletableFuture<T?> =
+        CompletableFuture.supplyAsync(block, fileResultProcessing).thenCompose { it ?: CompletableFuture.completedFuture(null) }
 
     @GameTest
     fun exampleTest(context: GameTestHelper) {
@@ -458,34 +477,34 @@ object TestCommandCrafter {
     @GameTest
     @OptIn(ExperimentalUnsignedTypes::class)
     fun testNodeMaxLiteralCounter(context: GameTestHelper) {
-        val rootNode = RootCommandNode<SharedSuggestionProvider>()
-        val command1 = LiteralArgumentBuilder.literal<SharedSuggestionProvider>("command1").build()
+        val rootNode = RootCommandNode<SuggestionContext>()
+        val command1 = LiteralArgumentBuilder.literal<SuggestionContext>("command1").build()
         rootNode.addChild(command1)
         rootNode.addChild(
-            LiteralArgumentBuilder.literal<SharedSuggestionProvider>("command1")
+            LiteralArgumentBuilder.literal<SuggestionContext>("command1")
                 .then(LiteralArgumentBuilder.literal("just_a_leaf_node"))
-                .then(LiteralArgumentBuilder.literal<SharedSuggestionProvider>("leading_up_to_a_loop")
-                    .then(LiteralArgumentBuilder.literal<SharedSuggestionProvider>("looping_back")
+                .then(LiteralArgumentBuilder.literal<SuggestionContext>("leading_up_to_a_loop")
+                    .then(LiteralArgumentBuilder.literal<SuggestionContext>("looping_back")
                         .redirect(command1)
                     )
                 ).build()
         )
-        val command2 = LiteralArgumentBuilder.literal<SharedSuggestionProvider>("command2")
+        val command2 = LiteralArgumentBuilder.literal<SuggestionContext>("command2")
             .then(LiteralArgumentBuilder.literal("command2_sub"))
             .build()
         rootNode.addChild(command2)
         rootNode.addChild(
-            LiteralArgumentBuilder.literal<SharedSuggestionProvider>("command2")
-                .then(LiteralArgumentBuilder.literal<SharedSuggestionProvider>("command2_sub")
-                    .then(LiteralArgumentBuilder.literal<SharedSuggestionProvider>("loop_back_to_command2_sub")
+            LiteralArgumentBuilder.literal<SuggestionContext>("command2")
+                .then(LiteralArgumentBuilder.literal<SuggestionContext>("command2_sub")
+                    .then(LiteralArgumentBuilder.literal<SuggestionContext>("loop_back_to_command2_sub")
                         .redirect(command2.children.first())
-                    ).then(LiteralArgumentBuilder.literal<SharedSuggestionProvider>("loop_back_to_root")
+                    ).then(LiteralArgumentBuilder.literal<SuggestionContext>("loop_back_to_root")
                         .redirect(rootNode)
                     )
                 ).then(LiteralArgumentBuilder.literal("a_second_leaf_node"))
                 .build()
         )
-        val leafCommand = LiteralArgumentBuilder.literal<SharedSuggestionProvider>("leaf_command").build()
+        val leafCommand = LiteralArgumentBuilder.literal<SuggestionContext>("leaf_command").build()
         rootNode.addChild(leafCommand)
 
         val nodeIdentifier = MacroAnalyzingCrawlerRunner.NodeIdentifier()
@@ -494,7 +513,7 @@ object TestCommandCrafter {
         val maxLiteralCounter = MacroAnalyzingCrawlerRunner.NodeMaxLiteralCounter(nodeIdentifier)
         maxLiteralCounter.traverse(rootNode)
 
-        fun assertLiteralCount(node: CommandNode<SharedSuggestionProvider>, literal: String, expectedCount: UByte) {
+        fun assertLiteralCount(node: CommandNode<SuggestionContext>, literal: String, expectedCount: UByte) {
             val actualCount = maxLiteralCounter.getLiteralCountsForNode(node)[nodeIdentifier.getIdForLiteral(literal)]
             context.assertValueEqual(expectedCount, actualCount, Component.literal("Literal count for '$literal' in node '${node}'"))
         }
@@ -581,8 +600,7 @@ object TestCommandCrafter {
         for(rootIndex in rootIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
-                analyzingResult
-                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }
                     .get()
                     .any { it.label == "execute" },
                 Component.literal("Root suggestions for marker at index $rootIndex")
@@ -591,8 +609,7 @@ object TestCommandCrafter {
         for(rootIndex in subcommandIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
-                analyzingResult
-                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }
                     .get()
                     .any { it.label == "if" },
                 Component.literal("Subcommand suggestions for marker at index $rootIndex")
@@ -601,8 +618,7 @@ object TestCommandCrafter {
         for(rootIndex in predicateIndices) {
             val absoluteCursor = markedLocations[rootIndex].absoluteCursor
             context.assertTrue(
-                analyzingResult
-                    .getCompletions(absoluteCursor, dummyCompletionContext)!!
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }
                     .get()
                     .any { it.label == "type" },
                 Component.literal("Predicate suggestions for marker at index $rootIndex")
@@ -624,41 +640,41 @@ object TestCommandCrafter {
 
         for((i, location) in markedLocations.withIndex()) {
             context.assertFalse(
-                analyzingResult.getCompletions(location.absoluteCursor, dummyCompletionContext)
-                    ?.get()
+                evaluateOnFileProcessingThreadNullable { analyzingResult.getCompletions(location.absoluteCursor, dummyCompletionContext) }
+                    .get()
                     .isNullOrEmpty(),
-                Component.literal("Item predicate suggestions for marker at $i")
+                Component.literal("Missing item predicate suggestions for marker at $i")
             )
         }
 
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[4].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[4].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" || it.label == "," },
             Component.literal("Suggestion leaking into item predicate nbt")
         )
         context.assertTrue(
-            analyzingResult.getCompletions(markedLocations[1].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[1].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" },
             Component.literal("No '!' suggestion in item predicate")
         )
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[8].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[8].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" || it.label == "," },
             Component.literal("Suggestion leaking into item argument nbt")
         )
         context.assertTrue(
-            analyzingResult.getCompletions(markedLocations[10].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[10].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "!" },
             Component.literal("No '!' suggestion in item argument")
         )
         context.assertTrue(
-            analyzingResult.getCompletions(markedLocations[6].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[6].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "minecraft:diamond" },
             Component.literal("No item suggestion in item argument")
         )
 
         context.assertFalse(
-            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get()
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!! }.get()
                 .any { it.label == "~" },
             Component.literal("Item predicate '~' suggestion after '='")
         )
@@ -682,14 +698,14 @@ object TestCommandCrafter {
         for(index in multipleSuggestionsLocationIndices) {
             val absoluteCursor = markedLocations[index].absoluteCursor
             context.assertTrue(
-                analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!!.get().size >= 5,
+                evaluateOnFileProcessingThread { analyzingResult.getCompletions(absoluteCursor, dummyCompletionContext)!! }.get().size >= 5,
                 "Multiple suggestions at index $index"
             )
         }
 
         context.assertValueEqual(
             1,
-            analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!!.get().size,
+            evaluateOnFileProcessingThread { analyzingResult.getCompletions(markedLocations[3].absoluteCursor, dummyCompletionContext)!! }.get().size,
             "Suggestion count for click_event inside list"
         )
 
@@ -728,26 +744,12 @@ object TestCommandCrafter {
     fun testNbtPathAnalyzing(context: GameTestHelper) {
         val markedLine = "foo[{bar:[]}].bar[0].baz{qux:{quux:§false}}.qux{quux:§true§}"
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(listOf(markedLine))
-        val parser = NbtPathArgument()
-        val mappingInfo = FileMappingInfo(processedLines)
-        val resourceCreator = AnalyzingResourceCreator(
-            null,
-            "testPack/data/minecraft/function/test.mcfunction",
-            context.level.server.lootRegistries,
-            ImmutableSymbolAccess.Dummy,
-            getParsingCommandSource(context),
-            mappingInfo
-        )
-        resourceCreator.macroTargetCursors += markedLocations[0].absoluteCursor
-        val builder = StringRangePath.Builder(resourceCreator)
+        val parser = NbtPathArgument.nbtPath()
+        val reader = buildCommandReader(context, processedLines)
+        reader.resourceCreator.macroTargetCursors += markedLocations[0].absoluteCursor
+        val builder = StringRangePath.Builder(reader.resourceCreator)
         NbtPathArgumentAnalyzer.currentPathBuilder.runWithValue(builder) {
-            parser.parse(
-                DirectiveStringReader(
-                    FileMappingInfo(processedLines),
-                    getCommandDispatcher(context),
-                    resourceCreator
-                )
-            )
+            parser.parse(reader)
         }
         val path = builder.buildStandalone(processedLines[0])
 
@@ -804,12 +806,13 @@ object TestCommandCrafter {
 
     @GameTest
     fun parseTestFunction(context: GameTestHelper) {
+        // Also tests that the parser handles trailing/leading spaces and tabs correctly
         val lines = """
             # This is a doc \    
                 comment
-            execute as @a run say HI!
+            ${'\t'}execute as @a run say HI!
             execute if entity @s \ 
-                run tp @s ~ ~1 ~
+                run tp @s ~ ~1 ~${'\t'}
             @language vanilla improved
             execute
                 align xyz
@@ -841,7 +844,7 @@ object TestCommandCrafter {
         """.trimIndent().lines()
         val (processedLines, markedLocations) = getAndRemoveMarkedLocations(lines)
         val analyzingResult = analyseCommand(context, processedLines)
-        val suggestions = analyzingResult.getCompletions(markedLocations[0].absoluteCursor, dummyCompletionContext)?.get()
+        val suggestions = evaluateOnFileProcessingThreadNullable { analyzingResult.getCompletions(markedLocations[0].absoluteCursor, dummyCompletionContext) }.get()
         context.assertValueEqual(
             suggestions?.map { it.label },
             listOf("with"),
@@ -852,57 +855,41 @@ object TestCommandCrafter {
 
     fun testAllFunctionParsers(lines: List<String>, context: GameTestHelper) {
         val id = Identifier.parse("test")
-        @Suppress("UNCHECKED_CAST")
-        val commandDispatcher = getCommandDispatcher(context)
-        val source = getParsingCommandSource(context)
 
+        val parserProvider = getParserProvider(context)
         val parsedResourceCreator = ParsedResourceCreator(
             id,
-            "testPack"
+            "testPack",
+            parserProvider
         )
         val originResource = parsedResourceCreator.addOriginResource()
         val parsed = LanguageManager.parseToCommands(
             DirectiveStringReader(
                 FileMappingInfo(lines),
-                commandDispatcher,
                 parsedResourceCreator
             ),
-            source,
             Language.TopLevelClosure(VanillaLanguage())
         )
         val characterCount = lines.sumOf { it.length + 1 } - 1 // With newlines after every line except for the last
         originResource(ParsedResourceCreator.ResourceStackInfo(id, StringRange(0, characterCount)))
         parsedResourceCreator.popOriginResource()
-        context.assertEqualsSnapshot(parsed.build(id), "parseToCommands_actions")
+        context.assertEqualsSnapshot(parsed.build(id, parserProvider), "parseToCommands_actions")
 
-        val zipResourceCreator = RawZipResourceCreator()
+        val zipResourceCreator = RawZipResourceCreator(id, RawZipResourceCreator.ResourceCollector(), parserProvider)
         val parseToVanillaResource = RawResource(RawResource.FUNCTION_TYPE)
         LanguageManager.parseToVanilla(
             DirectiveStringReader(
                 FileMappingInfo(lines),
-                commandDispatcher,
                 zipResourceCreator
             ),
-            source,
             parseToVanillaResource,
             Language.TopLevelClosure(VanillaLanguage())
         )
         context.assertEqualsSnapshot(parseToVanillaResource.content, "parse_to_vanilla")
-        val analyzingResult = AnalyzingResult(FileMappingInfo(lines), Position())
+        val analyzingReader = buildCommandReader(context, lines)
+        val analyzingResult = AnalyzingResult(analyzingReader.fileMappingInfo, Position())
         LanguageManager.analyse(
-            DirectiveStringReader(
-                analyzingResult.mappingInfo,
-                commandDispatcher,
-                AnalyzingResourceCreator(
-                    null,
-                    "testPack/data/minecraft/function/test.mcfunction",
-                    source.server.registryAccess(),
-                    ImmutableSymbolAccess.Dummy,
-                    source,
-                    analyzingResult.mappingInfo
-                )
-            ),
-            source,
+            analyzingReader,
             analyzingResult,
             Language.TopLevelClosure(VanillaLanguage())
         )
@@ -931,7 +918,7 @@ object TestCommandCrafter {
         val result = analyseCommand(context, processedLines)
 
         val suggestions = markedLocations.map { location ->
-            result.getCompletions(location.absoluteCursor, dummyCompletionContext)?.get()
+            evaluateOnFileProcessingThreadNullable { result.getCompletions(location.absoluteCursor, dummyCompletionContext) }.get()
         }
 
         val line1Suggestions = suggestions[0]?.map { it.label }?.toSet()
@@ -1028,8 +1015,8 @@ object TestCommandCrafter {
 
             for((initialLocation, newLocation) in initialFileLocations.zip(newFileLocations)) {
                 context.assertValueEqual(
-                    newResult.getCompletions(newLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
-                    expectedResult.getCompletions(initialLocation.absoluteCursor, dummyCompletionContext)!!.get().size,
+                    evaluateOnFileProcessingThread { newResult.getCompletions(newLocation.absoluteCursor, dummyCompletionContext)!! }.get().size,
+                    evaluateOnFileProcessingThread { expectedResult.getCompletions(initialLocation.absoluteCursor, dummyCompletionContext)!! }.get().size,
                     Component.literal("Expected $modificationName to not change macro completions at initial position ${initialLocation.position}")
                 )
             }
@@ -1134,23 +1121,40 @@ object TestCommandCrafter {
         BlockStateArgument::class.java,
         ItemArgument::class.java,
         ResourceOrIdArgument::class.java,
-        GameProfileArgument::class.java
+        GameProfileArgument::class.java,
+        SlotSourceArgument::class.java,
+        ParticleArgument::class.java,
+        ResourceSelectorArgument::class.java,
     )
 
     @GameTest
     fun testStringifiedArgumentExamples(context: GameTestHelper) {
-        val dispatcher = getCommandDispatcher(context)
+        val resourceCreator = RawZipResourceCreator(
+            Identifier.parse("test"),
+            RawZipResourceCreator.ResourceCollector(),
+            getParserProvider(context)
+        )
+        val parseContext = ParseContext.of(context.level.server.createCommandSourceStack())
+        val parseBox = context.level.server.commands.parseBox()
+        @Suppress("UNCHECKED_CAST")
+        val dispatcher = (parseBox as CommandBoxAccessor<ParseContext>).getDispatcher()
         for(node in dispatcher.root.children) {
-            recursivelyTestStringifiedArgumentExamples(node, dispatcher, context)
+            recursivelyTestStringifiedArgumentExamples(node, parseContext, dispatcher, resourceCreator, context)
         }
         context.succeed()
     }
 
-    fun <T> recursivelyTestStringifiedArgumentExamples(node: CommandNode<T>, dispatcher: CommandDispatcher<SharedSuggestionProvider>, context: GameTestHelper) {
+    fun <T> recursivelyTestStringifiedArgumentExamples(
+        node: CommandNode<T>,
+        parseContext: ParseContext,
+        dispatcher: CommandDispatcher<ParseContext>,
+        resourceCreator: RawZipResourceCreator,
+        context: GameTestHelper,
+    ) {
         if(node is ArgumentCommandNode<T, *>) {
-            val source = context.level.server.createCommandSourceStack()
             val argumentType = node.type
-            var argumentClass: Class<*> = argumentType.javaClass
+            val serializable = SerializableArgument.unwrapOrThrow(argumentType)
+            var argumentClass: Class<*> = serializable.javaClass
             var argumentHasEquals = true
             while(argumentClass != Any::class.java) {
                 if(argumentClass in argumentTypesWithoutEquals) {
@@ -1162,33 +1166,43 @@ object TestCommandCrafter {
 
             val examples = argumentType.examples
             for(example in examples) {
-               val (parsed, joined) = parseArgumentAndStringify(node, example, dispatcher, source) ?: continue
-                val (transpiledParsed, transpiledJoined) = parseArgumentAndStringify(node, joined, dispatcher, source) ?: throw IllegalStateException("Parsing stringified example threw error")
+                CommandBoxAccessor.callRunWithParseContext({
+                    val (parsed, joined) = parseArgumentAndStringify(node, example, dispatcher, parseContext, resourceCreator) ?: return@callRunWithParseContext
+                    val (transpiledParsed, transpiledJoined) = parseArgumentAndStringify(node, joined, dispatcher, parseContext, resourceCreator) ?: throw IllegalStateException("Parsing stringified example threw error")
 
-                if(argumentHasEquals) {
-                    context.assertValueEqual(
-                        parsed,
-                        transpiledParsed,
-                        "Parsing stringified example '$example' for $node"
-                    )
-                } else {
-                    context.assertValueEqual(
-                        joined,
-                        transpiledJoined,
-                        "Stringified example '$example' for $node"
-                    )
-                }
+                    if(argumentHasEquals) {
+                        if(serializable is ValidatableResourceOrIdArgument<*>) {
+                            context.assertValueEqual(
+                                (parsed as ValidationWrapper<*>).validateAndGet(LootContextParamSets.ALL_PARAMS),
+                                (transpiledParsed as ValidationWrapper<*>).validateAndGet(LootContextParamSets.ALL_PARAMS),
+                                "Parsing stringified example '$example' for $node"
+                            )
+                        } else {
+                            context.assertValueEqual(
+                                parsed,
+                                transpiledParsed,
+                                "Parsing stringified example '$example' for $node"
+                            )
+                        }
+                    } else {
+                        context.assertValueEqual(
+                            joined,
+                            transpiledJoined,
+                            "Stringified example '$example' for $node"
+                        )
+                    }
+                }, parseContext)
             }
         }
 
         for(child in node.children) {
-            recursivelyTestStringifiedArgumentExamples(child, dispatcher, context)
+            recursivelyTestStringifiedArgumentExamples(child, parseContext, dispatcher, resourceCreator, context)
         }
     }
 
-    fun <S, T> parseArgumentAndStringify(node: ArgumentCommandNode<S, T>, input: String, dispatcher: CommandDispatcher<SharedSuggestionProvider>, source: CommandSourceStack): Pair<T, String>? {
+    fun <S, T> parseArgumentAndStringify(node: ArgumentCommandNode<S, T>, input: String, dispatcher: CommandDispatcher<ParseContext>, source: ParseContext, resourceCreator: RawZipResourceCreator): Pair<T, String>? {
         val builder = CommandContextBuilder(dispatcher, source, dispatcher.root, 0)
-        val reader = DirectiveStringReader(FileMappingInfo(listOf(input)), dispatcher, RawZipResourceCreator())
+        val reader = DirectiveStringReader(FileMappingInfo(listOf(input)), resourceCreator)
         @Suppress("UNCHECKED_CAST")
         try {
             node.parse(reader, builder as CommandContextBuilder<S>)
@@ -1217,7 +1231,7 @@ object TestCommandCrafter {
         val lootContext = LootContext.Builder(LootParams(context.level, ContextMap.EMPTY, mapOf(), 0f)).create(Optional.empty())
 
         fun parseNumberProvider(input: String): DataResult<ContextIntProvider> =
-            ContextIntProviders.CODEC.parse(NbtOps.INSTANCE, TagParser.parseCompoundFully(input))
+            ContextIntProviders.CODEC.parse(context.level.server.lootRegistries.createSerializationContext(NbtOps.INSTANCE), TagParser.parseCompoundFully(input))
                 .map { it.value() }
 
         context.assertValueEqual(
@@ -1285,19 +1299,18 @@ object TestCommandCrafter {
     }
 
     fun buildCommandReader(context: GameTestHelper, lines: List<String>): DirectiveStringReader<AnalyzingResourceCreator> {
-        val commandDispatcher = getCommandDispatcher(context)
-        val source = getParsingCommandSource(context)
         val resourceCreator = AnalyzingResourceCreator(
             null,
             "testPack/data/minecraft/function/test.mcfunction",
-            source.server.lootRegistries,
+            context.level.server.lootRegistries,
             ImmutableSymbolAccess.Dummy,
-            source,
+            AnalyzingServerSuggestionContext(context.level.server),
+            getAnalyzingCommandTree(),
+            fileResultProcessing,
             FileMappingInfo(lines)
         )
         return DirectiveStringReader(
             resourceCreator.file,
-            commandDispatcher,
             resourceCreator
         )
     }
@@ -1306,12 +1319,10 @@ object TestCommandCrafter {
         analyseCommand(context, buildCommandReader(context, lines))
 
     fun analyseCommand(context: GameTestHelper, reader: DirectiveStringReader<AnalyzingResourceCreator>): AnalyzingResult {
-        val source = getParsingCommandSource(context)
         val analyzingResult = AnalyzingResult(reader.resourceCreator.file, Position())
 
         LanguageManager.analyse(
             reader,
-            source,
             analyzingResult,
             Language.TopLevelClosure(VanillaLanguage())
         )
@@ -1320,12 +1331,21 @@ object TestCommandCrafter {
     }
 
     fun getParsingCommandSource(context: GameTestHelper): CommandSourceStack =
-        context.level.server!!.createCommandSourceStack()
+        context.level.server.createCommandSourceStack()
             .withPosition(Vec3.ZERO) // Default position is the worldspawn, which changes between test so it must be set to another value
 
     @Suppress("UNCHECKED_CAST")
-    fun getCommandDispatcher(context: GameTestHelper): CommandDispatcher<SharedSuggestionProvider> =
-        context.level.server!!.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>
+    fun getCommandDispatcher(context: GameTestHelper): CommandDispatcher<SuggestionContext> =
+        (context.level.server.commands.parseBox() as CommandBoxAccessor<SuggestionContext>).dispatcher
+
+    fun getAnalyzingCommandTree(): AnalyzingCommandTree = AnalyzingCommandTree.createVanilla(
+        Commands.CommandSelection.DEDICATED,
+        FeatureFlags.DEFAULT_FLAGS,
+        LevelBasedPermissionSet.ADMIN
+    )
+
+    fun getParserProvider(context: GameTestHelper): CommandParser.Provider<CommandSourceStack> =
+        ((context.level.server.functions as ServerFunctionManagerAccessor).library as ServerFunctionLibraryAccessor).parserProvider
 
     /**
      * To make it easier to reference locations in lines, this method can find any location marked with '§'.

@@ -2,8 +2,9 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.SerializableArgument
 import net.minecraft.commands.arguments.TeamColorArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.util.ARGB
 import net.minecraft.world.scores.TeamColor
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -16,13 +17,13 @@ import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import org.eclipse.lsp4j.*
 
-class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService<TeamColorArgument> {
+class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService {
     override val argumentTypes
         get() = listOf(TeamColorArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: TeamColorArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -44,7 +45,7 @@ class TeamColorArgumentAnalyzer : CommandArgumentAnalyzerService<TeamColorArgume
             )
 
             override fun getPresentation(params: ColorPresentationParams): List<ColorPresentation> {
-                val isWaypointColor = context.nodes.firstOrNull()?.node == reader.dispatcher.root.getChild("waypoint")
+                val isWaypointColor = context.nodes.firstOrNull()?.node == reader.resourceCreator.commandTree.dispatcher.root.getChild("waypoint")
                 if(isWaypointColor) {
                     // Waypoints have a different argument for hex values
                     val packed = ARGB.colorFromFloat(

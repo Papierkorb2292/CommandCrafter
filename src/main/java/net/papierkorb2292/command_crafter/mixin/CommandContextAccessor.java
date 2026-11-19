@@ -10,6 +10,6 @@ import java.util.Map;
 
 @Mixin(CommandContext.class)
 public interface CommandContextAccessor {
-    @Accessor(remap = false)
+    @Accessor
     Map<String, ParsedArgument<CommandSourceStack, ?>> getArguments();
 }

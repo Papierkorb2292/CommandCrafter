@@ -4,8 +4,9 @@ import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.IdentifierException
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.SerializableArgument
 import net.minecraft.commands.arguments.item.FunctionArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer.analyzeForId
@@ -19,13 +20,13 @@ import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage.Companion.isReaderInlineResources
 
-class FunctionArgumentAnalyzer : CommandArgumentAnalyzerService<FunctionArgument> {
-    override val argumentTypes: List<Class<out FunctionArgument>>
+class FunctionArgumentAnalyzer : CommandArgumentAnalyzerService {
+    override val argumentTypes
         get() = listOf(FunctionArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: FunctionArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,
@@ -48,10 +49,10 @@ class FunctionArgumentAnalyzer : CommandArgumentAnalyzerService<FunctionArgument
         if(isReaderInlineResources(reader)) {
             val readerCopy: DirectiveStringReader<AnalyzingResourceCreator> = reader.copy()
             readerCopy.cursor = range.start
-            val function = VanillaLanguage.analyzeImprovedFunctionReference(readerCopy, context.getSource(), true)
+            val function = VanillaLanguage.analyzeImprovedFunctionReference(readerCopy, true)
             if(function != null) result.combineWith(function.result)
         }
     }
 
-    override fun hasCustomCompletions(context: CommandContext<SharedSuggestionProvider>, name: String) = true
+    override fun hasCustomCompletions(context: CommandContext<SuggestionContext>, name: String) = true
 }

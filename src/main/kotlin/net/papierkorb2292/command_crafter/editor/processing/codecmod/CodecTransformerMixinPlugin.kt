@@ -160,7 +160,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                             codecModData.methodName = foundMethod.name + foundMethod.desc
                         }
                         updateAnnotationValue(injectionHandler.visibleAnnotations, ModifyExpressionValue::class, "method", codecModData.methodName)
-                        val targetExpression = if(codecModData.includeCodecField) "?.?('${codecModData.codecField}')" else "@(?).?('${codecModData.codecField}')"
+                        val targetExpression = if(codecModData.includeCodecField) "?.?('${codecModData.codecField}'${getCodecFieldWildcardParameters(codecModData.codecFieldParameterCount)})" else "@(?).?('${codecModData.codecField}'${getCodecFieldWildcardParameters(codecModData.codecFieldParameterCount)})"
                         updateAnnotationValue(injectionHandler.invisibleAnnotations, Expression::class, "value", targetExpression)
                         injectCall(injectionHandler, mixin, targetClass, invoke, codecModData, argumentTypes)
                     }
@@ -250,6 +250,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
                 "javaFieldWrite" -> data.javaFieldWrite = codecMod.values[i+1] as String
                 "javaFieldRead" -> data.javaFieldRead = codecMod.values[i+1] as String
                 "codecField" -> data.codecField = codecMod.values[i+1] as String
+                "codecFieldParameterCount" -> data.codecFieldParameterCount = codecMod.values[i+1] as Int
                 "includeCodecField" -> data.includeCodecField = codecMod.values[i+1] as Boolean
                 "fieldAccess" -> data.fieldAccess = codecMod.values[i+1] as List<String>
             }
@@ -287,6 +288,11 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         throw IllegalStateException("No addURL method for mixin gen found")
     }
 
+    private fun getCodecFieldWildcardParameters(parameterCount: Int): String {
+        // Every parameter after the first one should be a wildcard
+        return (1 until parameterCount).joinToString() { ",?" }
+    }
+
     override fun getRefMapperConfig(): String? = null
 
     override fun shouldApplyMixin(targetClassName: String, mixinClassName: String): Boolean = true
@@ -319,6 +325,7 @@ class CodecTransformerMixinPlugin : IMixinConfigPlugin {
         var javaFieldWrite: String = "",
         var javaFieldRead: String = "",
         var codecField: String = "",
+        var codecFieldParameterCount: Int = 1,
         var includeCodecField: Boolean = false,
         var fieldAccess: List<String> = emptyList(),
     )

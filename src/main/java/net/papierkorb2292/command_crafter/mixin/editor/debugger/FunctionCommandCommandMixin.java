@@ -6,7 +6,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.commands.suggestions.SuggestionContext;
 import net.minecraft.commands.execution.ExecutionControl;
 import net.minecraft.commands.execution.ChainModifiers;
 import net.minecraft.commands.arguments.item.FunctionArgument;
@@ -65,8 +65,7 @@ public abstract class FunctionCommandCommandMixin implements PotentialDebugFrame
             method = "runGuarded(Lnet/minecraft/commands/CommandSourceStack;Lcom/mojang/brigadier/context/ContextChain;Lnet/minecraft/commands/execution/ChainModifiers;Lnet/minecraft/commands/execution/ExecutionControl;)V",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/context/CommandContext;copyFor(Ljava/lang/Object;)Lcom/mojang/brigadier/context/CommandContext;",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/context/CommandContext;copyFor(Ljava/lang/Object;)Lcom/mojang/brigadier/context/CommandContext;"
             )
     )
     private CommandContext<CommandSourceStack> command_crafter$pauseAtCommandAndInitiateTagDebugFrame(

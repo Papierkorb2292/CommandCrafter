@@ -9,7 +9,7 @@ import java.util.function.BiConsumer
 import java.util.function.Consumer
 import java.util.stream.Stream
 
-class FieldFilteringDynamicOps<T>(override val delegate: DynamicOps<T>, val fieldBlacklist: Set<kotlin.Pair<T, T>>) : DelegatingDynamicOps<T> {
+class FieldFilteringDynamicOps<T : Any>(override val delegate: DynamicOps<T>, val fieldBlacklist: Set<kotlin.Pair<T, T>>) : DelegatingDynamicOps<T> {
     override fun getMap(input: T): DataResult<MapLike<T>> {
         return delegate.getMap(input).map { mapLike -> object : MapLike<T> {
             override fun get(key: T): T? =

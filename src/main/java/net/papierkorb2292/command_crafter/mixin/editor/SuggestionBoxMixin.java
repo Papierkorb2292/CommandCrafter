@@ -3,7 +3,7 @@ package net.papierkorb2292.command_crafter.mixin.editor;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.brigadier.tree.CommandNode;
-import net.minecraft.commands.Commands;
+import net.minecraft.commands.SuggestionBox;
 import net.papierkorb2292.command_crafter.CommandCrafter;
 import net.papierkorb2292.command_crafter.parser.helper.UtilKt;
 import org.spongepowered.asm.mixin.Mixin;
@@ -11,15 +11,14 @@ import org.spongepowered.asm.mixin.injection.At;
 
 import static net.papierkorb2292.command_crafter.helper.UtilKt.getOrNull;
 
-@Mixin(Commands.class)
-public class CommandsMixin {
+@Mixin(SuggestionBox.class)
+public class SuggestionBoxMixin {
 
     @WrapOperation(
             method = "fillUsableCommands",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/tree/CommandNode;canUse(Ljava/lang/Object;)Z",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/tree/CommandNode;canUse(Ljava/lang/Object;)Z"
             )
     )
     private static <S> boolean command_crafter$catchCanUseErrorWhenBuildingClientsideTree(CommandNode<S> instance, S source, Operation<Boolean> op) {

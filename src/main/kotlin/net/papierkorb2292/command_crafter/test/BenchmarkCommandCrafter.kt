@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.commands.functions.CommandFunction
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.resources.Identifier
+import net.minecraft.server.ServerFunctionManager
 import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.phys.Vec3
 import java.nio.file.Path
@@ -15,7 +16,7 @@ data class BenchmarkResult(
     val name: String,
     val averageTime: Double,
     val stdDeviation: Double,
-    val iterations: Int
+    val iterations: Int,
 )
 
 object BenchmarkCommandCrafter {
@@ -62,10 +63,11 @@ object BenchmarkCommandCrafter {
 
         val source = context.level.server.createCommandSourceStack()
         val lines = Collections.nCopies(10, "execute as @e[tag=debuggerTest] at @e[tag=debuggerTest] run setblock ~ ~ ~ air")
-        val function = CommandFunction.fromLines(Identifier.withDefaultNamespace("debugger_test"), context.level.server.commands.dispatcher, source, lines)
+        val parserProvider = TestCommandCrafter.getParserProvider(context)
+        val function = CommandFunction.fromLines(Identifier.withDefaultNamespace("debugger_test"), parserProvider, lines)
 
         benchmark("Test Debugger", 500, 500) {
-            context.level.server.functions.execute(function, source)
+            ServerFunctionManager.execute(function, source)
         }
 
         markers.forEach(context::kill)

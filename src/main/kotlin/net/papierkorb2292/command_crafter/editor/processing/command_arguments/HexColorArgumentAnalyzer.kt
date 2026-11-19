@@ -2,8 +2,9 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.HexColorArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.util.ARGB
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
@@ -18,13 +19,13 @@ import org.eclipse.lsp4j.ColorPresentation
 import org.eclipse.lsp4j.ColorPresentationParams
 import org.eclipse.lsp4j.Range
 
-class HexColorArgumentAnalyzer : CommandArgumentAnalyzerService<HexColorArgument> {
+class HexColorArgumentAnalyzer : CommandArgumentAnalyzerService {
     override val argumentTypes
         get() = listOf(HexColorArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: HexColorArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,

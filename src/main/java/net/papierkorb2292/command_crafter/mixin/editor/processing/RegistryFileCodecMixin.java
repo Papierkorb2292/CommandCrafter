@@ -33,10 +33,8 @@ public class RegistryFileCodecMixin<E> {
             at = @At(
                     value = "FIELD",
                     target = "Lnet/minecraft/resources/Identifier;CODEC:Lcom/mojang/serialization/Codec;",
-                    remap = true,
                     opcode = Opcodes.GETSTATIC
-            ),
-            remap = false
+            )
     )
     private Codec<?> command_crafter$addRegistryIdSuggestions(Codec<?> identifierCodec) {
         return CodecTransformers.addResourceKeySuggestions(identifierCodec, registryKey);
@@ -46,10 +44,8 @@ public class RegistryFileCodecMixin<E> {
             method = "decode",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/core/HolderGetter;get(Lnet/minecraft/resources/ResourceKey;)Ljava/util/Optional;",
-                    remap = true
-            ),
-            remap = false
+                    target = "Lnet/minecraft/core/HolderGetter;get(Lnet/minecraft/resources/ResourceKey;)Ljava/util/Optional;"
+            )
     )
     private <T> void command_crafter$suggestEntryCodecWhenIdWasFound(DynamicOps<T> ops, T input, CallbackInfoReturnable<DataResult<Pair<Holder<E>, T>>> cir) {
         final var extraBehavior = ExtraDecoderBehavior.Companion.getCurrentBehavior(ops);

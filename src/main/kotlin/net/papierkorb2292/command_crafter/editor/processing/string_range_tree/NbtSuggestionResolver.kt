@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.StringRange
 import net.minecraft.nbt.*
 import net.minecraft.util.parsing.packrat.Atom
 import net.minecraft.util.parsing.packrat.ErrorCollector
+import net.minecraft.util.parsing.packrat.commands.CommandParserState
 import net.minecraft.util.parsing.packrat.commands.Grammar
 import net.minecraft.util.parsing.packrat.commands.StringReaderParserState
 import net.papierkorb2292.command_crafter.editor.processing.StreamCompletionItemProvider
@@ -26,9 +27,9 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
     constructor(inputString: String, quoteRootStringPredicate: ((StringTag) -> Boolean)? = null): this({ StringReader(inputString) }, quoteRootStringPredicate)
 
     companion object {
-        val keyParser: Grammar<String>
+        val keyParser: Grammar<CommandParserState, String>
         init {
-            val snbtRules = SnbtGrammar.createParser(NbtOps.INSTANCE).rules
+            val snbtRules = SnbtGrammar.createParser<Tag>(NbtOps.INSTANCE).rules
             @Suppress("UNCHECKED_CAST")
             val mapKeySymbol = snbtRules.getSymbolByName("map_key") as Atom<String>
             keyParser = Grammar(snbtRules, snbtRules.getOrThrow(mapKeySymbol));
@@ -41,8 +42,8 @@ class NbtSuggestionResolver(private val stringReaderProvider: () -> StringReader
         reader.skipWhitespace()
         PackratParserAdditionalArgs.allowMalformed.runWithValue(true) {
             // Manually create parsing state so end cursor can be retrieved even when parsing wasn't successful
-            val errorList = ErrorCollector.LongestOnly<StringReader>()
-            val parsingState = StringReaderParserState(errorList, reader);
+            val errorList = ErrorCollector.LongestOnly()
+            val parsingState = StringReaderParserState(errorList, CommandParserState.simple(reader));
             val success = keyParser.parse(parsingState).isPresent
             if(!success)
                 reader.cursor = errorList.cursor()

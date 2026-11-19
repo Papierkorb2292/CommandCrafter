@@ -33,9 +33,14 @@ interface EvaluationProvider {
 
         fun combine(providers: List<EvaluationProvider>) = object : EvaluationProvider {
             override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationResult?> {
-                val futures = providers.map { it.evaluate(args) }.toTypedArray()
-                return CompletableFuture.allOf(*futures).thenApply {
-                    futures.firstNotNullOfOrNull { it.get() }
+                // Return first non-null result from providers, evaluating them lazily
+                return providers.fold(CompletableFuture.completedFuture<EvaluationResult?>(null)) { future, provider ->
+                    future.thenCompose { result ->
+                        if(result != null)
+                            CompletableFuture.completedFuture(result)
+                        else
+                            provider.evaluate(args)
+                    }
                 }
             }
         }

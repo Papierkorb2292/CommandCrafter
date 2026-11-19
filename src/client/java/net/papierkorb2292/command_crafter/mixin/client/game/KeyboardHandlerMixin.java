@@ -8,17 +8,13 @@ import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.TypedDataComponent;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.HitResult;
 import net.papierkorb2292.command_crafter.client.ClientCommandCrafter;
 import net.papierkorb2292.command_crafter.editor.debugger.variables.SlotAccessValueReference;
-import org.jspecify.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -41,7 +37,8 @@ public abstract class KeyboardHandlerMixin {
             method = "copyRecreateCommand",
             at = @At(
                     value = "FIELD",
-                    target = "Lnet/minecraft/client/Minecraft;hitResult:Lnet/minecraft/world/phys/HitResult;"
+                    target = "Lnet/minecraft/client/Minecraft;hitResult:Lnet/minecraft/world/phys/HitResult;",
+                    opcode = Opcodes.GETFIELD
             )
     )
     private HitResult command_crafter$copyItemsWithDebugCopy(HitResult original, boolean hasPermissions, boolean notPressingShift) {
@@ -81,20 +78,6 @@ public abstract class KeyboardHandlerMixin {
             minecraft.showDebugChat(Component.translatable("command_crafter.debug.inspect.item.default").withStyle(ChatFormatting.GREEN));
 
         return null;
-    }
-
-    @Nullable
-    private <T> Tag command_crafter$encodeComponent(TypedDataComponent<T> component) {
-        final var codec = component.type().codec();
-        if(codec == null) {
-            return null;
-        }
-        final var encoded = codec.encode(
-                component.value(),
-                RegistryOps.create(NbtOps.INSTANCE, Objects.requireNonNull(Minecraft.getInstance().player).registryAccess()),
-                NbtOps.INSTANCE.empty()
-        );
-        return encoded.result().orElse(new CompoundTag());
     }
 
     private DataComponentMap command_crafter$copyItemComponentsWithoutDefaults(Item item) {

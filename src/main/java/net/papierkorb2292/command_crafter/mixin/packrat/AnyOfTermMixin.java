@@ -28,7 +28,7 @@ public class AnyOfTermMixin<S> {
             at = @At("HEAD")
     )
     private void command_crafter$saveMalformedEndCursor(ParseState<S> state, Scope scope, Control control, CallbackInfoReturnable<Boolean> cir, @Share("malformedEndCursor") LocalIntRef malformedEndCursor) {
-        if(state.errorCollector() instanceof MalformedParseErrorList<S> malformedParseErrorList)
+        if(state.errorCollector() instanceof MalformedParseErrorList malformedParseErrorList)
             malformedEndCursor.set(malformedParseErrorList.getLastMalformedEndCursor());
     }
 
@@ -56,14 +56,14 @@ public class AnyOfTermMixin<S> {
             method = "parse",
             at = @At("RETURN")
     )
-    private void command_crafter$createBranchesForRestTerms(ParseState<S> state, Scope results, Control cut, CallbackInfoReturnable<Boolean> cir, @Local(ordinal = 0) int startCursor, @Share("elementIndex") LocalIntRef elementIndex, @Share("malformedEndCursor") LocalIntRef malformedEndCursor) {
+    private void command_crafter$createBranchesForRestTerms(ParseState<S> state, Scope results, Control cut, CallbackInfoReturnable<Boolean> cir, @Local(name = "mark") int startCursor, @Share("elementIndex") LocalIntRef elementIndex, @Share("malformedEndCursor") LocalIntRef malformedEndCursor) {
         // Since the term was successful, the following terms are not invoked. However, PackratParserAdditionalArgs should generate branches for them,
         // for example to generate all the command completions. Thus, the following terms are invoked here before continuing.
         var originalCursor = state.mark();
         for(int i = elementIndex.get(); i < elements.length; i++) {
             state.restore(startCursor);
             int prevLastMalformedEndCursor = -1;
-            if(state.errorCollector() instanceof MalformedParseErrorList<S> malformedParseErrorList) {
+            if(state.errorCollector() instanceof MalformedParseErrorList malformedParseErrorList) {
                 // Save lastMalformedEndCursor such that it isn't reset, since later terms might be parsed after this
                 prevLastMalformedEndCursor = malformedParseErrorList.swapLastMalformedEndCursor(malformedEndCursor.get());
             }
@@ -74,7 +74,7 @@ public class AnyOfTermMixin<S> {
                 missedBranchCallback.invoke(false);
 
                 if(prevLastMalformedEndCursor != -1)
-                    ((MalformedParseErrorList<S>)state.errorCollector())
+                    ((MalformedParseErrorList)state.errorCollector())
                             .setLastMalformedEndCursor(prevLastMalformedEndCursor);
             }
         }

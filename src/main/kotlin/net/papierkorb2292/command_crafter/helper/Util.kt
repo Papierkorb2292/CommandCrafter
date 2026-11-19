@@ -143,8 +143,8 @@ fun <T> MutableCollection<T>?.appendNullable(other: MutableCollection<T>?): Muta
 fun String.ensurePrefixed(prefix: String) = if(this.startsWith(prefix)) this else prefix + this
 fun String.ensurePrefixed(prefix: Char) = if(this.startsWith(prefix)) this else prefix + this
 
-fun <A> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
-    override fun <T> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> {
+fun <A : Any> Codec<A>.orEmpty(defaultValue: A): Codec<A> = object : Codec<A> {
+    override fun <T : Any> encode(input: A, ops: DynamicOps<T>, prefix: T): DataResult<T> {
         return if(input == defaultValue) DataResult.success(prefix) else this@orEmpty.encode(input, ops, prefix)
     }
 

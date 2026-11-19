@@ -4,6 +4,8 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Either;
+import net.minecraft.commands.CommandBox;
+import net.minecraft.commands.ParseContext;
 import net.minecraft.util.parsing.packrat.commands.ParserBasedArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs;
@@ -21,13 +23,14 @@ import java.util.List;
 
 @Mixin(ParserBasedArgument.class)
 public abstract class ParserBasedArgumentMixin<T> implements StringifiableArgumentType {
-    @Shadow public abstract T parse(StringReader reader) throws CommandSyntaxException;
+    @Shadow
+    public abstract T parse(StringReader reader, ParseContext context) throws CommandSyntaxException;
 
     @Nullable
     @Override
     public List<Either<String, RawResource>> command_crafter$stringifyArgument(@NotNull CommandContext<CommandSourceStack> context, @NotNull String name, @NotNull DirectiveStringReader<RawZipResourceCreator> reader) throws CommandSyntaxException {
         PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().set(new PackratParserAdditionalArgs.StringifiedBranchingArgument(new ArrayList<>()));
-        parse(reader);
+        parse(reader, CommandBox.grabParseContext());
         var result = PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().get();
         PackratParserAdditionalArgs.INSTANCE.getStringifiedArgument().remove();
         return result.getStringified();

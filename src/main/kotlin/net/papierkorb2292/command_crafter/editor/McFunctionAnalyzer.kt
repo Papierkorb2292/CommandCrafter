@@ -29,21 +29,21 @@ class McFunctionAnalyzer(
         stopInfo: StopInfo?,
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
-        val dispatcher = languageServer.minecraftServer.commandDispatcher
+        val commandTree = languageServer.minecraftServer.commandTree
         val mappingInfo = file.createFileMappingInfo()
         val reader = DirectiveStringReader(
             mappingInfo,
-            dispatcher,
             AnalyzingResourceCreator(
                 languageServer,
                 file.uri,
                 languageServer.dynamicRegistryManager,
                 languageServer.symbolManager,
                 source,
-                mappingInfo,
-                stopInfo
+                commandTree,
+                languageServer.fileResultProcessing,
+                mappingInfo
             ).apply {
-                loadCache(file, dispatcher)
+                loadCache(file, commandTree)
             }
         )
         DataObjectDecoding.BUILTIN_REGISTRY_OVERRIDE.runWithValueSwap(languageServer.dynamicRegistryManager) {
@@ -55,7 +55,6 @@ class McFunctionAnalyzer(
                     reader.resourceCreator.resourceStack.push(AnalyzingResourceCreator.ResourceStackEntry(result))
                     LanguageManager.analyse(
                         reader,
-                        source,
                         result,
                         Language.TopLevelClosure(VanillaLanguage())
                     )

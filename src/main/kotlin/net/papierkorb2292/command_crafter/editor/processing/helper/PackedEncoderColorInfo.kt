@@ -17,7 +17,7 @@ import kotlin.jvm.optionals.getOrNull
 import kotlin.math.cbrt
 import kotlin.math.pow
 
-class PackedEncoderColorInfo<TNode, TColor>(
+class PackedEncoderColorInfo<TNode : Any, TColor : Any>(
     override val range: Range,
     packedColor: Int,
     private val hasAlpha: Boolean,
@@ -31,7 +31,7 @@ class PackedEncoderColorInfo<TNode, TColor>(
 
         fun wrapCodec(delegate: Codec<Int>, hasAlpha: Boolean, nameProvider: ((Int) -> String)? = null): Codec<Int> = wrapCodec(delegate, hasAlpha, { it }, { it }, nameProvider = nameProvider)
 
-        fun <TColor> wrapCodec(delegate: Codec<TColor>, hasAlpha: Boolean, toPacked: (TColor) -> Int, fromPacked: (Int) -> TColor, additionalSuggestions: () -> List<TColor> = ::emptyList, nameProvider: ((TColor) -> String)? = null, preferHex: Boolean = true): Codec<TColor> {
+        fun <TColor : Any> wrapCodec(delegate: Codec<TColor>, hasAlpha: Boolean, toPacked: (TColor) -> Int, fromPacked: (Int) -> TColor, additionalSuggestions: () -> List<TColor> = ::emptyList, nameProvider: ((TColor) -> String)? = null, preferHex: Boolean = true): Codec<TColor> {
             val withColorInfo = CodecAnalyzingWrapper(delegate) { analyzingResult, stringRange, parsed, ops ->
                 analyzingResult.colorInfos += PackedEncoderColorInfo(
                     Range(

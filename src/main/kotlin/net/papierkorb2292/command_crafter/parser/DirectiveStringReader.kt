@@ -2,7 +2,7 @@ package net.papierkorb2292.command_crafter.parser
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -15,7 +15,6 @@ import kotlin.math.min
 
 class DirectiveStringReader<out ResourceCreator>(
     val fileMappingInfo: FileMappingInfo,
-    val dispatcher: CommandDispatcher<SharedSuggestionProvider>,
     val resourceCreator: ResourceCreator,
 ) : StringReader(""),
     LineAwareStringReader {
@@ -250,7 +249,8 @@ class DirectiveStringReader<out ResourceCreator>(
 
     fun readIndentation(): Int {
         val start = cursor
-        while(canRead() && peek() == ' ') skip()
+        // Indent can also be tabs or other whitespace characters, so we can't just count spaces
+        skipWhitespace(false)
         return cursor - start
     }
 
@@ -308,7 +308,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun copy() : DirectiveStringReader<ResourceCreator> {
-        return DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
+        return DirectiveStringReader(fileMappingInfo.copy(), resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
@@ -322,7 +322,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun copy(copyCursorMapper: Boolean) : DirectiveStringReader<ResourceCreator> {
-        return DirectiveStringReader(fileMappingInfo.copy(copyCursorMapper), dispatcher, resourceCreator).also {
+        return DirectiveStringReader(fileMappingInfo.copy(copyCursorMapper), resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
@@ -346,7 +346,7 @@ class DirectiveStringReader<out ResourceCreator>(
     }
 
     fun copyWithoutMapping(): DirectiveStringReader<ResourceCreator> {
-        return DirectiveStringReader(fileMappingInfo.copyWithoutMapping(), dispatcher, resourceCreator).also {
+        return DirectiveStringReader(fileMappingInfo.copyWithoutMapping(), resourceCreator).also {
             it.setString(string)
             it.cursor = cursor
             it.scopeStack.addAll(scopeStack)
@@ -371,7 +371,7 @@ class DirectiveStringReader<out ResourceCreator>(
         val line = string.substring(0, cursor)
         if(canRead())
             skip() // Skip new line
-        return DirectiveStringReader(FileMappingInfo(listOf(line)), dispatcher, resourceCreator).also {
+        return DirectiveStringReader(FileMappingInfo(listOf(line)), resourceCreator).also {
             it.scopeStack.addAll(scopeStack)
             it.cursor = cursor
             it.readCharacters = readCharacters
@@ -437,10 +437,9 @@ class DirectiveStringReader<out ResourceCreator>(
     companion object {
         fun <ResourceCreator> createReaderAtAbsoluteCursor(
             fileMappingInfo: FileMappingInfo,
-            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
             resourceCreator: ResourceCreator,
             absoluteCursor: Int
-        ) = DirectiveStringReader(fileMappingInfo.copy(), dispatcher, resourceCreator).also {
+        ) = DirectiveStringReader(fileMappingInfo.copy(), resourceCreator).also {
             if(absoluteCursor > 0) {
                 val position = AnalyzingResult.getPositionFromCursor(absoluteCursor, fileMappingInfo)
                 it.nextLine = position.line

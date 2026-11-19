@@ -34,10 +34,6 @@ public class EntitySelectorParserMixin implements AnalyzingResultDataContainer, 
     @Shadow @Final private StringReader reader;
     @Shadow private BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestions;
 
-    @Shadow
-    private boolean includesEntities;
-    @Shadow
-    private int startPosition;
     private AnalyzingResult command_crafter$analyzingResult = null;
     private boolean command_crafter$allowMalformed = false;
 
@@ -79,8 +75,7 @@ public class EntitySelectorParserMixin implements AnalyzingResultDataContainer, 
             at = @At(
                     value = "INVOKE",
                     target = "Lcom/mojang/brigadier/StringReader;canRead()Z",
-                    ordinal = 1,
-                    remap = false
+                    ordinal = 1
             )
     )
     private void command_crafter$highlightAt(CallbackInfo ci) {
@@ -119,8 +114,7 @@ public class EntitySelectorParserMixin implements AnalyzingResultDataContainer, 
             method = "fillSuggestions",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I",
-                    remap = false
+                    target = "Lcom/mojang/brigadier/StringReader;getCursor()I"
             ),
             allow = 1
     )

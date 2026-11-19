@@ -54,8 +54,8 @@ fun Identifier.withExtension(extension: String)
 operator fun StringRange.plus(value: Int) = StringRange(start + value, end + value)
 operator fun StringRange.minus(value: Int) = StringRange(start - value, end - value)
 fun StringRange.clamp(clampRange: StringRange) = StringRange(
-    Mth.clamp(start, clampRange.start, clampRange.end),
-    Mth.clamp(end, clampRange.start, clampRange.end)
+    Math.clamp(start.toLong(), clampRange.start, clampRange.end),
+    Math.clamp(end.toLong(), clampRange.start, clampRange.end)
 )
 fun max(a: StringRange, b: StringRange) = StringRange(min(a.start, b.start), max(a.end, b.end))
 fun maxWithNullable(a: StringRange, b: StringRange?): StringRange = if(b == null) a else max(a, b)

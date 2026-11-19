@@ -159,7 +159,7 @@ public abstract class ExecuteCommandMixin {
     }
 
     @ModifyArg(
-            method = "lambda$scheduleFunctionConditionsAndTest$1",
+            method = "scheduleFunctionConditionsAndTest -> Ljava/util/function/Consumer;accept(Lnet/minecraft/commands/execution/ExecutionControl;)V",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/commands/execution/ExecutionControl;queueNext(Lnet/minecraft/commands/execution/EntryAction;)V",

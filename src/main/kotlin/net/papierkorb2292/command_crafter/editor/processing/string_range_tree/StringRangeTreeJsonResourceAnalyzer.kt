@@ -14,6 +14,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.StopInfo
+import net.papierkorb2292.command_crafter.editor.processing.codecmod.forNeverGetter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolAnalyzeMode
@@ -74,20 +75,21 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
 
         fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?, fileDecoder: Decoder<*>): AnalyzingResult {
             val lines = file.stringifyLines()
+            val commandTree = languageServer.minecraftServer.commandTree
             val mappingInfo = FileMappingInfo(lines)
             val directiveReader = DirectiveStringReader(
                 mappingInfo,
-                languageServer.minecraftServer.commandDispatcher,
                 AnalyzingResourceCreator(
                     languageServer,
                     file.uri,
                     languageServer.dynamicRegistryManager,
                     languageServer.symbolManager,
                     CommandCrafter.analyzingSourceProvider(languageServer),
-                    mappingInfo,
-                    stopInfo
+                    commandTree,
+                    languageServer.fileResultProcessing,
+                    mappingInfo
                 ).apply {
-                    loadCache(file, languageServer.minecraftServer.commandDispatcher)
+                    loadCache(file, languageServer.minecraftServer.commandTree)
                 }
             )
 
@@ -122,9 +124,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
         }
 
-        private val NULL_PROVIDER = { _: Any? -> null }
         fun codecFromMetaSection(section: MetadataSectionType<*>, optional: Boolean): RecordCodecBuilder<Unit, *> =
-            if(optional) section.codec.optionalFieldOf(section.name).forGetter(NULL_PROVIDER)
-            else section.codec.fieldOf(section.name).forGetter(NULL_PROVIDER)
+            if(optional) section.codec.optionalFieldOf(section.name).forNeverGetter()
+            else section.codec.fieldOf(section.name).forNeverGetter()
     }
 }

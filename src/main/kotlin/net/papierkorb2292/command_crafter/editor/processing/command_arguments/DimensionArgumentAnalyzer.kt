@@ -2,8 +2,9 @@ package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.commands.arguments.DimensionArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.registries.Registries
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
@@ -14,13 +15,13 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.getArgumentOr
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
-class DimensionArgumentAnalyzer : CommandArgumentAnalyzerService<DimensionArgument> {
+class DimensionArgumentAnalyzer : CommandArgumentAnalyzerService {
     override val argumentTypes
         get() = listOf(DimensionArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: DimensionArgument,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,

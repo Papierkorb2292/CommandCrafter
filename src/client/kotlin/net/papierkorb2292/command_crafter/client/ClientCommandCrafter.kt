@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter.client
 
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.ParseResults
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.ParsedArgument
@@ -22,9 +21,9 @@ import net.minecraft.client.renderer.item.ClientItem
 import net.minecraft.client.renderer.texture.atlas.SpriteSources
 import net.minecraft.client.resources.WaypointStyle
 import net.minecraft.client.resources.metadata.language.LanguageMetadataSection
-import net.minecraft.commands.CommandBuildContext
 import net.minecraft.commands.Commands
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.network.chat.ClickEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.FileToIdConverter
@@ -35,7 +34,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.equipment.ArmorType
 import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.client.editor.DirectMinecraftClientConnection
-import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientCommandSource
+import net.papierkorb2292.command_crafter.client.editor.processing.AnalyzingClientSuggestionContext
 import net.papierkorb2292.command_crafter.datagen.ModdedDatagenRunner
 import net.papierkorb2292.command_crafter.editor.EditorConnectionManager
 import net.papierkorb2292.command_crafter.editor.McFunctionAnalyzer
@@ -45,6 +44,7 @@ import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCre
 import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.CommandArgumentAnalyzerService
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
@@ -55,7 +55,6 @@ import net.papierkorb2292.command_crafter.parser.Language
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 import net.papierkorb2292.command_crafter.parser.helper.getContextAtCursor
 import net.papierkorb2292.command_crafter.parser.helper.getNodeAtCursor
-import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
@@ -84,7 +83,7 @@ object ClientCommandCrafter : ClientModInitializer {
     var editorConnectionManager: EditorConnectionManager = EditorConnectionManager(
         SocketEditorConnectionType(CommandCrafter.config.servicesPort),
         ClientDummyServerConnection(
-            CommandDispatcher(), LevelBasedPermissionSet.NO_PERMISSIONS
+            AnalyzingCommandTree.createVanilla(Commands.CommandSelection.ALL, defaultFeatureSet, LevelBasedPermissionSet.NO_PERMISSIONS), LevelBasedPermissionSet.NO_PERMISSIONS
         ),
         DirectMinecraftClientConnection,
         CommandCrafter.serviceLaunchers
@@ -99,7 +98,7 @@ object ClientCommandCrafter : ClientModInitializer {
         CommandCrafter.registerRegistryTags()
 
         CommandCrafter.analyzingSourceProvider = { languageServer ->
-            AnalyzingClientCommandSource(Minecraft.getInstance(), languageServer.dynamicRegistryManager)
+            AnalyzingClientSuggestionContext(Minecraft.getInstance(), languageServer.dynamicRegistryManager)
         }
 
         MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer { languageServer, analyzingResult ->
@@ -135,17 +134,10 @@ object ClientCommandCrafter : ClientModInitializer {
         LoadedClientsideRegistries.load(Minecraft.getInstance()).thenApply { loadedClientsideRegistries ->
             ClientCommandCrafter.loadedClientsideRegistries = loadedClientsideRegistries
 
-            val registryWrapperLookup = loadedClientsideRegistries.combinedRegistries.compositeAccess()
             fun setDefaultServerConnection() {
-                val rootNode = limitCommandTreeForSource(
-                    Commands(
-                        Commands.CommandSelection.ALL,
-                        CommandBuildContext.simple(registryWrapperLookup, defaultFeatureSet)
-                    ), Commands.createCompilationContext(LevelBasedPermissionSet.GAMEMASTER)
-                )
-                CommandCrafter.removeLiteralsStartingWithForwardsSlash(rootNode)
+                val commandTree = AnalyzingCommandTree.createVanilla(Commands.CommandSelection.ALL, defaultFeatureSet, LevelBasedPermissionSet.GAMEMASTER)
                 editorConnectionManager.minecraftServerConnection = ClientDummyServerConnection(
-                    CommandDispatcher(rootNode),
+                    commandTree,
                     LevelBasedPermissionSet.GAMEMASTER
                 )
             }
@@ -190,19 +182,20 @@ object ClientCommandCrafter : ClientModInitializer {
         val emptySuggestions = CompletableFuture.completedFuture(Suggestions(StringRange.at(cursor), listOf()))
         if(!CommandCrafter.config.addIngameSuggestions)
             return emptySuggestions
-        // Make sure to use CommandCrafter's dispatcher, which has extra info
-        val dispatcher = editorConnectionManager.minecraftServerConnection.commandDispatcher
-        val source = AnalyzingClientCommandSource(Minecraft.getInstance(), editorConnectionManager.minecraftServerConnection.dynamicRegistryManager)
+        // Make sure to use CommandCrafter's command tree, which has extra info
+        val commandTree = editorConnectionManager.minecraftServerConnection.commandTree
+        val source = AnalyzingClientSuggestionContext(Minecraft.getInstance(), editorConnectionManager.minecraftServerConnection.dynamicRegistryManager)
         val mappingInfo = FileMappingInfo(listOf(input))
         val directiveReader = DirectiveStringReader(
             mappingInfo,
-            dispatcher,
             AnalyzingResourceCreator(
                 null,
                 "",
                 editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
                 SymbolManager(), //TODO: Add serverside symbols
                 source,
+                commandTree,
+                Minecraft.getInstance(),
                 mappingInfo
             )
         )
@@ -210,7 +203,7 @@ object ClientCommandCrafter : ClientModInitializer {
         if(directiveReader.canRead() && directiveReader.peek() == '/')
             directiveReader.skip()
         val analyzingResult = AnalyzingResult(directiveReader.fileMappingInfo, Position())
-        val parsed = directiveReader.dispatcher.parse(directiveReader, source)
+        val parsed = directiveReader.resourceCreator.commandTree.suggestionBox.parse(directiveReader, source).parseResults()
 
         val (parsedNode, context) = getContextForIngameSuggestions(parsed, directiveReader, cursor) ?: return emptySuggestions
         val node = parsedNode.node
@@ -219,10 +212,9 @@ object ClientCommandCrafter : ClientModInitializer {
         val analyzer = CommandArgumentAnalyzerService.getAnalyzerForType(node.type::class.java)!!
         directiveReader.cursor = parsedNode.range.start
         try {
-            VanillaLanguage.callArgumentAnalyzerUnchecked(
-                analyzer,
+            analyzer.analyze(
                 context,
-                node.type,
+                SerializableArgument.castOrThrow(node.type),
                 parsedNode.range,
                 node.name,
                 directiveReader,
@@ -240,7 +232,7 @@ object ClientCommandCrafter : ClientModInitializer {
         }
     }
 
-    fun getContextForIngameSuggestions(parseResults: ParseResults<SharedSuggestionProvider>, reader: DirectiveStringReader<AnalyzingResourceCreator>, cursor: Int): Pair<ParsedCommandNode<SharedSuggestionProvider>, CommandContext<SharedSuggestionProvider>>? {
+    fun getContextForIngameSuggestions(parseResults: ParseResults<SuggestionContext>, reader: DirectiveStringReader<AnalyzingResourceCreator>, cursor: Int): Pair<ParsedCommandNode<SuggestionContext>, CommandContext<SuggestionContext>>? {
         val command = parseResults.context.build(reader.string)
         var context = command.getContextAtCursor(cursor)
         var parsedNode = context?.getNodeAtCursor(cursor)
@@ -278,7 +270,7 @@ object ClientCommandCrafter : ClientModInitializer {
     }
 
     fun registerDatagenCommand() {
-        ClientCommandRegistrationCallback.EVENT.register { clientDispatcher, buildContext ->
+        ClientCommandRegistrationCallback.EVENT.register { clientDispatcher, _ ->
             clientDispatcher.register(
                 ClientCommands.literal("commandcrafter:datagen")
                     .executes { context ->
@@ -319,16 +311,16 @@ object ClientCommandCrafter : ClientModInitializer {
                             // Now run datagen
                             val hasServerConnection = editorConnectionManager.minecraftServerConnection !is ClientDummyServerConnection
                             val playerConnection = Minecraft.getInstance().player!!.connection
-                            val dispatcher = if(hasServerConnection) {
-                                editorConnectionManager.minecraftServerConnection.commandDispatcher
+                            val suggestionBox = if(hasServerConnection) {
+                                editorConnectionManager.minecraftServerConnection.commandTree.suggestionBox
                             } else {
-                                // Use the player's dispatcher as fallback, because that one might still have some server commands (assuming the player is admin)
+                                // Use the player's suggestion box as fallback, because that one might still have some server commands (assuming the player is admin)
                                 // If the user is not an admin and doesn't want the server commands, they could export it in a singleplayer world instead
-                                playerConnection.commands
+                                playerConnection.commandSuggestions()
                             }
                             val datagenPath = Path.of("datagen")
                             ModdedDatagenRunner.exportToDirectory(
-                                dispatcher,
+                                suggestionBox,
                                 editorConnectionManager.minecraftServerConnection.dynamicRegistryManager,
                                 path.resolve(datagenPath),
                                 false,

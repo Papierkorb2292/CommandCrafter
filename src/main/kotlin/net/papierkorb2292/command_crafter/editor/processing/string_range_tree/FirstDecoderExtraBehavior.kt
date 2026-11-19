@@ -22,12 +22,12 @@ class FirstDecoderExtraBehavior<TNode : Any>(val delegate: ExtraDecoderBehavior<
         return count
     }
 
-    override fun <TResult> onError(error: DataResult.Error<TResult>, input: TNode) {
+    override fun <TResult : Any> onError(error: DataResult.Error<TResult>, input: TNode) {
         if(postDecrementDecodeStackCount(input) > 1) return
         delegate.onError(error, input)
     }
 
-    override fun <TResult> onResult(result: TResult, isPartial: Boolean, input: TNode) {
+    override fun <TResult : Any> onResult(result: TResult, isPartial: Boolean, input: TNode) {
         if(isPartial) {
             // onError has been called before
             if(input !in decodeStackCounts)

@@ -1,10 +1,8 @@
 package net.papierkorb2292.command_crafter.editor
 
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.StringRange
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.commands.Commands
-import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.network.chat.Component
@@ -23,9 +21,7 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.*
 import net.papierkorb2292.command_crafter.editor.debugger.server.breakpoints.UnparsedServerBreakpoint
 import net.papierkorb2292.command_crafter.editor.debugger.server.functions.NodeEvaluator
 import net.papierkorb2292.command_crafter.editor.debugger.variables.VariablesReferencer
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.ContextCompletionProvider
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSymbolAccess
@@ -33,12 +29,10 @@ import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ServerS
 import net.papierkorb2292.command_crafter.helper.IntList
 import net.papierkorb2292.command_crafter.helper.SizeLimitedCallbackLinkedBlockingQueue
 import net.papierkorb2292.command_crafter.helper.lootRegistries
-import net.papierkorb2292.command_crafter.helper.memoizeLast
 import net.papierkorb2292.command_crafter.mixin.editor.debugger.ReloadCommandAccessor
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
 import net.papierkorb2292.command_crafter.parser.LanguageManager
-import net.papierkorb2292.command_crafter.parser.helper.limitCommandTreeForSource
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.Position
@@ -105,16 +99,13 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         }
     }
 
-    private val commandDispatcherFactory: (Commands) -> CommandDispatcher<SharedSuggestionProvider> = { commandManager: Commands ->
-        val root = limitCommandTreeForSource(commandManager, Commands.createCompilationContext(functionPermissions))
-        CommandCrafter.removeLiteralsStartingWithForwardsSlash(root)
-        CommandDispatcher(root)
-    }.memoizeLast()
-
     override val dynamicRegistryManager: RegistryAccess
         get() = server.lootRegistries
-    override val commandDispatcher: CommandDispatcher<SharedSuggestionProvider>
-        get() = commandDispatcherFactory(server.commands)
+    override val commandTree = AnalyzingCommandTree.createVanilla(
+        if(server.isDedicatedServer) Commands.CommandSelection.DEDICATED else Commands.CommandSelection.INTEGRATED,
+        server.worldData.enabledFeatures(),
+        server.functionCompilationPermissions
+    )
     override val functionPermissions = server.functionCompilationPermissions
     override val serverLog: Log? =
         if(server.isDedicatedServer)
@@ -237,17 +228,22 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         override fun getFunctionCompletions(completionInfo: ContextCompletionProvider.FunctionCompletionInfo): CompletableFuture<List<CompletionItem>> {
             val mappingInfo = FileMappingInfo(completionInfo.completeFile)
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(mappingInfo, server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(
-                null,
-                "",
-                server.registryAccess(),
-                ImmutableSymbolAccess.Dummy,
-                server.createCommandSourceStack(),
-                mappingInfo
-            ))
+            val reader = DirectiveStringReader(
+                mappingInfo,
+                AnalyzingResourceCreator(
+                    null,
+                    "",
+                    server.registryAccess(),
+                    ImmutableSymbolAccess.Dummy,
+                    AnalyzingServerSuggestionContext(server),
+                    commandTree,
+                    server,
+                    mappingInfo
+                )
+            )
             val analyzingResult = AnalyzingResult(mappingInfo, Position())
             reader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(completionInfo.absoluteCursor, true)
-            LanguageManager.analyse(reader, server.createCommandSourceStack(), analyzingResult, LanguageManager.DEFAULT_CLOSURE)
+            LanguageManager.analyse(reader, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
             val completeResult = reader.resourceCreator.overlayMacros(analyzingResult)
             return completeResult.getCompletions(completionInfo.absoluteCursor, completionInfo.completionContext) ?: CompletableFuture.completedFuture(listOf())
         }
@@ -255,14 +251,19 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         override fun getMacroCompletions(completionInfo: ContextCompletionProvider.MacroCompletionInfo): CompletableFuture<List<CompletionItem>> {
             val mappingInfo = FileMappingInfo(completionInfo.macroInput.lines)
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(mappingInfo, server.commands.dispatcher as CommandDispatcher<SharedSuggestionProvider>, AnalyzingResourceCreator(
-                null,
-                "",
-                server.registryAccess(),
-                ImmutableSymbolAccess.Dummy,
-                server.createCommandSourceStack(),
-                mappingInfo
-            ))
+            val reader = DirectiveStringReader(
+                mappingInfo,
+                AnalyzingResourceCreator(
+                    null,
+                    "",
+                    server.registryAccess(),
+                    ImmutableSymbolAccess.Dummy,
+                    AnalyzingServerSuggestionContext(server),
+                    commandTree,
+                    server,
+                    mappingInfo
+                )
+            )
             reader.resourceCreator.macroTargetCursors.addAll(completionInfo.macroTargetCursors)
             reader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(completionInfo.absoluteCursor, true)
             VanillaLanguage.analyzeMacroString(
@@ -275,7 +276,6 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                 StringEscaper.Identity, // Escaping happens clientside
                 null,
                 reader,
-                reader.resourceCreator.source
             )
             val completeResult = reader.resourceCreator.overlayMacros(AnalyzingResult(mappingInfo, Position()))
             return completeResult.getCompletions(completionInfo.absoluteCursor, completionInfo.completionContext) ?: CompletableFuture.completedFuture(listOf())

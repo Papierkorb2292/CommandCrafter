@@ -2,14 +2,12 @@ package net.papierkorb2292.command_crafter.editor.processing
 
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
-import com.mojang.serialization.Codec
 import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyDefinitionNodeDefault
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.findWorkspaceResourceFromIdAndPackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
 import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
-import net.papierkorb2292.command_crafter.editor.processing.helper.PackContentFileTypeContainer
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
@@ -60,22 +58,5 @@ object IdArgumentTypeAnalyzer {
                 analyzingResultArg.analyzingResult.semanticTokens.addMultiline(range, PARAMETER, 0)
             }
         }
-    }
-
-    fun registerFileTypeAdditionalDataType() {
-        ArgumentTypeAdditionalDataSerializer.registerAdditionalDataType(
-            Identifier.fromNamespaceAndPath("command_crafter","pack_content_file_type"),
-            { argumentType ->
-                if(argumentType is PackContentFileTypeContainer) {
-                    argumentType.`command_crafter$getPackContentFileType`()
-                } else null
-            },
-            { argumentType, packContentFileType ->
-                if(argumentType is PackContentFileTypeContainer) {
-                    argumentType.`command_crafter$setPackContentFileType`(packContentFileType)
-                    true
-                } else false
-            }, PackContentFileType.PACKET_CODEC.cast(), Codec.STRING.comap { it.toString() }
-        )
     }
 }

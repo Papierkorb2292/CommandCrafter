@@ -1,22 +1,23 @@
 package net.papierkorb2292.command_crafter.editor.processing.command_arguments
 
-import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.StringRange
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.BooleanArgument
+import net.minecraft.commands.arguments.SerializableArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
 import net.papierkorb2292.command_crafter.parser.helper.NodeAnalyzingExecutor
 
-class BoolArgumentAnalyzer : CommandArgumentAnalyzerService<BoolArgumentType> {
+class BoolArgumentAnalyzer : CommandArgumentAnalyzerService {
     override val argumentTypes
-        get() = listOf(BoolArgumentType::class.java)
+        get() = listOf(BooleanArgument::class.java)
 
     override fun analyze(
-        context: CommandContext<SharedSuggestionProvider>,
-        type: BoolArgumentType,
+        context: CommandContext<SuggestionContext>,
+        type: SerializableArgument.BrigadierWrapper<*>,
         range: StringRange,
         name: String,
         reader: DirectiveStringReader<AnalyzingResourceCreator>,

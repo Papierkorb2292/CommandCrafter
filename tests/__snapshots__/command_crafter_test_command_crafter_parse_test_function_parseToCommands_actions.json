@@ -8,28 +8,17 @@
     "command" : {
       "modifiers" : [ {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute as @a run say HI!",
         "arguments" : {
@@ -134,7 +123,7 @@
             "start" : 0,
             "end" : 7
           },
-          "command_crafter$readCharacters" : 34,
+          "command_crafter$readCharacters" : 35,
           "command_crafter$skippedChars" : 0
         }, {
           "node" : "as",
@@ -142,7 +131,7 @@
             "start" : 8,
             "end" : 10
           },
-          "command_crafter$readCharacters" : 34,
+          "command_crafter$readCharacters" : 35,
           "command_crafter$skippedChars" : 0
         }, {
           "node" : "targets",
@@ -150,7 +139,7 @@
             "start" : 11,
             "end" : 13
           },
-          "command_crafter$readCharacters" : 34,
+          "command_crafter$readCharacters" : 35,
           "command_crafter$skippedChars" : 0
         } ],
         "range" : {
@@ -159,28 +148,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute as @a run say HI!",
           "arguments" : { },
@@ -191,7 +169,7 @@
               "start" : 14,
               "end" : 17
             },
-            "command_crafter$readCharacters" : 34,
+            "command_crafter$readCharacters" : 35,
             "command_crafter$skippedChars" : 0
           } ],
           "range" : {
@@ -200,28 +178,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute as @a run say HI!",
             "command" : { },
@@ -244,7 +211,7 @@
                 "start" : 18,
                 "end" : 21
               },
-              "command_crafter$readCharacters" : 34,
+              "command_crafter$readCharacters" : 35,
               "command_crafter$skippedChars" : 0
             }, {
               "node" : "message",
@@ -252,7 +219,7 @@
                 "start" : 22,
                 "end" : 25
               },
-              "command_crafter$readCharacters" : 34,
+              "command_crafter$readCharacters" : 35,
               "command_crafter$skippedChars" : 0
             } ],
             "range" : {
@@ -267,28 +234,17 @@
         "forks" : true
       }, {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute as @a run say HI!",
         "arguments" : { },
@@ -299,7 +255,7 @@
             "start" : 14,
             "end" : 17
           },
-          "command_crafter$readCharacters" : 34,
+          "command_crafter$readCharacters" : 35,
           "command_crafter$skippedChars" : 0
         } ],
         "range" : {
@@ -308,28 +264,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute as @a run say HI!",
           "command" : { },
@@ -352,7 +297,7 @@
               "start" : 18,
               "end" : 21
             },
-            "command_crafter$readCharacters" : 34,
+            "command_crafter$readCharacters" : 35,
             "command_crafter$skippedChars" : 0
           }, {
             "node" : "message",
@@ -360,7 +305,7 @@
               "start" : 22,
               "end" : 25
             },
-            "command_crafter$readCharacters" : 34,
+            "command_crafter$readCharacters" : 35,
             "command_crafter$skippedChars" : 0
           } ],
           "range" : {
@@ -373,28 +318,17 @@
       } ],
       "executable" : {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute as @a run say HI!",
         "command" : { },
@@ -417,7 +351,7 @@
             "start" : 18,
             "end" : 21
           },
-          "command_crafter$readCharacters" : 34,
+          "command_crafter$readCharacters" : 35,
           "command_crafter$skippedChars" : 0
         }, {
           "node" : "message",
@@ -425,7 +359,7 @@
             "start" : 22,
             "end" : 25
           },
-          "command_crafter$readCharacters" : 34,
+          "command_crafter$readCharacters" : 35,
           "command_crafter$skippedChars" : 0
         } ],
         "range" : {
@@ -442,28 +376,17 @@
     "command" : {
       "modifiers" : [ {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "command" : {
@@ -495,7 +418,7 @@
             "start" : 0,
             "end" : 7
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "if",
@@ -503,7 +426,7 @@
             "start" : 8,
             "end" : 10
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "entity",
@@ -511,7 +434,7 @@
             "start" : 11,
             "end" : 17
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "entities",
@@ -519,7 +442,7 @@
             "start" : 18,
             "end" : 20
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -528,28 +451,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "arguments" : { },
@@ -560,7 +472,7 @@
               "start" : 21,
               "end" : 24
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -569,28 +481,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "arguments" : { },
@@ -601,7 +502,7 @@
                 "start" : 25,
                 "end" : 27
               },
-              "command_crafter$readCharacters" : 67,
+              "command_crafter$readCharacters" : 68,
               "command_crafter$skippedChars" : 7
             } ],
             "range" : {
@@ -610,28 +511,17 @@
             },
             "child" : {
               "source" : {
-                "source" : null,
-                "worldPosition" : {
-                  "x" : 0.0,
-                  "y" : 0.0,
-                  "z" : 0.0
-                },
-                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "namesProvider" : { },
-                "server" : null,
-                "silent" : false,
-                "resultCallback" : { },
-                "anchor" : "FEET",
-                "rotation" : {
-                  "x" : 0.0,
-                  "y" : 0.0
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
                 },
-                "signingContext" : { },
-                "chatMessageChainer" : { },
-                "context" : null,
-                "sourceType" : "SYSTEM",
-                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
               },
               "input" : "execute if entity @s run tp @s ~ ~1 ~",
               "command" : { },
@@ -681,7 +571,7 @@
                   "start" : 28,
                   "end" : 30
                 },
-                "command_crafter$readCharacters" : 67,
+                "command_crafter$readCharacters" : 68,
                 "command_crafter$skippedChars" : 7
               }, {
                 "node" : "location",
@@ -689,7 +579,7 @@
                   "start" : 31,
                   "end" : 37
                 },
-                "command_crafter$readCharacters" : 67,
+                "command_crafter$readCharacters" : 68,
                 "command_crafter$skippedChars" : 7
               } ],
               "range" : {
@@ -708,28 +598,17 @@
         "forks" : true
       }, {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "arguments" : { },
@@ -740,7 +619,7 @@
             "start" : 21,
             "end" : 24
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -749,28 +628,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "arguments" : { },
@@ -781,7 +649,7 @@
               "start" : 25,
               "end" : 27
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -790,28 +658,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "command" : { },
@@ -861,7 +718,7 @@
                 "start" : 28,
                 "end" : 30
               },
-              "command_crafter$readCharacters" : 67,
+              "command_crafter$readCharacters" : 68,
               "command_crafter$skippedChars" : 7
             }, {
               "node" : "location",
@@ -869,7 +726,7 @@
                 "start" : 31,
                 "end" : 37
               },
-              "command_crafter$readCharacters" : 67,
+              "command_crafter$readCharacters" : 68,
               "command_crafter$skippedChars" : 7
             } ],
             "range" : {
@@ -883,28 +740,17 @@
         "forks" : false
       }, {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "arguments" : { },
@@ -915,7 +761,7 @@
             "start" : 25,
             "end" : 27
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -924,28 +770,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "command" : { },
@@ -995,7 +830,7 @@
               "start" : 28,
               "end" : 30
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "location",
@@ -1003,7 +838,7 @@
               "start" : 31,
               "end" : 37
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -1016,28 +851,17 @@
       } ],
       "executable" : {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute if entity @s run tp @s ~ ~1 ~",
         "command" : { },
@@ -1087,7 +911,7 @@
             "start" : 28,
             "end" : 30
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "location",
@@ -1095,7 +919,7 @@
             "start" : 31,
             "end" : 37
           },
-          "command_crafter$readCharacters" : 67,
+          "command_crafter$readCharacters" : 68,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -1112,28 +936,17 @@
     "command" : {
       "modifiers" : [ {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "arguments" : {
@@ -1152,7 +965,7 @@
             "start" : 0,
             "end" : 7
           },
-          "command_crafter$readCharacters" : 132,
+          "command_crafter$readCharacters" : 134,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "align",
@@ -1160,7 +973,7 @@
             "start" : 12,
             "end" : 17
           },
-          "command_crafter$readCharacters" : 132,
+          "command_crafter$readCharacters" : 134,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "axes",
@@ -1168,7 +981,7 @@
             "start" : 18,
             "end" : 21
           },
-          "command_crafter$readCharacters" : 132,
+          "command_crafter$readCharacters" : 134,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -1177,28 +990,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "arguments" : { },
@@ -1209,7 +1011,7 @@
               "start" : 26,
               "end" : 29
             },
-            "command_crafter$readCharacters" : 132,
+            "command_crafter$readCharacters" : 134,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -1218,28 +1020,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
             "command" : { },
@@ -1259,7 +1050,7 @@
                 "start" : 30,
                 "end" : 36
               },
-              "command_crafter$readCharacters" : 132,
+              "command_crafter$readCharacters" : 134,
               "command_crafter$skippedChars" : 7
             }, {
               "node" : "entity",
@@ -1267,7 +1058,7 @@
                 "start" : 37,
                 "end" : 58
               },
-              "command_crafter$readCharacters" : 132,
+              "command_crafter$readCharacters" : 134,
               "command_crafter$skippedChars" : 7
             } ],
             "range" : {
@@ -1284,28 +1075,17 @@
         "forks" : false
       }, {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "arguments" : { },
@@ -1316,7 +1096,7 @@
             "start" : 26,
             "end" : 29
           },
-          "command_crafter$readCharacters" : 132,
+          "command_crafter$readCharacters" : 134,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -1325,28 +1105,17 @@
         },
         "child" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "command" : { },
@@ -1366,7 +1135,7 @@
               "start" : 30,
               "end" : 36
             },
-            "command_crafter$readCharacters" : 132,
+            "command_crafter$readCharacters" : 134,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "entity",
@@ -1374,7 +1143,7 @@
               "start" : 37,
               "end" : 58
             },
-            "command_crafter$readCharacters" : 132,
+            "command_crafter$readCharacters" : 134,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -1387,28 +1156,17 @@
       } ],
       "executable" : {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
         "command" : { },
@@ -1428,7 +1186,7 @@
             "start" : 30,
             "end" : 36
           },
-          "command_crafter$readCharacters" : 132,
+          "command_crafter$readCharacters" : 134,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "entity",
@@ -1436,7 +1194,7 @@
             "start" : 37,
             "end" : 58
           },
-          "command_crafter$readCharacters" : 132,
+          "command_crafter$readCharacters" : 134,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -1454,28 +1212,17 @@
       "modifiers" : [ ],
       "executable" : {
         "source" : {
-          "source" : null,
-          "worldPosition" : {
-            "x" : 0.0,
-            "y" : 0.0,
-            "z" : 0.0
-          },
-          "level" : "ServerLevel[Test Level]",
           "permissions" : { },
-          "namesProvider" : { },
-          "server" : null,
-          "silent" : false,
-          "resultCallback" : { },
-          "anchor" : "FEET",
-          "rotation" : {
-            "x" : 0.0,
-            "y" : 0.0
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
           },
-          "signingContext" : { },
-          "chatMessageChainer" : { },
-          "context" : null,
-          "sourceType" : "SYSTEM",
-          "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
         },
         "input" : "function ",
         "command" : { },
@@ -1498,7 +1245,7 @@
             "start" : 0,
             "end" : 8
           },
-          "command_crafter$readCharacters" : 191,
+          "command_crafter$readCharacters" : 193,
           "command_crafter$skippedChars" : 7
         }, {
           "node" : "name",
@@ -1506,7 +1253,7 @@
             "start" : 9,
             "end" : 9
           },
-          "command_crafter$readCharacters" : 218,
+          "command_crafter$readCharacters" : 220,
           "command_crafter$skippedChars" : 7
         } ],
         "range" : {
@@ -1525,28 +1272,17 @@
       "elements" : [ {
         "rootContext" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute as @a run say HI!",
           "arguments" : {
@@ -1651,7 +1387,7 @@
               "start" : 0,
               "end" : 7
             },
-            "command_crafter$readCharacters" : 34,
+            "command_crafter$readCharacters" : 35,
             "command_crafter$skippedChars" : 0
           }, {
             "node" : "as",
@@ -1659,7 +1395,7 @@
               "start" : 8,
               "end" : 10
             },
-            "command_crafter$readCharacters" : 34,
+            "command_crafter$readCharacters" : 35,
             "command_crafter$skippedChars" : 0
           }, {
             "node" : "targets",
@@ -1667,7 +1403,7 @@
               "start" : 11,
               "end" : 13
             },
-            "command_crafter$readCharacters" : 34,
+            "command_crafter$readCharacters" : 35,
             "command_crafter$skippedChars" : 0
           } ],
           "range" : {
@@ -1676,28 +1412,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute as @a run say HI!",
             "arguments" : { },
@@ -1708,7 +1433,7 @@
                 "start" : 14,
                 "end" : 17
               },
-              "command_crafter$readCharacters" : 34,
+              "command_crafter$readCharacters" : 35,
               "command_crafter$skippedChars" : 0
             } ],
             "range" : {
@@ -1717,28 +1442,17 @@
             },
             "child" : {
               "source" : {
-                "source" : null,
-                "worldPosition" : {
-                  "x" : 0.0,
-                  "y" : 0.0,
-                  "z" : 0.0
-                },
-                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "namesProvider" : { },
-                "server" : null,
-                "silent" : false,
-                "resultCallback" : { },
-                "anchor" : "FEET",
-                "rotation" : {
-                  "x" : 0.0,
-                  "y" : 0.0
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
                 },
-                "signingContext" : { },
-                "chatMessageChainer" : { },
-                "context" : null,
-                "sourceType" : "SYSTEM",
-                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
               },
               "input" : "execute as @a run say HI!",
               "command" : { },
@@ -1761,7 +1475,7 @@
                   "start" : 18,
                   "end" : 21
                 },
-                "command_crafter$readCharacters" : 34,
+                "command_crafter$readCharacters" : 35,
                 "command_crafter$skippedChars" : 0
               }, {
                 "node" : "message",
@@ -1769,7 +1483,7 @@
                   "start" : 22,
                   "end" : 25
                 },
-                "command_crafter$readCharacters" : 34,
+                "command_crafter$readCharacters" : 35,
                 "command_crafter$skippedChars" : 0
               } ],
               "range" : {
@@ -1785,34 +1499,23 @@
         },
         "isMacro" : false,
         "targetCommandRange" : {
-          "start" : 34,
-          "end" : 59
+          "start" : 35,
+          "end" : 60
         }
       }, {
         "rootContext" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute if entity @s run tp @s ~ ~1 ~",
           "command" : {
@@ -1844,7 +1547,7 @@
               "start" : 0,
               "end" : 7
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "if",
@@ -1852,7 +1555,7 @@
               "start" : 8,
               "end" : 10
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "entity",
@@ -1860,7 +1563,7 @@
               "start" : 11,
               "end" : 17
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "entities",
@@ -1868,7 +1571,7 @@
               "start" : 18,
               "end" : 20
             },
-            "command_crafter$readCharacters" : 67,
+            "command_crafter$readCharacters" : 68,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -1877,28 +1580,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute if entity @s run tp @s ~ ~1 ~",
             "arguments" : { },
@@ -1909,7 +1601,7 @@
                 "start" : 21,
                 "end" : 24
               },
-              "command_crafter$readCharacters" : 67,
+              "command_crafter$readCharacters" : 68,
               "command_crafter$skippedChars" : 7
             } ],
             "range" : {
@@ -1918,28 +1610,17 @@
             },
             "child" : {
               "source" : {
-                "source" : null,
-                "worldPosition" : {
-                  "x" : 0.0,
-                  "y" : 0.0,
-                  "z" : 0.0
-                },
-                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "namesProvider" : { },
-                "server" : null,
-                "silent" : false,
-                "resultCallback" : { },
-                "anchor" : "FEET",
-                "rotation" : {
-                  "x" : 0.0,
-                  "y" : 0.0
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
                 },
-                "signingContext" : { },
-                "chatMessageChainer" : { },
-                "context" : null,
-                "sourceType" : "SYSTEM",
-                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
               },
               "input" : "execute if entity @s run tp @s ~ ~1 ~",
               "arguments" : { },
@@ -1950,7 +1631,7 @@
                   "start" : 25,
                   "end" : 27
                 },
-                "command_crafter$readCharacters" : 67,
+                "command_crafter$readCharacters" : 68,
                 "command_crafter$skippedChars" : 7
               } ],
               "range" : {
@@ -1959,28 +1640,17 @@
               },
               "child" : {
                 "source" : {
-                  "source" : null,
-                  "worldPosition" : {
-                    "x" : 0.0,
-                    "y" : 0.0,
-                    "z" : 0.0
-                  },
-                  "level" : "ServerLevel[Test Level]",
                   "permissions" : { },
-                  "namesProvider" : { },
-                  "server" : null,
-                  "silent" : false,
-                  "resultCallback" : { },
-                  "anchor" : "FEET",
-                  "rotation" : {
-                    "x" : 0.0,
-                    "y" : 0.0
+                  "holderGetters" : { },
+                  "enabledFeatures" : {
+                    "universe" : {
+                      "id" : "main"
+                    },
+                    "mask" : 15
                   },
-                  "signingContext" : { },
-                  "chatMessageChainer" : { },
-                  "context" : null,
-                  "sourceType" : "SYSTEM",
-                  "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                  "validationWrapperProvider" : {
+                    "values" : { }
+                  }
                 },
                 "input" : "execute if entity @s run tp @s ~ ~1 ~",
                 "command" : { },
@@ -2030,7 +1700,7 @@
                     "start" : 28,
                     "end" : 30
                   },
-                  "command_crafter$readCharacters" : 67,
+                  "command_crafter$readCharacters" : 68,
                   "command_crafter$skippedChars" : 7
                 }, {
                   "node" : "location",
@@ -2038,7 +1708,7 @@
                     "start" : 31,
                     "end" : 37
                   },
-                  "command_crafter$readCharacters" : 67,
+                  "command_crafter$readCharacters" : 68,
                   "command_crafter$skippedChars" : 7
                 } ],
                 "range" : {
@@ -2058,28 +1728,27 @@
         },
         "isMacro" : false,
         "targetCommandRange" : {
-          "start" : 60,
-          "end" : 97
+          "start" : 61,
+          "end" : 98
         }
       } ],
       "reader" : {
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 210 ],
-            "targetCursors" : [ 34, 60, 81, 203 ],
-            "lengths" : [ 25, 21, 16, 15 ],
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 225,
-            "prevTargetEnd" : 218
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
           },
-          "readCharacters" : 361,
+          "readCharacters" : 363,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
         },
-        "dispatcher" : null,
         "resourceCreator" : {
           "functionId" : {
             "namespace" : "minecraft",
@@ -2094,28 +1763,17 @@
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "source" : null,
-                      "worldPosition" : {
-                        "x" : 0.0,
-                        "y" : 0.0,
-                        "z" : 0.0
-                      },
-                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "namesProvider" : { },
-                      "server" : null,
-                      "silent" : false,
-                      "resultCallback" : { },
-                      "anchor" : "FEET",
-                      "rotation" : {
-                        "x" : 0.0,
-                        "y" : 0.0
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
                       },
-                      "signingContext" : { },
-                      "chatMessageChainer" : { },
-                      "context" : null,
-                      "sourceType" : "SYSTEM",
-                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2138,7 +1796,7 @@
                         "start" : 0,
                         "end" : 3
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     }, {
                       "node" : "message",
@@ -2146,7 +1804,7 @@
                         "start" : 4,
                         "end" : 7
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     } ],
                     "range" : {
@@ -2198,28 +1856,17 @@
       "elements" : [ {
         "rootContext" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
           "arguments" : {
@@ -2238,7 +1885,7 @@
               "start" : 0,
               "end" : 7
             },
-            "command_crafter$readCharacters" : 132,
+            "command_crafter$readCharacters" : 134,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "align",
@@ -2246,7 +1893,7 @@
               "start" : 12,
               "end" : 17
             },
-            "command_crafter$readCharacters" : 132,
+            "command_crafter$readCharacters" : 134,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "axes",
@@ -2254,7 +1901,7 @@
               "start" : 18,
               "end" : 21
             },
-            "command_crafter$readCharacters" : 132,
+            "command_crafter$readCharacters" : 134,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -2263,28 +1910,17 @@
           },
           "child" : {
             "source" : {
-              "source" : null,
-              "worldPosition" : {
-                "x" : 0.0,
-                "y" : 0.0,
-                "z" : 0.0
-              },
-              "level" : "ServerLevel[Test Level]",
               "permissions" : { },
-              "namesProvider" : { },
-              "server" : null,
-              "silent" : false,
-              "resultCallback" : { },
-              "anchor" : "FEET",
-              "rotation" : {
-                "x" : 0.0,
-                "y" : 0.0
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
               },
-              "signingContext" : { },
-              "chatMessageChainer" : { },
-              "context" : null,
-              "sourceType" : "SYSTEM",
-              "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
             },
             "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
             "arguments" : { },
@@ -2295,7 +1931,7 @@
                 "start" : 26,
                 "end" : 29
               },
-              "command_crafter$readCharacters" : 132,
+              "command_crafter$readCharacters" : 134,
               "command_crafter$skippedChars" : 7
             } ],
             "range" : {
@@ -2304,28 +1940,17 @@
             },
             "child" : {
               "source" : {
-                "source" : null,
-                "worldPosition" : {
-                  "x" : 0.0,
-                  "y" : 0.0,
-                  "z" : 0.0
-                },
-                "level" : "ServerLevel[Test Level]",
                 "permissions" : { },
-                "namesProvider" : { },
-                "server" : null,
-                "silent" : false,
-                "resultCallback" : { },
-                "anchor" : "FEET",
-                "rotation" : {
-                  "x" : 0.0,
-                  "y" : 0.0
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
                 },
-                "signingContext" : { },
-                "chatMessageChainer" : { },
-                "context" : null,
-                "sourceType" : "SYSTEM",
-                "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
               },
               "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
               "command" : { },
@@ -2345,7 +1970,7 @@
                   "start" : 30,
                   "end" : 36
                 },
-                "command_crafter$readCharacters" : 132,
+                "command_crafter$readCharacters" : 134,
                 "command_crafter$skippedChars" : 7
               }, {
                 "node" : "entity",
@@ -2353,7 +1978,7 @@
                   "start" : 37,
                   "end" : 58
                 },
-                "command_crafter$readCharacters" : 132,
+                "command_crafter$readCharacters" : 134,
                 "command_crafter$skippedChars" : 7
               } ],
               "range" : {
@@ -2371,34 +1996,23 @@
         },
         "isMacro" : false,
         "targetCommandRange" : {
-          "start" : 125,
-          "end" : 183
+          "start" : 127,
+          "end" : 185
         }
       }, {
         "rootContext" : {
           "source" : {
-            "source" : null,
-            "worldPosition" : {
-              "x" : 0.0,
-              "y" : 0.0,
-              "z" : 0.0
-            },
-            "level" : "ServerLevel[Test Level]",
             "permissions" : { },
-            "namesProvider" : { },
-            "server" : null,
-            "silent" : false,
-            "resultCallback" : { },
-            "anchor" : "FEET",
-            "rotation" : {
-              "x" : 0.0,
-              "y" : 0.0
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
             },
-            "signingContext" : { },
-            "chatMessageChainer" : { },
-            "context" : null,
-            "sourceType" : "SYSTEM",
-            "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
           },
           "input" : "function ",
           "command" : { },
@@ -2421,7 +2035,7 @@
               "start" : 0,
               "end" : 8
             },
-            "command_crafter$readCharacters" : 191,
+            "command_crafter$readCharacters" : 193,
             "command_crafter$skippedChars" : 7
           }, {
             "node" : "name",
@@ -2429,7 +2043,7 @@
               "start" : 9,
               "end" : 9
             },
-            "command_crafter$readCharacters" : 218,
+            "command_crafter$readCharacters" : 220,
             "command_crafter$skippedChars" : 7
           } ],
           "range" : {
@@ -2440,28 +2054,27 @@
         },
         "isMacro" : false,
         "targetCommandRange" : {
-          "start" : 184,
-          "end" : 220
+          "start" : 186,
+          "end" : 222
         }
       } ],
       "reader" : {
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 210 ],
-            "targetCursors" : [ 34, 60, 81, 203 ],
-            "lengths" : [ 25, 21, 16, 15 ],
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 225,
-            "prevTargetEnd" : 218
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
           },
-          "readCharacters" : 361,
+          "readCharacters" : 363,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
         },
-        "dispatcher" : null,
         "resourceCreator" : {
           "functionId" : {
             "namespace" : "minecraft",
@@ -2476,28 +2089,17 @@
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "source" : null,
-                      "worldPosition" : {
-                        "x" : 0.0,
-                        "y" : 0.0,
-                        "z" : 0.0
-                      },
-                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "namesProvider" : { },
-                      "server" : null,
-                      "silent" : false,
-                      "resultCallback" : { },
-                      "anchor" : "FEET",
-                      "rotation" : {
-                        "x" : 0.0,
-                        "y" : 0.0
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
                       },
-                      "signingContext" : { },
-                      "chatMessageChainer" : { },
-                      "context" : null,
-                      "sourceType" : "SYSTEM",
-                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2520,7 +2122,7 @@
                         "start" : 0,
                         "end" : 3
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     }, {
                       "node" : "message",
@@ -2528,7 +2130,7 @@
                         "start" : 4,
                         "end" : 7
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     } ],
                     "range" : {
@@ -2582,20 +2184,19 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 210 ],
-            "targetCursors" : [ 34, 60, 81, 203 ],
-            "lengths" : [ 25, 21, 16, 15 ],
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 225,
-            "prevTargetEnd" : 218
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
           },
-          "readCharacters" : 361,
+          "readCharacters" : 363,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
         },
-        "dispatcher" : null,
         "resourceCreator" : {
           "functionId" : {
             "namespace" : "minecraft",
@@ -2610,28 +2211,17 @@
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "source" : null,
-                      "worldPosition" : {
-                        "x" : 0.0,
-                        "y" : 0.0,
-                        "z" : 0.0
-                      },
-                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "namesProvider" : { },
-                      "server" : null,
-                      "silent" : false,
-                      "resultCallback" : { },
-                      "anchor" : "FEET",
-                      "rotation" : {
-                        "x" : 0.0,
-                        "y" : 0.0
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
                       },
-                      "signingContext" : { },
-                      "chatMessageChainer" : { },
-                      "context" : null,
-                      "sourceType" : "SYSTEM",
-                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2654,7 +2244,7 @@
                         "start" : 0,
                         "end" : 3
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     }, {
                       "node" : "message",
@@ -2662,7 +2252,7 @@
                         "start" : 4,
                         "end" : 7
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     } ],
                     "range" : {
@@ -2716,20 +2306,19 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 210 ],
-            "targetCursors" : [ 34, 60, 81, 203 ],
-            "lengths" : [ 25, 21, 16, 15 ],
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 225,
-            "prevTargetEnd" : 218
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
           },
-          "readCharacters" : 361,
+          "readCharacters" : 363,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
         },
-        "dispatcher" : null,
         "resourceCreator" : {
           "functionId" : {
             "namespace" : "minecraft",
@@ -2744,28 +2333,17 @@
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "source" : null,
-                      "worldPosition" : {
-                        "x" : 0.0,
-                        "y" : 0.0,
-                        "z" : 0.0
-                      },
-                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "namesProvider" : { },
-                      "server" : null,
-                      "silent" : false,
-                      "resultCallback" : { },
-                      "anchor" : "FEET",
-                      "rotation" : {
-                        "x" : 0.0,
-                        "y" : 0.0
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
                       },
-                      "signingContext" : { },
-                      "chatMessageChainer" : { },
-                      "context" : null,
-                      "sourceType" : "SYSTEM",
-                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2788,7 +2366,7 @@
                         "start" : 0,
                         "end" : 3
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     }, {
                       "node" : "message",
@@ -2796,7 +2374,7 @@
                         "start" : 4,
                         "end" : 7
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     } ],
                     "range" : {
@@ -2850,20 +2428,19 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 210 ],
-            "targetCursors" : [ 34, 60, 81, 203 ],
-            "lengths" : [ 25, 21, 16, 15 ],
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 225,
-            "prevTargetEnd" : 218
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
           },
-          "readCharacters" : 361,
+          "readCharacters" : 363,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
         },
-        "dispatcher" : null,
         "resourceCreator" : {
           "functionId" : {
             "namespace" : "minecraft",
@@ -2878,28 +2455,17 @@
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "source" : null,
-                      "worldPosition" : {
-                        "x" : 0.0,
-                        "y" : 0.0,
-                        "z" : 0.0
-                      },
-                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "namesProvider" : { },
-                      "server" : null,
-                      "silent" : false,
-                      "resultCallback" : { },
-                      "anchor" : "FEET",
-                      "rotation" : {
-                        "x" : 0.0,
-                        "y" : 0.0
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
                       },
-                      "signingContext" : { },
-                      "chatMessageChainer" : { },
-                      "context" : null,
-                      "sourceType" : "SYSTEM",
-                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -2922,7 +2488,7 @@
                         "start" : 0,
                         "end" : 3
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     }, {
                       "node" : "message",
@@ -2930,7 +2496,7 @@
                         "start" : 4,
                         "end" : 7
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     } ],
                     "range" : {
@@ -2984,20 +2550,19 @@
         "string" : "",
         "cursor" : 0,
         "fileMappingInfo" : {
-          "lines" : [ "# This is a doc \\    ", "    comment", "execute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
           "cursorMapper" : {
-            "sourceCursors" : [ 34, 60, 88, 210 ],
-            "targetCursors" : [ 34, 60, 81, 203 ],
-            "lengths" : [ 25, 21, 16, 15 ],
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
             "expandedCharEnds" : { },
-            "prevSourceEnd" : 225,
-            "prevTargetEnd" : 218
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
           },
-          "readCharacters" : 361,
+          "readCharacters" : 363,
           "skippedChars" : 7,
-          "accumulatedLineLengths" : [ 22, 34, 60, 84, 105, 132, 140, 154, 191, 202, 226, 228, 259, 287, 305, 340, 362 ]
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
         },
-        "dispatcher" : null,
         "resourceCreator" : {
           "functionId" : {
             "namespace" : "minecraft",
@@ -3012,28 +2577,17 @@
                   "modifiers" : [ ],
                   "executable" : {
                     "source" : {
-                      "source" : null,
-                      "worldPosition" : {
-                        "x" : 0.0,
-                        "y" : 0.0,
-                        "z" : 0.0
-                      },
-                      "level" : "ServerLevel[Test Level]",
                       "permissions" : { },
-                      "namesProvider" : { },
-                      "server" : null,
-                      "silent" : false,
-                      "resultCallback" : { },
-                      "anchor" : "FEET",
-                      "rotation" : {
-                        "x" : 0.0,
-                        "y" : 0.0
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
                       },
-                      "signingContext" : { },
-                      "chatMessageChainer" : { },
-                      "context" : null,
-                      "sourceType" : "SYSTEM",
-                      "sourceUuid" : "00000000-0000-0000-0000-000000000000"
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
                     },
                     "input" : "say HI!",
                     "command" : { },
@@ -3056,7 +2610,7 @@
                         "start" : 0,
                         "end" : 3
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     }, {
                       "node" : "message",
@@ -3064,7 +2618,7 @@
                         "start" : 4,
                         "end" : 7
                       },
-                      "command_crafter$readCharacters" : 206,
+                      "command_crafter$readCharacters" : 208,
                       "command_crafter$skippedChars" : 7
                     } ],
                     "range" : {

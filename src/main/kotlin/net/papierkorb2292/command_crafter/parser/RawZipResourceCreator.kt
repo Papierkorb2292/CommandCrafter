@@ -1,13 +1,12 @@
 package net.papierkorb2292.command_crafter.parser
 
 import com.google.common.io.Files
-import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.datafixers.util.Either
-import net.minecraft.commands.CommandBuildContext
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.functions.CommandParser
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
 import net.minecraft.server.packs.FilePackResources
@@ -26,7 +25,11 @@ import java.util.*
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class RawZipResourceCreator {
+class RawZipResourceCreator(
+    val functionId: Identifier,
+    private val resourceCollector: ResourceCollector,
+    val parserProvider: CommandParser.Provider<CommandSourceStack>
+) {
     companion object {
         private val UNKNOWN_DATAPACK_EXCEPTION = DynamicCommandExceptionType { Component.nullToEmpty("Datapack $it is of unknown type and cannot be build") }
         private val PROCESSOR_EXCEPTION = Dynamic2CommandExceptionType { id, exception -> Component.nullToEmpty("Error while processing resource '$id' for datapack build: $exception") }
@@ -34,8 +37,8 @@ class RawZipResourceCreator {
 
         val DATA_TYPE_PROCESSORS: MutableList<DataTypeProcessor> = ArrayList()
 
-        fun buildDatapack(pack: PackResources, args: DatapackBuildArgs, dispatcher: CommandDispatcher<SharedSuggestionProvider>, buildContext: CommandBuildContext, output: ZipOutputStream) {
-            val resourceCreator = RawZipResourceCreator()
+        fun buildDatapack(pack: PackResources, args: DatapackBuildArgs, parserProvider: CommandParser.Provider<CommandSourceStack>, output: ZipOutputStream) {
+            val collector = ResourceCollector()
             val dataDirectory = PackType.SERVER_DATA.directory + '/'
             var foundPackMeta = false
             when (pack) {
@@ -62,10 +65,9 @@ class RawZipResourceCreator {
                         processFile(
                             Identifier.fromNamespaceAndPath(namespace.toString(), path.toString().replace('\\', '/')),
                             ioSupplier,
-                            resourceCreator,
+                            collector,
                             args,
-                            dispatcher,
-                            buildContext
+                            parserProvider,
                         )
                     }
                 }
@@ -90,10 +92,9 @@ class RawZipResourceCreator {
                         processFile(
                             Identifier.fromNamespaceAndPath(namespace.toString(), path.toString().replace('\\', '/')),
                             ioSupplier,
-                            resourceCreator,
+                            collector,
                             args,
-                            dispatcher,
-                            buildContext
+                            parserProvider,
                         )
                     }
                 }
@@ -103,7 +104,7 @@ class RawZipResourceCreator {
             if(!foundPackMeta)
                 throw MISSING_PACK_META_EXCEPTION.create()
 
-            resourceCreator.createResources(output)
+            collector.createResources(output)
         }
 
         private fun copyToOutput(
@@ -120,10 +121,9 @@ class RawZipResourceCreator {
         private fun processFile(
             fileId: Identifier,
             content: IoSupplier<InputStream>,
-            resourceCreator: RawZipResourceCreator,
+            resourceCollector: ResourceCollector,
             args: DatapackBuildArgs,
-            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-            buildContext: CommandBuildContext,
+            parserProvider: CommandParser.Provider<CommandSourceStack>,
         ) {
             val resourceExtension = Files.getFileExtension(fileId.path)
             val resourceId = Identifier.fromNamespaceAndPath(fileId.namespace, fileId.path.substring(0, fileId.path.length - resourceExtension.length - 1))
@@ -134,12 +134,13 @@ class RawZipResourceCreator {
                     val path = Path.of(resourceId.path)
                     val id = Identifier.fromNamespaceAndPath(resourceId.namespace, Path.of(processor.type).relativize(path).toString().replace('\\', '/'))
                     try {
+                        val resourceCreator = RawZipResourceCreator(id, resourceCollector, parserProvider)
                         if (processor.shouldProcess(args)) {
-                            processor.process(args, id, reader, resourceCreator, dispatcher, buildContext)
+                            processor.process(args, id, reader, resourceCreator)
                             reader.close()
                             return
                         }
-                        processor.validate(args, id, reader, dispatcher, buildContext)
+                        processor.validate(args, id, reader, resourceCreator)
                         break
                     } catch (e: Exception) {
                         throw PROCESSOR_EXCEPTION.create(fileId, e.message)
@@ -149,7 +150,7 @@ class RawZipResourceCreator {
             val input = content.get()
             RawResource(RawResource.RawResourceType("", resourceExtension)).run {
                 this.content += Either.left(String(input.readAllBytes()))
-                resourceCreator.resources += resourceId to this
+                resourceCollector.addResource(resourceId, this)
             }
             input.close()
         }
@@ -159,34 +160,62 @@ class RawZipResourceCreator {
         }
     }
 
-    private val resources: MutableList<Pair<Identifier, RawResource>> = ArrayList()
-
     val resourceStack = LinkedList<RawResource>()
 
     fun addResource(id: Identifier, resource: RawResource) {
-        resources += id to resource
+        resourceCollector.addResource(id, resource)
     }
 
-    private fun createResources(zipOutput: ZipOutputStream) {
-        val subResourceNumbering: HashMap<String, Int> = HashMap()
-        for((id, resource) in resources) {
-            createResource(id, id, resource, zipOutput, subResourceNumbering)
-            subResourceNumbering.clear()
+    class ResourceCollector {
+
+        val resources: MutableList<Pair<Identifier, RawResource>> = ArrayList()
+
+        fun addResource(id: Identifier, resource: RawResource) {
+            resources += id to resource
         }
-    }
 
-    private fun createResource(currentId: Identifier, parentFunctionId: Identifier, resource: RawResource, zipOutput: ZipOutputStream, subResourceNumbering: MutableMap<String, Int>) {
-        resource.id = currentId
-        resource.content.map { either ->
-            either.map({ it }, content@{
-                it.id?.run { return@content toString() }
-                val childId = Identifier.fromNamespaceAndPath(parentFunctionId.namespace, "${parentFunctionId.path}--${numberSubResource(subResourceNumbering, it.type.prefix)}--craftergen")
-                createResource(childId, parentFunctionId, it, zipOutput, subResourceNumbering)
-                childId.toString()
-            })
-        }.apply {
-            zipOutput.putNextEntry(ZipEntry("${Path.of("${PackType.SERVER_DATA.directory}/${currentId.namespace}").resolve(resource.type.prefix).resolve(currentId.path)}.${resource.type.fileExtension}"))
-            zipOutput.writer(Charset.defaultCharset()).append(*toTypedArray()).flush()
+        fun createResources(zipOutput: ZipOutputStream) {
+            val subResourceNumbering: HashMap<String, Int> = HashMap()
+            for((id, resource) in resources) {
+                createResource(id, id, resource, zipOutput, subResourceNumbering)
+                subResourceNumbering.clear()
+            }
+        }
+
+        fun createResource(
+            currentId: Identifier,
+            parentFunctionId: Identifier,
+            resource: RawResource,
+            zipOutput: ZipOutputStream,
+            subResourceNumbering: MutableMap<String, Int>
+        ) {
+            resource.id = currentId
+            resource.content.map { either ->
+                either.map({ it }, content@{
+                    it.id?.run { return@content toString() }
+                    val childId = Identifier.fromNamespaceAndPath(
+                        parentFunctionId.namespace,
+                        "${parentFunctionId.path}--${
+                            numberSubResource(
+                                subResourceNumbering,
+                                it.type.prefix
+                            )
+                        }--craftergen"
+                    )
+                    createResource(childId, parentFunctionId, it, zipOutput, subResourceNumbering)
+                    childId.toString()
+                })
+            }.apply {
+                zipOutput.putNextEntry(
+                    ZipEntry(
+                        "${
+                            Path.of("${PackType.SERVER_DATA.directory}/${currentId.namespace}")
+                                .resolve(resource.type.prefix).resolve(currentId.path)
+                        }.${resource.type.fileExtension}"
+                    )
+                )
+                zipOutput.writer(Charset.defaultCharset()).append(*toTypedArray()).flush()
+            }
         }
     }
 
@@ -198,15 +227,12 @@ class RawZipResourceCreator {
             id: Identifier,
             content: BufferedReader,
             resourceCreator: RawZipResourceCreator,
-            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-            buildContext: CommandBuildContext
         )
         fun validate(
             args: DatapackBuildArgs,
             id: Identifier,
             content: BufferedReader,
-            dispatcher: CommandDispatcher<SharedSuggestionProvider>,
-            buildContext: CommandBuildContext
+            resourceCreator: RawZipResourceCreator,
         )
     }
 }

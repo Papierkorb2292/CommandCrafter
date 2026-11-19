@@ -50,6 +50,12 @@ public @interface CodecMod {
     String codecField() default "";
 
     /**
+     * The amount of parameters that the function specified through {@link #codecField()} takes.
+     * The first parameter is always expected to be the field name.
+     */
+    int codecFieldParameterCount() default 1;
+
+    /**
      * If true, codecField() will wrap the fieldOf() or optionalFieldOf() result. Otherwise, it will wrap the content of the field (the receiver)
      */
     boolean includeCodecField() default false;

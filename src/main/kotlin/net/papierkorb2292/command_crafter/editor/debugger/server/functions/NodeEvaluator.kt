@@ -2,7 +2,6 @@ package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.StringReader
-import com.mojang.brigadier.arguments.ArgumentType
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.context.CommandContextBuilder
 import com.mojang.brigadier.exceptions.CommandSyntaxException
@@ -10,7 +9,6 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import com.mojang.brigadier.tree.ArgumentCommandNode
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.brigadier.tree.LiteralCommandNode
-import com.mojang.brigadier.tree.RootCommandNode
 import com.mojang.datafixers.util.Either
 import net.minecraft.ChatFormatting
 import net.minecraft.commands.*
@@ -20,7 +18,6 @@ import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.TextColor
 import net.minecraft.resources.Identifier
-import net.minecraft.server.MinecraftServer
 import net.minecraft.server.commands.data.BlockDataAccessor
 import net.minecraft.server.commands.data.DataAccessor
 import net.minecraft.server.commands.data.EntityDataAccessor
@@ -40,8 +37,9 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvi
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider.Companion.withAlternativeForNull
 import net.papierkorb2292.command_crafter.editor.debugger.helper.HoverCursorContainer
 import net.papierkorb2292.command_crafter.editor.debugger.variables.*
-import net.papierkorb2292.command_crafter.helper.lootRegistries
+import net.papierkorb2292.command_crafter.mixin.editor.CommandBoxAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.CommandNodeAccessor
+import net.papierkorb2292.command_crafter.mixin.parser.ParseBoxResultAccessor
 import net.papierkorb2292.command_crafter.parser.helper.CursorOffsetContainer
 import net.papierkorb2292.command_crafter.parser.helper.getContextAtCursor
 import net.papierkorb2292.command_crafter.parser.helper.getCursorOffset
@@ -63,10 +61,8 @@ fun interface NodeEvaluator {
     companion object {
         // Specified separately instead of in one dispatcher to better handle ambiguity
         private val evaluationParsers = listOf<EvaluationParser>(
-            EvaluationParser({ server ->
-                val registries = server.lootRegistries // These registries contain loot data types
-                val buildContext = CommandBuildContext.simple(registries, server.worldData.enabledFeatures())
-                Commands.argument("predicate", ResourceOrIdArgument.lootPredicate(buildContext)).build()
+            EvaluationParser({
+                Commands.argument("predicate", LootPredicateArgument.lootPredicate(LootContextParamSets.COMMAND_PREDICATE)).build()
             }),
             EvaluationParser({
                 Commands.argument("position", Vec3Argument.vec3(true))
@@ -81,13 +77,13 @@ fun interface NodeEvaluator {
                 Commands.argument("scoreHolder", ScoreHolderArgument.scoreHolders())
                     .then(Commands.argument("objective", ObjectiveArgument.objective()))
                     .build()
-            }, { context, input ->
+            }, { context, source, input ->
                 // If objective arg doesn't exist and score holder could be an entity, it should be interpreted as an NBT path instead
                 try {
                     EntityArgument.entities().parse(StringReader(input))
                     // Must be entity, since no exception was thrown
                     val name = context.arguments["objective"]?.result as? String ?: return@EvaluationParser false
-                    context.source.server.scoreboard.getObjective(name) != null
+                    source.server.scoreboard.getObjective(name) != null
                 } catch(_: CommandSyntaxException) {
                     true
                 }
@@ -96,12 +92,12 @@ fun interface NodeEvaluator {
                 Commands.argument("storage", IdentifierArgument.id())
                     .then(Commands.argument("path", NbtPathArgument.nbtPath()))
                     .build()
-            }, { context, input ->
+            }, { context, source, input ->
                 // Only valid if path was supplied and storage exists
                 if(context.arguments["path"] == null)
                     return@EvaluationParser false
                 val storageId = context.arguments["storage"]?.result as? Identifier ?: return@EvaluationParser false
-                context.source.server.commandStorage.get(storageId).size() != 0
+                source.server.commandStorage.get(storageId).size() != 0
             }),
             EvaluationParser({
                 Commands.argument("entity", EntityArgument.entities())
@@ -111,15 +107,11 @@ fun interface NodeEvaluator {
             })
         )
 
-        private fun tryParseExpression(input: String, source: CommandSourceStack): Either<CommandContextBuilder<CommandSourceStack>, CommandSyntaxException> {
+        private fun tryParseExpression(input: String, context: ParseContext, source: CommandSourceStack): Either<CommandContextBuilder<ParseContext>, CommandSyntaxException> {
             val errors = mutableListOf<CommandSyntaxException>()
             // Use the first valid result, which is validated by the parser to handle ambiguity
             val parsed = evaluationParsers.firstNotNullOfOrNull { parser ->
-                val node = parser.parseTreeProvider(source.server)
-                val dispatcher = CommandDispatcher(RootCommandNode<CommandSourceStack>().apply {
-                    addChild(node)
-                })
-                val parseResults = dispatcher.parse(input, source)
+                val parseResults = (parser.parseBox.parse(input, context) as ParseBoxResultAccessor).parseResults
 
                 if(parseResults.exceptions.isNotEmpty()) {
                     errors += parseResults.exceptions.values.maxBy { it.cursor }
@@ -127,7 +119,7 @@ fun interface NodeEvaluator {
                 } else if(parseResults.reader.canRead()) {
                     errors += CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parseResults.reader)
                     null
-                } else if(parser.validator(parseResults.context, input)) {
+                } else if(CommandBoxAccessor.callRunWithParseContext({ parser.validator(parseResults.context, source, input) }, context)) {
                     parseResults
                 } else {
                     null
@@ -139,13 +131,14 @@ fun interface NodeEvaluator {
         private fun findClosestArgumentName(
             startName: String,
             context: CommandContext<CommandSourceStack>,
-            types: Set<Class<out ArgumentType<*>>>,
+            types: Set<Class<out SerializableArgument<*>>>,
         ): ArgumentCommandNode<CommandSourceStack, *>? {
             val startIndex = context.nodes.indexOfFirst { it.node.name == startName }
             val entry = context.nodes.withIndex()
                 .filter {
-                    val argumentClass = (it.value.node as? ArgumentCommandNode<*, *>)?.type?.javaClass
-                    (argumentClass as Class<out ArgumentType<*>>?) in types
+                    val argumentType = (it.value.node as? ArgumentCommandNode<*, *>)?.type ?: return@filter false
+                    val serializable = SerializableArgument.unwrapOrThrow(argumentType)
+                    serializable.javaClass in types
                 }
                 .minByOrNull { (it.index - startIndex).absoluteValue }
                 ?: return null
@@ -234,17 +227,19 @@ fun interface NodeEvaluator {
                     this.result = "$name: " + this.result
             }))
 
-        private val nodeEvaluators = mutableMapOf<Class<out ArgumentType<*>>, NodeEvaluator>(
-            ResourceOrIdArgument.LootPredicateArgument::class.java to NodeEvaluator { argumentName, context, _, _, includeInterpretation ->
+        private val nodeEvaluators = mutableMapOf<Class<out SerializableArgument<*>>, NodeEvaluator>(
+            LootPredicateArgument::class.java to NodeEvaluator { argumentName, context, _, _, includeInterpretation ->
                 object : EvaluationProvider {
                     override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                        val value = ResourceOrIdArgument.getLootPredicate(context, argumentName).value()
+                        val value = LootPredicateArgument.getLootPredicate(context, argumentName)
+                            .validateAndGet(LootContextParamSets.COMMAND_PREDICATE)
+                            .value()
                         val source = context.source
                         val serverLevel = source.level
                         val lootParams = LootParams.Builder(serverLevel)
                             .withParameter(LootContextParams.ORIGIN, source.position)
                             .withOptionalParameter(LootContextParams.THIS_ENTITY, source.entity)
-                            .create(LootContextParamSets.COMMAND)
+                            .create(LootContextParamSets.COMMAND_PREDICATE)
                         val lootContext = LootContext.Builder(lootParams).create(Optional.empty())
                         lootContext.pushVisitedElement(LootContext.createVisitedEntry(value))
                         val result = value.test(lootContext)
@@ -382,7 +377,7 @@ fun interface NodeEvaluator {
                         val parsedNode = context.nodes.first { it.node.name == argumentName }
                         val range = parsedNode.range
                         try {
-                            val argumentParser = NbtPathArgument()
+                            val argumentParser = NbtPathArgument.nbtPath()
                             // Only parse up until the cursor
                             var mappedCursor = cursor - (parsedNode as CursorOffsetContainer).getCursorOffset()
                             // VSCode includes leading '.' when determining the range for hover, so skip it here
@@ -417,8 +412,8 @@ fun interface NodeEvaluator {
 
         private fun scoreHolderFromName(name: String, source: CommandSourceStack): ScoreHolder? {
             return try {
-                ScoreHolderArgument.scoreHolder().parse(StringReader(name))
-                    .getNames(source, Collections::emptyList)
+                ScoreHolderArgument.scoreHolder().parse(StringReader(name), ParseContext.of(source))
+                    .getNames(source.server, source) { emptyList() }
                     .firstOrNull()
             } catch (_: CommandSyntaxException) {
                 null
@@ -429,7 +424,8 @@ fun interface NodeEvaluator {
 
         private fun getExecuteConditionEvaluationProvider(subcontext: CommandContext<CommandSourceStack>, mapper: VariablesReferenceMapper) = object : EvaluationProvider {
             override fun evaluate(args: EvaluateArguments): CompletableFuture<EvaluationProvider.EvaluationResult?> {
-                val dispatcher = subcontext.source.server.commands.dispatcher
+                @Suppress("UNCHECKED_CAST")
+                val dispatcher = (subcontext.source.server.commands.parseBox() as CommandBoxAccessor<ParseContext>).dispatcher
                 val ifNode = dispatcher.findNode(listOf("execute", "if"))
                 val unlessNode = dispatcher.findNode(listOf("execute", "unless"))
                 val conditionIndex = subcontext.nodes.indexOfFirst {
@@ -475,20 +471,21 @@ fun interface NodeEvaluator {
 
                     // Check if user might have tried to execute a command but forgot '/'
                     val firstArg = StringReader(input).readUnquotedString()
-                    if(firstArg in (source.server.commands.dispatcher.root as CommandNodeAccessor).literals) {
+                    if(firstArg in ((source.server.commands.parseBox() as CommandBoxAccessor<*>).dispatcher.root as CommandNodeAccessor).literals) {
                         editorDebugConnection.output(OutputEventArguments().apply {
                             category = OutputEventArgumentsCategory.CONSOLE
                             output = "If you want to run a command, prefix it with '/'"
                         })
                     }
 
-                    val parsed = tryParseExpression(input, source)
+                    val parsed = tryParseExpression(input, ParseContext.of(source), source)
                     return parsed.map({ context ->
                         val cursor =
                             if(context.nodes.firstOrNull()?.node?.name == "scoreHolder") 0 // Placed at beginning because the score holder is evaluated to compute the scores
                             else context.range.end
+                        @Suppress("UNCHECKED_CAST")
                         getContextEvaluationProvider(
-                            context.build(input),
+                            context.build(input) as CommandContext<CommandSourceStack>,
                             source,
                             cursor,
                             mapper,
@@ -521,7 +518,8 @@ fun interface NodeEvaluator {
 
             private fun getNodeEvaluator(node: CommandNode<CommandSourceStack>, context: CommandContext<CommandSourceStack>): EvaluationProvider? =
                 if(node is ArgumentCommandNode<*, *>) {
-                    nodeEvaluators[node.type.javaClass]?.getEvaluationProvider(
+                    val serializable = SerializableArgument.unwrapOrThrow(node.type)
+                    nodeEvaluators[serializable.javaClass]?.getEvaluationProvider(
                         node.name,
                         context,
                         mapper,
@@ -549,5 +547,9 @@ fun interface NodeEvaluator {
         }
     }
 
-    data class EvaluationParser(val parseTreeProvider: (MinecraftServer) -> CommandNode<CommandSourceStack>, val validator: (CommandContextBuilder<CommandSourceStack>, String) -> Boolean = { _, _ -> true })
+    class EvaluationParser(parseTreeProvider: () -> CommandNode<CommandSourceStack>, val validator: (CommandContextBuilder<ParseContext>, CommandSourceStack, String) -> Boolean = { _, _, _ -> true }) {
+        val parseBox = ParseBox.fromFullTree(CommandDispatcher<CommandSourceStack>().apply {
+            root.addChild(parseTreeProvider())
+        })
+    }
 }

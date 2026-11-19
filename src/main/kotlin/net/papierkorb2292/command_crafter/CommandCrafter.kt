@@ -1,6 +1,5 @@
 package net.papierkorb2292.command_crafter
 
-import com.mojang.brigadier.arguments.BoolArgumentType
 import com.mojang.brigadier.tree.CommandNode
 import com.mojang.serialization.Codec
 import net.fabricmc.api.EnvType
@@ -9,12 +8,10 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.commands.CommandSource
-import net.minecraft.commands.CommandSourceStack
-import net.minecraft.commands.SharedSuggestionProvider
+import net.minecraft.commands.arguments.BooleanArgument
+import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.network.chat.CommonComponents
 import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
@@ -25,8 +22,6 @@ import net.minecraft.world.level.gamerules.GameRule
 import net.minecraft.world.level.gamerules.GameRuleCategory
 import net.minecraft.world.level.gamerules.GameRuleType
 import net.minecraft.world.level.gamerules.GameRuleTypeVisitor
-import net.minecraft.world.phys.Vec2
-import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.config.CommandCrafterConfig
 import net.papierkorb2292.command_crafter.datagen.ModdedDatagenRunner
 import net.papierkorb2292.command_crafter.editor.*
@@ -34,11 +29,7 @@ import net.papierkorb2292.command_crafter.editor.NetworkServerConnectionHandler.
 import net.papierkorb2292.command_crafter.editor.debugger.InitializedEventEmittingMessageWrapper
 import net.papierkorb2292.command_crafter.editor.debugger.MinecraftDebuggerServer
 import net.papierkorb2292.command_crafter.editor.debugger.helper.EvaluationProvider
-import net.papierkorb2292.command_crafter.editor.processing.FileTypeDispatchingAnalyzer
-import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
-import net.papierkorb2292.command_crafter.editor.processing.PackMetaAnalyzer
-import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.ScoreboardFileAnalyzer
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileSystemResult
@@ -75,7 +66,7 @@ object CommandCrafter: ModInitializer {
     val LOGGER = LogManager.getLogger(MOD_ID)
     val VERSION: String = FabricLoader.getInstance().getModContainer(MOD_ID).get().metadata.version.friendlyString
     lateinit var config: CommandCrafterConfig
-    lateinit var analyzingSourceProvider: (MinecraftLanguageServer) -> SharedSuggestionProvider
+    lateinit var analyzingSourceProvider: (MinecraftLanguageServer) -> SuggestionContext
 
     private var dedicatedServerEditorConnectionManager: EditorConnectionManager? = null
 
@@ -98,8 +89,7 @@ object CommandCrafter: ModInitializer {
         MinecraftLanguageServer.addAnalyzer(FileTypeDispatchingAnalyzer)
         MinecraftLanguageServer.addAnalyzer(ScoreboardFileAnalyzer)
 
-        IdArgumentTypeAnalyzer.registerFileTypeAdditionalDataType()
-        DataObjectDecoding.registerAdditionalDataTypes()
+        AdditionalArgumentTypeData.registerTypes()
 
         if(FabricLoader.getInstance().environmentType == EnvType.SERVER) {
             // When analyzing is done by a dedicated server, a ServerCommandSource can be used
@@ -107,7 +97,8 @@ object CommandCrafter: ModInitializer {
             analyzingSourceProvider = { languageServer ->
                 val directServerConnection = languageServer.minecraftServer as? DirectServerConnection
                     ?: throw IllegalArgumentException("ServerConnection on dedicated server was expected to be DirectServerConnection")
-                CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, directServerConnection.server.overworld(), directServerConnection.functionPermissions, CommonComponents.EMPTY, directServerConnection.server)
+
+                AnalyzingServerSuggestionContext(directServerConnection.server)
             }
             MinecraftLanguageServer.addAnalyzer(McFunctionAnalyzer())
             MinecraftLanguageServer.addAnalyzer(PackMetaAnalyzer(null))
@@ -162,7 +153,7 @@ object CommandCrafter: ModInitializer {
             GameRule(
                 GameRuleCategory.CHAT,
                 GameRuleType.BOOL,
-                BoolArgumentType.bool(),
+                BooleanArgument.INSTANCE,
                 GameRuleTypeVisitor::visitBoolean,
                 Codec.BOOL,
                 { if(it) 1 else 0 },
@@ -323,7 +314,7 @@ object CommandCrafter: ModInitializer {
 
             val datagenPath = Path.of("datagen")
             ModdedDatagenRunner.exportToDirectory(
-                server.commands.dispatcher,
+                server.commands.suggestionBox(),
                 server.lootRegistries,
                 path.resolve(datagenPath),
                 false,

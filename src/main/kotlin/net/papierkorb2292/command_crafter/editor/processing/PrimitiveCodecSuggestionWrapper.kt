@@ -6,12 +6,11 @@ import com.mojang.serialization.codecs.PrimitiveCodec
 import net.papierkorb2292.command_crafter.editor.processing.CodecSuggestionWrapper.SuggestionsProvider
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.ExtraDecoderBehavior
 
-class PrimitiveCodecSuggestionWrapper<A>(private val delegate: PrimitiveCodec<A>, val suggestionsProvider: SuggestionsProvider): PrimitiveCodec<A> {
+class PrimitiveCodecSuggestionWrapper<A : Any>(private val delegate: PrimitiveCodec<A>, val suggestionsProvider: SuggestionsProvider): PrimitiveCodec<A> {
     override fun <T: Any> read(
         ops: DynamicOps<T>,
-        input: T?,
+        input: T,
     ): DataResult<A> {
-        if(input == null) return delegate.read(ops, null)
         val extraBehavior = ExtraDecoderBehavior.getCurrentBehavior(ops) ?: return delegate.read(ops, input)
         extraBehavior.notePossibleValues(input, {
             suggestionsProvider.getSuggestions(ops).map {
@@ -23,6 +22,6 @@ class PrimitiveCodecSuggestionWrapper<A>(private val delegate: PrimitiveCodec<A>
         }
     }
 
-    override fun <T> write(ops: DynamicOps<T>, value: A): T =
+    override fun <T : Any> write(ops: DynamicOps<T>, value: A): T =
         delegate.write(ops, value)
 }
