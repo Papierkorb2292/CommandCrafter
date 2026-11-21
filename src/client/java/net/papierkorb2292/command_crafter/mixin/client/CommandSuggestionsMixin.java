@@ -28,7 +28,8 @@ public class CommandSuggestionsMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/commands/SuggestionBox$Result;computeSuggestions(I)Ljava/util/concurrent/CompletableFuture;"
-            )
+            ),
+            order = 2000 // Apply after partial id autocomplete, since we add our own partial id suggestions
     )
     private CompletableFuture<Suggestions> command_crafter$addCustomSuggestions(SuggestionBox.Result instance, int cursorPosition, Operation<CompletableFuture<Suggestions>> op) {
         final var vanillaFuture = UtilKt.runWithValueSwap(

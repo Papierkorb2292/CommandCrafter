@@ -227,7 +227,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         override fun getFunctionCompletions(completionInfo: ContextCompletionProvider.FunctionCompletionInfo): CompletableFuture<List<CompletionItem>> {
             val mappingInfo = FileMappingInfo(completionInfo.completeFile)
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(mappingInfo, AnalyzingResourceCreator(null, "", server.registryAccess(), AnalyzingServerSuggestionContext(server), commandTree, server, mappingInfo))
+            val reader = DirectiveStringReader(mappingInfo, AnalyzingResourceCreator(null, "", server.registryAccess(), AnalyzingServerSuggestionContext(server), commandTree, server, mappingInfo, isRemoteAnalyzing = true))
             val analyzingResult = AnalyzingResult(mappingInfo, Position())
             reader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(completionInfo.absoluteCursor, true)
             LanguageManager.analyse(reader, analyzingResult, LanguageManager.DEFAULT_CLOSURE)
@@ -238,7 +238,7 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
         override fun getMacroCompletions(completionInfo: ContextCompletionProvider.MacroCompletionInfo): CompletableFuture<List<CompletionItem>> {
             val mappingInfo = FileMappingInfo(completionInfo.macroInput.lines)
             @Suppress("UNCHECKED_CAST")
-            val reader = DirectiveStringReader(mappingInfo, AnalyzingResourceCreator(null, "", server.registryAccess(), AnalyzingServerSuggestionContext(server), commandTree, server, mappingInfo))
+            val reader = DirectiveStringReader(mappingInfo, AnalyzingResourceCreator(null, "", server.registryAccess(), AnalyzingServerSuggestionContext(server), commandTree, server, mappingInfo, isRemoteAnalyzing = true))
             reader.resourceCreator.macroTargetCursors.addAll(completionInfo.macroTargetCursors)
             reader.resourceCreator.suggestionRequestInfo = AnalyzingResourceCreator.SuggestionRequestInfo(completionInfo.absoluteCursor, true)
             VanillaLanguage.analyzeMacroString(
