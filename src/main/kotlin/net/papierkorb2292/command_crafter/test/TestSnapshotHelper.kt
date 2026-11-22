@@ -62,6 +62,7 @@ object TestSnapshotHelper {
     val ansiDeleteSequence = AnsiEscape.createSequence("red")
 
     val diffSeparatorString = " | "
+    private const val LINE_WRAP_MARKER = "↩"
 
     val diffRowGenerator = DiffRowGenerator.create()
         .showInlineDiffs(true)
@@ -125,16 +126,104 @@ object TestSnapshotHelper {
         // Add header followed by empty line to separate it from the rest
         diffWithHeader.add(0, DiffRow(DiffRow.Tag.CHANGE, EXPECTED_HEADER, ACTUAL_HEADER))
         diffWithHeader.add(1, DiffRow(DiffRow.Tag.CHANGE, "", ""))
-        val oldLineLengths = diffWithHeader.map { it to getStringCharLength(it.oldLine) }
-        val maxLineLength = oldLineLengths.maxOfOrNull { it.second } ?: return
-        val formatted = oldLineLengths.joinToString("\n") { (diff, oldLineLength) ->
-            val padding = " ".repeat(maxLineLength - oldLineLength)
-            diff.oldLine + padding + diffSeparatorString + diff.newLine
-        }
+        val formatted = formatDiffRows(diffWithHeader, getTerminalWidth())
         // Print message and the formatted diff. A normal ansi formatting is inserted between them so
         // that the coloring for `LOGGER.error` only affects the message but not the diff, which has
         // its own coloring
         CommandCrafter.LOGGER.error(message.string + "\n" + ansiNormalSequence + formatted)
+    }
+
+    /**
+     * Formats a side by side diff. If a row does not fit in the available terminal width,
+     * both sides are wrapped independently into fixed-width columns.
+     */
+    fun formatDiffRows(diff: List<DiffRow>, terminalWidth: Int): String {
+        if(diff.isEmpty()) return ""
+
+        val maxLineLength = diff.maxOf { getStringCharLength(it.oldLine) }
+        val maxNewLineLength = diff.maxOf { getStringCharLength(it.newLine) }
+        val separatorLength = getStringCharLength(diffSeparatorString)
+        val availableWidth = maxOf(terminalWidth, separatorLength + 2)
+
+        if(maxLineLength + separatorLength + maxNewLineLength <= availableWidth) {
+            return diff.joinToString("\n") { row ->
+                val oldLineLength = getStringCharLength(row.oldLine)
+                val padding = " ".repeat(maxLineLength - oldLineLength)
+                row.oldLine + padding + diffSeparatorString + row.newLine
+            }
+        }
+
+        val columnWidth = maxOf(2, (availableWidth - separatorLength) / 2)
+        val formattedRows = mutableListOf<String>()
+        for(row in diff) {
+            val oldChunks = wrapAnsiString(row.oldLine, columnWidth)
+            val newChunks = wrapAnsiString(row.newLine, columnWidth)
+            val chunkCount = maxOf(oldChunks.size, newChunks.size)
+            repeat(chunkCount) { chunkIndex ->
+                val oldChunk = oldChunks.getOrElse(chunkIndex) { "" }
+                val newChunk = newChunks.getOrElse(chunkIndex) { "" }
+                val oldPadding = " ".repeat(columnWidth - getStringCharLength(oldChunk))
+                val newPadding = " ".repeat(columnWidth - getStringCharLength(newChunk))
+                formattedRows.add(oldChunk + oldPadding + diffSeparatorString + newChunk + newPadding)
+            }
+        }
+        return formattedRows.joinToString("\n")
+    }
+
+    fun getTerminalWidth(): Int =
+        System.getenv("COLUMNS")?.toIntOrNull()?.takeIf { it > 0 } ?: 120
+
+    private fun wrapAnsiString(string: String, width: Int): List<String> {
+        if(width <= 0 || string.isEmpty()) return listOf(string)
+
+        val chunks = mutableListOf<String>()
+        var chunk = StringBuilder()
+        var visibleLength = 0
+        val contentWidth = maxOf(1, width - 1)
+        var i = 0
+        while(i < string.length) {
+            if(string.startsWith(AnsiEscape.CSI.code, i)) {
+                val end = findAnsiSequenceEnd(string, i)
+                chunk.append(string, i, end)
+                i = end
+                continue
+            }
+
+            val codePoint = string.codePointAt(i)
+            val charCount = Character.charCount(codePoint)
+            if(visibleLength == contentWidth && hasVisibleTextAfter(string, i)) {
+                chunks.add(chunk.toString() + ansiNormalSequence + LINE_WRAP_MARKER)
+                chunk = StringBuilder()
+                visibleLength = 0
+            }
+            chunk.appendCodePoint(codePoint)
+            i += charCount
+            visibleLength++
+        }
+        chunks.add(chunk.toString())
+        return chunks
+    }
+
+    private fun findAnsiSequenceEnd(string: String, start: Int): Int {
+        var i = start + AnsiEscape.CSI.code.length
+        while(i < string.length) {
+            val char = string[i]
+            if(char.code in 0x40..0x7e) return i + 1
+            i++
+        }
+        return string.length
+    }
+
+    private fun hasVisibleTextAfter(string: String, start: Int): Boolean {
+        var i = start
+        while(i < string.length) {
+            if(string.startsWith(AnsiEscape.CSI.code, i)) {
+                i = findAnsiSequenceEnd(string, i)
+                continue
+            }
+            return true
+        }
+        return false
     }
 
     /**
@@ -144,21 +233,13 @@ object TestSnapshotHelper {
     fun getStringCharLength(string: String): Int {
         var count = 0
         var i = 0
-        var isSkippingAnsi = false
         while(i < string.length) {
-            if(isSkippingAnsi) {
-                if(string.startsWith(AnsiEscape.SUFFIX.code, i)) {
-                    isSkippingAnsi = false
-                }
-                i++
-                continue
-            }
             if(string.startsWith(AnsiEscape.CSI.code, i)) {
-                isSkippingAnsi = true
-                i++
+                i = findAnsiSequenceEnd(string, i)
                 continue
             }
-            i++
+            val codePoint = string.codePointAt(i)
+            i += Character.charCount(codePoint)
             count++
         }
         return count
