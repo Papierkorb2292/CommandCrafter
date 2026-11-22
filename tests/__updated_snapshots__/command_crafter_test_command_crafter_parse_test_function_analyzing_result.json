@@ -1,0 +1,375 @@
+{
+  "mappingInfo" : {
+    "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+    "cursorMapper" : {
+      "sourceCursors" : [ 35, 61, 89, 212 ],
+      "targetCursors" : [ 35, 61, 82, 205 ],
+      "lengths" : [ 25, 21, 17, 15 ],
+      "expandedCharEnds" : { },
+      "prevSourceEnd" : 227,
+      "prevTargetEnd" : 220
+    },
+    "readCharacters" : 342,
+    "skippedChars" : 7,
+    "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+  },
+  "semanticTokens" : [
+    0,0,22,17,0,
+    1,4,8,17,0,
+    1,1,7,15,0, 0,8,2,15,0, 0,3,2,1,0, 0,3,3,15,0, 0,4,3,15,0, 0,4,3,10,0,
+    1,0,7,15,0, 0,8,2,15,0, 0,3,6,19,0, 0,7,2,1,0,
+    1,4,3,15,0, 0,4,2,15,0, 0,3,2,1,0, 0,3,6,20,0,
+    1,0,9,4,0, 0,10,7,11,0, 0,8,8,18,0,
+    1,0,7,15,0,
+    1,4,5,15,0, 0,6,3,7,0,
+    1,4,3,15,0, 0,4,6,15,0, 0,7,21,7,0,
+    1,0,8,15,0,
+    1,4,3,15,0, 0,4,3,10,0,
+    
+    2,0,9,4,0, 0,10,7,11,0, 0,8,12,18,0,
+    1,0,28,17,0,
+    1,0,9,4,0, 0,10,7,11,0,
+    1,4,9,4,0, 0,10,7,11,0, 0,8,12,18,0,
+    1,4,9,4,0, 0,10,7,11,0
+  ],
+  "diagnostics" : [ {
+    "range" : {
+      "start" : {
+        "line" : 4,
+        "character" : 20
+      },
+      "end" : {
+        "line" : 4,
+        "character" : 21
+      }
+    },
+    "severity" : "Error",
+    "message" : "Incorrect argument for command at position 37: ... @s ~ ~1 ~<--[HERE]"
+  } ],
+  "colorInfos" : [ ],
+  "filePosition" : {
+    "line" : 0,
+    "character" : 0
+  },
+  "docInfo" : {
+    "documentation" : " This is a doc comment\n"
+  },
+  "actualSyntaxNodes" : [ ],
+  "finishedPotentialSyntaxNodes" : [ ],
+  "buildingPotentialSyntaxNodes" : {
+    "directive" : [ {
+      "cursorRange" : {
+        "start" : 34,
+        "end" : 35
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 61,
+        "end" : 61
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 107,
+        "end" : 107
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 107,
+        "end" : 116
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 117,
+        "end" : 124
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 134,
+        "end" : 134
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 193,
+        "end" : 193
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 230,
+        "end" : 230
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 230,
+        "end" : 239
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 240,
+        "end" : 247
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 261,
+        "end" : 261
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 289,
+        "end" : 289
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 289,
+        "end" : 298
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 299,
+        "end" : 306
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 307,
+        "end" : 311
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 311,
+        "end" : 320
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 321,
+        "end" : 328
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 342,
+        "end" : 346
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 346,
+        "end" : 355
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 356,
+        "end" : 363
+      }
+    } ],
+    "language" : [ {
+      "cursorRange" : {
+        "start" : 34,
+        "end" : 35
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 35,
+        "end" : 42
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 43,
+        "end" : 45
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 46,
+        "end" : 48
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 49,
+        "end" : 52
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 53,
+        "end" : 56
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 57,
+        "end" : 60
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 61,
+        "end" : 61
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 61,
+        "end" : 68
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 69,
+        "end" : 71
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 72,
+        "end" : 78
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 79,
+        "end" : 81
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 82,
+        "end" : 92
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 93,
+        "end" : 95
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 96,
+        "end" : 98
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 99,
+        "end" : 105
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 107,
+        "end" : 107
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 125,
+        "end" : 133
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 134,
+        "end" : 134
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 134,
+        "end" : 141
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 142,
+        "end" : 151
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 152,
+        "end" : 155
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 156,
+        "end" : 163
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 164,
+        "end" : 170
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 171,
+        "end" : 192
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 193,
+        "end" : 193
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 193,
+        "end" : 201
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 229,
+        "end" : 229
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 230,
+        "end" : 230
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 248,
+        "end" : 260
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 261,
+        "end" : 261
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 289,
+        "end" : 289
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 307,
+        "end" : 311
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 329,
+        "end" : 341
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 342,
+        "end" : 346
+      }
+    } ],
+    "language_customSuggestions" : [ {
+      "cursorRange" : {
+        "start" : 202,
+        "end" : 202
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 204,
+        "end" : 208
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 208,
+        "end" : 211
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 212,
+        "end" : 215
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 228,
+        "end" : 228
+      }
+    } ],
+    "directive_customSuggestions" : [ {
+      "cursorRange" : {
+        "start" : 204,
+        "end" : 208
+      }
+    }, {
+      "cursorRange" : {
+        "start" : 228,
+        "end" : 228
+      }
+    } ]
+  }
+}

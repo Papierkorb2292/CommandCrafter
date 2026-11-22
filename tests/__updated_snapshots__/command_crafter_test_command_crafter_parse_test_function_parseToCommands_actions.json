@@ -1,0 +1,2672 @@
+{
+  "id" : {
+    "namespace" : "minecraft",
+    "path" : "test"
+  },
+  "entries" : [ {
+    "commandInput" : "execute as @a run say HI!",
+    "command" : {
+      "modifiers" : [ {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute as @a run say HI!",
+        "arguments" : {
+          "targets" : {
+            "range" : {
+              "start" : 11,
+              "end" : 13
+            },
+            "result" : {
+              "maxResults" : 2147483647,
+              "includesEntities" : false,
+              "worldLimited" : false,
+              "contextFreePredicates" : [ ],
+              "position" : { },
+              "order" : { },
+              "currentEntity" : false,
+              "type" : {
+                "builtInRegistryHolder" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
+                "factory" : { },
+                "category" : "MISC",
+                "immuneTo" : {
+                  "registry" : {
+                    "registryName" : {
+                      "namespace" : "minecraft",
+                      "path" : "root"
+                    },
+                    "identifier" : {
+                      "namespace" : "minecraft",
+                      "path" : "block"
+                    }
+                  },
+                  "location" : {
+                    "namespace" : "minecraft",
+                    "path" : "default_immune_to"
+                  }
+                },
+                "serialize" : false,
+                "summon" : false,
+                "fireImmune" : false,
+                "canSpawnFarFromPlayer" : true,
+                "clientTrackingRange" : 32,
+                "updateInterval" : 2,
+                "descriptionId" : "entity.minecraft.player",
+                "lootTable" : {
+                  "registryName" : {
+                    "namespace" : "minecraft",
+                    "path" : "loot_table"
+                  },
+                  "identifier" : {
+                    "namespace" : "minecraft",
+                    "path" : "entities/player"
+                  }
+                },
+                "dimensions" : {
+                  "width" : 0.6,
+                  "height" : 1.8,
+                  "eyeHeight" : 1.62,
+                  "attachments" : {
+                    "attachments" : {
+                      "PASSENGER" : [ {
+                        "x" : 0.0,
+                        "y" : 1.7999999523162842,
+                        "z" : 0.0
+                      } ],
+                      "VEHICLE" : [ {
+                        "x" : 0.0,
+                        "y" : 0.6,
+                        "z" : 0.0
+                      } ],
+                      "NAME_TAG" : [ {
+                        "x" : 0.0,
+                        "y" : 1.7999999523162842,
+                        "z" : 0.0
+                      } ],
+                      "WARDEN_CHEST" : [ {
+                        "x" : 0.0,
+                        "y" : 0.8999999761581421,
+                        "z" : 0.0
+                      } ]
+                    }
+                  },
+                  "fixed" : false
+                },
+                "spawnDimensionsScale" : 1.0,
+                "requiredFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 1
+                },
+                "allowedInPeaceful" : true,
+                "trackDeltas" : false
+              },
+              "usesSelector" : true
+            }
+          }
+        },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "execute",
+          "range" : {
+            "start" : 0,
+            "end" : 7
+          },
+          "command_crafter$readCharacters" : 35,
+          "command_crafter$skippedChars" : 0
+        }, {
+          "node" : "as",
+          "range" : {
+            "start" : 8,
+            "end" : 10
+          },
+          "command_crafter$readCharacters" : 35,
+          "command_crafter$skippedChars" : 0
+        }, {
+          "node" : "targets",
+          "range" : {
+            "start" : 11,
+            "end" : 13
+          },
+          "command_crafter$readCharacters" : 35,
+          "command_crafter$skippedChars" : 0
+        } ],
+        "range" : {
+          "start" : 0,
+          "end" : 13
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute as @a run say HI!",
+          "arguments" : { },
+          "rootNode" : "execute",
+          "nodes" : [ {
+            "node" : "run",
+            "range" : {
+              "start" : 14,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 35,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 14,
+            "end" : 17
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute as @a run say HI!",
+            "command" : { },
+            "arguments" : {
+              "message" : {
+                "range" : {
+                  "start" : 22,
+                  "end" : 25
+                },
+                "result" : {
+                  "text" : "HI!",
+                  "parts" : [ ]
+                }
+              }
+            },
+            "rootNode" : "",
+            "nodes" : [ {
+              "node" : "say",
+              "range" : {
+                "start" : 18,
+                "end" : 21
+              },
+              "command_crafter$readCharacters" : 35,
+              "command_crafter$skippedChars" : 0
+            }, {
+              "node" : "message",
+              "range" : {
+                "start" : 22,
+                "end" : 25
+              },
+              "command_crafter$readCharacters" : 35,
+              "command_crafter$skippedChars" : 0
+            } ],
+            "range" : {
+              "start" : 18,
+              "end" : 25
+            },
+            "forks" : false
+          },
+          "forks" : false
+        },
+        "modifier" : { },
+        "forks" : true
+      }, {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute as @a run say HI!",
+        "arguments" : { },
+        "rootNode" : "execute",
+        "nodes" : [ {
+          "node" : "run",
+          "range" : {
+            "start" : 14,
+            "end" : 17
+          },
+          "command_crafter$readCharacters" : 35,
+          "command_crafter$skippedChars" : 0
+        } ],
+        "range" : {
+          "start" : 14,
+          "end" : 17
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute as @a run say HI!",
+          "command" : { },
+          "arguments" : {
+            "message" : {
+              "range" : {
+                "start" : 22,
+                "end" : 25
+              },
+              "result" : {
+                "text" : "HI!",
+                "parts" : [ ]
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "say",
+            "range" : {
+              "start" : 18,
+              "end" : 21
+            },
+            "command_crafter$readCharacters" : 35,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "message",
+            "range" : {
+              "start" : 22,
+              "end" : 25
+            },
+            "command_crafter$readCharacters" : 35,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 18,
+            "end" : 25
+          },
+          "forks" : false
+        },
+        "forks" : false
+      } ],
+      "executable" : {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute as @a run say HI!",
+        "command" : { },
+        "arguments" : {
+          "message" : {
+            "range" : {
+              "start" : 22,
+              "end" : 25
+            },
+            "result" : {
+              "text" : "HI!",
+              "parts" : [ ]
+            }
+          }
+        },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "say",
+          "range" : {
+            "start" : 18,
+            "end" : 21
+          },
+          "command_crafter$readCharacters" : 35,
+          "command_crafter$skippedChars" : 0
+        }, {
+          "node" : "message",
+          "range" : {
+            "start" : 22,
+            "end" : 25
+          },
+          "command_crafter$readCharacters" : 35,
+          "command_crafter$skippedChars" : 0
+        } ],
+        "range" : {
+          "start" : 18,
+          "end" : 25
+        },
+        "forks" : false
+      },
+      "command_crafter$pauseHandlerCreatorIndex" : 1,
+      "command_crafter$isMacro" : false
+    }
+  }, {
+    "commandInput" : "execute if entity @s run tp @s ~ ~1 ~",
+    "command" : {
+      "modifiers" : [ {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute if entity @s run tp @s ~ ~1 ~",
+        "command" : {
+          "arg$1" : { }
+        },
+        "arguments" : {
+          "entities" : {
+            "range" : {
+              "start" : 18,
+              "end" : 20
+            },
+            "result" : {
+              "maxResults" : 1,
+              "includesEntities" : true,
+              "worldLimited" : false,
+              "contextFreePredicates" : [ ],
+              "position" : { },
+              "order" : { },
+              "currentEntity" : true,
+              "type" : { },
+              "usesSelector" : true
+            }
+          }
+        },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "execute",
+          "range" : {
+            "start" : 0,
+            "end" : 7
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "if",
+          "range" : {
+            "start" : 8,
+            "end" : 10
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "entity",
+          "range" : {
+            "start" : 11,
+            "end" : 17
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "entities",
+          "range" : {
+            "start" : 18,
+            "end" : 20
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 0,
+          "end" : 20
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "arguments" : { },
+          "rootNode" : "execute",
+          "nodes" : [ {
+            "node" : "run",
+            "range" : {
+              "start" : 21,
+              "end" : 24
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 21,
+            "end" : 24
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "arguments" : { },
+            "rootNode" : "",
+            "nodes" : [ {
+              "node" : "tp",
+              "range" : {
+                "start" : 25,
+                "end" : 27
+              },
+              "command_crafter$readCharacters" : 68,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 25,
+              "end" : 27
+            },
+            "child" : {
+              "source" : {
+                "permissions" : { },
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
+                },
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
+              },
+              "input" : "execute if entity @s run tp @s ~ ~1 ~",
+              "command" : { },
+              "arguments" : {
+                "targets" : {
+                  "range" : {
+                    "start" : 28,
+                    "end" : 30
+                  },
+                  "result" : {
+                    "maxResults" : 1,
+                    "includesEntities" : true,
+                    "worldLimited" : false,
+                    "contextFreePredicates" : [ ],
+                    "position" : { },
+                    "order" : { },
+                    "currentEntity" : true,
+                    "type" : { },
+                    "usesSelector" : true
+                  }
+                },
+                "location" : {
+                  "range" : {
+                    "start" : 31,
+                    "end" : 37
+                  },
+                  "result" : {
+                    "x" : {
+                      "relative" : true,
+                      "value" : 0.0
+                    },
+                    "y" : {
+                      "relative" : true,
+                      "value" : 1.0
+                    },
+                    "z" : {
+                      "relative" : true,
+                      "value" : 0.0
+                    }
+                  }
+                }
+              },
+              "rootNode" : "teleport",
+              "nodes" : [ {
+                "node" : "targets",
+                "range" : {
+                  "start" : 28,
+                  "end" : 30
+                },
+                "command_crafter$readCharacters" : 68,
+                "command_crafter$skippedChars" : 7
+              }, {
+                "node" : "location",
+                "range" : {
+                  "start" : 31,
+                  "end" : 37
+                },
+                "command_crafter$readCharacters" : 68,
+                "command_crafter$skippedChars" : 7
+              } ],
+              "range" : {
+                "start" : 28,
+                "end" : 37
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "forks" : false
+        },
+        "modifier" : {
+          "arg$1" : true
+        },
+        "forks" : true
+      }, {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute if entity @s run tp @s ~ ~1 ~",
+        "arguments" : { },
+        "rootNode" : "execute",
+        "nodes" : [ {
+          "node" : "run",
+          "range" : {
+            "start" : 21,
+            "end" : 24
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 21,
+          "end" : 24
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "arguments" : { },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "tp",
+            "range" : {
+              "start" : 25,
+              "end" : 27
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 25,
+            "end" : 27
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "command" : { },
+            "arguments" : {
+              "targets" : {
+                "range" : {
+                  "start" : 28,
+                  "end" : 30
+                },
+                "result" : {
+                  "maxResults" : 1,
+                  "includesEntities" : true,
+                  "worldLimited" : false,
+                  "contextFreePredicates" : [ ],
+                  "position" : { },
+                  "order" : { },
+                  "currentEntity" : true,
+                  "type" : { },
+                  "usesSelector" : true
+                }
+              },
+              "location" : {
+                "range" : {
+                  "start" : 31,
+                  "end" : 37
+                },
+                "result" : {
+                  "x" : {
+                    "relative" : true,
+                    "value" : 0.0
+                  },
+                  "y" : {
+                    "relative" : true,
+                    "value" : 1.0
+                  },
+                  "z" : {
+                    "relative" : true,
+                    "value" : 0.0
+                  }
+                }
+              }
+            },
+            "rootNode" : "teleport",
+            "nodes" : [ {
+              "node" : "targets",
+              "range" : {
+                "start" : 28,
+                "end" : 30
+              },
+              "command_crafter$readCharacters" : 68,
+              "command_crafter$skippedChars" : 7
+            }, {
+              "node" : "location",
+              "range" : {
+                "start" : 31,
+                "end" : 37
+              },
+              "command_crafter$readCharacters" : 68,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 28,
+              "end" : 37
+            },
+            "forks" : false
+          },
+          "forks" : false
+        },
+        "forks" : false
+      }, {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute if entity @s run tp @s ~ ~1 ~",
+        "arguments" : { },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "tp",
+          "range" : {
+            "start" : 25,
+            "end" : 27
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 25,
+          "end" : 27
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "command" : { },
+          "arguments" : {
+            "targets" : {
+              "range" : {
+                "start" : 28,
+                "end" : 30
+              },
+              "result" : {
+                "maxResults" : 1,
+                "includesEntities" : true,
+                "worldLimited" : false,
+                "contextFreePredicates" : [ ],
+                "position" : { },
+                "order" : { },
+                "currentEntity" : true,
+                "type" : { },
+                "usesSelector" : true
+              }
+            },
+            "location" : {
+              "range" : {
+                "start" : 31,
+                "end" : 37
+              },
+              "result" : {
+                "x" : {
+                  "relative" : true,
+                  "value" : 0.0
+                },
+                "y" : {
+                  "relative" : true,
+                  "value" : 1.0
+                },
+                "z" : {
+                  "relative" : true,
+                  "value" : 0.0
+                }
+              }
+            }
+          },
+          "rootNode" : "teleport",
+          "nodes" : [ {
+            "node" : "targets",
+            "range" : {
+              "start" : 28,
+              "end" : 30
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "location",
+            "range" : {
+              "start" : 31,
+              "end" : 37
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 28,
+            "end" : 37
+          },
+          "forks" : false
+        },
+        "forks" : false
+      } ],
+      "executable" : {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute if entity @s run tp @s ~ ~1 ~",
+        "command" : { },
+        "arguments" : {
+          "targets" : {
+            "range" : {
+              "start" : 28,
+              "end" : 30
+            },
+            "result" : {
+              "maxResults" : 1,
+              "includesEntities" : true,
+              "worldLimited" : false,
+              "contextFreePredicates" : [ ],
+              "position" : { },
+              "order" : { },
+              "currentEntity" : true,
+              "type" : { },
+              "usesSelector" : true
+            }
+          },
+          "location" : {
+            "range" : {
+              "start" : 31,
+              "end" : 37
+            },
+            "result" : {
+              "x" : {
+                "relative" : true,
+                "value" : 0.0
+              },
+              "y" : {
+                "relative" : true,
+                "value" : 1.0
+              },
+              "z" : {
+                "relative" : true,
+                "value" : 0.0
+              }
+            }
+          }
+        },
+        "rootNode" : "teleport",
+        "nodes" : [ {
+          "node" : "targets",
+          "range" : {
+            "start" : 28,
+            "end" : 30
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "location",
+          "range" : {
+            "start" : 31,
+            "end" : 37
+          },
+          "command_crafter$readCharacters" : 68,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 28,
+          "end" : 37
+        },
+        "forks" : false
+      },
+      "command_crafter$pauseHandlerCreatorIndex" : 1,
+      "command_crafter$isMacro" : false
+    }
+  }, {
+    "commandInput" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+    "command" : {
+      "modifiers" : [ {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+        "arguments" : {
+          "axes" : {
+            "range" : {
+              "start" : 18,
+              "end" : 21
+            },
+            "result" : [ "X", "Y", "Z" ]
+          }
+        },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "execute",
+          "range" : {
+            "start" : 0,
+            "end" : 7
+          },
+          "command_crafter$readCharacters" : 134,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "align",
+          "range" : {
+            "start" : 12,
+            "end" : 17
+          },
+          "command_crafter$readCharacters" : 134,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "axes",
+          "range" : {
+            "start" : 18,
+            "end" : 21
+          },
+          "command_crafter$readCharacters" : 134,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 0,
+          "end" : 21
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+          "arguments" : { },
+          "rootNode" : "execute",
+          "nodes" : [ {
+            "node" : "run",
+            "range" : {
+              "start" : 26,
+              "end" : 29
+            },
+            "command_crafter$readCharacters" : 134,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 26,
+            "end" : 29
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+            "command" : { },
+            "arguments" : {
+              "entity" : {
+                "range" : {
+                  "start" : 37,
+                  "end" : 58
+                },
+                "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+              }
+            },
+            "rootNode" : "",
+            "nodes" : [ {
+              "node" : "summon",
+              "range" : {
+                "start" : 30,
+                "end" : 36
+              },
+              "command_crafter$readCharacters" : 134,
+              "command_crafter$skippedChars" : 7
+            }, {
+              "node" : "entity",
+              "range" : {
+                "start" : 37,
+                "end" : 58
+              },
+              "command_crafter$readCharacters" : 134,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 30,
+              "end" : 58
+            },
+            "forks" : false
+          },
+          "forks" : false
+        },
+        "modifier" : {
+          "arg$1" : { }
+        },
+        "forks" : false
+      }, {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+        "arguments" : { },
+        "rootNode" : "execute",
+        "nodes" : [ {
+          "node" : "run",
+          "range" : {
+            "start" : 26,
+            "end" : 29
+          },
+          "command_crafter$readCharacters" : 134,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 26,
+          "end" : 29
+        },
+        "child" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+          "command" : { },
+          "arguments" : {
+            "entity" : {
+              "range" : {
+                "start" : 37,
+                "end" : 58
+              },
+              "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "summon",
+            "range" : {
+              "start" : 30,
+              "end" : 36
+            },
+            "command_crafter$readCharacters" : 134,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entity",
+            "range" : {
+              "start" : 37,
+              "end" : 58
+            },
+            "command_crafter$readCharacters" : 134,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 30,
+            "end" : 58
+          },
+          "forks" : false
+        },
+        "forks" : false
+      } ],
+      "executable" : {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+        "command" : { },
+        "arguments" : {
+          "entity" : {
+            "range" : {
+              "start" : 37,
+              "end" : 58
+            },
+            "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+          }
+        },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "summon",
+          "range" : {
+            "start" : 30,
+            "end" : 36
+          },
+          "command_crafter$readCharacters" : 134,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "entity",
+          "range" : {
+            "start" : 37,
+            "end" : 58
+          },
+          "command_crafter$readCharacters" : 134,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 30,
+          "end" : 58
+        },
+        "forks" : false
+      },
+      "command_crafter$pauseHandlerCreatorIndex" : 2,
+      "command_crafter$isMacro" : false
+    }
+  }, {
+    "commandInput" : "function ",
+    "command" : {
+      "modifiers" : [ ],
+      "executable" : {
+        "source" : {
+          "permissions" : { },
+          "holderGetters" : { },
+          "enabledFeatures" : {
+            "universe" : {
+              "id" : "main"
+            },
+            "mask" : 15
+          },
+          "validationWrapperProvider" : {
+            "values" : { }
+          }
+        },
+        "input" : "function ",
+        "command" : { },
+        "arguments" : {
+          "name" : {
+            "range" : {
+              "start" : 9,
+              "end" : 9
+            },
+            "result" : {
+              "isTag" : false,
+              "isInline" : true
+            }
+          }
+        },
+        "rootNode" : "",
+        "nodes" : [ {
+          "node" : "function",
+          "range" : {
+            "start" : 0,
+            "end" : 8
+          },
+          "command_crafter$readCharacters" : 193,
+          "command_crafter$skippedChars" : 7
+        }, {
+          "node" : "name",
+          "range" : {
+            "start" : 9,
+            "end" : 9
+          },
+          "command_crafter$readCharacters" : 220,
+          "command_crafter$skippedChars" : 7
+        } ],
+        "range" : {
+          "start" : 0,
+          "end" : 9
+        },
+        "forks" : false
+      },
+      "command_crafter$pauseHandlerCreatorIndex" : 2,
+      "command_crafter$isMacro" : false
+    }
+  } ],
+  "command_crafter$documentation" : " This is a doc comment\n",
+  "command_crafter$debugInformation" : {
+    "delegateDebugInformations" : [ { }, {
+      "elements" : [ {
+        "rootContext" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute as @a run say HI!",
+          "arguments" : {
+            "targets" : {
+              "range" : {
+                "start" : 11,
+                "end" : 13
+              },
+              "result" : {
+                "maxResults" : 2147483647,
+                "includesEntities" : false,
+                "worldLimited" : false,
+                "contextFreePredicates" : [ ],
+                "position" : { },
+                "order" : { },
+                "currentEntity" : false,
+                "type" : {
+                  "builtInRegistryHolder" : "Reference{ResourceKey[minecraft:entity_type / minecraft:player]=entity.minecraft.player}",
+                  "factory" : { },
+                  "category" : "MISC",
+                  "immuneTo" : {
+                    "registry" : {
+                      "registryName" : {
+                        "namespace" : "minecraft",
+                        "path" : "root"
+                      },
+                      "identifier" : {
+                        "namespace" : "minecraft",
+                        "path" : "block"
+                      }
+                    },
+                    "location" : {
+                      "namespace" : "minecraft",
+                      "path" : "default_immune_to"
+                    }
+                  },
+                  "serialize" : false,
+                  "summon" : false,
+                  "fireImmune" : false,
+                  "canSpawnFarFromPlayer" : true,
+                  "clientTrackingRange" : 32,
+                  "updateInterval" : 2,
+                  "descriptionId" : "entity.minecraft.player",
+                  "lootTable" : {
+                    "registryName" : {
+                      "namespace" : "minecraft",
+                      "path" : "loot_table"
+                    },
+                    "identifier" : {
+                      "namespace" : "minecraft",
+                      "path" : "entities/player"
+                    }
+                  },
+                  "dimensions" : {
+                    "width" : 0.6,
+                    "height" : 1.8,
+                    "eyeHeight" : 1.62,
+                    "attachments" : {
+                      "attachments" : {
+                        "PASSENGER" : [ {
+                          "x" : 0.0,
+                          "y" : 1.7999999523162842,
+                          "z" : 0.0
+                        } ],
+                        "VEHICLE" : [ {
+                          "x" : 0.0,
+                          "y" : 0.6,
+                          "z" : 0.0
+                        } ],
+                        "NAME_TAG" : [ {
+                          "x" : 0.0,
+                          "y" : 1.7999999523162842,
+                          "z" : 0.0
+                        } ],
+                        "WARDEN_CHEST" : [ {
+                          "x" : 0.0,
+                          "y" : 0.8999999761581421,
+                          "z" : 0.0
+                        } ]
+                      }
+                    },
+                    "fixed" : false
+                  },
+                  "spawnDimensionsScale" : 1.0,
+                  "requiredFeatures" : {
+                    "universe" : {
+                      "id" : "main"
+                    },
+                    "mask" : 1
+                  },
+                  "allowedInPeaceful" : true,
+                  "trackDeltas" : false
+                },
+                "usesSelector" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 35,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "as",
+            "range" : {
+              "start" : 8,
+              "end" : 10
+            },
+            "command_crafter$readCharacters" : 35,
+            "command_crafter$skippedChars" : 0
+          }, {
+            "node" : "targets",
+            "range" : {
+              "start" : 11,
+              "end" : 13
+            },
+            "command_crafter$readCharacters" : 35,
+            "command_crafter$skippedChars" : 0
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 13
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute as @a run say HI!",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 14,
+                "end" : 17
+              },
+              "command_crafter$readCharacters" : 35,
+              "command_crafter$skippedChars" : 0
+            } ],
+            "range" : {
+              "start" : 14,
+              "end" : 17
+            },
+            "child" : {
+              "source" : {
+                "permissions" : { },
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
+                },
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
+              },
+              "input" : "execute as @a run say HI!",
+              "command" : { },
+              "arguments" : {
+                "message" : {
+                  "range" : {
+                    "start" : 22,
+                    "end" : 25
+                  },
+                  "result" : {
+                    "text" : "HI!",
+                    "parts" : [ ]
+                  }
+                }
+              },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "say",
+                "range" : {
+                  "start" : 18,
+                  "end" : 21
+                },
+                "command_crafter$readCharacters" : 35,
+                "command_crafter$skippedChars" : 0
+              }, {
+                "node" : "message",
+                "range" : {
+                  "start" : 22,
+                  "end" : 25
+                },
+                "command_crafter$readCharacters" : 35,
+                "command_crafter$skippedChars" : 0
+              } ],
+              "range" : {
+                "start" : 18,
+                "end" : 25
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : { },
+          "forks" : true
+        },
+        "isMacro" : false,
+        "targetCommandRange" : {
+          "start" : 35,
+          "end" : 60
+        }
+      }, {
+        "rootContext" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute if entity @s run tp @s ~ ~1 ~",
+          "command" : {
+            "arg$1" : { }
+          },
+          "arguments" : {
+            "entities" : {
+              "range" : {
+                "start" : 18,
+                "end" : 20
+              },
+              "result" : {
+                "maxResults" : 1,
+                "includesEntities" : true,
+                "worldLimited" : false,
+                "contextFreePredicates" : [ ],
+                "position" : { },
+                "order" : { },
+                "currentEntity" : true,
+                "type" : { },
+                "usesSelector" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "if",
+            "range" : {
+              "start" : 8,
+              "end" : 10
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entity",
+            "range" : {
+              "start" : 11,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "entities",
+            "range" : {
+              "start" : 18,
+              "end" : 20
+            },
+            "command_crafter$readCharacters" : 68,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 20
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute if entity @s run tp @s ~ ~1 ~",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 21,
+                "end" : 24
+              },
+              "command_crafter$readCharacters" : 68,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 21,
+              "end" : 24
+            },
+            "child" : {
+              "source" : {
+                "permissions" : { },
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
+                },
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
+              },
+              "input" : "execute if entity @s run tp @s ~ ~1 ~",
+              "arguments" : { },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "tp",
+                "range" : {
+                  "start" : 25,
+                  "end" : 27
+                },
+                "command_crafter$readCharacters" : 68,
+                "command_crafter$skippedChars" : 7
+              } ],
+              "range" : {
+                "start" : 25,
+                "end" : 27
+              },
+              "child" : {
+                "source" : {
+                  "permissions" : { },
+                  "holderGetters" : { },
+                  "enabledFeatures" : {
+                    "universe" : {
+                      "id" : "main"
+                    },
+                    "mask" : 15
+                  },
+                  "validationWrapperProvider" : {
+                    "values" : { }
+                  }
+                },
+                "input" : "execute if entity @s run tp @s ~ ~1 ~",
+                "command" : { },
+                "arguments" : {
+                  "targets" : {
+                    "range" : {
+                      "start" : 28,
+                      "end" : 30
+                    },
+                    "result" : {
+                      "maxResults" : 1,
+                      "includesEntities" : true,
+                      "worldLimited" : false,
+                      "contextFreePredicates" : [ ],
+                      "position" : { },
+                      "order" : { },
+                      "currentEntity" : true,
+                      "type" : { },
+                      "usesSelector" : true
+                    }
+                  },
+                  "location" : {
+                    "range" : {
+                      "start" : 31,
+                      "end" : 37
+                    },
+                    "result" : {
+                      "x" : {
+                        "relative" : true,
+                        "value" : 0.0
+                      },
+                      "y" : {
+                        "relative" : true,
+                        "value" : 1.0
+                      },
+                      "z" : {
+                        "relative" : true,
+                        "value" : 0.0
+                      }
+                    }
+                  }
+                },
+                "rootNode" : "teleport",
+                "nodes" : [ {
+                  "node" : "targets",
+                  "range" : {
+                    "start" : 28,
+                    "end" : 30
+                  },
+                  "command_crafter$readCharacters" : 68,
+                  "command_crafter$skippedChars" : 7
+                }, {
+                  "node" : "location",
+                  "range" : {
+                    "start" : 31,
+                    "end" : 37
+                  },
+                  "command_crafter$readCharacters" : 68,
+                  "command_crafter$skippedChars" : 7
+                } ],
+                "range" : {
+                  "start" : 28,
+                  "end" : 37
+                },
+                "forks" : false
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : {
+            "arg$1" : true
+          },
+          "forks" : true
+        },
+        "isMacro" : false,
+        "targetCommandRange" : {
+          "start" : 61,
+          "end" : 98
+        }
+      } ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
+          },
+          "readCharacters" : 363,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+        },
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "permissions" : { },
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
+                      },
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ {
+        "rootContext" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+          "arguments" : {
+            "axes" : {
+              "range" : {
+                "start" : 18,
+                "end" : 21
+              },
+              "result" : [ "X", "Y", "Z" ]
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "execute",
+            "range" : {
+              "start" : 0,
+              "end" : 7
+            },
+            "command_crafter$readCharacters" : 134,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "align",
+            "range" : {
+              "start" : 12,
+              "end" : 17
+            },
+            "command_crafter$readCharacters" : 134,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "axes",
+            "range" : {
+              "start" : 18,
+              "end" : 21
+            },
+            "command_crafter$readCharacters" : 134,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 21
+          },
+          "child" : {
+            "source" : {
+              "permissions" : { },
+              "holderGetters" : { },
+              "enabledFeatures" : {
+                "universe" : {
+                  "id" : "main"
+                },
+                "mask" : 15
+              },
+              "validationWrapperProvider" : {
+                "values" : { }
+              }
+            },
+            "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+            "arguments" : { },
+            "rootNode" : "execute",
+            "nodes" : [ {
+              "node" : "run",
+              "range" : {
+                "start" : 26,
+                "end" : 29
+              },
+              "command_crafter$readCharacters" : 134,
+              "command_crafter$skippedChars" : 7
+            } ],
+            "range" : {
+              "start" : 26,
+              "end" : 29
+            },
+            "child" : {
+              "source" : {
+                "permissions" : { },
+                "holderGetters" : { },
+                "enabledFeatures" : {
+                  "universe" : {
+                    "id" : "main"
+                  },
+                  "mask" : 15
+                },
+                "validationWrapperProvider" : {
+                  "values" : { }
+                }
+              },
+              "input" : "execute\n    align xyz\n    run summon minecraft:armor_stand",
+              "command" : { },
+              "arguments" : {
+                "entity" : {
+                  "range" : {
+                    "start" : 37,
+                    "end" : 58
+                  },
+                  "result" : "Reference{ResourceKey[minecraft:entity_type / minecraft:armor_stand]=entity.minecraft.armor_stand}"
+                }
+              },
+              "rootNode" : "",
+              "nodes" : [ {
+                "node" : "summon",
+                "range" : {
+                  "start" : 30,
+                  "end" : 36
+                },
+                "command_crafter$readCharacters" : 134,
+                "command_crafter$skippedChars" : 7
+              }, {
+                "node" : "entity",
+                "range" : {
+                  "start" : 37,
+                  "end" : 58
+                },
+                "command_crafter$readCharacters" : 134,
+                "command_crafter$skippedChars" : 7
+              } ],
+              "range" : {
+                "start" : 30,
+                "end" : 58
+              },
+              "forks" : false
+            },
+            "forks" : false
+          },
+          "modifier" : {
+            "arg$1" : { }
+          },
+          "forks" : false
+        },
+        "isMacro" : false,
+        "targetCommandRange" : {
+          "start" : 127,
+          "end" : 185
+        }
+      }, {
+        "rootContext" : {
+          "source" : {
+            "permissions" : { },
+            "holderGetters" : { },
+            "enabledFeatures" : {
+              "universe" : {
+                "id" : "main"
+              },
+              "mask" : 15
+            },
+            "validationWrapperProvider" : {
+              "values" : { }
+            }
+          },
+          "input" : "function ",
+          "command" : { },
+          "arguments" : {
+            "name" : {
+              "range" : {
+                "start" : 9,
+                "end" : 9
+              },
+              "result" : {
+                "isTag" : false,
+                "isInline" : true
+              }
+            }
+          },
+          "rootNode" : "",
+          "nodes" : [ {
+            "node" : "function",
+            "range" : {
+              "start" : 0,
+              "end" : 8
+            },
+            "command_crafter$readCharacters" : 193,
+            "command_crafter$skippedChars" : 7
+          }, {
+            "node" : "name",
+            "range" : {
+              "start" : 9,
+              "end" : 9
+            },
+            "command_crafter$readCharacters" : 220,
+            "command_crafter$skippedChars" : 7
+          } ],
+          "range" : {
+            "start" : 0,
+            "end" : 9
+          },
+          "forks" : false
+        },
+        "isMacro" : false,
+        "targetCommandRange" : {
+          "start" : 186,
+          "end" : 222
+        }
+      } ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
+          },
+          "readCharacters" : 363,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+        },
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "permissions" : { },
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
+                      },
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
+          },
+          "readCharacters" : 363,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+        },
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "permissions" : { },
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
+                      },
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
+          },
+          "readCharacters" : 363,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+        },
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "permissions" : { },
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
+                      },
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
+          },
+          "readCharacters" : 363,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+        },
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "permissions" : { },
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
+                      },
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    }, {
+      "elements" : [ ],
+      "reader" : {
+        "string" : "",
+        "cursor" : 0,
+        "fileMappingInfo" : {
+          "lines" : [ "# This is a doc \\    ", "    comment", "\texecute as @a run say HI!", "execute if entity @s \\ ", "    run tp @s ~ ~1 ~\t", "@language vanilla improved", "execute", "    align xyz", "    run summon minecraft:armor_stand", "function {", "    say HI!            ", "}", "@language vanilla noBuildCheck", "# This comment is preserved", "@language vanilla", "    @language vanilla noBuildCheck", "    @language vanilla" ],
+          "cursorMapper" : {
+            "sourceCursors" : [ 35, 61, 89, 212 ],
+            "targetCursors" : [ 35, 61, 82, 205 ],
+            "lengths" : [ 25, 21, 17, 15 ],
+            "expandedCharEnds" : { },
+            "prevSourceEnd" : 227,
+            "prevTargetEnd" : 220
+          },
+          "readCharacters" : 363,
+          "skippedChars" : 7,
+          "accumulatedLineLengths" : [ 22, 34, 61, 85, 107, 134, 142, 156, 193, 204, 228, 230, 261, 289, 307, 342, 364 ]
+        },
+        "resourceCreator" : {
+          "functionId" : {
+            "namespace" : "minecraft",
+            "path" : "test"
+          },
+          "functionPackId" : "testPack",
+          "functions" : [ {
+            "resource" : {
+              "plainEntries" : [ {
+                "commandInput" : "say HI!",
+                "command" : {
+                  "modifiers" : [ ],
+                  "executable" : {
+                    "source" : {
+                      "permissions" : { },
+                      "holderGetters" : { },
+                      "enabledFeatures" : {
+                        "universe" : {
+                          "id" : "main"
+                        },
+                        "mask" : 15
+                      },
+                      "validationWrapperProvider" : {
+                        "values" : { }
+                      }
+                    },
+                    "input" : "say HI!",
+                    "command" : { },
+                    "arguments" : {
+                      "message" : {
+                        "range" : {
+                          "start" : 4,
+                          "end" : 7
+                        },
+                        "result" : {
+                          "text" : "HI!",
+                          "parts" : [ ]
+                        }
+                      }
+                    },
+                    "rootNode" : "",
+                    "nodes" : [ {
+                      "node" : "say",
+                      "range" : {
+                        "start" : 0,
+                        "end" : 3
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    }, {
+                      "node" : "message",
+                      "range" : {
+                        "start" : 4,
+                        "end" : 7
+                      },
+                      "command_crafter$readCharacters" : 208,
+                      "command_crafter$skippedChars" : 7
+                    } ],
+                    "range" : {
+                      "start" : 0,
+                      "end" : 7
+                    },
+                    "forks" : false
+                  },
+                  "command_crafter$pauseHandlerCreatorIndex" : 1,
+                  "command_crafter$isMacro" : false
+                }
+              } ],
+              "macroArguments" : [ ]
+            }
+          } ],
+          "functionTags" : [ ],
+          "originResourceIdSetEventStack" : [ ],
+          "originResourceInfoSetEventStack" : [ ]
+        },
+        "directiveManager" : { },
+        "nextLine" : 17,
+        "onlyReadEscapedMultiline" : false,
+        "furthestAccessedCursor" : 0,
+        "currentIndentation" : 0,
+        "scopeStack" : [ ]
+      },
+      "conditionParser" : { },
+      "sourceFunctionFile" : {
+        "namespace" : "minecraft",
+        "path" : "test.mcfunction"
+      },
+      "functionStackFrameRange" : {
+        "start" : {
+          "line" : 1,
+          "character" : 1
+        },
+        "end" : {
+          "line" : 17,
+          "character" : 22
+        }
+      },
+      "dynamicBreakpoints" : { },
+      "sourceReferenceDebugHandlers" : { },
+      "functionId" : {
+        "namespace" : "minecraft",
+        "path" : "test"
+      }
+    } ],
+    "pauseHandlerSelector" : { }
+  }
+}

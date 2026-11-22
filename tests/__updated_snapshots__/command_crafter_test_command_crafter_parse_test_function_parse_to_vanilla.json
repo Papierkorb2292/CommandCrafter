@@ -1,0 +1,23 @@
+[ {
+  "value" : "execute as @a run say HI!\n"
+}, {
+  "value" : "execute if entity @s run tp @s ~ ~1 ~\n"
+}, {
+  "value" : "execute align xyz run summon minecraft:armor_stand\n"
+}, {
+  "value" : "function "
+}, {
+  "value" : {
+    "type" : {
+      "prefix" : "function",
+      "fileExtension" : "mcfunction"
+    },
+    "content" : [ {
+      "value" : "say HI!\n"
+    } ]
+  }
+}, {
+  "value" : "\n"
+}, {
+  "value" : "# This comment is preserved\n"
+} ]

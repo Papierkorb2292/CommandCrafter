@@ -93,25 +93,29 @@ object TestSnapshotHelper {
         val fileSuffix = if(idSuffix == null) "" else "_$idSuffix"
         val fileExtension = ".json"
         val fileName = testId.identifier().namespace + "_" + testId.identifier().path + fileSuffix + fileExtension
-        val file = TestCommandCrafter.snapshotDirectory.resolve(fileName).toFile()
+        val snapshotFile = TestCommandCrafter.snapshotDirectory.resolve(fileName).toFile()
+        val updatedSnapshotFile = TestCommandCrafter.updatedSnapshotDirectory.resolve(fileName).toFile()
         val jsonValue = try {
             objectMapper.writeValueAsString(value)
         } catch(e: JsonMappingException) {
             throw assertionException("Failed to serialize snapshot: ${e.message}")
         }
-        if(!file.exists()) {
+        updatedSnapshotFile.parentFile.mkdirs()
+        updatedSnapshotFile.writeText(jsonValue) // Always write the updated snapshot, so it can be easily diffed
+        if(!snapshotFile.exists()) {
             CommandCrafter.LOGGER.warn(Component.translatable("Found no snapshot file for test '%s', creating new snapshot...", fileName).string)
-            file.parentFile.mkdirs()
-            file.createNewFile()
-            file.writeText(jsonValue)
+            snapshotFile.parentFile.mkdirs()
+            snapshotFile.createNewFile()
+            snapshotFile.writeText(jsonValue)
             return
         }
-        val snapshot = file.readText()
-        val errorText = Component.translatable("Test '%s' (%s) did not match snapshot, see diff.", fileName, message)
-        if(snapshot != jsonValue) {
-            val diff = diffRowGenerator.generateDiffRows(snapshot.lines(), jsonValue.lines())
-            printDiffRows(diff, errorText)
-        }
+        val snapshot = snapshotFile.readText()
+        val errorText = Component.translatable(
+            "Test '%s' (%s) did not match snapshot, see diff with `git diff %s`.",
+            fileName,
+            message,
+            TestCommandCrafter.projectDirectory.relativize(snapshotFile.toPath())
+        )
         assertTrue(snapshot == jsonValue, errorText)
     }
 

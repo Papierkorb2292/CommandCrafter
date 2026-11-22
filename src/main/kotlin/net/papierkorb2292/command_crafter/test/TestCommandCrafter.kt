@@ -42,11 +42,6 @@ import net.minecraft.world.level.storage.loot.providers.number.ints.ContextIntPr
 import net.minecraft.world.phys.Vec3
 import net.papierkorb2292.command_crafter.editor.*
 import net.papierkorb2292.command_crafter.editor.files.FileType
-import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
-import net.papierkorb2292.command_crafter.editor.processing.MacroMerger
-import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
-import net.papierkorb2292.command_crafter.editor.processing.TokenType
-import net.papierkorb2292.command_crafter.editor.EditorDocument
 import net.papierkorb2292.command_crafter.editor.processing.*
 import net.papierkorb2292.command_crafter.editor.processing.command_arguments.NbtPathArgumentAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
@@ -81,6 +76,7 @@ import java.util.concurrent.Executors
 object TestCommandCrafter {
     val projectDirectory = Path.of("").toAbsolutePath().parent.parent // Current directory is CommandCrafter/build/gametest/
     val snapshotDirectory = projectDirectory.resolve("tests/__snapshots__")
+    val updatedSnapshotDirectory = projectDirectory.resolve("tests/__updated_snapshots__")
     val inputDirectory = projectDirectory.resolve("tests/inputs")
 
     val dummyCompletionContext = CompletionContext(CompletionTriggerKind.Invoked)
