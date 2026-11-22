@@ -9,6 +9,8 @@ import net.papierkorb2292.command_crafter.editor.debugger.helper.plus
 import net.papierkorb2292.command_crafter.editor.processing.SemanticTokensBuilder
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringEscaper
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolDocInfo
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolLocationVisitable
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolNode
 import net.papierkorb2292.command_crafter.helper.binarySearch
 import net.papierkorb2292.command_crafter.helper.roundDownBinarySearch
 import net.papierkorb2292.command_crafter.parser.FileMappingInfo
@@ -24,10 +26,11 @@ class AnalyzingResult(
     val colorInfos: MutableList<ColorInfo>,
     val filePosition: Position,
     val docInfo: SymbolDocInfo,
+    val symbolNodes: MutableList<SymbolNode<*, *>>,
     private val actualSyntaxNodes: MutableList<RangedSyntaxNode<ActualSyntaxNode>>,
     private val finishedPotentialSyntaxNodes: MutableList<MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
     private val buildingPotentialSyntaxNodes: MutableMap<String, MutableList<RangedSyntaxNode<PotentialSyntaxNode>>>,
-) : ActualSyntaxNode, PotentialSyntaxNode {
+) : ActualSyntaxNode, PotentialSyntaxNode, SymbolLocationVisitable {
 
     constructor(reader: FileMappingInfo, filePosition: Position, docInfo: SymbolDocInfo = SymbolDocInfo()) : this(
         reader,
@@ -36,6 +39,7 @@ class AnalyzingResult(
         mutableListOf(),
         filePosition,
         docInfo,
+        mutableListOf(),
         mutableListOf(),
         mutableListOf(),
         mutableMapOf(),
@@ -55,6 +59,7 @@ class AnalyzingResult(
         diagnostics += other.diagnostics
         colorInfos += other.colorInfos
         addSyntaxNodes(actualSyntaxNodes, other.actualSyntaxNodes)
+        symbolNodes += other.symbolNodes
     }
 
     fun combineWithPotential(other: AnalyzingResult, channelSuffix: String = "") {
@@ -88,6 +93,7 @@ class AnalyzingResult(
             colorInfos.mapTo(mutableListOf()) { OffsetColorInfo(it, position) },
             parent.filePosition,
             parent.docInfo,
+            symbolNodes.mapTo(mutableListOf()) { it.offsetSymbolLocationOutput(position) },
             getActualNodeCompressed(this.offsetActualInput(-cursorOffset).offsetActualOutput(position), cursorOffset),
             getPotentialNodeCompressed(this.offsetPotentialInput(-cursorOffset).offsetPotentialOutput(position), cursorOffset),
             mutableMapOf(),
@@ -121,6 +127,9 @@ class AnalyzingResult(
             },
             filePosition,
             docInfo,
+            symbolNodes.toMutableList().apply {
+                overlays.flatMapTo(this) { it.symbolNodes }
+            },
             if(overlayActualRange == null) actualSyntaxNodes else mutableListOf(RangedSyntaxNode(maxWithNullable(overlayActualRange, currentActualRange), object : ActualSyntaxNode {
                 override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? =
                     getSyntaxNodeAtCursor(cursor, actualNodeOverlays, true)?.getDefinition(cursor)
@@ -133,7 +142,7 @@ class AnalyzingResult(
             finishedPotentialSyntaxNodes.toMutableList().apply {
                 add(overlays.flatMapTo(mutableListOf()) { it.finishedPotentialSyntaxNodes.getOrNull(0) ?: emptyList() })
             },
-            buildingPotentialSyntaxNodes
+            buildingPotentialSyntaxNodes,
         )
     }
 
@@ -229,6 +238,7 @@ class AnalyzingResult(
             else mutableListOf(),
             filePosition,
             docInfo,
+            symbolNodes,
             getActualNodeCompressed(
                 FeatureFilteredActualSyntaxNode(this, featureConfig, analyzerNameInserts)
             ),
@@ -248,6 +258,7 @@ class AnalyzingResult(
             colorInfos.mapTo(mutableListOf()) { it.withStringEscaper(escaper) },
             filePosition,
             docInfo,
+            symbolNodes,
             actualSyntaxNodes,
             finishedPotentialSyntaxNodes,
             buildingPotentialSyntaxNodes
@@ -286,9 +297,10 @@ class AnalyzingResult(
             colorInfos,
             filePosition,
             docInfo,
+            symbolNodes,
             actualSyntaxNodes,
             getPotentialNodeCompressed(wrapper(this)),
-            mutableMapOf()
+            mutableMapOf(),
         )
     }
 
@@ -338,6 +350,10 @@ class AnalyzingResult(
 
     fun addPotentialSyntaxNode(channel: String, stringRange: StringRange, node: PotentialSyntaxNode) {
         addSyntaxNode(getOrPutPotentialSyntaxNodesForChannel(channel), RangedSyntaxNode(stringRange, node))
+    }
+
+    fun addSymbol(symbol: SymbolNode<*, *>) {
+        symbolNodes += symbol
     }
 
     fun addMappedActualSyntaxNode(unmappedRange: StringRange, node: ActualSyntaxNode) {
@@ -435,6 +451,12 @@ class AnalyzingResult(
             tags = original.tags
             relatedInformation = original.relatedInformation
             data = original.data
+        }
+    }
+
+    override fun visitSymbols(visitor: SymbolLocationVisitable.SymbolLocationVisitor) {
+        for(symbol in symbolNodes) {
+            symbol.visitSymbols(visitor)
         }
     }
 
@@ -598,9 +620,10 @@ class AnalyzingResult(
             base.colorInfos.mapTo(mutableListOf(), ::OffsetColorInfo),
             base.filePosition,
             base.docInfo,
+            base.symbolNodes.toMutableList(),
             mutableListOf(),
             mutableListOf(),
-            mutableMapOf()
+            mutableMapOf(),
         )
 
         init {
@@ -645,6 +668,16 @@ class AnalyzingResult(
             for(color in result.colorInfos) {
                 if(color.range.start > startSourcePosition)
                     (color as OffsetColorInfo).offset = startTargetPosition.offsetBy(startSourcePosition.differenceTo(color.offset))
+            }
+            // Shift symbols
+            for(i in result.symbolNodes.indices) {
+                // mapSymbolLocations only creates new instances when positions changed, so this automatically keeps the same instance if the position stayed the same
+                result.symbolNodes[i] = result.symbolNodes[i].mapSymbolLocation { position ->
+                    if(position > startSourcePosition)
+                        startTargetPosition.offsetBy(startSourcePosition.differenceTo(position))
+                    else
+                        position
+                }
             }
 
             lastCursorOffset += cursorOffset

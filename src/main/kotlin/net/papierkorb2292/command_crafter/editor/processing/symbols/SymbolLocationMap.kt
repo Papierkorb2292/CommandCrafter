@@ -1,5 +1,6 @@
 package net.papierkorb2292.command_crafter.editor.processing.symbols
 
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 
 class SymbolLocationMap<TInfo> {
@@ -18,5 +19,13 @@ class SymbolLocationMap<TInfo> {
     fun removeWorkspaceLocation(uri: String): Boolean =
         workspaceLocations.remove(uri) != null
 
-    class SymbolLocation<TInfo>(val range: Range, val selectionRangeOverride: Range?, var extraInfo: TInfo)
+    data class SymbolLocation<TInfo>(val range: Range, val selectionRangeOverride: Range?, var extraInfo: TInfo) {
+        inline fun mapPositions(mapper: (Position) -> Position): SymbolLocation<TInfo> {
+            val newRange = Range(mapper(range.start), mapper(range.end))
+            val newSelectionRangeOverride = selectionRangeOverride?.let { Range(mapper(it.start), mapper(it.end)) }
+            if(newRange == range && newSelectionRangeOverride == selectionRangeOverride)
+                return this
+            return copy(range = newRange, selectionRangeOverride = newSelectionRangeOverride)
+        }
+    }
 }

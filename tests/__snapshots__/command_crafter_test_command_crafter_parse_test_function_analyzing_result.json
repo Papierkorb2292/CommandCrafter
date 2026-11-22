@@ -54,6 +54,7 @@
   "docInfo" : {
     "documentation" : " This is a doc comment\n"
   },
+  "symbolNodes" : [ ],
   "actualSyntaxNodes" : [ ],
   "finishedPotentialSyntaxNodes" : [ ],
   "buildingPotentialSyntaxNodes" : {

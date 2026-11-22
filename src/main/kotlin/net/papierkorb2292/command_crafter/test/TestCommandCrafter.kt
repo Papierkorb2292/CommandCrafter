@@ -949,7 +949,7 @@ object TestCommandCrafter {
     fun testMacroModificationTracker(context: GameTestHelper) {
         val file = EditorDocument.fromString("", $$"""
             $execute $(sub) run §
-            $execute unless entity @e[gamemode=§creative] if entity @e[tag=$(anchor),distance=..10] run
+            $execute unless entity @e[gamemode=§creative] in §overworld if entity @e[tag=$(anchor),distance=..10] run
             advancement grant @a[§] everything
             dialog show @a {type:"notice",title:"Test",action:{label:"ok",action:{type:"dynamic/run_command",template:\
                 "execute as @a run §say $(msg)"\
@@ -959,13 +959,28 @@ object TestCommandCrafter {
             }}}
         """.trimIndent())
 
+        fun checkSymbolIsPresent(analyzingResult: AnalyzingResult, locations: List<FileLocation>, description: String) {
+            context.assertValueEqual(
+                analyzingResult.symbolNodes.map { it.locationInfo.range.start },
+                listOf(locations[2].position),
+                "Symbol start locations after $description"
+            )
+        }
+
+        val (initialProcessedLines, initialFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
+        var lastReader = buildCommandReader(context, initialProcessedLines)
+        val expectedResult = analyseCommand(context, lastReader)
+        val initialResult = lastReader.resourceCreator.newCache.analyzingResult!!
+
+        checkSymbolIsPresent(expectedResult, initialFileLocations, "initial parsing")
+
         fun modificationShouldBeOutsideMacro(modificationName: String, modifier: () -> Unit) {
             val (prevProcessedLines, _) = getAndRemoveMarkedLocations(file.stringifyLines())
             val prevReader = buildCommandReader(context, prevProcessedLines)
             analyseCommand(context, prevReader)
             modifier()
 
-            val (newProcessedLines, _) = getAndRemoveMarkedLocations(file.stringifyLines())
+            val (newProcessedLines, newFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
             val newReader = buildCommandReader(context, newProcessedLines)
             newReader.resourceCreator.previousCache = prevReader.resourceCreator.newCache
 
@@ -973,6 +988,9 @@ object TestCommandCrafter {
                 prevReader.fileMappingInfo,
                 newReader
             ), "Expected $modificationName to not trigger a macro modification")
+
+            val newResult = analyseCommand(context, newReader)
+            checkSymbolIsPresent(newResult, newFileLocations, modificationName)
         }
 
         modificationShouldBeOutsideMacro("added newline") {
@@ -987,11 +1005,6 @@ object TestCommandCrafter {
         modificationShouldBeOutsideMacro("two removed newlines") {
             file.applyContentChange(1, 3, 0, 0, "")
         }
-
-        val (initialProcessedLines, initialFileLocations) = getAndRemoveMarkedLocations(file.stringifyLines())
-        var lastReader = buildCommandReader(context, initialProcessedLines)
-        val expectedResult = analyseCommand(context, lastReader)
-        val initialResult = lastReader.resourceCreator.newCache.analyzingResult!!
 
         fun testMacroModification(modificationName: String, modifier: () -> Unit) {
             modifier()
@@ -1014,6 +1027,8 @@ object TestCommandCrafter {
                     Component.literal("Expected $modificationName to not change macro completions at initial position ${initialLocation.position}")
                 )
             }
+
+            checkSymbolIsPresent(newResult, newFileLocations, modificationName)
 
             lastReader = newReader
         }

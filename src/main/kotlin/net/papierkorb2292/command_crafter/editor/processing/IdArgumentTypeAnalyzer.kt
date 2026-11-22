@@ -3,42 +3,23 @@ package net.papierkorb2292.command_crafter.editor.processing
 import com.mojang.brigadier.StringReader
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.resources.Identifier
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer.Companion.emptyDefinitionNodeDefault
-import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType.Companion.findWorkspaceResourceFromIdAndPackContentFileType
 import net.papierkorb2292.command_crafter.editor.processing.TokenType.Companion.PARAMETER
-import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.PackratParserAdditionalArgs
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolKind
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolLocationMap
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolNode
 import net.papierkorb2292.command_crafter.helper.getOrNull
 import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
-import org.eclipse.lsp4j.Location
-import org.eclipse.lsp4j.Position
-import org.eclipse.lsp4j.Range
-import org.eclipse.lsp4j.jsonrpc.messages.Either
-import java.util.concurrent.CompletableFuture
 
 object IdArgumentTypeAnalyzer {
     fun analyzeForId(id: Identifier, packContentFileType: PackContentFileType, range: StringRange, result: AnalyzingResult, reader: DirectiveStringReader<AnalyzingResourceCreator>) {
         result.semanticTokens.addMultiline(range, PARAMETER, 0)
-        val languageServer = reader.resourceCreator.languageServer ?: return
         val fileRange = result.toFileRange(range)
-        result.addMappedActualSyntaxNode(range, object : ActualSyntaxNode {
-            override fun getHover(cursor: Int) =
-                languageServer.findFileAndGetDocs(id, packContentFileType).thenCompose { documentation ->
-                    languageServer.hoverDocumentation(documentation, fileRange)
-                }
-
-            override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition> {
-                val fileAccess = languageServer.getFileAccess() ?: return emptyDefinitionNodeDefault
-                return findWorkspaceResourceFromIdAndPackContentFileType(id, packContentFileType, fileAccess)
-                    .thenApply { resource ->
-                        ActualSyntaxNode.Definition(Either.forLeft(
-                            if(resource == null) emptyList()
-                            else listOf(Location(resource, Range(Position(), Position())))
-                        ), true)
-                    }
-            }
-        })
+        //TODO: Pass symbol kind as argument
+        val symbolNode = SymbolNode(packContentFileType, id, SymbolKind.Reference, SymbolLocationMap.SymbolLocation(fileRange, null, null))
+        result.addSymbol(symbolNode)
+        result.addMappedActualSyntaxNode(range, symbolNode.getActualSyntaxNode(reader.resourceCreator))
     }
 
     fun analyzePackrat(id: Identifier, start: Int, reader: StringReader, fileType: PackContentFileType?) {

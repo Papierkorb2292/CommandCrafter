@@ -1,41 +1,40 @@
 package net.papierkorb2292.command_crafter.editor.processing.symbols
 
-import net.papierkorb2292.command_crafter.editor.MinecraftLanguageServer
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.helper.ActualSyntaxNode
+import net.papierkorb2292.command_crafter.editor.processing.helper.offsetBy
 import org.eclipse.lsp4j.Hover
+import org.eclipse.lsp4j.Position
 import java.util.concurrent.CompletableFuture
 
 data class SymbolNode<TKey, TKindInfo>(
-    private val type: SymbolType<TKey>,
-    private val symbolKey: TKey,
-    private val kind: SymbolKind<TKindInfo>,
-    private val locationInfo: SymbolLocationMap.SymbolLocation<TKindInfo>,
-    private val symbolAccess: ImmutableSymbolAccess,
-    private val languageServer: MinecraftLanguageServer?,
-) : ActualSyntaxNode, SymbolLocationVisitable {
-    constructor(
-        type: SymbolType<TKey>,
-        symbolKey: TKey,
-        kind: SymbolKind<TKindInfo>,
-        locationInfo: SymbolLocationMap.SymbolLocation<TKindInfo>,
-        analyzingResourceCreator: AnalyzingResourceCreator,
-    ) : this(
-        type,
-        symbolKey,
-        kind,
-        locationInfo,
-        analyzingResourceCreator.symbols,
-        analyzingResourceCreator.languageServer
-    )
+    val type: SymbolType<TKey>,
+    val symbolKey: TKey,
+    val kind: SymbolKind<TKindInfo>,
+    val locationInfo: SymbolLocationMap.SymbolLocation<TKindInfo>,
+) : SymbolLocationVisitable {
 
+    inline fun mapSymbolLocation(mapper: (Position) -> Position): SymbolNode<TKey, TKindInfo> {
+        val newLocationInfo = locationInfo.mapPositions(mapper)
+        if(newLocationInfo == locationInfo)
+            return this
+        return copy(locationInfo = newLocationInfo)
+    }
 
+    fun offsetSymbolLocationOutput(offset: Position): SymbolNode<TKey, TKindInfo> =
+        mapSymbolLocation { offset.offsetBy(it) }
 
-
-    override fun getDefinition(cursor: Int): CompletableFuture<ActualSyntaxNode.Definition>? = symbolAccess.getSymbolOrNull(type, symbolKey)?.getDefinition(locationInfo.range)
-    override fun getHover(cursor: Int): CompletableFuture<Hover>? = symbolAccess.getSymbolOrNull(type, symbolKey)?.getHover(languageServer ?: return null)
-
-    override fun visit(visitor: SymbolLocationVisitable.SymbolLocationVisitor) {
+    override fun visitSymbols(visitor: SymbolLocationVisitable.SymbolLocationVisitor) {
         visitor.acceptSymbolLocation(type, symbolKey, kind, locationInfo)
+    }
+
+    fun getActualSyntaxNode(analyzingResourceCreator: AnalyzingResourceCreator): ActualSyntaxNode = object : ActualSyntaxNode {
+        override fun getDefinition(cursor: Int) =
+            analyzingResourceCreator.symbols.getSymbolOrNull(type, symbolKey)?.getDefinition(locationInfo.range)
+
+        override fun getHover(cursor: Int): CompletableFuture<Hover>? {
+            val languageServer = analyzingResourceCreator.languageServer ?: return null
+            return analyzingResourceCreator.symbols.getSymbolOrNull(type, symbolKey)?.getHover(languageServer)
+        }
     }
 }
