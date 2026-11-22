@@ -760,7 +760,7 @@ data class VanillaLanguage(val easyNewLine: Boolean = false, val inlineResources
                             (it.get() as CompletionItemsContainer).`command_crafter$getCompletionItems`()
                                 ?: emptyList()
                         }
-                        if(completionReader.resourceCreator.languageServer != null) {
+                        if(!completionReader.resourceCreator.isRemoteAnalyzing) {
                             // Partial Completions are added only on the side with the language server, so they aren't added twice
                             CompletionItemsPartialIdGenerator.addPartialIdsToCompletionItems(
                                 completionItems,

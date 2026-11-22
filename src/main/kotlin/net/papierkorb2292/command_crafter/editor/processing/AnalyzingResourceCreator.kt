@@ -40,11 +40,12 @@ class AnalyzingResourceCreator(
         fileResultProcessing: Executor,
         file: FileMappingInfo,
         stopInfo: StopInfo? = null,
+        isRemoteAnalyzing: Boolean = false,
         macroTargetCursors: IntList = IntList(),
         previousCache: CacheData? = null,
         newCache: CacheData = CacheData(file),
     ) : this(
-        ContextInfo(languageServer, sourceFunctionUri, registries, symbols, source, commandTree, fileResultProcessing, stopInfo),
+        ContextInfo(languageServer, sourceFunctionUri, registries, symbols, source, commandTree, fileResultProcessing, stopInfo, isRemoteAnalyzing),
         file,
         macroTargetCursors,
         previousCache,
@@ -59,6 +60,7 @@ class AnalyzingResourceCreator(
     val commandTree by contextInfo::commandTree
     val fileResultProcessing by contextInfo::fileResultProcessing
     val stopInfo by contextInfo::stopInfo
+    val isRemoteAnalyzing by contextInfo::isRemoteAnalyzing
 
     val resourceStack: Deque<ResourceStackEntry> = LinkedList()
 
@@ -265,6 +267,7 @@ class AnalyzingResourceCreator(
         val source: SuggestionContext,
         val commandTree: AnalyzingCommandTree,
         val fileResultProcessing: Executor,
-        val stopInfo: StopInfo?
+        val stopInfo: StopInfo?,
+        val isRemoteAnalyzing: Boolean, // True when the analyzing was triggered by completion requests to the server
     )
 }

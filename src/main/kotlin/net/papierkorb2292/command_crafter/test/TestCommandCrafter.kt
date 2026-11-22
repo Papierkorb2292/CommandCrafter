@@ -24,6 +24,7 @@ import net.minecraft.commands.arguments.item.ItemPredicateArgument
 import net.minecraft.commands.functions.CommandParser
 import net.minecraft.commands.functions.StringTemplate
 import net.minecraft.commands.suggestions.SuggestionContext
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.ListTag
@@ -57,10 +58,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.CommandBoxAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.ServerFunctionLibraryAccessor
 import net.papierkorb2292.command_crafter.mixin.parser.ServerFunctionManagerAccessor
 import net.papierkorb2292.command_crafter.parser.*
-import net.papierkorb2292.command_crafter.parser.helper.RawResource
-import net.papierkorb2292.command_crafter.parser.helper.SplitProcessedInputCursorMapper
-import net.papierkorb2292.command_crafter.parser.helper.StringifiableCommandNode
-import net.papierkorb2292.command_crafter.parser.helper.getCursorMapper
+import net.papierkorb2292.command_crafter.parser.helper.*
 import net.papierkorb2292.command_crafter.parser.languages.MacroAnalyzingCrawlerRunner
 import net.papierkorb2292.command_crafter.parser.languages.VanillaLanguage
 import net.papierkorb2292.command_crafter.test.TestSnapshotHelper.assertEqualsSnapshot
@@ -1220,6 +1218,26 @@ object TestCommandCrafter {
 
         @Suppress("UNCHECKED_CAST")
         return parsed as T to joined
+    }
+
+    @GameTest
+    fun testMacroArgumentWithoutSpacesList(context: GameTestHelper) {
+        val argumentsWithoutSpaces = MacroAnalyzingCrawlerRunner.KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES
+        val dispatcher = getCommandDispatcher(context)
+        val argumentsWithSpaces = mutableSetOf<SerializableArgument.Type<*>>()
+        dispatcher.root.visitChildrenRecursively {
+            if(it is ArgumentCommandNode<*, *>) {
+                val argumentType = it.type
+                val serializable = SerializableArgument.unwrapOrThrow(argumentType)
+                if(serializable.javaClass !in argumentsWithoutSpaces) {
+                    argumentsWithSpaces += serializable.type()
+                }
+            }
+        }
+        context.assertEqualsSnapshot(argumentsWithSpaces.map {
+            BuiltInRegistries.COMMAND_ARGUMENT_TYPE.getKey(it)!!.path
+        }, "macro_arguments_with_spaces")
+        context.succeed()
     }
 
     @GameTest

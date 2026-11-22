@@ -238,7 +238,8 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                     AnalyzingServerSuggestionContext(server),
                     commandTree,
                     server,
-                    mappingInfo
+                    mappingInfo,
+                    isRemoteAnalyzing = true
                 )
             )
             val analyzingResult = AnalyzingResult(mappingInfo, Position())
@@ -261,7 +262,8 @@ class DirectServerConnection(val server: MinecraftServer) : MinecraftServerConne
                     AnalyzingServerSuggestionContext(server),
                     commandTree,
                     server,
-                    mappingInfo
+                    mappingInfo,
+                    isRemoteAnalyzing = true
                 )
             )
             reader.resourceCreator.macroTargetCursors.addAll(completionInfo.macroTargetCursors)

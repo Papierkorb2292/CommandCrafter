@@ -6,7 +6,8 @@ import net.minecraft.commands.arguments.DimensionArgument
 import net.minecraft.commands.arguments.SerializableArgument
 import net.minecraft.commands.suggestions.SuggestionContext
 import net.minecraft.core.registries.Registries
-import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
+import net.minecraft.world.level.Level
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -29,7 +30,7 @@ class DimensionArgumentAnalyzer : CommandArgumentAnalyzerService {
         result: AnalyzingResult,
     ) {
         IdArgumentTypeAnalyzer.analyzeForId(
-            context.getArgumentOrNull<Identifier, _>(name) ?: return,
+            context.getArgumentOrNull<ResourceKey<Level>, _>(name)?.identifier() ?: return,
             PackContentFileType.getOrCreateTypeForDynamicRegistry(Registries.DIMENSION),
             range,
             result,
