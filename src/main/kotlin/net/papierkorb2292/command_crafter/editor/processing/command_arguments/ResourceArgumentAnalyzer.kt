@@ -6,7 +6,7 @@ import net.minecraft.commands.arguments.ResourceArgument
 import net.minecraft.commands.arguments.ResourceOrTagArgument
 import net.minecraft.commands.arguments.SerializableArgument
 import net.minecraft.commands.suggestions.SuggestionContext
-import net.minecraft.resources.ResourceKey
+import net.minecraft.core.Holder
 import net.papierkorb2292.command_crafter.editor.processing.AnalyzingResourceCreator
 import net.papierkorb2292.command_crafter.editor.processing.IdArgumentTypeAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.PackContentFileType
@@ -30,13 +30,29 @@ class ResourceArgumentAnalyzer : CommandArgumentAnalyzerService {
         analyzingExecutor: NodeAnalyzingExecutor,
         result: AnalyzingResult,
     ) {
-        val fileType = getFileType(type, reader)
+        val registryKey = (type.argument() as ResourceArgumentAccessor).registryKey
+        val (identifier, fileType) = when(type.argument()) {
+            is ResourceOrTagArgument -> {
+                (context.getArgumentOrNull<ResourceOrTagArgument.Result<*>, _>(name) ?: return)
+                    .unwrap().map(
+                        { it.key().identifier() to PackContentFileType.getTypeForDynamicRegistry(registryKey) },
+                        { it.key().location to PackContentFileType.getOrCreateTypeForRegistryTag(registryKey) }
+                    )
+            }
+            is ResourceArgument -> {
+                val id = (context.getArgumentOrNull<Holder.Reference<*>, _>(name) ?: return)
+                    .key().identifier()
+                id to PackContentFileType.getTypeForDynamicRegistry(registryKey)
+            }
+            else -> throw IllegalArgumentException("Unexpected argument type: ${type.argument()}")
+        }
         if(fileType == null) {
+            // If a non-dynamic registry entry is referenced
             result.semanticTokens.addMultiline(range, PARAMETER, 0)
             return
         }
         IdArgumentTypeAnalyzer.analyzeForId(
-            context.getArgumentOrNull<ResourceKey<*>, _>(name)?.identifier() ?: return,
+            identifier,
             fileType,
             range,
             result,
