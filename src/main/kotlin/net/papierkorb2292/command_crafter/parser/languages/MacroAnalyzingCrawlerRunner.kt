@@ -1227,8 +1227,6 @@ class MacroAnalyzingCrawlerRunner(
             val serializable = SerializableArgument.unwrapOrThrow(argumentType)
             if(serializable.javaClass in KNOWN_ARGUMENT_TYPES_WITHOUT_SPACES)
                 return false
-            if(serializable is StringArgument.Word)
-                return false
             return true
         }
 
@@ -1277,7 +1275,8 @@ class MacroAnalyzingCrawlerRunner(
             TemplateRotationArgument::class.java,
             HeightmapTypeArgument::class.java,
             UuidArgument::class.java,
-            SerializableArgumentTypes::class.java
+            SwingAnimationArgument::class.java,
+            StringArgument.Word::class.java,
         )
     }
 }
