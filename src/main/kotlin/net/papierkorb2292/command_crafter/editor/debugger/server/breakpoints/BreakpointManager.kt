@@ -31,6 +31,8 @@ class BreakpointManager<TBreakpointLocation>(
     val fileBreakpoints: MutableMap<EditorDebugConnection, MutableMap<FileBreakpointSource, MutableList<ServerBreakpoint<TBreakpointLocation>>>> = mutableMapOf()
     val breakpoints: MutableMap<EditorDebugConnection, MutableMap<Identifier, MutableMap<Int?, MutableMap<BreakpointGroupKey<TBreakpointLocation>, AddedBreakpointList<TBreakpointLocation>>>>> = mutableMapOf()
 
+    fun hasValidBreakpoints(): Boolean = breakpoints.isNotEmpty()
+
     fun removeDebugConnection(debugConnection: EditorDebugConnection) {
         breakpoints.remove(debugConnection)
         fileBreakpoints.remove(debugConnection)
