@@ -40,6 +40,7 @@ import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.debug.*
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.function.Supplier
 
 class FunctionElementDebugInformation(
     private val elements: List<FunctionElementProcessor>,
@@ -515,18 +516,18 @@ class FunctionElementDebugInformation(
 
         override fun onHandlerSectionEnter() {
             debugFrame.commandFeedbackConsumer = object : CommandFeedbackConsumer {
-                override fun onCommandFeedback(feedback: String) {
+                override fun onCommandFeedback(feedback: Supplier<String>) {
                     debugFrame.pauseContext.debugConnection?.output(OutputEventArguments().apply {
                         category = OutputEventArgumentsCategory.STDOUT
-                        output = feedback
+                        output = feedback.get()
                         addSourceToOutputEvent(this)
                     })
                 }
 
-                override fun onCommandError(error: String) {
+                override fun onCommandError(error: Supplier<String>) {
                     debugFrame.pauseContext.debugConnection?.output(OutputEventArguments().apply {
                         category = OutputEventArgumentsCategory.STDERR
-                        output = error
+                        output = error.get()
                         addSourceToOutputEvent(this)
                     })
                 }

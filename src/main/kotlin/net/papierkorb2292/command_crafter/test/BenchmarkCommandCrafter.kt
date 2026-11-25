@@ -70,10 +70,10 @@ object BenchmarkCommandCrafter {
 
     @GameTest
     fun benchmarkDebuggerStandby(context: GameTestHelper) {
-        val markers = context.spawn(EntityTypes.MARKER, Vec3.ZERO, 1)
+        val markers = context.spawn(EntityTypes.MARKER, Vec3.ZERO, 1000)
         markers.forEach { marker -> marker.addTag("debuggerTest") }
         val functionId = Identifier.withDefaultNamespace("debugger_standby_benchmark")
-        val lines = Collections.nCopies(10000, "execute as @e[tag=debuggerTest] at @e[tag=debuggerTest] run tp @s ~ ~ ~")
+        val lines = Collections.nCopies(10, "execute as @e[tag=debuggerTest] at @e[tag=debuggerTest] run tp @s ~ ~ ~")
 
         buildAndRegisterDebuggableFunction(functionId, lines, context)
 
