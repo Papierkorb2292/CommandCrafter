@@ -55,6 +55,9 @@ class ServerDebugManager(private val server: MinecraftServer) {
     private val sourceReferencesMap = mutableMapOf<EditorDebugConnection, PlayerSourceReferences>()
     private val connectionVariableReferencers = mutableMapOf<EditorDebugConnection, VariablesReferenceMapper>()
 
+    var hasValidBreakpoints: Boolean = false
+        private set
+
     fun setBreakpoints(
         breakpoints: Array<UnparsedServerBreakpoint>,
         fileType: PackContentFileType,
@@ -68,7 +71,9 @@ class ServerDebugManager(private val server: MinecraftServer) {
                 breakpoints,
                 MinecraftDebuggerServer.FILE_TYPE_NOT_SUPPORTED_REJECTION_REASON
             )
-        return debugHandler.setBreakpoints(breakpoints, id, debuggerConnector, sourceReference)
+        val breakpoints = debugHandler.setBreakpoints(breakpoints, id, debuggerConnector, sourceReference)
+        updateHasValidBreakpoints()
+        return breakpoints
     }
 
     fun getVariableReferencer(debugConnection: EditorDebugConnection): VariablesReferenceMapper =
@@ -78,9 +83,12 @@ class ServerDebugManager(private val server: MinecraftServer) {
         debugHandlers.values.forEach { it.removeDebugConnection(debugConnection) }
         sourceReferencesMap.remove(debugConnection)
         connectionVariableReferencers.remove(debugConnection)
+        if(hasValidBreakpoints)
+            updateHasValidBreakpoints()
     }
 
     fun onReload() {
+        updateHasValidBreakpoints()
         debugHandlers.values.forEach { it.onReload() }
     }
 
@@ -114,6 +122,10 @@ class ServerDebugManager(private val server: MinecraftServer) {
     fun retrieveSourceReference(debugConnection: EditorDebugConnection, sourceReference: Int): SourceResponse? {
         val sourceReferences = sourceReferencesMap[debugConnection] ?: return null
         return sourceReferences.sources[sourceReference]?.generateSourceReference(sourceReference)
+    }
+
+    private fun updateHasValidBreakpoints() {
+        hasValidBreakpoints = debugHandlers.values.any { it.hasValidBreakpoints() }
     }
 
     class PlayerSourceReferences(val sources: Int2ReferenceMap<SourceReferenceGenerator> = Int2ReferenceOpenHashMap())

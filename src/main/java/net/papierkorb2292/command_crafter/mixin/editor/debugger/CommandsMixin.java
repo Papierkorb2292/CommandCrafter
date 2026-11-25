@@ -8,6 +8,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.CommandSourceStack;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionCompletedFutureProvider;
 import net.papierkorb2292.command_crafter.editor.debugger.helper.ExecutionPausedThrowable;
+import net.papierkorb2292.command_crafter.editor.debugger.helper.ServerDebugManagerContainer;
 import net.papierkorb2292.command_crafter.editor.debugger.server.PauseContext;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,7 +32,9 @@ public abstract class CommandsMixin {
             )
     )
     private static void command_crafter$createPauseContext(CommandSourceStack commandSource, Consumer<ExecutionContext<CommandSourceStack>> callback, CallbackInfo ci, @Share("resetContext") LocalBooleanRef resetContextRef) {
-        resetContextRef.set(PauseContext.Companion.trySetUpPauseContext(() -> new PauseContext(commandSource.getServer(), null, false)));
+        var server = commandSource.getServer();
+        if(((ServerDebugManagerContainer)server).command_crafter$getServerDebugManager().getHasValidBreakpoints())
+            resetContextRef.set(PauseContext.Companion.trySetUpPauseContext(() -> new PauseContext(server, null, false)));
     }
 
     @Inject(

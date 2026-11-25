@@ -1,11 +1,10 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions.tags
 
-import com.google.gson.JsonElement
 import com.mojang.brigadier.context.StringRange
 import net.minecraft.core.registries.Registries
+import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.ServerFunctionLibrary
-import net.minecraft.resources.Identifier
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
@@ -80,6 +79,8 @@ class FunctionTagDebugHandler(private val server: MinecraftServer) : DebugHandle
         id.removeExtension(TAG_FILE_EXTENSION) ?: id,
         sourceReference
     ).toTypedArray()
+
+    override fun hasValidBreakpoints(): Boolean = breakpointManager.hasValidBreakpoints()
 
     override fun removeDebugConnection(debugConnection: EditorDebugConnection) {
         breakpointManager.removeDebugConnection(debugConnection)
