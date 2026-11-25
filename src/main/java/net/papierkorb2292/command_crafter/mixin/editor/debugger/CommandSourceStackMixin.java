@@ -29,7 +29,7 @@ public class CommandSourceStackMixin {
     private void command_crafter$logFeedbackWhenDebugging(Supplier<Component> feedbackSupplier, boolean broadcastToOps, CallbackInfo ci) {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
         if(pauseContext == null || !(pauseContext.peekDebugFrame() instanceof FunctionDebugFrame debugFrame)) return;
-        debugFrame.onCommandFeedback(feedbackSupplier.get().getString());
+        debugFrame.onCommandFeedback(() -> feedbackSupplier.get().getString());
     }
 
     @Inject(
@@ -39,7 +39,7 @@ public class CommandSourceStackMixin {
     private void command_crafter$logErrorWhenDebugging(Component message, CallbackInfo ci) {
         var pauseContext = getOrNull(PauseContext.Companion.getCurrentPauseContext());
         if(pauseContext == null || !(pauseContext.peekDebugFrame() instanceof FunctionDebugFrame debugFrame)) return;
-        debugFrame.onCommandError(message.getString());
+        debugFrame.onCommandError(message::getString);
     }
 
     @Inject(
