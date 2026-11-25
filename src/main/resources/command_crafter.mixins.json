@@ -222,6 +222,8 @@
     "parser.vanilla_improved.TagParseRuleMixin",
     "parser.vanilla_improved.UnquotedStringParseRuleMixin",
     "parser.vanilla_improved.VariableLineMixin",
-    "test.GameTestHelperAccessor"
+    "test.GameTestHelperAccessor",
+    "test.ServerFunctionLibraryAccessor",
+    "test.ServerFunctionManagerAccessor"
   ]
 }

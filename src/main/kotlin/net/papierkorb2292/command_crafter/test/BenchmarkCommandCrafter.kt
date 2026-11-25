@@ -1,12 +1,25 @@
 package net.papierkorb2292.command_crafter.test
 
+import com.mojang.brigadier.CommandDispatcher
+import com.mojang.brigadier.context.StringRange
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.gametest.v1.GameTest
-import net.minecraft.commands.functions.CommandFunction
+import net.minecraft.commands.SharedSuggestionProvider
 import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.resources.Identifier
 import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.phys.Vec3
+import net.papierkorb2292.command_crafter.editor.debugger.helper.withExtension
+import net.papierkorb2292.command_crafter.editor.debugger.server.functions.FunctionDebugHandler.Companion.FUNCTION_FILE_EXTENSTION
+import net.papierkorb2292.command_crafter.mixin.test.ServerFunctionLibraryAccessor
+import net.papierkorb2292.command_crafter.mixin.test.ServerFunctionManagerAccessor
+import net.papierkorb2292.command_crafter.parser.DirectiveStringReader
+import net.papierkorb2292.command_crafter.parser.FileMappingInfo.Companion.fromLines
+import net.papierkorb2292.command_crafter.parser.LanguageManager.DEFAULT_CLOSURE
+import net.papierkorb2292.command_crafter.parser.LanguageManager.parseToCommands
+import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator
+import net.papierkorb2292.command_crafter.parser.ParsedResourceCreator.ResourceStackInfo
+import net.papierkorb2292.command_crafter.parser.helper.FileSourceContainer
 import java.nio.file.Path
 import java.util.*
 import kotlin.math.sqrt
@@ -15,7 +28,7 @@ data class BenchmarkResult(
     val name: String,
     val averageTime: Double,
     val stdDeviation: Double,
-    val iterations: Int
+    val iterations: Int,
 )
 
 object BenchmarkCommandCrafter {
@@ -57,15 +70,19 @@ object BenchmarkCommandCrafter {
 
     @GameTest
     fun benchmarkDebuggerStandby(context: GameTestHelper) {
-        val markers = context.spawn(EntityTypes.MARKER, Vec3.ZERO, 1000)
+        val markers = context.spawn(EntityTypes.MARKER, Vec3.ZERO, 1)
         markers.forEach { marker -> marker.addTag("debuggerTest") }
+        val functionId = Identifier.withDefaultNamespace("debugger_standby_benchmark")
+        val lines = Collections.nCopies(10000, "execute as @e[tag=debuggerTest] at @e[tag=debuggerTest] run tp @s ~ ~ ~")
 
-        val source = context.level.server.createCommandSourceStack()
-        val lines = Collections.nCopies(10, "execute as @e[tag=debuggerTest] at @e[tag=debuggerTest] run setblock ~ ~ ~ air")
-        val function = CommandFunction.fromLines(Identifier.withDefaultNamespace("debugger_test"), context.level.server.commands.dispatcher, source, lines)
+        buildAndRegisterDebuggableFunction(functionId, lines, context)
+
+        val functionCommandString = "function $functionId"
+        val source = context.level.server.createCommandSourceStack().withSuppressedOutput()
+        val functionCommand = context.level.server.commands.dispatcher.parse(functionCommandString, source)
 
         benchmark("Test Debugger", 500, 500) {
-            context.level.server.functions.execute(function, source)
+            context.level.server.commands.performCommand(functionCommand, functionCommandString)
         }
 
         markers.forEach(context::kill)
@@ -89,6 +106,42 @@ object BenchmarkCommandCrafter {
         val stdDev = sqrt(variance)
 
         benchmarkResults.add(BenchmarkResult(name, average, stdDev, repetitions))
+    }
+
+    private fun buildAndRegisterDebuggableFunction(id: Identifier, lines: List<String>, context: GameTestHelper) {
+        val dispatcher = context.level.server.commands.dispatcher
+        val source = context.level.server.createCommandSourceStack().withSuppressedOutput()
+
+        val resourceCreator = ParsedResourceCreator(id, "test")
+        val infoSetCallbacks = ArrayList<(ResourceStackInfo) -> Unit>()
+        resourceCreator.originResourceIdSetEventStack.push({ idSetter ->
+            idSetter.invoke(id)
+        })
+        resourceCreator.originResourceInfoSetEventStack.push({ infoSetter ->
+            infoSetCallbacks.add(infoSetter)
+        })
+        @Suppress("UNCHECKED_CAST")
+        val reader = DirectiveStringReader(
+            fromLines(lines),
+            dispatcher as CommandDispatcher<SharedSuggestionProvider>,
+            resourceCreator
+        )
+        val startCursor = reader.absoluteCursor
+        val functionBuilder = parseToCommands(reader, source, DEFAULT_CLOSURE)
+
+        for(callback in infoSetCallbacks) {
+            callback.invoke(ResourceStackInfo(id, StringRange(startCursor, reader.absoluteCursor)))
+        }
+
+        val function = functionBuilder.build(id)
+
+        if(function is FileSourceContainer) {
+            function.`command_crafter$setFileSource`(lines, id.withExtension(FUNCTION_FILE_EXTENSTION))
+        }
+
+        val library = (context.level.server.functions as ServerFunctionManagerAccessor)
+            .getLibrary() as ServerFunctionLibraryAccessor
+        library.functions = library.functions + mapOf(id to function)
     }
 
     init {
