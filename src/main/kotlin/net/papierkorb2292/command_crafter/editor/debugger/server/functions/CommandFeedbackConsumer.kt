@@ -1,6 +1,8 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
+import java.util.function.Supplier
+
 interface CommandFeedbackConsumer {
-    fun onCommandFeedback(feedback: String)
-    fun onCommandError(error: String)
+    fun onCommandFeedback(feedback: Supplier<String>)
+    fun onCommandError(error: Supplier<String>)
 }

@@ -23,6 +23,7 @@ import net.papierkorb2292.command_crafter.mixin.editor.debugger.ContextChainAcce
 import net.papierkorb2292.command_crafter.parser.helper.ProcessedInputCursorMapper
 import org.eclipse.lsp4j.debug.OutputEventArguments
 import org.eclipse.lsp4j.debug.OutputEventArgumentsCategory
+import java.util.function.Supplier
 
 class FunctionDebugFrame(
     val pauseContext: PauseContext,
@@ -301,11 +302,11 @@ class FunctionDebugFrame(
 
     class CommandInfo(val commandIndex: Int, val breakpoints: List<ServerBreakpoint<FunctionBreakpointLocation>>, val sectionOffset: Int)
 
-    override fun onCommandFeedback(feedback: String) {
+    override fun onCommandFeedback(feedback: Supplier<String>) {
         commandFeedbackConsumer?.onCommandFeedback(feedback)
     }
 
-    override fun onCommandError(error: String) {
+    override fun onCommandError(error: Supplier<String>) {
         commandFeedbackConsumer?.onCommandError(error)
     }
 

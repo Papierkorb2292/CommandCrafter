@@ -1,7 +1,7 @@
 package net.papierkorb2292.command_crafter.editor.debugger.server.functions
 
-import net.minecraft.server.MinecraftServer
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.papierkorb2292.command_crafter.editor.PackagedId
 import net.papierkorb2292.command_crafter.editor.debugger.BreakpointParser.Companion.parseBreakpointsAndRejectRest
 import net.papierkorb2292.command_crafter.editor.debugger.DebugInformation
@@ -81,6 +81,8 @@ class FunctionDebugHandler(private val server: MinecraftServer) : DebugHandler {
         id.removeExtension(FUNCTION_FILE_EXTENSTION) ?: id,
         sourceReference
     ).toTypedArray()
+
+    override fun hasValidBreakpoints(): Boolean = breakpointManager.hasValidBreakpoints()
 
     override fun removeDebugConnection(debugConnection: EditorDebugConnection) {
         breakpointManager.removeDebugConnection(debugConnection)
