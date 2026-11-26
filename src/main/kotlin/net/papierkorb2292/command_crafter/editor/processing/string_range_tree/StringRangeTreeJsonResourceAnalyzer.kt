@@ -17,6 +17,7 @@ import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.codecmod.forNeverGetter
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSymbolAccess
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolAnalyzeMode
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
 import net.papierkorb2292.command_crafter.helper.runWithValue
@@ -36,6 +37,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
     override fun analyze(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
+        documentSymbolAccess: ImmutableSymbolAccess,
         stopInfo: StopInfo?
     ): AnalyzingResult {
         val contentTypeFilePath = packContentFileType.contentTypePath
@@ -47,9 +49,9 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
         } else null
         val analyzingResult = if(tagRegistry != null) {
             CURRENT_TAG_ANALYZING_REGISTRY.runWithValue(tagRegistry) {
-                analyze(file, languageServer, stopInfo, fileDecoder)
+                analyze(file, languageServer, documentSymbolAccess, stopInfo, fileDecoder)
             }
-        } else Companion.analyze(file, languageServer, stopInfo, fileDecoder)
+        } else Companion.analyze(file, languageServer, documentSymbolAccess, stopInfo, fileDecoder)
         return analyzingResult.filterDisabledFeatures(languageServer.featureConfig, listOf(
             JSON_ANALYZER_CONFIG_PATH_PREFIX + analyzerConfigPath,
             JSON_ANALYZER_CONFIG_PATH_PREFIX,
@@ -73,7 +75,13 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
             }
         }
 
-        fun analyze(file: EditorDocument, languageServer: MinecraftLanguageServer, stopInfo: StopInfo?, fileDecoder: Decoder<*>): AnalyzingResult {
+        fun analyze(
+            file: EditorDocument,
+            languageServer: MinecraftLanguageServer,
+            documentSymbolAccess: ImmutableSymbolAccess,
+            stopInfo: StopInfo?,
+            fileDecoder: Decoder<*>
+        ): AnalyzingResult {
             val lines = file.stringifyLines()
             val commandTree = languageServer.minecraftServer.commandTree
             val mappingInfo = FileMappingInfo(lines)
@@ -83,7 +91,7 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                     languageServer,
                     file.uri,
                     languageServer.dynamicRegistryManager,
-                    languageServer.symbolManager,
+                    documentSymbolAccess,
                     CommandCrafter.analyzingSourceProvider(languageServer),
                     commandTree,
                     languageServer.fileResultProcessing,

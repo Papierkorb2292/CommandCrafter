@@ -4,6 +4,9 @@ import net.papierkorb2292.command_crafter.CommandCrafter
 import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
+import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSymbolAccess
+import net.papierkorb2292.command_crafter.editor.processing.symbols.OpenFileSymbolAccess
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolManager
 import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspacePackInfo
 import net.papierkorb2292.command_crafter.helper.DaemonThreadFactory
 import net.papierkorb2292.command_crafter.helper.WrappingExecutorService
@@ -151,12 +154,15 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         if(runningAnalyzer != null)
             return runningAnalyzer
 
+        val fileSymbols = SymbolManager()
+        val combinedSymbols = OpenFileSymbolAccess(uri, languageServer.symbolManager, fileSymbols)
         val completableFuture = CompletableFuture<AnalyzingResult>()
         analyzerExecutor.submit {
-            val result = analyzeHandler.analyze(this, languageServer, StopInfo(completableFuture, null))
+            val result = analyzeHandler.analyze(this, languageServer, combinedSymbols, StopInfo(completableFuture, null))
+            fileSymbols.bind(uri, result)
             completableFuture.complete(result)
         }
-        val newAnalyzer = RunningAnalyzer(completableFuture, 0, false)
+        val newAnalyzer = RunningAnalyzer(completableFuture, combinedSymbols, 0, false)
         currentAnalyzer = newAnalyzer
         runningAnalyzers += newAnalyzer
         completableFuture.thenRun {
@@ -198,7 +204,7 @@ class EditorDocument(val uri: String, val lines: MutableList<StringBuilder>) {
         analyzeHandler = MinecraftLanguageServer.analyzers.firstOrNull { it.canHandle(this) }
     }
 
-    class RunningAnalyzer(val result: CompletableFuture<AnalyzingResult>, var dependents: Int, var softCancelled: Boolean) {
+    class RunningAnalyzer(val result: CompletableFuture<AnalyzingResult>, val combinedSymbols: ImmutableSymbolAccess, var dependents: Int, var softCancelled: Boolean) {
         fun onNewDependent() {
             dependents++
         }

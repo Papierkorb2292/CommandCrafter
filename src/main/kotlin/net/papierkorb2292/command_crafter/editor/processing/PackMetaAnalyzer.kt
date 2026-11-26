@@ -14,6 +14,7 @@ import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResu
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.StringRangeTreeJsonResourceAnalyzer.Companion.codecFromMetaSection
+import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSymbolAccess
 import java.util.concurrent.CompletableFuture
 
 class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>?) : FileAnalyseHandler {
@@ -49,6 +50,7 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
     override fun analyze(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
+        documentSymbolAccess: ImmutableSymbolAccess,
         stopInfo: StopInfo?
     ): AnalyzingResult {
         val packType = file.workspacePackInfo?.packType ?: CompletableFuture.completedFuture(null)
@@ -59,7 +61,7 @@ class PackMetaAnalyzer(clientsideLanguageMetadataSection: MetadataSectionType<*>
         }
         val analyzingResult = StringRangeTreeJsonResourceAnalyzer.analyze(
             file,
-            languageServer,
+            languageServer,,
             stopInfo,
             decoder
         )

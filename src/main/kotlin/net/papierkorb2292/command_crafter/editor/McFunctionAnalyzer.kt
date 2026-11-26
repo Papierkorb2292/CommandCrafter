@@ -7,6 +7,7 @@ import net.papierkorb2292.command_crafter.editor.processing.StopInfo
 import net.papierkorb2292.command_crafter.editor.processing.helper.AnalyzingResult
 import net.papierkorb2292.command_crafter.editor.processing.helper.FileAnalyseHandler
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
+import net.papierkorb2292.command_crafter.editor.processing.symbols.ImmutableSymbolAccess
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolAnalyzeMode
 import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
 import net.papierkorb2292.command_crafter.helper.runWithValueSwap
@@ -26,6 +27,7 @@ class McFunctionAnalyzer(
     override fun analyze(
         file: EditorDocument,
         languageServer: MinecraftLanguageServer,
+        documentSymbolAccess: ImmutableSymbolAccess,
         stopInfo: StopInfo?,
     ): AnalyzingResult {
         val source = CommandCrafter.analyzingSourceProvider(languageServer)
@@ -37,7 +39,7 @@ class McFunctionAnalyzer(
                 languageServer,
                 file.uri,
                 languageServer.dynamicRegistryManager,
-                languageServer.symbolManager,
+                documentSymbolAccess,
                 source,
                 commandTree,
                 languageServer.fileResultProcessing,
