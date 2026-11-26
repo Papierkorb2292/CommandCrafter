@@ -87,7 +87,8 @@ class StringRangeTreeJsonResourceAnalyzer(private val packContentFileType: PackC
                     CommandCrafter.analyzingSourceProvider(languageServer),
                     commandTree,
                     languageServer.fileResultProcessing,
-                    mappingInfo
+                    mappingInfo,
+                    stopInfo,
                 ).apply {
                     loadCache(file, languageServer.minecraftServer.commandTree)
                 }
