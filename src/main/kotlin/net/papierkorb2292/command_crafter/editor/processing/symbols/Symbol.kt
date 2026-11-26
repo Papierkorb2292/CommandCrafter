@@ -8,7 +8,7 @@ import org.eclipse.lsp4j.Range
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import java.util.concurrent.CompletableFuture
 
-class Symbol {
+class Symbol : ImmutableSymbol {
     private val symbolLocations: MutableMap<SymbolKind<*>?, SymbolLocationMap<*>> = mutableMapOf()
     val declarations = getSymbolLocations(SymbolKind.Declaration)
     val references = getSymbolLocations(SymbolKind.Reference)
@@ -19,7 +19,13 @@ class Symbol {
 
     fun isEmpty() = symbolLocations.values.all { it.isEmpty() }
 
-    fun getDefinition(originSelectionRange: Range? = null): CompletableFuture<ActualSyntaxNode.Definition> {
+    fun matchesDeclarationFilter(filter: SymbolDeclarationFilter): Boolean {
+        return declarations.workspaceLocations.any { (uri, locations) ->
+            locations.any { location -> filter.canUse(uri, location) }
+        }
+    }
+
+    override fun getDefinition(originSelectionRange: Range?): CompletableFuture<ActualSyntaxNode.Definition> {
         val links = declarations.workspaceLocations.flatMap { (uri, workspaceLocations) ->
             workspaceLocations.map { workspaceLocation ->
                 LocationLink(
@@ -32,7 +38,7 @@ class Symbol {
         return CompletableFuture.completedFuture(ActualSyntaxNode.Definition(Either.forRight(links), true))
     }
 
-    fun getHover(languageServer: MinecraftLanguageServer): CompletableFuture<Hover>? =
+    override fun getHover(languageServer: MinecraftLanguageServer): CompletableFuture<Hover>? =
         declarations.workspaceLocations.firstNotNullOfOrNull { (_, workspaceLocations) ->
             workspaceLocations.firstNotNullOfOrNull { workspaceLocation ->
                 val documentation = workspaceLocation.extraInfo?.documentation ?: return@firstNotNullOfOrNull null

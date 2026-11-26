@@ -5,8 +5,10 @@ class SymbolRegistry<TKey> {
 
     fun getOrCreateSymbol(key: TKey): Symbol =
         symbols.getOrPut(key) { Symbol() }
-    fun getSymbolOrNull(key: TKey): Symbol? =
-        symbols[key]
+    fun getSymbolOrNull(key: TKey, filter: SymbolDeclarationFilter? = null): Symbol? {
+        val symbol = symbols[key] ?:  return null
+        return if(filter != null && symbol.matchesDeclarationFilter(filter)) symbol else null
+    }
 
     fun tryRemoveEmptySymbol(key: TKey): Boolean {
         val symbol = symbols[key] ?: return false
@@ -16,5 +18,11 @@ class SymbolRegistry<TKey> {
         return true
     }
 
-    fun getKeys(): Set<TKey> = symbols.keys
+    fun getKeys(filter: SymbolDeclarationFilter? = null): Collection<TKey> {
+        if(filter == null)
+            return symbols.keys
+        return symbols.mapNotNull { (key, symbol) ->
+            if(symbol.matchesDeclarationFilter(filter)) key else null
+        }
+    }
 }

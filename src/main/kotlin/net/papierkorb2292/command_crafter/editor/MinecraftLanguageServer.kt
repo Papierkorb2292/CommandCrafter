@@ -19,7 +19,10 @@ import net.papierkorb2292.command_crafter.editor.processing.TokenModifier
 import net.papierkorb2292.command_crafter.editor.processing.TokenType
 import net.papierkorb2292.command_crafter.editor.processing.helper.*
 import net.papierkorb2292.command_crafter.editor.processing.string_range_tree.DataObjectDecoding
-import net.papierkorb2292.command_crafter.editor.processing.symbols.*
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolAnalyzeMode
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolFileInfo
+import net.papierkorb2292.command_crafter.editor.processing.symbols.SymbolManager
+import net.papierkorb2292.command_crafter.editor.processing.symbols.WorkspaceAnalyzingScheduler
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.*
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileChangeType
 import net.papierkorb2292.command_crafter.editor.scoreboardStorageViewer.api.FileEvent
@@ -413,6 +416,7 @@ class MinecraftLanguageServer(minecraftServer: MinecraftServerConnection, val mi
                     val analyzer = file.startAnalyzingFile(this@MinecraftLanguageServer)
                         ?: return@thenCompose CompletableFuture.completedFuture(DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport()))
                     analyzer.result.thenApply {
+                        val fullDiagnostics = it.diagnostics +
                         fillDiagnosticsSource(it.diagnostics)
                         DocumentDiagnosticReport(RelatedFullDocumentDiagnosticReport(it.diagnostics))
                     }

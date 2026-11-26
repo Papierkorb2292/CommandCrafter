@@ -16,10 +16,48 @@ class SymbolManager : ImmutableSymbolAccess {
     }
 
     @Synchronized
-    override fun <TKey> getKeys(type: SymbolType<TKey>): Stream<TKey> =
-        getRegistry(type).getKeys().stream()
+    override fun <TKey> getKeys(type: SymbolType<TKey>, filter: SymbolDeclarationFilter?): Stream<TKey> =
+        getRegistry(type).getKeys(filter).stream()
 
     @Synchronized
-    override fun <TKey> getSymbolOrNull(type: SymbolType<TKey>, key: TKey): Symbol? =
-        getRegistry(type).getSymbolOrNull(key)
+    override fun <TKey> getSymbolOrNull(type: SymbolType<TKey>, key: TKey, filter: SymbolDeclarationFilter?): Symbol? =
+        getRegistry(type).getSymbolOrNull(key, filter)
+
+    @Synchronized
+    fun bind(uri: String, visitable: SymbolLocationVisitable) {
+        visitable.visitSymbols(object : SymbolLocationVisitable.SymbolLocationVisitor {
+            override fun <TKey, TKindInfo> acceptSymbolLocation(
+                type: SymbolType<TKey>,
+                symbolKey: TKey,
+                kind: SymbolKind<TKindInfo>,
+                location: SymbolLocationMap.SymbolLocation<TKindInfo>,
+            ) {
+                getRegistry(type)
+                    .getOrCreateSymbol(symbolKey)
+                    .getSymbolLocations(kind)
+                    .workspaceLocations
+                    .getOrPut(uri) { mutableListOf() }
+                    .add(location)
+            }
+        })
+    }
+
+    @Synchronized
+    fun unbind(uri: String, visitable: SymbolLocationVisitable) {
+        visitable.visitSymbols(object : SymbolLocationVisitable.SymbolLocationVisitor {
+            override fun <TKey, TKindInfo> acceptSymbolLocation(
+                type: SymbolType<TKey>,
+                symbolKey: TKey,
+                kind: SymbolKind<TKindInfo>,
+                location: SymbolLocationMap.SymbolLocation<TKindInfo>,
+            ) {
+                val registry = getRegistry(type)
+                val symbol = registry.getSymbolOrNull(symbolKey) ?: return
+                symbol.getSymbolLocations(kind)
+                    .workspaceLocations
+                    .remove(uri)
+                registry.tryRemoveEmptySymbol(symbolKey)
+            }
+        })
+    }
 }

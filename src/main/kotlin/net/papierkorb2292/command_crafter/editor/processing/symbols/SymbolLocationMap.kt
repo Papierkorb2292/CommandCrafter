@@ -4,7 +4,7 @@ import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.Range
 
 class SymbolLocationMap<TInfo> {
-    val workspaceLocations: MutableMap<String, List<SymbolLocation<TInfo>>> = mutableMapOf()
+    val workspaceLocations: MutableMap<String, MutableList<SymbolLocation<TInfo>>> = mutableMapOf()
 
     fun isEmpty() = workspaceLocations.isEmpty()
 
